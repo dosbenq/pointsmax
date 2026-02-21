@@ -1,13 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { createPublicClient } from '@/lib/supabase'
 
 // GET /api/programs
 // Returns all active programs for the calculator dropdown
 export async function GET() {
-  const client = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const client = createPublicClient()
 
   const { data, error } = await client
     .from('programs')
@@ -15,7 +12,14 @@ export async function GET() {
     .eq('is_active', true)
     .order('display_order')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('programs_api_fetch_failed', error.message)
+    return NextResponse.json({ error: 'Failed to load programs' }, { status: 500 })
+  }
 
-  return NextResponse.json(data)
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+    },
+  })
 }

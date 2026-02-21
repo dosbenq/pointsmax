@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test": "vitest",
+    "check:env": "node scripts/check-env.mjs",
+    "check:links": "node scripts/check-outbound-links.mjs",
+    "smoke:http": "node scripts/smoke-http.mjs",
+    "preflight": "npm run check:env && npm run lint && npx tsc --noEmit && npx next build --webpack"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -15,7 +20,8 @@
     "@supabase/supabase-js": "^2.49.1",
     "next": "^16.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "resend": "^6.9.2"
   },
   "devDependencies": {
     "@types/node": "^20",

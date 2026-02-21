@@ -44,13 +44,22 @@ function createClient() {
   )
 }
 
+let browserSupabaseClient: ReturnType<typeof createClient> | null = null
+
+function getBrowserSupabaseClient() {
+  if (!browserSupabaseClient) {
+    browserSupabaseClient = createClient()
+  }
+  return browserSupabaseClient
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userRecord, setUserRecord] = useState<UserRecord | null>(null)
   const [preferences, setPreferences] = useState<Preferences | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
+  const supabase = getBrowserSupabaseClient()
 
   const loadUserData = useCallback(async (authUser: User) => {
     // Load preferences via API (respects RLS via session cookie)
@@ -97,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadUserData, supabase])
 
   const signInWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({

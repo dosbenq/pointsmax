@@ -1,62 +1,193 @@
 import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
 import { NextRequest } from 'next/server'
+import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
+import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
+import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
 // Known booking URLs — AI picks from these so it can't hallucinate links
 const BOOKING_URLS = `
 Known booking URLs (only use these exact URLs in links):
-- Chase UR transfers: https://ultimaterewards.com
-- Amex MR transfers: https://americanexpress.com/en-us/rewards/membership-rewards/use-points/travel.html
-- Capital One transfers: https://capitalone.com/learn-grow/money-management/miles-transfer-partners/
-- Citi TY transfers: https://citi.com/credit-cards/thankyou-rewards
-- Bilt transfers: https://biltrewards.com/points/transfer
-- Hyatt award search: https://hyatt.com/en-US/rewards/use-points/book-with-points
-- Marriott award search: https://marriott.com/rewards/redeem/
-- Hilton award search: https://hilton.com/en/hilton-honors/redeem/
-- IHG award search: https://ihg.com/rewardsclub/us/en/redeem
-- United award search: https://united.com/en/us/fly/travel/awards.html
-- Delta award search: https://delta.com/us/en/skymiles/overview
-- American Airlines awards: https://aa.com/i18n/aadvantage-program/miles/redeem/award-travel.jsp
-- Air France Flying Blue: https://airfrance.us/en/flyingblue
-- British Airways Avios: https://britishairways.com/en-us/executive-club/spending-avios/travel
-- Air Canada Aeroplan: https://aircanada.com/us/en/aco/home/aeroplan/use-your-points.html
-- Singapore KrisFlyer: https://singaporeair.com/krisflyer/pages/overview.jsp
-- Turkish Miles&Smiles: https://turkishairlines.com/en-int/miles-smiles/
-- Avianca LifeMiles: https://lifemiles.com
+- Chase UR transfer partners: https://www.ultimaterewards.com
+- Amex MR transfer partners: https://global.americanexpress.com/rewards/transfer
+- Capital One transfer partners: https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/
+- Citi ThankYou transfer partners: https://www.citi.com/credit-cards/thankyou-rewards
+- Bilt transfer partners: https://www.bilt.com/rewards/travel
+- Hyatt award search: https://www.hyatt.com/en-US/rewards/use-points/book-with-points
+- Marriott Bonvoy award search: https://www.marriott.com/loyalty/redeem.mi
+- Hilton Honors award search: https://www.hilton.com/en/hilton-honors/points/
+- IHG One Rewards award search: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
+- United MileagePlus award search: https://www.united.com/en/us/fly/travel/awards.html
+- Delta SkyMiles award search: https://www.delta.com/us/en/skymiles/overview
+- American AAdvantage award search: https://www.aa.com/homePage.do
+- Air France/KLM Flying Blue: https://www.flyingblue.com/en/spend/flights
+- British Airways Avios: https://www.britishairways.com/travel/home/public/en_us/
+- Air Canada Aeroplan: https://www.aircanada.com/ca/en/aco/home/aeroplan.html
+- Singapore KrisFlyer: https://www.singaporeair.com/en_UK/us/home
+- Turkish Miles&Smiles: https://www.turkishairlines.com/en-int/miles-and-smiles/
+- Avianca LifeMiles: https://www.lifemiles.com/fly/search
 `.trim()
+
+type Balance = { name: string; amount: number }
+type TopResult = {
+  category?: string
+  label: string
+  from_program?: { name?: string }
+  to_program?: { name?: string } | null
+  total_value_cents: number
+  cpp_cents: number
+  active_bonus_pct?: number
+}
+
+const MAX_BODY_BYTES = 64_000
+const MAX_MESSAGE_CHARS = 2_000
+const MAX_HISTORY_ITEMS = 24
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object'
+}
+
+function toBalances(value: unknown): Balance[] {
+  if (!Array.isArray(value)) return []
+  const rows: Balance[] = []
+  for (const entry of value) {
+    if (!isRecord(entry)) continue
+    const name = typeof entry.name === 'string' ? entry.name.trim() : ''
+    const amount = typeof entry.amount === 'number' && Number.isFinite(entry.amount)
+      ? entry.amount
+      : NaN
+    if (!name || !Number.isFinite(amount) || amount < 0) continue
+    rows.push({ name, amount })
+  }
+  return rows.slice(0, 25)
+}
+
+function toTopResults(value: unknown): TopResult[] {
+  if (!Array.isArray(value)) return []
+  const rows: TopResult[] = []
+
+  for (const entry of value) {
+    if (!isRecord(entry)) continue
+    const label = typeof entry.label === 'string' ? entry.label.trim() : ''
+    const totalValueCents =
+      typeof entry.total_value_cents === 'number' && Number.isFinite(entry.total_value_cents)
+        ? entry.total_value_cents
+        : NaN
+    const cppCents =
+      typeof entry.cpp_cents === 'number' && Number.isFinite(entry.cpp_cents)
+        ? entry.cpp_cents
+        : NaN
+
+    if (!label || !Number.isFinite(totalValueCents) || !Number.isFinite(cppCents)) continue
+
+    const category = typeof entry.category === 'string' ? entry.category : undefined
+    const from_program = isRecord(entry.from_program)
+      ? { name: typeof entry.from_program.name === 'string' ? entry.from_program.name : undefined }
+      : undefined
+    const to_program = isRecord(entry.to_program)
+      ? { name: typeof entry.to_program.name === 'string' ? entry.to_program.name : undefined }
+      : null
+    const active_bonus_pct =
+      typeof entry.active_bonus_pct === 'number' && Number.isFinite(entry.active_bonus_pct)
+        ? entry.active_bonus_pct
+        : undefined
+
+    rows.push({
+      category,
+      label,
+      from_program,
+      to_program,
+      total_value_cents: totalValueCents,
+      cpp_cents: cppCents,
+      active_bonus_pct,
+    })
+  }
+
+  return rows
+}
 
 // POST /api/ai/recommend
 // Body: { history: GeminiContent[], message: string, balances, topResults, preferences? }
 // Streams back a JSON string the client accumulates then parses
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return new Response('GEMINI_API_KEY not configured', { status: 500 })
+  const requestId = getRequestId(req)
+  const startedAt = Date.now()
 
-  const { history, message, balances, topResults, preferences } = await req.json()
-  if (!message?.trim()) return new Response('Message is required', { status: 400 })
+  const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
+  if (sizeError) {
+    logWarn('ai_recommend_payload_too_large', { requestId })
+    return sizeError
+  }
+
+  const rateLimitError = await enforceRateLimit(req, {
+    namespace: 'ai_recommend_ip',
+    maxRequests: 30,
+    windowMs: 10 * 60 * 1000,
+  })
+  if (rateLimitError) {
+    logWarn('ai_recommend_rate_limited', { requestId })
+    return rateLimitError
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    logError('ai_recommend_missing_env', { requestId, env: 'GEMINI_API_KEY' })
+    return new Response('GEMINI_API_KEY not configured', { status: 500 })
+  }
+
+  let payload: unknown
+  try {
+    payload = await req.json()
+  } catch {
+    return new Response('Invalid JSON', { status: 400 })
+  }
+
+  if (!isRecord(payload)) return new Response('Invalid payload', { status: 400 })
+
+  const message = typeof payload.message === 'string' ? payload.message : ''
+  if (!message.trim()) return new Response('Message is required', { status: 400 })
+  if (message.length > MAX_MESSAGE_CHARS) {
+    return new Response(`message too long (max ${MAX_MESSAGE_CHARS} chars)`, { status: 400 })
+  }
+
+  const balances = toBalances(payload.balances)
+  const topResults = toTopResults(payload.topResults)
+  if (balances.length === 0) {
+    return new Response('balances must include at least one valid entry', { status: 400 })
+  }
+  if (topResults.length === 0) {
+    return new Response('topResults must include at least one valid entry', { status: 400 })
+  }
+
+  const history = Array.isArray(payload.history) ? payload.history : []
+  if (history.length > MAX_HISTORY_ITEMS) {
+    return new Response(`history too long (max ${MAX_HISTORY_ITEMS} entries)`, { status: 400 })
+  }
+  const preferences = isRecord(payload.preferences) ? payload.preferences : null
 
   // ── Build context (re-injected every turn via system prompt) ───
   const balanceSummary = balances
-    .map((b: { name: string; amount: number }) =>
-      `  - ${b.name}: ${b.amount.toLocaleString()} points`
-    )
+    .map((b) => `  - ${b.name}: ${b.amount.toLocaleString()} points`)
     .join('\n')
 
   const partnersByProgram: Record<string, string[]> = {}
   for (const r of topResults) {
     if (r.category !== 'transfer_partner') continue
-    const prog: string = r.from_program.name
-    const partner: string = r.to_program?.name ?? ''
+    const prog = r.from_program?.name ?? ''
+    const partner = r.to_program?.name ?? ''
+    if (!prog) continue
     if (!partnersByProgram[prog]) partnersByProgram[prog] = []
-    if (partner && !partnersByProgram[prog].includes(partner))
+    if (partner && !partnersByProgram[prog].includes(partner)) {
       partnersByProgram[prog].push(partner)
+    }
   }
+
   const partnerSummary = Object.entries(partnersByProgram)
     .map(([prog, partners]) => `  - ${prog} → ${partners.join(', ')}`)
     .join('\n') || '  (none)'
 
   const topValueSummary = topResults
     .slice(0, 8)
-    .map((r: { label: string; total_value_cents: number; cpp_cents: number; active_bonus_pct?: number }) => {
+    .map((r) => {
       const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
         style: 'currency', currency: 'USD', maximumFractionDigits: 0,
       })
@@ -66,16 +197,34 @@ export async function POST(req: NextRequest) {
     .join('\n')
 
   // ── User preferences context ────────────────────────────────────
-  const todayDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const todayDate = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
   let preferencesContext = ''
   if (preferences) {
     const parts: string[] = []
-    if (preferences.home_airport) parts.push(`User's home airport: ${preferences.home_airport}`)
-    if (preferences.preferred_cabin && preferences.preferred_cabin !== 'any') parts.push(`Preferred cabin class: ${preferences.preferred_cabin}`)
-    if (preferences.avoided_airlines?.length > 0) parts.push(`Airlines to avoid: ${preferences.avoided_airlines.join(', ')}`)
-    if (preferences.preferred_airlines?.length > 0) parts.push(`Preferred airlines: ${preferences.preferred_airlines.join(', ')}`)
-    if (parts.length > 0) preferencesContext = `\nUSER PREFERENCES:\n${parts.map(p => `  - ${p}`).join('\n')}\n`
+    if (typeof preferences.home_airport === 'string' && preferences.home_airport) {
+      parts.push(`User's home airport: ${preferences.home_airport}`)
+    }
+    if (
+      typeof preferences.preferred_cabin === 'string' &&
+      preferences.preferred_cabin &&
+      preferences.preferred_cabin !== 'any'
+    ) {
+      parts.push(`Preferred cabin class: ${preferences.preferred_cabin}`)
+    }
+    if (Array.isArray(preferences.avoided_airlines) && preferences.avoided_airlines.length > 0) {
+      parts.push(`Airlines to avoid: ${preferences.avoided_airlines.join(', ')}`)
+    }
+    if (Array.isArray(preferences.preferred_airlines) && preferences.preferred_airlines.length > 0) {
+      parts.push(`Preferred airlines: ${preferences.preferred_airlines.join(', ')}`)
+    }
+    if (parts.length > 0) {
+      preferencesContext = `\nUSER PREFERENCES:\n${parts.map(p => `  - ${p}`).join('\n')}\n`
+    }
   }
 
   // ── System prompt ───────────────────────────────────────────────
@@ -141,33 +290,71 @@ Set flight or hotel to null if not relevant. Include 2-4 links.`
 
   // ── Multi-turn chat ─────────────────────────────────────────────
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: systemPrompt,
-  })
-
-  const chat = model.startChat({
-    history: (history ?? []) as Content[],
-  })
+  const modelCandidates = await getGeminiModelCandidatesForApiKey(apiKey)
 
   const readable = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()
       try {
-        console.log('[AI] Sending to Gemini chat...')
-        const result = await chat.sendMessageStream(message)
-        for await (const chunk of result.stream) {
-          const text = chunk.text()
-          if (text) controller.enqueue(encoder.encode(text))
+        let lastErr: unknown = null
+
+        for (let i = 0; i < modelCandidates.length; i++) {
+          const modelName = modelCandidates[i]
+          let streamedAnyChunk = false
+
+          try {
+            const model = genAI.getGenerativeModel({
+              model: modelName,
+              systemInstruction: systemPrompt,
+            })
+            const chat = model.startChat({
+              history: history as Content[],
+            })
+
+            logInfo('ai_recommend_stream_start', { requestId, model: modelName })
+            const result = await chat.sendMessageStream(message)
+            for await (const chunk of result.stream) {
+              const text = chunk.text()
+              if (!text) continue
+              streamedAnyChunk = true
+              controller.enqueue(encoder.encode(text))
+            }
+
+            if (i > 0) {
+              logWarn('ai_recommend_model_fallback_used', {
+                requestId,
+                selected_model: modelName,
+              })
+            }
+
+            logInfo('ai_recommend_stream_complete', {
+              requestId,
+              model: modelName,
+              latency_ms: Date.now() - startedAt,
+            })
+            controller.close()
+            return
+          } catch (err) {
+            markGeminiModelUnavailable(modelName, err)
+            lastErr = err
+            if (streamedAnyChunk) break
+          }
         }
-        console.log('[AI] Stream complete')
+
+        throw lastErr instanceof Error ? lastErr : new Error('All Gemini model candidates failed')
       } catch (err) {
-        console.error('[AI] Error:', err)
+        logError('ai_recommend_stream_error', {
+          requestId,
+          error: err instanceof Error ? err.message : String(err),
+          latency_ms: Date.now() - startedAt,
+        })
         controller.enqueue(
-          encoder.encode(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }))
+          encoder.encode(JSON.stringify({ error: 'AI assistant is temporarily unavailable. Please try again in a moment.' }))
         )
-      } finally {
         controller.close()
+        return
+      } finally {
+        // no-op: controller closed on success/failure paths above
       }
     },
   })

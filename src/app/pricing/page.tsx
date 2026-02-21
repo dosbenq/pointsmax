@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 const FREE_FEATURES = [
   'Full points calculator',
   '20+ loyalty programs',
-  '3 AI advisor messages per session',
+  'AI advisor access (fair-use limits)',
   'Award flight search (chart estimates)',
   'Save balances & preferences',
 ]
@@ -41,7 +41,7 @@ const FAQ = [
   },
   {
     q: 'When will Pro launch?',
-    a: "We're actively building Pro features. Join the waitlist to get early access and a discounted launch price.",
+    a: "We're rolling out Pro in phases. Join the waitlist to get launch updates, early access, and pricing details.",
   },
   {
     q: 'What payment methods will you accept?',
@@ -55,80 +55,73 @@ const FAQ = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <main className="flex-1 max-w-4xl mx-auto px-6 py-16 w-full">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 tracking-tight mb-4">
+      <main className="flex-1 pm-shell py-14 sm:py-16">
+        <div className="text-center mb-14">
+          <span className="pm-pill mb-4">Transparent pricing</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-4">
             Simple, honest pricing
           </h1>
-          <p className="text-lg text-slate-500 max-w-xl mx-auto">
+          <p className="pm-subtle text-lg max-w-xl mx-auto">
             The core tool is free forever. Pro adds power features for frequent travelers.
           </p>
         </div>
 
-        {/* Pricing cards */}
         <div className="grid sm:grid-cols-2 gap-6 mb-20 max-w-2xl mx-auto">
-          {/* Free */}
-          <div className="border border-slate-200 rounded-2xl p-8">
+          <div className="pm-card p-8">
             <div className="mb-6">
-              <p className="text-sm font-semibold text-slate-500 mb-2">Free</p>
+              <p className="text-sm font-semibold text-[#5f7c70] mb-2">Free</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-semibold text-slate-900">$0</span>
-                <span className="text-slate-400 text-lg">/month</span>
+                <span className="text-5xl font-semibold text-[#173f34]">$0</span>
+                <span className="text-[#8ca196] text-lg">/month</span>
               </div>
-              <p className="text-sm text-slate-500 mt-2">No credit card required</p>
+              <p className="text-sm text-[#5f7c70] mt-2">No credit card required</p>
             </div>
             <ul className="space-y-3 mb-8">
-              {FREE_FEATURES.map(f => (
-                <li key={f} className="text-sm text-slate-600">{f}</li>
+              {FREE_FEATURES.map((f) => (
+                <li key={f} className="text-sm text-[#335448]">{f}</li>
               ))}
             </ul>
-            <Link
-              href="/calculator"
-              className="block text-center bg-slate-900 hover:bg-slate-700 text-white text-sm font-medium px-4 py-3 rounded-full transition-colors"
-            >
+            <Link href="/calculator" className="pm-button w-full text-center">
               Get started free
             </Link>
           </div>
 
-          {/* Pro */}
-          <div className="border-2 border-slate-900 rounded-2xl p-8">
+          <div className="rounded-2xl border-2 border-[#0f766e] bg-[#f3fbf8] p-8 shadow-sm">
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-indigo-600">Pro</p>
-                <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-2.5 py-0.5">Coming soon</span>
+                <p className="text-sm font-semibold text-[#0f766e]">Pro</p>
+                <span className="text-xs bg-[#e7f6f2] text-[#0f5f57] rounded-full px-2.5 py-0.5 border border-[#b8e3da]">Waitlist open</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-semibold text-slate-900">$9</span>
-                <span className="text-slate-400 text-lg">/month</span>
+                <span className="text-5xl font-semibold text-[#173f34]">$9</span>
+                <span className="text-[#8ca196] text-lg">/month</span>
               </div>
-              <p className="text-sm text-slate-500 mt-2">Early bird pricing · Launch TBD</p>
+              <p className="text-sm text-[#5f7c70] mt-2">Early-bird pricing for waitlist members</p>
             </div>
             <ul className="space-y-3 mb-8">
-              {PRO_FEATURES.map(f => (
-                <li key={f} className="text-sm text-slate-600">{f}</li>
+              {PRO_FEATURES.map((f) => (
+                <li key={f} className="text-sm text-[#335448]">{f}</li>
               ))}
             </ul>
             <a
-              href="mailto:hello@pointsmax.app?subject=Pro waitlist"
-              className="block text-center bg-slate-900 hover:bg-slate-700 text-white text-sm font-medium px-4 py-3 rounded-full transition-colors"
+              href="mailto:hello@pointsmax.com?subject=Pro waitlist"
+              className="pm-button w-full text-center"
             >
               Join waitlist
             </a>
           </div>
         </div>
 
-        {/* FAQ */}
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-8 text-center">Frequently asked questions</h2>
+          <h2 className="pm-heading text-2xl mb-8 text-center">Frequently asked questions</h2>
           <div className="space-y-4">
             {FAQ.map((item, i) => (
-              <div key={i} className="border border-slate-200 rounded-xl p-6">
-                <p className="font-semibold text-slate-900 mb-2">{item.q}</p>
-                <p className="text-sm text-slate-500 leading-relaxed">{item.a}</p>
+              <div key={i} className="pm-card p-6">
+                <p className="font-semibold text-[#173f34] mb-2">{item.q}</p>
+                <p className="text-sm text-[#5f7c70] leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>

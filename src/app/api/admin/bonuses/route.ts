@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
 
+function getSafeAppUrl(): string {
+  const fallback =
+    process.env.NODE_ENV === 'production'
+      ? 'https://pointsmax.com'
+      : 'http://localhost:3000'
+  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
+  try {
+    const parsed = new URL(raw)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
+    return parsed.origin
+  } catch {
+    return fallback
+  }
+}
+
 export async function GET() {
   const authError = await requireAdmin()
   if (authError) return authError
@@ -54,11 +69,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  const parsedBonusPct = Number.parseFloat(String(bonus_pct))
+  if (!Number.isFinite(parsedBonusPct) || parsedBonusPct <= 0) {
+    return NextResponse.json({ error: 'bonus_pct must be a positive number' }, { status: 400 })
+  }
+
   const db = createAdminClient()
 
   const { error } = await db.from('transfer_bonuses').insert({
     transfer_partner_id,
-    bonus_pct: parseInt(bonus_pct),
+    bonus_pct: parsedBonusPct,
     start_date,
     end_date,
     source_url: source_url || null,
@@ -66,6 +86,22 @@ export async function POST(request: Request) {
     is_verified: false,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('admin_bonuses_insert_failed', { error: error.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+
+  // Fire-and-forget: trigger alert emails if the bonus starts today
+  const today = new Date().toISOString().split('T')[0]
+  if (start_date === today) {
+    const secret = process.env.CRON_SECRET
+    const appUrl = getSafeAppUrl()
+    if (secret) {
+      fetch(`${appUrl}/api/cron/send-bonus-alerts`, {
+        headers: { Authorization: `Bearer ${secret}` },
+      }).catch(() => {})
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }

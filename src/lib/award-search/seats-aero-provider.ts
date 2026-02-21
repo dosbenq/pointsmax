@@ -16,6 +16,7 @@ import type {
 } from './types'
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
+import { resolveCppCents } from '@/lib/cpp-fallback'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
 const SEATS_AERO_SOURCE_TO_SLUG: Record<string, string> = {
@@ -275,7 +276,7 @@ export class SeatsAeroProvider implements AwardProvider {
       if (estimatedMiles == null) continue
 
       const valuation = valuationByProgramId.get(airlineProgram.id)
-      const cppCents = valuation?.cpp_cents ?? 100
+      const cppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
       const estimatedCashValueCents = estimatedMiles * cppCents
 
       const pointsNeededFromWallet = path

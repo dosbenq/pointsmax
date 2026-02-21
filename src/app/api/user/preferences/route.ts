@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
       { onConflict: 'user_id' }
     )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('user_preferences_upsert_failed', { user_id: userRecord.id, error: error.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

@@ -13,6 +13,9 @@ export async function DELETE(
   const db = createAdminClient()
 
   const { error } = await db.from('transfer_bonuses').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('admin_bonus_delete_failed', { bonus_id: id, error: error.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

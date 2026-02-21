@@ -1,7 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const authError = await requireAdmin()
+  if (authError) return authError
+
   const client = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -13,7 +21,8 @@ export async function GET() {
     .order('display_order')
 
   if (programsError) {
-    return NextResponse.json({ error: programsError.message }, { status: 500 })
+    console.error('test_api_programs_query_failed', { error: programsError.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
   const { data: valuations, error: valuationsError } = await client
@@ -22,7 +31,8 @@ export async function GET() {
     .order('cpp_cents', { ascending: false })
 
   if (valuationsError) {
-    return NextResponse.json({ error: valuationsError.message }, { status: 500 })
+    console.error('test_api_valuations_query_failed', { error: valuationsError.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
   const { count: partnerCount } = await client

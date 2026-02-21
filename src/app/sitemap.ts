@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next'
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.app'
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -15,6 +15,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/award-search`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/inspire`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.82,
     },
     {
       url: `${BASE_URL}/how-it-works`,

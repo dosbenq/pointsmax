@@ -30,8 +30,14 @@ CREATE TABLE user_preferences (
 );
 
 -- 4. RLS policies
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users see own profile" ON users
+  FOR SELECT USING (
+    auth_id = auth.uid()
+  );
 
 CREATE POLICY "Users see own balances" ON user_balances
   FOR ALL USING (

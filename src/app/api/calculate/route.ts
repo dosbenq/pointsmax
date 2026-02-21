@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { calculateRedemptions } from '@/lib/calculate'
+import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import type { BalanceInput } from '@/types/database'
+
+const MAX_BODY_BYTES = 48_000
 
 // POST /api/calculate
 // Body: { balances: [{ program_id: string, amount: number }] }
 // Returns: ranked redemption options with dollar values
 export async function POST(req: NextRequest) {
+  const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
+  if (sizeError) return sizeError
+
+  const rateLimitError = await enforceRateLimit(req, {
+    namespace: 'calculate_ip',
+    maxRequests: 60,
+    windowMs: 10 * 60 * 1000,
+  })
+  if (rateLimitError) return rateLimitError
+
   let body: { balances: BalanceInput[] }
 
   try {

@@ -1,67 +1,74 @@
 import Link from 'next/link'
 
+const PRODUCT_LINKS = [
+  { href: '/calculator', label: 'Calculator' },
+  { href: '/award-search', label: 'Award Search' },
+  { href: '/inspire', label: 'Inspire Me' },
+  { href: '/trip-builder', label: 'Trip Builder' },
+  { href: '/earning-calculator', label: 'Earning Calculator' },
+  { href: '/card-recommender', label: 'Card Recommender' },
+]
+
+const RESOURCE_LINKS = [
+  { href: '/how-it-works', label: 'How it works' },
+  { href: '/pricing', label: 'Pricing' },
+]
+
 export default function Footer() {
   return (
-    <footer className="bg-white border-t border-slate-200 mt-auto">
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-          {/* Column 1: Logo + tagline */}
-          <div className="col-span-2 md:col-span-1">
-            <p className="font-semibold text-slate-900 mb-2">PointsMax</p>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              Maximize every point in your wallet with AI-powered redemption analysis.
+    <footer className="mt-auto border-t border-[#d5e5d9] bg-[rgba(238,247,241,0.72)]">
+      <div className="pm-shell py-12">
+        <div className="grid gap-10 md:grid-cols-12">
+          <div className="md:col-span-5 space-y-4">
+            <span className="pm-pill">Points intelligence for real travelers</span>
+            <h3 className="pm-heading text-2xl">Use your points with confidence.</h3>
+            <p className="pm-subtle text-sm max-w-md">
+              PointsMax helps you decide faster with wallet-aware recommendations, transfer insights,
+              and practical booking paths.
             </p>
           </div>
 
-          {/* Column 2: Product */}
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Product</p>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/calculator" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                  Calculator
-                </Link>
-              </li>
-              <li>
-                <Link href="/how-it-works" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                  How it works
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                  Pricing
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8">
+            <div>
+              <p className="pm-label mb-3">Product</p>
+              <ul className="space-y-2.5">
+                {PRODUCT_LINKS.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} className="text-sm text-[#264338] hover:text-[#0f766e] transition-colors">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Column 3: Legal */}
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Legal</p>
-            <ul className="space-y-2">
-              <li>
-                <span className="text-sm text-slate-400 cursor-not-allowed">Privacy Policy</span>
-              </li>
-              <li>
-                <span className="text-sm text-slate-400 cursor-not-allowed">Terms of Service</span>
-              </li>
-            </ul>
-          </div>
+            <div>
+              <p className="pm-label mb-3">Resources</p>
+              <ul className="space-y-2.5">
+                {RESOURCE_LINKS.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href} className="text-sm text-[#264338] hover:text-[#0f766e] transition-colors">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Column 4: Built with */}
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Built with</p>
-            <ul className="space-y-2">
-              <li className="text-sm text-slate-500">Next.js 15</li>
-              <li className="text-sm text-slate-500">Supabase</li>
-              <li className="text-sm text-slate-500">Google Gemini</li>
-            </ul>
+            <div>
+              <p className="pm-label mb-3">Data</p>
+              <ul className="space-y-2.5 text-sm text-[#59766a]">
+                <li>Monthly valuation updates</li>
+                <li>Transfer partner mapping</li>
+                <li>Award planning workflows</li>
+              </ul>
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-slate-400">© 2025 PointsMax</p>
-          <p className="text-xs text-slate-400">Valuations sourced from TPG</p>
+        <div className="mt-10 pt-5 border-t border-[#d7e8dc] flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <p className="text-xs text-[#688477]">© 2026 PointsMax</p>
+          <p className="text-xs text-[#688477]">Built for better redemption decisions</p>
         </div>
       </div>
     </footer>

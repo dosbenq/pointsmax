@@ -15,6 +15,7 @@ import type {
 } from './types'
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
+import { resolveCppCents } from '@/lib/cpp-fallback'
 
 export class StubProvider implements AwardProvider {
   readonly name = 'stub' as const
@@ -134,7 +135,7 @@ export class StubProvider implements AwardProvider {
 
       // Look up valuation to get cpp_cents and estimated cash value
       const valuation = valuationByProgramId.get(airlineProgram.id)
-      const cppCents = valuation?.cpp_cents ?? 100  // default 1¢/pt
+      const cppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
 
       const estimatedCashValueCents = estimatedMiles * cppCents
 

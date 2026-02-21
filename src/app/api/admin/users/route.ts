@@ -12,7 +12,10 @@ export async function GET() {
     .select('id, email, tier, stripe_customer_id, created_at')
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('admin_users_list_failed', { error: error.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
   return NextResponse.json({ users: data ?? [] })
 }
 
@@ -28,6 +31,9 @@ export async function PATCH(request: Request) {
   const db = createAdminClient()
   const { error } = await db.from('users').update({ tier }).eq('id', user_id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('admin_users_update_failed', { error: error.message })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }

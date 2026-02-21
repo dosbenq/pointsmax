@@ -53,12 +53,12 @@ const DEEP_LINK_BUILDERS: Record<string, DeepLinkBuilder> = {
   }),
 
   aeroplan: ({ origin, destination, start_date, passengers }) => ({
-    url: `https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=${origin}&dest0=${destination}&departureDate0=${start_date}&ADT=${passengers}&YTH=0&CHD=0&INF=0&INS=0&marketCode=INT`,
+    url: `https://www.aeroplan.com/en/use-your-miles/travel.html?org0=${origin}&dest0=${destination}&departureDate0=${start_date}&ADT=${passengers}&YTH=0&CHD=0&INF=0&INS=0&tripType=O`,
     label: 'Search on Aeroplan',
   }),
 
   'british-airways': ({ origin, destination, start_date, passengers, cabin }) => ({
-    url: `https://www.britishairways.com/travel/redeem/execclub/_gl/1?eId=106048&departurePoint=${origin}&destinationPoint=${destination}&departureDate=${toBAFormat(start_date)}&cabin=${toCabinCode(cabin, 'ba')}&adultCount=${passengers}`,
+    url: `https://www.britishairways.com/travel/redeem/execclub/?departurePoint=${origin}&destinationPoint=${destination}&departureDate=${toBAFormat(start_date)}&cabin=${toCabinCode(cabin, 'ba')}&adultCount=${passengers}`,
     label: 'Search on British Airways',
   }),
 
@@ -71,25 +71,25 @@ const DEEP_LINK_BUILDERS: Record<string, DeepLinkBuilder> = {
   // ── Landing-page only (no reliable deep-param support) ──────
 
   'flying-blue': () => ({
-    url: 'https://www.airfrance.us/en/flyingblue',
+    url: 'https://www.flyingblue.com',
     label: 'Search on Flying Blue',
     note: 'Enter dates manually on the site',
   }),
 
   singapore: () => ({
-    url: 'https://www.singaporeair.com/krisflyer/pages/overview.jsp',
+    url: 'https://www.singaporeair.com/en_UK/us/home',
     label: 'Search on KrisFlyer',
     note: 'Enter dates manually on the site',
   }),
 
   ana: () => ({
-    url: 'https://www.ana.co.jp/en/jp/amc/reference/award/detail/',
+    url: 'https://www.ana.co.jp/en/us/amc/',
     label: 'Search on ANA',
     note: 'Enter dates manually on the site',
   }),
 
   turkish: () => ({
-    url: 'https://www.turkishairlines.com/en-int/miles-smiles/',
+    url: 'https://www.turkishairlines.com/en-int/miles-and-smiles/',
     label: 'Search on Miles&Smiles',
     note: 'Enter dates manually on the site',
   }),
@@ -101,55 +101,55 @@ const DEEP_LINK_BUILDERS: Record<string, DeepLinkBuilder> = {
   }),
 
   emirates: () => ({
-    url: 'https://www.emirates.com/us/english/skywards/use-your-miles/',
+    url: 'https://www.emirates.com/us/english/skywards/',
     label: 'Search on Emirates',
     note: 'Enter dates manually on the site',
   }),
 
   'virgin-atlantic': () => ({
-    url: 'https://www.virginatlantic.com/us/en/flying-club/spending-miles/flights.html',
+    url: 'https://www.virginatlantic.com/us/en/flying-club.html',
     label: 'Search on Virgin Atlantic',
     note: 'Enter dates manually on the site',
   }),
 
   cathay: () => ({
-    url: 'https://www.cathaypacific.com/cx/en_US/asia-miles/redeem/flights.html',
+    url: 'https://www.cathaypacific.com/cx/en_US/membership.html',
     label: 'Search on Asia Miles',
     note: 'Enter dates manually on the site',
   }),
 
   iberia: () => ({
-    url: 'https://www.iberia.com/us/en/avios/',
+    url: 'https://www.iberia.com/us/iberiaplus/',
     label: 'Search on Iberia',
     note: 'Enter dates manually on the site',
   }),
 
   'aer-lingus': () => ({
-    url: 'https://www.aerlingus.com/en-us/aer-club/redeem-avios/',
+    url: 'https://www.aerlingus.com/en-us/',
     label: 'Search on Aer Lingus',
     note: 'Enter dates manually on the site',
   }),
 
   etihad: () => ({
-    url: 'https://www.etihad.com/en-us/etihad-guest/use-miles/flights',
+    url: 'https://www.etihad.com/en/etihadguest',
     label: 'Search on Etihad',
     note: 'Enter dates manually on the site',
   }),
 
   alaska: () => ({
-    url: 'https://www.alaskaair.com/content/mileage-plan/use-miles/awards',
+    url: 'https://www.alaskaair.com/content/mileage-plan',
     label: 'Search on Alaska',
     note: 'Enter dates manually on the site',
   }),
 
   jetblue: () => ({
-    url: 'https://www.jetblue.com/trueblue/redeem-points',
+    url: 'https://www.jetblue.com/trueblue',
     label: 'Search on JetBlue',
     note: 'Enter dates manually on the site',
   }),
 
   hawaiian: () => ({
-    url: 'https://www.hawaiianairlines.com/hawaiian-miles/use-your-miles',
+    url: 'https://www.hawaiianairlines.com/',
     label: 'Search on Hawaiian',
     note: 'Enter dates manually on the site',
   }),
@@ -167,7 +167,7 @@ export function buildDeepLink(slug: string, params: AwardSearchParams): DeepLink
   const builder = DEEP_LINK_BUILDERS[slug]
   if (builder) return builder(params)
   return {
-    url: 'https://google.com/flights',
+    url: 'https://www.google.com/travel/flights',
     label: 'Search flights',
     note: 'Check airline website directly',
   }

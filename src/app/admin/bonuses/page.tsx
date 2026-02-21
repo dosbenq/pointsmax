@@ -51,7 +51,20 @@ export default function AdminBonuses() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let active = true
+    fetch('/api/admin/bonuses')
+      .then(r => r.json())
+      .then(data => {
+        if (!active) return
+        setBonuses(data.bonuses ?? [])
+        setPartners(data.partners ?? [])
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function addBonus(e: React.FormEvent) {
     e.preventDefault()

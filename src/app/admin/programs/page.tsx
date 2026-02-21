@@ -42,7 +42,19 @@ export default function AdminPrograms() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let active = true
+    fetch('/api/admin/programs')
+      .then(r => r.json())
+      .then(data => {
+        if (!active) return
+        setPrograms(data.programs ?? [])
+        setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function saveCpp(program: Program) {
     const cpp = edits[program.id]
@@ -60,7 +72,11 @@ export default function AdminPrograms() {
     })
 
     await load()
-    setEdits(e => { const { [program.id]: _, ...rest } = e; return rest })
+    setEdits(e => {
+      const next = { ...e }
+      delete next[program.id]
+      return next
+    })
     setSaving(s => ({ ...s, [program.id]: false }))
     setSaved(s => ({ ...s, [program.id]: true }))
     setTimeout(() => setSaved(s => ({ ...s, [program.id]: false })), 2000)

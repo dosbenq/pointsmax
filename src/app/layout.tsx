@@ -1,14 +1,13 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
+import { assertServerEnv } from '@/lib/env'
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
+if (process.env.NODE_ENV === 'production') {
+  assertServerEnv()
+}
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.app'
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -94,8 +93,8 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body>
+    <html lang="en">
+      <body suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

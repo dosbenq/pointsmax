@@ -17,7 +17,7 @@ const STEPS = [
     number: '02',
     title: 'See ranked redemptions',
     description:
-      'Our calculation engine evaluates every possible redemption option for your wallet — including transfer partners — and ranks them by total dollar value using certified cents-per-point (CPP) valuations.',
+      'Our calculation engine evaluates every possible redemption option for your wallet — including transfer partners — and ranks them by total dollar value using current cents-per-point (CPP) valuations.',
     detail: 'Valuations are sourced from The Points Guy (TPG) and updated monthly.',
   },
   {
@@ -25,7 +25,7 @@ const STEPS = [
     title: 'Book with AI guidance',
     description:
       "Tell our AI advisor where you want to go and when. It builds a complete, step-by-step booking plan tailored to your specific balances, preferred cabin, and airline preferences — including which cards to transfer from and how.",
-    detail: 'Powered by Google Gemini. Signed-in users get unlimited messages.',
+    detail: 'Powered by Google Gemini with fair-use request limits.',
   },
 ]
 
@@ -57,11 +57,11 @@ const FAQ = [
   },
   {
     q: 'Is PointsMax really free?',
-    a: 'Yes. The points calculator, all 20+ programs, award flight search, and the AI advisor (3 messages/session for anonymous users) are completely free. No credit card, no trial period.',
+    a: 'Yes. The points calculator, all 20+ programs, award flight search, and the AI advisor are free to use. No credit card and no trial period.',
   },
   {
     q: 'How does the AI advisor work?',
-    a: "The AI advisor is powered by Google Gemini. It receives your points balances, top redemption options, and travel preferences, then generates personalized booking plans in a structured format — including specific airlines, routes, points needed, and step-by-step booking instructions.",
+    a: "The AI advisor is powered by Google Gemini. It receives your points balances, top redemption options, and travel preferences, then generates personalized booking plans in a structured format — including specific airlines, routes, points needed, and step-by-step booking instructions. Fair-use request limits apply.",
   },
   {
     q: 'What is an award chart?',
@@ -69,7 +69,7 @@ const FAQ = [
   },
   {
     q: 'When will Pro launch?',
-    a: "We're actively building Pro features including unlimited AI conversations, real-time award availability via Seats.aero, and price alerts. Join our waitlist to be the first to know.",
+    a: "We're rolling out Pro in phases. Join the waitlist to get launch updates, early access, and pricing details.",
   },
 ]
 
@@ -77,24 +77,23 @@ export default function HowItWorksPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      {/* Mini hero */}
-      <section className="bg-slate-50 border-b border-slate-200 py-16">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 tracking-tight mb-4">
+      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)] py-14 sm:py-16">
+        <div className="pm-shell text-center">
+          <span className="pm-pill mb-4">Clear process, real outcomes</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-4">
             How PointsMax works
           </h1>
-          <p className="text-lg text-slate-500 max-w-xl mx-auto">
+          <p className="pm-subtle text-lg max-w-2xl mx-auto">
             A simple, three-step process to unlock the hidden value in your loyalty points.
           </p>
         </div>
       </section>
 
-      <main className="flex-1 max-w-4xl mx-auto px-6 py-16 w-full space-y-20">
+      <main className="flex-1 pm-shell py-14 sm:py-16 space-y-16 sm:space-y-20">
 
-        {/* 3-step walkthrough */}
         <section className="space-y-14">
           {STEPS.map((step, i) => (
             <div
@@ -102,49 +101,47 @@ export default function HowItWorksPage() {
               className={`flex flex-col sm:flex-row gap-8 items-start ${i % 2 === 1 ? 'sm:flex-row-reverse' : ''}`}
             >
               <div className="sm:w-1/3 flex-shrink-0">
-                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
-                  <p className="text-6xl font-semibold text-slate-100 leading-none">{step.number}</p>
+                <div className="pm-card-soft p-8 text-center">
+                  <p className="text-6xl font-semibold text-[#d6e5dc] leading-none">{step.number}</p>
                 </div>
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-semibold text-slate-900 mb-3">{step.title}</h2>
-                <p className="text-slate-600 leading-relaxed mb-3">{step.description}</p>
-                <p className="text-sm text-slate-500">{step.detail}</p>
+                <h2 className="pm-heading text-2xl mb-3">{step.title}</h2>
+                <p className="text-[#2d4f42] leading-relaxed mb-3">{step.description}</p>
+                <p className="text-sm text-[#5f7c70]">{step.detail}</p>
               </div>
             </div>
           ))}
         </section>
 
-        {/* Programs grid */}
         <section>
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Programs we cover</h2>
-          <p className="text-slate-500 mb-6">20+ loyalty programs across transferable points, airline miles, and hotel rewards.</p>
+          <h2 className="pm-heading text-2xl mb-2">Programs we cover</h2>
+          <p className="pm-subtle mb-6">20+ loyalty programs across transferable points, airline miles, and hotel rewards.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {PROGRAMS.map(p => (
-              <div key={p.name} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                <span className="text-sm font-medium text-slate-700">{p.name}</span>
-                <span className="text-xs text-slate-400 flex-shrink-0 ml-3">{p.type}</span>
+            {PROGRAMS.map((p) => (
+              <div key={p.name} className="pm-card px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-[#244437]">{p.name}</span>
+                <span className="text-xs text-[#6a8579] flex-shrink-0 ml-3">{p.type}</span>
               </div>
             ))}
           </div>
         </section>
 
-        {/* FAQ accordion */}
         <section>
-          <h2 className="text-2xl font-semibold text-slate-900 mb-8">Frequently asked questions</h2>
+          <h2 className="pm-heading text-2xl mb-8">Frequently asked questions</h2>
           <div className="space-y-3">
             {FAQ.map((item, i) => (
-              <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
+              <div key={i} className="pm-card overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[#f6fbf8] transition-colors"
                 >
-                  <span className="font-semibold text-slate-900 text-sm pr-4">{item.q}</span>
-                  <span className="text-slate-400 text-xs flex-shrink-0">{openFaq === i ? '▲' : '▼'}</span>
+                  <span className="font-semibold text-[#173f34] text-sm pr-4">{item.q}</span>
+                  <span className="text-[#688477] text-xs flex-shrink-0">{openFaq === i ? '▲' : '▼'}</span>
                 </button>
                 {openFaq === i && (
-                  <div className="px-6 pb-4 border-t border-slate-100">
-                    <p className="text-sm text-slate-500 leading-relaxed pt-3">{item.a}</p>
+                  <div className="px-6 pb-4 border-t border-[#e2ece6]">
+                    <p className="text-sm text-[#5f7c70] leading-relaxed pt-3">{item.a}</p>
                   </div>
                 )}
               </div>
@@ -152,18 +149,13 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="bg-slate-50 border border-slate-200 rounded-2xl p-10 text-center">
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Ready to get started?</h2>
-          <p className="text-slate-500 mb-6">It only takes 30 seconds to enter your balances and see your results.</p>
-          <Link
-            href="/calculator"
-            className="inline-block bg-slate-900 hover:bg-slate-700 text-white text-sm font-medium px-6 py-3 rounded-full transition-colors"
-          >
+        <section className="pm-card-soft p-8 sm:p-10 text-center">
+          <h2 className="pm-heading text-2xl mb-2">Ready to get started?</h2>
+          <p className="pm-subtle mb-6">It only takes 30 seconds to enter your balances and see your results.</p>
+          <Link href="/calculator" className="pm-button">
             Calculate my points
           </Link>
         </section>
-
       </main>
 
       <Footer />

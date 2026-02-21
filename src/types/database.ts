@@ -138,6 +138,78 @@ export interface ActiveBonus extends TransferBonus {
 }
 
 // ─────────────────────────────────────────────
+// CARDS & EARNING RATES
+// ─────────────────────────────────────────────
+
+export type SpendCategory = 'dining' | 'groceries' | 'travel' | 'gas' | 'streaming' | 'other'
+
+export interface Card {
+  id: string
+  name: string
+  issuer: string
+  annual_fee_usd: number
+  signup_bonus_pts: number
+  signup_bonus_spend: number
+  program_id: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+}
+
+export interface CardEarningRate {
+  id: string
+  card_id: string
+  category: SpendCategory
+  earn_multiplier: number
+}
+
+export interface CardWithRates extends Card {
+  program_name: string
+  program_slug: string
+  cpp_cents: number
+  earning_rates: Record<SpendCategory, number>
+}
+
+// ─────────────────────────────────────────────
+// TRIP BUILDER
+// ─────────────────────────────────────────────
+
+export interface TripBuilderFlightOption {
+  program_name: string
+  estimated_miles: number
+  points_needed_from_wallet: number
+  transfer_chain: string | null
+  is_reachable: boolean
+  deep_link_url: string
+  deep_link_label: string
+}
+
+export interface TripBuilderHotelRecommendation {
+  property_name: string
+  chain: string
+  loyalty_program: string
+  approx_points_per_night: number
+  transfer_suggestion: string | null
+  booking_url: string | null
+  notes: string | null
+}
+
+export interface TripBuilderBookingStep {
+  step: number
+  action: string
+  detail: string
+  url: string | null
+}
+
+export interface TripBuilderResponse {
+  top_flights: TripBuilderFlightOption[]
+  hotel: TripBuilderHotelRecommendation | null
+  booking_steps: TripBuilderBookingStep[]
+  ai_summary: string
+  points_summary: string
+}
+
+// ─────────────────────────────────────────────
 // DOMAIN TYPES (used in business logic / API responses)
 // ─────────────────────────────────────────────
 

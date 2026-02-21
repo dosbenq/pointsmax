@@ -7,13 +7,14 @@
 //   OUTPUT: ranked list of redemption options with dollar values
 // ============================================================
 
-import { createClient } from '@supabase/supabase-js'
+import { createServerDbClient } from '@/lib/supabase'
 import type {
   BalanceInput,
   RedemptionResult,
   CalculateResponse,
   Program,
 } from '@/types/database'
+import { resolveCppCents } from '@/lib/cpp-fallback'
 
 // ─────────────────────────────────────────────
 // TYPES for raw DB rows we fetch
@@ -56,10 +57,7 @@ interface RedemptionOptionRow {
 export async function calculateRedemptions(
   balances: BalanceInput[]
 ): Promise<CalculateResponse> {
-  const client = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!   // server-side: use service role to bypass RLS
-  )
+  const client = createServerDbClient()
 
   const programIds = balances.map(b => b.program_id)
 
@@ -146,7 +144,7 @@ export async function calculateRedemptions(
     for (const partner of partners) {
       const toValuation = valuationMap.get(partner.to_program_id)
       const toProgram = programMap.get(partner.to_program_id)
-      if (!toValuation || !toProgram) continue
+      if (!toProgram) continue
 
       // Apply transfer ratio: e.g. Amex→JetBlue is 250:200
       // so 10,000 Amex MR → 10,000 × (200/250) = 8,000 JetBlue points
@@ -158,7 +156,8 @@ export async function calculateRedemptions(
         pointsOut = pointsOut * (1 + bonusPct / 100)
       }
 
-      const totalValue = Math.floor(pointsOut) * toValuation.cpp_cents
+      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type)
+      const totalValue = Math.floor(pointsOut) * toCppCents
 
       options.push({
         label: `Transfer to ${toProgram.name}`,
@@ -167,7 +166,7 @@ export async function calculateRedemptions(
         to_program: toProgram,
         points_in: balance.amount,
         points_out: Math.floor(pointsOut),
-        cpp_cents: toValuation.cpp_cents,
+        cpp_cents: toCppCents,
         total_value_cents: totalValue,
         active_bonus_pct: bonusPct > 0 ? bonusPct : undefined,
         is_instant: partner.is_instant,
@@ -188,7 +187,7 @@ export async function calculateRedemptions(
       o => o.category === 'cashback' || o.category === 'statement_credit'
     )
     const cashValue = cashOption?.total_value_cents
-      ?? balance.amount * (valuationMap.get(balance.program_id)?.cpp_cents ?? 1)
+      ?? balance.amount * resolveCppCents(valuationMap.get(balance.program_id)?.cpp_cents, fromProgram.type)
 
     totalCashValue += cashValue
     totalOptimalValue += options[0]?.total_value_cents ?? cashValue
