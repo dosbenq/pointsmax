@@ -1120,3 +1120,230 @@ Logic:
 - Below the result: "See full breakdown →" → links to calculator
 
 **Acceptance criteria**: Widget works without login. As user types point balance, estimated value updates in <100ms. CTA to full calculator is prominent below the result.
+
+---
+
+## Sprint 15 — Engineering Quality (Kimi's Codebase Audit)
+
+> **PM note**: These are real bugs and quality issues surfaced in a codebase audit. Items 3, 9, 10 from the audit were rejected: sameSite 'lax' is correct for affiliate tracking (strict would break cross-site cookie delivery), and the unused import / type assertion issues are too small for a sprint slot. The 8 tasks below are all valid and assigned to Kimi.
+
+### Q1 · Fix AI recommend route — hardcoded USD assumptions in India context
+
+**Why**: The `/api/recommend` route constructs an AI prompt that hardcodes USD units (e.g. "worth X cents per point", "best value in dollars"). India users receive advice in USD terms even when their program is HDFC or Axis. This is a correctness bug, not just a display issue — the AI's reasoning is anchored to the wrong currency.
+
+**File**: `src/app/api/recommend/route.ts` (or wherever the recommendation prompt is built)
+
+**What to fix**:
+1. Read `region` from the request (already available via params or header)
+2. Construct prompt with region-aware language:
+   - India: "worth X paise per point", "best value in rupees (₹)"
+   - US: "worth X cents per point", "best value in dollars ($)"
+3. Pass `currencySymbol`, `currencyCode`, and `cpp_unit` from `REGIONS[region]` into the prompt template — do not hardcode either
+
+**Acceptance criteria**: AI recommendation response for `/in` region uses ₹ and rupee units throughout. No "cents" or "$" in the response for Indian users. Verify with a test prompt using HDFC Millennia program.
+
+---
+
+### Q2 · Rate limit `/api/programs` (and other unprotected public API routes)
+
+**Why**: `/api/programs` is the most-called public API route (used by the calculator, landing widget, and SEO pages). It has no rate limiting. A single script can make thousands of requests per second, exhausting DB connections and taking the site down.
+
+**File**: `src/lib/api-security.ts` (rate limiting already implemented; apply it here)
+
+**Routes to protect** (apply `rateLimit()` call at the top of each handler):
+- `src/app/api/programs/route.ts` — 60 requests/min/IP
+- `src/app/api/cards/route.ts` — 60 requests/min/IP
+- `src/app/api/calculate/route.ts` — 20 requests/min/IP (computationally heavier)
+- `src/app/api/award-search/route.ts` — 10 requests/min/IP (external API calls behind it)
+
+**Pattern**: The existing Upstash-based `rateLimit()` call returns `{ success: boolean, limit, remaining, reset }`. If `!success`, return `Response.json({ error: 'rate_limit_exceeded' }, { status: 429, headers: { 'Retry-After': reset } })`.
+
+**Acceptance criteria**: More than 60 requests/minute to `/api/programs` from a single IP returns 429 with `Retry-After` header. Normal usage is unaffected.
+
+---
+
+### Q3 · Standardize API error response format across all routes
+
+**Why**: Different routes return errors in different shapes:
+- Some: `{ error: "message" }`
+- Some: `{ message: "error" }`
+- Some: `{ ok: false, error: { code: "X", message: "Y" } }`
+- Some: plain status code with empty body
+
+The frontend has to handle all these shapes with special cases, making error handling fragile. When a new error surfaces, it's silently swallowed because the frontend checks the wrong field.
+
+**Define a standard** in `src/lib/api-error.ts` (new file):
+```typescript
+export interface ApiError {
+  error: {
+    code: string;      // machine-readable: "rate_limit_exceeded", "invalid_program_id", etc.
+    message: string;   // human-readable
+  };
+}
+
+export function apiError(code: string, message: string, status = 400): Response {
+  return Response.json({ error: { code, message } } satisfies ApiError, { status });
+}
+```
+
+**Migrate these routes** (highest-traffic first):
+1. `src/app/api/calculate/route.ts`
+2. `src/app/api/programs/route.ts`
+3. `src/app/api/recommend/route.ts`
+4. `src/app/api/award-search/route.ts`
+5. `src/app/api/analytics/affiliate-click/route.ts`
+
+**Update frontend error handling** in the calculator and award search pages to read `error.error.code` and `error.error.message`.
+
+**Acceptance criteria**: All 5 routes return `{ error: { code, message } }` for all error cases. TypeScript enforces the shape via `satisfies ApiError`. No route returns a bare `{ message: "..." }` error.
+
+---
+
+### Q4 · Replace `console.error` with Sentry-aware structured logging
+
+**Why**: There are ~15 `console.error(...)` calls scattered across API routes and lib files. In production (Vercel), these appear in raw logs that require manual log tailing to find. Sentry captures unhandled exceptions automatically, but `console.error` calls in catch blocks are not unhandled — they're explicitly swallowed. This means real errors are silently lost.
+
+**What to do**:
+1. Create `src/lib/logger.ts`:
+```typescript
+import * as Sentry from '@sentry/nextjs';
+
+export const logger = {
+  error(message: string, error?: unknown, context?: Record<string, unknown>) {
+    console.error(message, error);
+    if (error instanceof Error) {
+      Sentry.captureException(error, { extra: { message, ...context } });
+    } else {
+      Sentry.captureMessage(message, { level: 'error', extra: context });
+    }
+  },
+  warn(message: string, context?: Record<string, unknown>) {
+    console.warn(message, context);
+    Sentry.captureMessage(message, { level: 'warning', extra: context });
+  },
+};
+```
+
+2. Search for all `console.error(` occurrences across `src/` — replace each with `logger.error(message, error, { context })` where context includes relevant IDs (user_id, program_id, etc.)
+
+3. Do NOT replace `console.log` or `console.warn` — only `console.error` in catch blocks and error paths
+
+**Acceptance criteria**: Zero `console.error` calls in `src/` (verified with `grep -r "console.error" src/`). Each replaced call includes meaningful context. Errors flow to Sentry dashboard.
+
+---
+
+### Q5 · Sanitize JSON-LD data before `dangerouslySetInnerHTML`
+
+**Why**: JSON-LD structured data is injected into the page via `<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />`. If the `json` string contains a program name or description fetched from DB that includes `</script>`, it breaks out of the script tag and creates an XSS vector.
+
+**File**: `src/lib/seo.ts` (the `generateJsonLd` helper)
+
+**Fix**:
+```typescript
+function sanitizeForJsonLd(str: string): string {
+  // Escape </script> sequences to prevent early tag termination
+  return str.replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--');
+}
+
+export function generateJsonLd(data: object): string {
+  return JSON.stringify(data).replace(/<\/script>/gi, '<\\/script>').replace(/<!--/g, '<\\!--');
+}
+```
+
+**Apply this** everywhere `dangerouslySetInnerHTML` is used with JSON-LD — search for `dangerouslySetInnerHTML` in the codebase and ensure every instance goes through `generateJsonLd()` rather than raw `JSON.stringify()`.
+
+**Acceptance criteria**: A program name containing `</script>alert(1)</script>` in the DB does not trigger an alert when the card page is rendered. Verified by temporarily adding such a name to a test program and checking the rendered HTML is escaped.
+
+---
+
+### Q6 · Add client-side program ID validation in calculator
+
+**Why**: The calculator's program selection dropdowns currently trust that the selected `program_id` is valid. If a user manually edits the DOM or sends a crafted request, an invalid UUID can reach the API. The API should already validate server-side, but client-side validation prevents unnecessary API round-trips and catches bugs earlier.
+
+**File**: `src/app/[region]/calculator/page.tsx`
+
+**What to add**:
+1. When program IDs are loaded from `/api/programs`, store them in a `Set<string>` for O(1) lookup
+2. Before calling `/api/calculate`, validate each selected `program_id` is in the set:
+```typescript
+const validProgramIds = new Set(programs.map(p => p.id));
+const invalidIds = selectedProgramIds.filter(id => !validProgramIds.has(id));
+if (invalidIds.length > 0) {
+  setCalculatorError('Invalid program selection. Please refresh and try again.');
+  return;
+}
+```
+3. Show the error inline (not an alert) and do not fire the API call
+
+**Acceptance criteria**: Manually setting an invalid program_id in React DevTools and clicking Calculate shows a validation error without hitting the API (verify with Network tab — no request fired).
+
+---
+
+### Q7 · Add retry logic for affiliate click DB writes
+
+**Why**: The affiliate click tracking in `/api/analytics/affiliate-click/route.ts` does a single DB insert with no retry. If the insert fails (transient Supabase connection error, brief DB hiccup), the click is permanently lost. This directly costs revenue attribution — we won't know which card generated a commission.
+
+**File**: `src/app/api/analytics/affiliate-click/route.ts`
+
+**Implementation**:
+```typescript
+async function insertWithRetry(payload: AffiliateClick, maxAttempts = 3): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { error } = await supabase.from('affiliate_clicks').insert(payload);
+    if (!error) return;
+    if (attempt === maxAttempts) {
+      logger.error('Affiliate click insert failed after retries', error, { payload });
+      return; // Don't fail the redirect — the user's click still works
+    }
+    await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // 100ms, 200ms backoff
+  }
+}
+```
+
+**Critical**: The retry must NOT block the redirect response. Fire `insertWithRetry()` and immediately return the redirect. Use `waitUntil` if available (Vercel edge), or `void insertWithRetry(...)` for serverless (best-effort tracking is acceptable here — the redirect is the user-critical path).
+
+**Acceptance criteria**: A simulated DB failure (temporarily invalid Supabase URL in test env) still completes the affiliate redirect. Three retry attempts are logged before giving up.
+
+---
+
+### Q8 · Move hardcoded booking URLs from AI prompt to DB/config
+
+**Why**: The AI advisor prompt contains hardcoded URLs for booking award travel (e.g., `https://www.united.com/...`, `https://krisflyer.com/...`). Airlines change booking portal URLs. When this happens, the AI gives users broken links, and fixing it requires a code deploy — not a DB update.
+
+**What to do**:
+1. Add a `booking_url TEXT` column to the `programs` table via migration (`supabase/migrations/022_program_booking_url.sql`)
+2. Populate it for all programs in the migration (use `UPDATE programs SET booking_url = '...' WHERE slug = '...'`)
+3. In the AI prompt builder, fetch program records (already done for other fields) and include `booking_url` from the DB record:
+   ```
+   To book [program name] awards, use: {program.booking_url}
+   ```
+4. Remove all hardcoded booking URLs from the prompt template
+
+**Acceptance criteria**: Program booking URLs are editable from the admin UI (via the existing admin valuations endpoint or a new programs endpoint). Changing a URL in the DB is reflected in the AI's next response without a deploy. No booking URLs remain hardcoded in the prompt template string.
+
+---
+
+### Q9 · Add CORS headers to all error responses in middleware
+
+**Why**: The middleware adds CORS headers (`Access-Control-Allow-Origin`, etc.) to successful responses but skips them on error responses (`NextResponse.json({ error: ... }, { status: 4xx/5xx })`). Browsers block error responses from cross-origin fetches if CORS headers are absent, so the frontend JavaScript never receives the error body — it just sees an opaque network error. This makes debugging in staging/dev environments very difficult.
+
+**File**: `middleware.ts`
+
+**Fix**: Extract a `corsHeaders` constant and apply it to every response, including error responses:
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': allowedOrigin,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// When returning an error:
+return NextResponse.json(
+  { error: { code: 'cors_blocked', message: 'Origin not allowed' } },
+  { status: 403, headers: corsHeaders }  // ← add headers here
+);
+```
+
+Audit every `return NextResponse.json(...)` with a 4xx/5xx status in middleware.ts and ensure `corsHeaders` is spread into the headers.
+
+**Acceptance criteria**: A cross-origin fetch to any API route that returns a 4xx error still delivers the error body to the browser JavaScript (not an opaque error). Verify with `fetch` from browser console to a non-whitelisted origin — the response body should be readable (status still 403, but CORS headers present so JS can read the response).
