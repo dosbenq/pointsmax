@@ -57,5 +57,17 @@ WHERE slug IN (
 -- No update needed for these as they should already be 'global' or will stay 'global'
 -- Examples: international airlines like Emirates, hotels like Marriott (international)
 
--- Verify counts
--- SELECT geography, COUNT(*) FROM programs GROUP BY geography;
+-- 4) Verify the migration worked
+DO $$
+DECLARE
+    us_count INTEGER;
+    in_count INTEGER;
+    global_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO us_count FROM programs WHERE geography = 'US';
+    SELECT COUNT(*) INTO in_count FROM programs WHERE geography = 'IN';
+    SELECT COUNT(*) INTO global_count FROM programs WHERE geography = 'global';
+    
+    RAISE NOTICE 'Migration 023 complete: US programs: %, IN programs: %, Global programs: %', 
+        us_count, in_count, global_count;
+END $$;

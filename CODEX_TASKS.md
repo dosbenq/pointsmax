@@ -1409,3 +1409,416 @@ Without this guard, any falsy or NaN value passed to `fmt()` will render as `${s
 **What to fix**: Restore the null/NaN safety check in the `fmt()` function. Do not change any of Kimi's other changes in this file (the program ID validation logic from Q6 is correct and should be kept).
 
 **Acceptance criteria**: A program with a `null` or `undefined` `cpp_cents` value in the API response renders `—` in the calculator UI, not `NaN` or `$NaN`. Verified by temporarily setting a program's value to `null` in the API mock or Supabase.
+
+---
+
+## Sprint 17 — Architecture: Data Access Layer
+
+> **Context**: A full system design audit found 161 scattered Supabase `.from()` calls across 40+ files with no consistent pattern. Schema changes require hunting through the entire codebase. Queries are duplicated, not composable, and have inconsistent error handling. This sprint creates a repository layer that becomes the single way to access the database.
+>
+> **Rule**: After this sprint, no new `.from()` calls are allowed outside of `src/lib/db/`. Every existing direct query stays where it is for now — we only build new repositories as needed. Do not do a big-bang migration.
+
+### A1 · Create `src/lib/db/` repository layer — cards, programs, valuations
+
+**Why**: The three most-queried tables (`cards`, `programs`, `latest_valuations`) are accessed from 8+ different routes with duplicated query logic. `/api/cards/route.ts` alone makes 3 separate sequential queries that should be a single batched fetch.
+
+**What to build** — create these files:
+
+**`src/lib/db/cards.ts`**
+```typescript
+import { createAdminClient } from '@/lib/supabase'
+import type { Card, CardWithRates } from '@/types/database'
+
+/** All active cards with earning rates and latest valuations, optionally filtered by geography */
+export async function getActiveCards(geography?: 'US' | 'IN'): Promise<CardWithRates[]> {
+  const db = createAdminClient()
+  const [cardsRes, valuationsRes, ratesRes] = await Promise.all([
+    db.from('cards')
+      .select('id, name, short_name, slug, program_slug, annual_fee_usd, currency, signup_bonus_pts, earn_unit, apply_url, is_active, geography, color_hex')
+      .eq('is_active', true)
+      .order('name'),
+    db.from('latest_valuations').select('program_id, cpp_cents'),
+    db.from('card_earning_rates').select('card_id, category, multiplier'),
+  ])
+  if (cardsRes.error) throw new Error(`cards fetch failed: ${cardsRes.error.message}`)
+  if (valuationsRes.error) throw new Error(`valuations fetch failed: ${valuationsRes.error.message}`)
+  if (ratesRes.error) throw new Error(`rates fetch failed: ${ratesRes.error.message}`)
+
+  const valuationMap = new Map(valuationsRes.data.map(v => [v.program_id, v.cpp_cents]))
+  const ratesMap = new Map<string, Record<string, number>>()
+  for (const r of ratesRes.data) {
+    if (!ratesMap.has(r.card_id)) ratesMap.set(r.card_id, {})
+    ratesMap.get(r.card_id)![r.category] = r.multiplier
+  }
+
+  let cards = cardsRes.data
+  if (geography) cards = cards.filter(c => c.geography === geography)
+
+  return cards.map(card => ({
+    ...card,
+    cpp_cents: valuationMap.get(card.program_slug) ?? 0,
+    earning_rates: ratesMap.get(card.id) ?? {},
+  }))
+}
+```
+
+**`src/lib/db/programs.ts`**
+```typescript
+/** Active programs for a given region, used by calculator wallet selector */
+export async function getActivePrograms(geography?: 'US' | 'IN') { ... }
+
+/** Program by slug — used by valuation pages */
+export async function getProgramBySlug(slug: string) { ... }
+```
+
+**`src/lib/db/valuations.ts`**
+```typescript
+/** Latest CPP values for all active programs */
+export async function getLatestValuations() { ... }
+
+/** Latest CPP for a single program */
+export async function getProgramValuation(programSlug: string) { ... }
+```
+
+**Then migrate `/api/cards/route.ts`** to use `getActiveCards()` — replace the 3 sequential queries with 1 repository call. This should reduce the route from ~80 lines to ~30 lines.
+
+**Do NOT yet migrate** other routes — we'll migrate incrementally as routes are touched.
+
+**Acceptance criteria**:
+- `src/lib/db/cards.ts`, `programs.ts`, `valuations.ts` exist with full type safety
+- `/api/cards/route.ts` uses `getActiveCards()` — no direct `.from()` calls remain in that file
+- Build passes, all existing `/api/cards` tests pass
+- Response shape is identical to before (no breaking change)
+- Batched queries: 3 parallel Promise.all instead of sequential (measurable in Network tab: response time drops)
+
+---
+
+### A2 · Fix N+1 and sequential queries — migrate 3 highest-traffic routes
+
+**Why**: After A1 establishes the pattern, apply it to the next 3 most-impactful routes.
+
+**Routes to migrate** (in order):
+
+1. **`/api/programs/route.ts`**: Already fetches in one query — add it to `programs.ts` repository, keep the route thin.
+
+2. **`/api/calculate/route.ts`**: Currently calls `calculateRedemptions()` which loads programs + valuations + transfer_partners in 3 separate queries. Wrap these 3 in `Promise.all` inside `src/lib/calculate.ts` if not already, and extend the reference cache TTL from 120s to **600s** (10 min). Valuations don't change frequently.
+
+3. **`/api/ai/recommend/route.ts`**: Currently fetches program valuations separately from the main balance data. Use `getLatestValuations()` from the repository so it reuses the same cached data path.
+
+**Acceptance criteria**: `grep -r "\.from(" src/app/api/cards src/app/api/programs src/app/api/calculate src/app/api/ai/recommend` returns 0 results. All routes use repository functions. Build passes.
+
+---
+
+### A3 · Standardize all API routes to use `error-utils.ts` — eliminate raw `NextResponse.json` error returns
+
+**Why**: 31 admin routes and some API routes still use `return NextResponse.json({ error: '...' }, { status: ... })` instead of the standardized `badRequest()` / `internalError()` / `notFound()` helpers. This creates inconsistent error shapes that the frontend has to handle case-by-case.
+
+**Search for all non-standard error returns**:
+```bash
+grep -rn "NextResponse.json.*error.*status" src/app/api/ | grep -v "error-utils"
+```
+
+**Fix pattern** — replace every instance with the appropriate helper from `src/lib/error-utils.ts`:
+- `{ error: 'Missing fields' }, { status: 400 }` → `badRequest('Missing fields')`
+- `{ error: 'Internal error' }, { status: 500 }` → `internalError('Internal error')`
+- `{ error: 'Not found' }, { status: 404 }` → `notFound('Not found')`
+- `{ error: 'Unauthorized' }, { status: 401 }` → `unauthorized()`
+- `{ error: 'Forbidden' }, { status: 403 }` → `forbidden()`
+
+Also replace all remaining `console.error(...)` calls in API routes with `logError(...)` from `src/lib/logger.ts`. Search: `grep -rn "console.error" src/app/api/`
+
+**Acceptance criteria**:
+- Zero `NextResponse.json(.*error.*status` patterns in `src/app/api/` (verified by grep)
+- Zero `console.error` calls in `src/app/api/` (verified by grep)
+- All error responses are shaped as `{ error: { code: string, message: string } }`
+- Build passes, all existing tests pass
+
+---
+
+## Sprint 18 — Architecture: Component Decomposition
+
+> **Context**: `calculator/page.tsx` is 2033 lines with 33 `useState` hooks. It handles data fetching, business logic, AI chat, form input, results display, trip planning, and preferences — all in one component. This is the single highest-risk file in the codebase: one bad edit breaks the entire product. This sprint extracts it into focused, testable pieces.
+>
+> **Strategy**: Do NOT rewrite. Extract incrementally. The page stays as the orchestrator — we pull out sub-features one at a time. After each extraction, verify the build and manually test the affected feature.
+
+### B1 · Extract `useCalculatorState` hook from calculator/page.tsx
+
+**Why**: 33 `useState` calls in one component create a state spaghetti that's impossible to reason about. Every state change potentially triggers a full re-render of 2000 lines of JSX.
+
+**What to build** — create `src/hooks/useCalculatorState.ts`:
+
+This hook owns ALL calculator state and exposes only a clean interface:
+```typescript
+// src/hooks/useCalculatorState.ts
+export type CalculatorState = {
+  // Balance input
+  rows: BalanceRow[]
+  // Results
+  results: CalculateResponse | null
+  resultsLoading: boolean
+  // AI advisor
+  aiHistory: GeminiTurn[]
+  aiLoading: boolean
+  aiMessage: string
+  // Preferences
+  preferences: UserPreferences | null
+  // UI
+  activeTab: 'calculator' | 'results' | 'ai'
+  notification: Notification | null
+}
+
+export type CalculatorActions = {
+  addRow: () => void
+  removeRow: (id: string) => void
+  updateRow: (id: string, field: keyof BalanceRow, value: string) => void
+  calculate: () => Promise<void>
+  sendAiMessage: (message: string) => Promise<void>
+  setActiveTab: (tab: CalculatorState['activeTab']) => void
+  clearNotification: () => void
+}
+
+export function useCalculatorState(region: Region): [CalculatorState, CalculatorActions] {
+  // Move ALL 33 useState calls here
+  // Move ALL useEffect chains here
+  // Move calculateHandler, aiHandler functions here
+  // Return clean [state, actions] tuple
+}
+```
+
+**Then in `calculator/page.tsx`**: Replace all 33 `useState` calls with:
+```typescript
+const [state, actions] = useCalculatorState(region)
+```
+
+The page component becomes an orchestrator that only renders — no business logic.
+
+**Acceptance criteria**:
+- `src/hooks/useCalculatorState.ts` exists and exports the hook
+- `calculator/page.tsx` has zero `useState` calls at the top level (all delegated to hook)
+- Page line count drops from 2033 to < 1400
+- Build passes, calculator still works end-to-end (balance entry → calculate → results → AI chat)
+- Hook is importable independently (no circular deps)
+
+---
+
+### B2 · Extract `<AwardResults>`, `<BalanceInputPanel>`, and `<AIChat>` from calculator
+
+**Why**: After B1, the page still has 3 major rendering sections (1400 lines of JSX) that each warrant their own component file for readability and future testability.
+
+**What to extract** — create these components:
+
+**`src/components/calculator/BalanceInputPanel.tsx`** (~150 lines)
+- The multi-row balance input with program selectors and amount fields
+- Props: `rows`, `programs`, `onAddRow`, `onRemoveRow`, `onUpdateRow`, `region`
+- No state of its own — pure controlled component
+
+**`src/components/calculator/AwardResults.tsx`** (~200 lines)
+- The results table/cards showing redemption options ranked by value
+- Props: `results`, `selectedResult`, `onSelectResult`, `region`, `narrative`
+- Includes the "Best Potential Value" banner
+- No state except which result is selected
+
+**`src/components/calculator/AIChat.tsx`** (~150 lines)
+- The AI advisor chat interface
+- Props: `history`, `loading`, `onSendMessage`, `collapsed`, `onToggleCollapse`, `region`
+- Renders the message thread and input box
+
+**Then in `calculator/page.tsx`**: Replace the 3 sections with:
+```tsx
+<BalanceInputPanel rows={state.rows} programs={programs} ... />
+<AwardResults results={state.results} ... />
+<AIChat history={state.aiHistory} ... />
+```
+
+**Acceptance criteria**:
+- 3 new component files exist in `src/components/calculator/`
+- Each file is < 250 lines
+- `calculator/page.tsx` drops from ~1400 to < 600 lines
+- Build passes, full end-to-end flow works
+- Components are typed: no implicit `any`, no missing prop types
+
+---
+
+### B3 · Extract `useAwardSearch` hook from award-search/page.tsx
+
+**Why**: `award-search/page.tsx` (683 lines) has the same problem as the calculator — state, fetching, and rendering are all tangled. The award search logic (building params, calling API, handling results/narrative) should be a reusable hook because the same logic could power the Inspire Me page and the Calculator's embedded award search.
+
+**What to build** — `src/hooks/useAwardSearch.ts`:
+```typescript
+export function useAwardSearch(region: Region) {
+  // State: params (origin, dest, dates, cabin, passengers)
+  // State: results, loading, error
+  // State: narrative, narrativeLoading
+  // Action: search(params, balances)
+  // Action: clearResults()
+  return { params, setParams, results, narrative, loading, error, search }
+}
+```
+
+**Then** both `award-search/page.tsx` AND `inspire/page.tsx` can use this hook, removing duplicated fetch logic.
+
+**Acceptance criteria**:
+- `src/hooks/useAwardSearch.ts` exists
+- `award-search/page.tsx` drops from 683 to < 350 lines
+- `inspire/page.tsx` uses `useAwardSearch` for its search calls (if applicable)
+- Build passes, award search works end-to-end
+
+---
+
+## Sprint 19 — Architecture: Testing Foundation
+
+> **Context**: 0% page component test coverage. ~15% API route coverage. No integration tests. The codebase has been growing via AI agents (Kimi + Codex) with no regression safety net. One bad merge can silently break India vs US parity, the scoring algorithm, or the AI advisor. This sprint establishes the minimum test infrastructure to safely continue product development.
+>
+> **Tool**: Vitest (already installed). Use `@testing-library/react` for component tests. Mock Supabase and external APIs at the module boundary.
+>
+> **Philosophy**: Don't aim for 100% coverage. Test the things that break silently and are hard to catch in manual QA: scoring algorithms, currency formatting, region routing, API error shapes.
+
+### C1 · Unit tests for all scoring and formatting logic
+
+**Why**: The card scoring algorithm (in `card-recommender/page.tsx`), the calculate redemptions logic (`src/lib/calculate.ts`), and currency formatting helpers are the most critical logic paths. A bug here affects every user's recommendation. They have no tests.
+
+**What to write** — test files:
+
+**`src/lib/calculate.test.ts`** (extend existing):
+```typescript
+// Test: Higher CPP program ranks above lower CPP, all else equal
+// Test: Transfer partner that needs 2x points still beats cash if CPP is 3x
+// Test: India programs rank by paise correctly (cpp_cents in paise, not cents)
+// Test: Zero balance returns empty results, not an error
+// Test: Single very large balance doesn't overflow
+```
+
+**`src/app/[region]/card-recommender/scoring.test.ts`** (new):
+```typescript
+// Test: goalMatchScore returns 0 for card with no matching goals
+// Test: goalMatchScore returns N for N matching goals
+// Test: finalScore with goals selected — non-matching card gets 0.3x penalty
+// Test: finalScore with goals selected — matching card gets 1.4x boost
+// Test: Card ranking changes when travel goal is added
+// Test: Signup bonus excluded when hasCardAlready = true
+// Test: Annual fee subtracted from firstYearValue
+```
+
+**`src/lib/formatters.test.ts`** (new):
+```typescript
+// Test: fmt(null, '$') returns '—'
+// Test: fmt(NaN, '$') returns '—'
+// Test: fmt(10000, '$') returns '$100'
+// Test: formatCpp(150, 'in') returns '150 paise/pt'
+// Test: formatCpp(2.5, 'us') returns '2.50¢/pt'
+// Test: formatCpp(null, 'us') returns '—'
+```
+
+**Acceptance criteria**: `npm run test` passes with 0 failures. At least 20 test cases covering scoring + formatting. No mocks needed for pure functions.
+
+---
+
+### C2 · API route integration tests — critical paths
+
+**Why**: The 6 existing API tests cover happy paths only. Error paths, validation, and region-specific behavior are untested. A change to the `/calculate` cache key or `/cards` geography filter can silently break India users.
+
+**What to write**:
+
+**`src/app/api/calculate/route.test.ts`** (extend):
+```typescript
+// EXISTING: happy path
+// ADD: Test empty balances → 400
+// ADD: Test balances with invalid program_id → 400
+// ADD: Test negative amount → 400
+// ADD: Test cache HIT on identical request
+// ADD: Test rate limit exceeded → 429
+// ADD: Test Supabase down → 500 (mock DB to throw)
+```
+
+**`src/app/api/cards/route.test.ts`** (extend):
+```typescript
+// EXISTING: returns cards
+// ADD: geography=IN returns only India cards (no Chase UR etc.)
+// ADD: geography=US returns only US cards (no HDFC etc.)
+// ADD: Missing geography param → returns all or defaults to US (document the behavior)
+// ADD: Invalid geography → 400
+```
+
+**`src/app/api/ai/recommend/route.test.ts`** (extend):
+```typescript
+// ADD: Empty balances → returns clarifying response (not AI call)
+// ADD: India region → system prompt contains 'paise' not 'cents'
+// ADD: US region → system prompt contains 'cents' not 'paise'
+// ADD: Gemini timeout → returns 500 (mock Gemini to time out)
+```
+
+**Acceptance criteria**: `npm run test` passes. At least 15 new test cases. All error paths covered for calculate, cards, and recommend routes.
+
+---
+
+### C3 · Region parity smoke tests
+
+**Why**: India and US share the same codebase but different data, currencies, and defaults. Bugs that only affect one region go undetected until a user reports them. We need automated checks that both regions produce valid outputs for key operations.
+
+**What to write** — `src/tests/region-parity.test.ts`:
+```typescript
+describe('Region parity', () => {
+  for (const region of ['us', 'in'] as const) {
+    describe(`region: ${region}`, () => {
+      it('programs API returns programs', async () => {
+        const res = await GET(mockRequest({ geography: region === 'us' ? 'US' : 'IN' }))
+        const body = await res.json()
+        expect(body.cards.length).toBeGreaterThan(0)
+        // US should have no India programs
+        if (region === 'us') {
+          expect(body.cards.every(c => c.geography === 'US')).toBe(true)
+        }
+        // India should have no US programs
+        if (region === 'in') {
+          expect(body.cards.every(c => c.geography === 'IN')).toBe(true)
+        }
+      })
+
+      it('calculate returns results', async () => {
+        // Use a known program ID for each region
+        const programId = region === 'us' ? US_TEST_PROGRAM_ID : IN_TEST_PROGRAM_ID
+        const res = await POST(mockRequest({ balances: [{ program_id: programId, amount: 50000 }] }))
+        expect(res.status).toBe(200)
+        const body = await res.json()
+        expect(body.results.length).toBeGreaterThan(0)
+        expect(body.total_optimal_value_cents).toBeGreaterThan(0)
+      })
+
+      it('CPP values are in correct units for region', async () => {
+        // India CPP should be in paise (typically 100-200 range)
+        // US CPP should be in cents (typically 1-3 range)
+        const results = await calculate(regionTestBalances[region])
+        const cpp = results.results[0].cpp_cents
+        if (region === 'in') expect(cpp).toBeGreaterThan(50)   // paise
+        if (region === 'us') expect(cpp).toBeLessThan(10)       // cents
+      })
+    })
+  }
+})
+```
+
+**Acceptance criteria**: Region parity tests run in CI. If someone accidentally makes India return US programs, this test catches it. If someone breaks the CPP unit conversion, this catches it. Zero flaky tests (all deterministic with mocked DB).
+
+---
+
+## Architecture Principles — Standing Rules for All Future Code
+
+> These apply to ALL future Codex sprints and Kimi tasks. Violations will block PR approval.
+
+### Rule 1: No direct `.from()` calls in page components or API routes
+All database access goes through `src/lib/db/` repository functions. If a repository function doesn't exist for what you need, create it.
+
+### Rule 2: Page components must be < 600 lines
+If a page component exceeds 600 lines, extract the excess into a custom hook (`src/hooks/`) or child component (`src/components/[feature]/`).
+
+### Rule 3: No new `console.error` / `console.log` in `src/`
+Use `logError()` / `logInfo()` / `logWarn()` from `src/lib/logger.ts` everywhere.
+
+### Rule 4: All API error responses use `error-utils.ts`
+Never return raw `NextResponse.json({ error: '...' }, { status: N })`. Always use `badRequest()`, `internalError()`, `notFound()`, `unauthorized()`, `forbidden()`, `rateLimited()`.
+
+### Rule 5: All new features need at least one test
+Every new API route needs a test file. Every new utility function needs unit tests. No exceptions.
+
+### Rule 6: Currency and region logic is always explicit
+No hardcoded `$`, `¢`, `₹`, or `JFK` / `DEL` in components. Use the `region` parameter + a formatter function. Formatters live in `src/lib/formatters.ts`.
