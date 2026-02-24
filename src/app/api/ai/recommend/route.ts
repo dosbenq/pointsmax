@@ -4,40 +4,8 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { createServerDbClient } from '@/lib/supabase'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
-
-// Known booking URLs — AI picks from these so it can't hallucinate links
-const BOOKING_URLS_US = `
-Known booking URLs (only use these exact URLs in links):
-- Chase UR transfer partners: https://www.ultimaterewards.com
-- Amex MR transfer partners: https://global.americanexpress.com/rewards/transfer
-- Capital One transfer partners: https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/
-- Citi ThankYou transfer partners: https://www.citi.com/credit-cards/thankyou-rewards
-- Bilt transfer partners: https://www.bilt.com/rewards/travel
-- Hyatt award search: https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html
-- Marriott Bonvoy award search: https://www.marriott.com/loyalty/redeem.mi
-- Hilton Honors award search: https://www.hilton.com/en/hilton-honors/points/
-- IHG One Rewards award search: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
-- United MileagePlus award search: https://www.united.com/en/us/fly/travel/awards.html
-- Delta SkyMiles award search: https://www.delta.com/us/en/skymiles/overview
-- American AAdvantage award search: https://www.aa.com/homePage.do
-- Air France/KLM Flying Blue: https://www.flyingblue.com/en/spend/flights
-- British Airways Avios: https://www.britishairways.com/travel/home/public/en_us/
-- Air Canada Aeroplan: https://aeroplan.com
-- Singapore KrisFlyer: https://www.singaporeair.com/en_UK/us/home
-- Turkish Miles&Smiles: https://www.turkishairlines.com/en-int/miles-and-smiles/
-- Avianca LifeMiles: https://www.lifemiles.com/fly/search
-`.trim()
-
-const BOOKING_URLS_IN = `
-Known booking URLs (only use these exact URLs in links):
-- HDFC transfer/rewards: https://www.hdfcbank.com/personal/pay/cards/credit-cards/reward-points
-- Axis EDGE rewards: https://www.axisbank.com/retail/cards/credit-card/edge-rewards
-- Amex India Membership Rewards: https://www.americanexpress.com/en-in/rewards/membership-rewards/
-- Air India Maharaja Club: https://www.airindia.com/in/en/maharaja-club.html
-- IndiGo 6E Rewards: https://www.goindigo.in/6e-rewards.html
-- Taj InnerCircle: https://www.tajhotels.com/en-in/tajinnercircle/
-- Accor ALL points: https://all.accor.com/loyalty-program/redeem-your-points/index.en.shtml
-`.trim()
+import { type Region } from '@/lib/regions'
+import { getBookingUrlsForPrompt } from '@/lib/booking-urls'
 
 type Balance = { name: string; amount: number; program_id?: string }
 type TopResult = {
@@ -361,8 +329,9 @@ export async function POST(req: NextRequest) {
     return new Response(`message too long (max ${MAX_MESSAGE_CHARS} chars)`, { status: 400 })
   }
 
-  const region = normalizeRegion(payload.region)
+  const region: Region = normalizeRegion(payload.region)
   const regionCtx = REGION_CONTEXT[region]
+  const isIndia = region === 'in'
   const balances = toBalances(payload.balances)
   const topResults = toTopResults(payload.topResults)
   // K3: Return helpful message for empty balances instead of error
@@ -487,6 +456,10 @@ export async function POST(req: NextRequest) {
   }
 
   // ── System prompt ───────────────────────────────────────────────
+  // Region-aware currency terms
+  const currencyUnit = isIndia ? 'rupees (₹)' : 'dollars ($)'
+  const cppUnit = isIndia ? 'paise per point (100 paise = ₹1)' : 'cents per point (100 cents = $1)'
+  
   const systemPrompt = `You are a friendly, expert travel rewards advisor. You have a natural conversation with the user to understand their trip, then give a specific, actionable recommendation.
 
 Today's date: ${todayDate}${preferencesContext}
@@ -497,7 +470,7 @@ ${balanceSummary}
 TRANSFER PARTNERS AVAILABLE (only recommend programs from this list):
 ${partnerSummary}
 
-PRE-CALCULATED REDEMPTION VALUES:
+PRE-CALCULATED REDEMPTION VALUES (in ${currencyUnit}):
 ${topValueSummary}
 
 PROGRAM CPP REFERENCE (live DB values):
@@ -509,13 +482,13 @@ REGION CONTEXT:
 - Express valuations as ${regionCtx.cppUnitLabel}
 - For India, prioritize Indian programs and partners first (Air India Maharaja Club, Taj InnerCircle, Accor ALL, IndiGo 6E Rewards) when available.
 
-${regionCtx.code === 'in' ? BOOKING_URLS_IN : BOOKING_URLS_US}
+${getBookingUrlsForPrompt(region)}
 
 CONVERSATION RULES:
 1. If the user's first message is vague (no destination, dates, travelers, or cabin class), ask 2-3 friendly clarifying questions. Keep the message short and warm.
 2. Once you have enough info (destination + at least one of: dates/flexibility, travelers, cabin preference), give the full recommendation.
 3. If the user asks a follow-up question after a recommendation, answer it conversationally and update the recommendation if needed.
-4. Always reference the user's actual balances and use ${regionCtx.currency} amounts for value examples.
+4. Always reference the user's actual balances and any calculated ${currencyUnit} values provided. Point valuations are shown in ${cppUnit}.
 5. Only recommend transfer partners the user has access to.
 
 RESPONSE FORMAT — return ONLY valid JSON (no markdown, no code fences):
@@ -531,23 +504,23 @@ When recommending:
 {
   "type": "recommendation",
   "headline": "Specific one-line recommendation under 12 words",
-  "reasoning": "2-3 sentences with specific programs, sweet spots, and dollar values",
+  "reasoning": "2-3 sentences with specific programs, sweet spots, and ${currencyUnit} values",
   "flight": {
     "airline": "Specific airline",
     "cabin": "Economy | Business | First",
-    "route": "e.g. JFK-NRT",
+    "route": "e.g. ${isIndia ? 'BOM-LHR' : 'JFK-NRT'}",
     "points_needed": "e.g. 75,000 miles one-way",
-    "transfer_chain": "e.g. Chase UR → United MileagePlus (1:1)",
+    "transfer_chain": "e.g. ${isIndia ? 'HDFC Millennia → Air India Maharaja Club (1:1)' : 'Chase UR → United MileagePlus (1:1)'}",
     "notes": "Booking tip or sweet spot detail"
   },
   "hotel": {
-    "name": "Specific property (e.g. Park Hyatt Tokyo)",
+    "name": "Specific property (e.g. ${isIndia ? 'Taj Mahal Palace Mumbai' : 'Park Hyatt Tokyo'})",
     "chain": "Loyalty program name",
     "points_per_night": "e.g. 25,000 pts/night",
-    "transfer_chain": "e.g. Chase UR → World of Hyatt (1:1)",
+    "transfer_chain": "e.g. ${isIndia ? 'HDFC Millennia → Taj InnerCircle (2:1)' : 'Chase UR → World of Hyatt (1:1)'}",
     "notes": "Category, peak/off-peak, or availability note"
   },
-  "total_summary": "e.g. ~100,000 Chase UR for 2 nights + business class roundtrip",
+  "total_summary": "e.g. ~100,000 ${isIndia ? 'HDFC points' : 'Chase UR'} for 2 nights + business class roundtrip",
   "steps": ["Step 1 with specific platform/URL", "Step 2", "Step 3", "Step 4"],
   "tip": "Insider tip about award space, booking windows, or hidden value",
   "links": [

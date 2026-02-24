@@ -9,6 +9,7 @@ import { createPublicClient } from '@/lib/supabase'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError } from '@/lib/logger'
+import { enforceRateLimit } from '@/lib/api-security'
 
 type CardRow = {
   id: string
@@ -47,6 +48,14 @@ function normalizeCardCppCents(cppCents: number, currency: 'USD' | 'INR'): numbe
 }
 
 export async function GET(request: Request) {
+  // Rate limit: 60 requests per minute per IP
+  const rateLimitError = await enforceRateLimit(request, {
+    namespace: 'cards_ip',
+    maxRequests: 60,
+    windowMs: 60 * 1000,
+  })
+  if (rateLimitError) return rateLimitError
+
   const db = createPublicClient()
   const geography = normalizeGeographyParam(new URL(request.url).searchParams.get('geography'))
 

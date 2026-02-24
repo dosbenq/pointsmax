@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server'
 import { createPublicClient } from '@/lib/supabase'
+import { enforceRateLimit } from '@/lib/api-security'
+import { logError } from '@/lib/logger'
+import { internalError } from '@/lib/error-utils'
 
 // GET /api/programs
 // Returns all active programs for the calculator dropdown
 export async function GET(request: Request) {
+  // Rate limit: 60 requests per minute per IP
+  const rateLimitError = await enforceRateLimit(request, {
+    namespace: 'programs_ip',
+    maxRequests: 60,
+    windowMs: 60 * 1000,
+  })
+  if (rateLimitError) return rateLimitError
+
   const client = createPublicClient()
   const url = new URL(request.url)
   const regionRaw = (url.searchParams.get('region') ?? '').trim().toUpperCase()
@@ -34,8 +45,8 @@ export async function GET(request: Request) {
   }
 
   if (error) {
-    console.error('programs_api_fetch_failed', error.message)
-    return NextResponse.json({ error: 'Failed to load programs' }, { status: 500 })
+    logError('programs_api_fetch_failed', { message: error.message })
+    return internalError('Failed to load programs')
   }
 
   return NextResponse.json(data, {
