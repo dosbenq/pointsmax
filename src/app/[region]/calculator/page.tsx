@@ -178,7 +178,12 @@ const ALERT_BANNER_DISMISSED_KEY = 'pm_alert_banner_dismissed_v1'
 // HELPERS
 // ─────────────────────────────────────────────
 
-function fmt(cents: number, symbol: string) {
+// K2: Safe currency formatter - handles null, undefined, NaN
+function fmt(cents: number | null | undefined, symbol: string): string {
+  // Guard against falsy values (null, undefined, 0, NaN)
+  if (!cents || isNaN(cents)) {
+    return '—' // em-dash for unavailable value
+  }
   return `${symbol}${new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
   }).format(cents / 100)}`
@@ -1158,6 +1163,21 @@ export default function CalculatorPage() {
         amount: parsePointsInput(r.amount),
       }))
       .filter(b => b.amount > 0)
+
+    // K3: Guard against empty balances
+    if (namedBalances.length === 0) {
+      setChatMessages(prev => [...prev, {
+        role: 'ai',
+        payload: {
+          type: 'clarifying',
+          message: 'Add your point balances above to get personalized advice.',
+          questions: ['Enter your points balance and select a program, then ask me for recommendations!'],
+        } as AIClarify,
+      }])
+      setAiLoading(false)
+      trackEvent('calculator_ai_blocked_empty_balances', { region })
+      return
+    }
 
     // Start loading animation
     setAiLoading(true)

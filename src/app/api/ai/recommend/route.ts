@@ -207,8 +207,15 @@ export async function POST(req: NextRequest) {
 
   const balances = toBalances(payload.balances)
   const topResults = toTopResults(payload.topResults)
+  // K3: Return helpful message for empty balances instead of error
   if (balances.length === 0) {
-    return new Response('balances must include at least one valid entry', { status: 400 })
+    return new Response(JSON.stringify({
+      type: 'clarifying',
+      message: 'Add your point balances above to get personalized advice.',
+      questions: ['Enter your points balance and select a program, then ask me for recommendations!'],
+    }), {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
   }
 
   const history = Array.isArray(payload.history) ? payload.history : []
