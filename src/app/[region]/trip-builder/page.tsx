@@ -71,7 +71,7 @@ function getGoogleFlightsUrl(origin: string, destination: string): string {
 export default function TripBuilderPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
-  const config = REGIONS[region]
+  const config = REGIONS[region] ?? REGIONS.us
   const { user } = useAuth()
   const [uiState, setUiState] = useState<UIState>('form')
   const [result, setResult] = useState<TripBuilderResponse | null>(null)

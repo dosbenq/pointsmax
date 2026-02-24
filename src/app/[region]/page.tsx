@@ -94,7 +94,7 @@ const OUTCOMES_IN = [
 export default function LandingPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
-  const config = REGIONS[region]
+  const config = REGIONS[region] ?? REGIONS.us
   const { user, signInWithGoogle } = useAuth()
   
   const outcomes = region === 'in' ? OUTCOMES_IN : OUTCOMES_US

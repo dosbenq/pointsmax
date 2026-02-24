@@ -721,7 +721,7 @@ function AlertWidget({
 export default function CalculatorPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
-  const config = REGIONS[region]
+  const config = REGIONS[region] ?? REGIONS.us
   const reduceMotion = useReducedMotion()
   const { user, preferences, refreshPreferences } = useAuth()
 
