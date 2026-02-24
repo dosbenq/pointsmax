@@ -236,11 +236,16 @@ export async function GET(req: NextRequest) {
     ),
   ]
 
+  // Skip India programs - they are handled by a separate scraper
+  const indiaSlugs = ['hdfc-millennia', 'axis-edge', 'amex-india-mr', 'air-india', 'indigo-6e', 'taj-innercircle']
+  const skippedIndiaPrograms: string[] = []
+
   const { data: programRows, error: programErr } = await db
     .from('programs')
     .select('id, slug')
     .in('slug', candidateSlugs)
     .eq('is_active', true)
+    .not('slug', 'in', `(${indiaSlugs.map(s => `"${s}"`).join(',')})`)
 
   if (programErr) {
     logError('cron_update_valuations_program_lookup_failed', {
@@ -331,6 +336,15 @@ export async function GET(req: NextRequest) {
     ...parsed.unmapped,
   ]
 
+  // Log skipped India programs
+  const skippedIndiaCount = candidateSlugs.filter(slug => indiaSlugs.includes(slug)).length
+  if (skippedIndiaCount > 0) {
+    logInfo('cron_update_valuations_skipped_india_programs', {
+      requestId,
+      count: skippedIndiaCount,
+    })
+  }
+
   logInfo('cron_update_valuations_complete', {
     requestId,
     parsed_rows: mappedProgramKeys.length,
@@ -344,5 +358,6 @@ export async function GET(req: NextRequest) {
     updated: inserts.length,
     skipped,
     unmapped,
+    skipped_india_programs: skippedIndiaCount,
   })
 }

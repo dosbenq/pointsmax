@@ -77,7 +77,25 @@ const config: Config = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+  			// PointsMax semantic colors (dark mode aware)
+  			'pm-bg': 'var(--pm-bg)',
+  			'pm-surface': 'var(--pm-surface)',
+  			'pm-surface-soft': 'var(--pm-surface-soft)',
+  			'pm-border': 'var(--pm-border)',
+  			'pm-ink': {
+  				900: 'var(--pm-ink-900)',
+  				700: 'var(--pm-ink-700)',
+  				500: 'var(--pm-ink-500)',
+  			},
+  			'pm-accent': {
+  				DEFAULT: 'var(--pm-accent)',
+  				strong: 'var(--pm-accent-strong)',
+  				soft: 'var(--pm-accent-soft)',
+  			},
+  			'pm-success': 'var(--pm-success)',
+  			'pm-warning': 'var(--pm-warning)',
+  			'pm-danger': 'var(--pm-danger)',
   		}
   	}
   },

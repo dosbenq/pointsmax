@@ -4,20 +4,33 @@ import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import PricingActions from '@/components/PricingActions'
+import { notFound } from 'next/navigation'
+import { REGIONS, type Region } from '@/lib/regions'
 
-export const metadata: Metadata = {
-  title: 'Pricing — Free Points Calculator',
-  description:
-    'PointsMax is free forever for calculator + AI advisor. Pro adds live availability, alerts, and priority support.',
-  openGraph: {
-    title: 'Pricing — Free Points Calculator | PointsMax',
+type Props = {
+  params: Promise<{ region: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { region } = await params
+  if (!REGIONS[region as Region]) return { title: 'Not Found' }
+  
+  const config = REGIONS[region as Region]
+  
+  return {
+    title: `Pricing — Free Points Calculator ${config.flag}`,
     description:
-      'Free forever for calculator, trip builder, and AI advisor. Pro adds live award availability and alerts.',
-    url: '/pricing',
-  },
-  alternates: {
-    canonical: '/pricing',
-  },
+      'PointsMax is free forever for calculator + AI advisor. Pro adds live availability, alerts, and priority support.',
+    openGraph: {
+      title: `Pricing — Free Points Calculator | PointsMax`,
+      description:
+        'Free forever for calculator, trip builder, and AI advisor. Pro adds live award availability and alerts.',
+      url: `/${region}/pricing`,
+    },
+    alternates: {
+      canonical: `/${region}/pricing`,
+    },
+  }
 }
 
 const FREE_FEATURES = [
@@ -39,14 +52,14 @@ const PRO_FEATURES = [
   'Early access to new features',
 ]
 
-const FAQ = [
+const getFAQ = (region: Region, price: string) => [
   {
     q: 'Is the calculator really free?',
     a: 'Yes. The full calculator, core award search, and wallet tracking stay free forever.',
   },
   {
     q: 'How much is Pro?',
-    a: 'Pro is $9.99/month. It adds live Seats.aero availability plus transfer and seat alerts. The AI advisor, Trip Builder, and calculator remain free.',
+    a: `Pro is ${price}/month. It adds live Seats.aero availability plus transfer and seat alerts. The AI advisor, Trip Builder, and calculator remain free.`,
   },
   {
     q: 'What payment methods are supported?',
@@ -58,14 +71,31 @@ const FAQ = [
   },
 ]
 
-export default function PricingPage() {
+export default async function PricingPage({ params }: Props) {
+  const { region: regionParam } = await params
+  const region = regionParam as Region
+  
+  if (!REGIONS[region]) {
+    notFound()
+  }
+  
+  const config = REGIONS[region]
+  const currencySymbol = config.currencySymbol
+  
+  // Pricing in local currency
+  // Using approximate conversions - in production these would come from Stripe
+  const proPrice = region === 'in' ? '₹499' : '$9.99'
+  const freePrice = region === 'in' ? '₹0' : '$0'
+  
+  const faq = getFAQ(region, proPrice)
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
       <main className="flex-1 pm-shell py-14 sm:py-16">
         <div className="text-center mb-14">
-          <span className="pm-pill mb-4">Transparent pricing</span>
+          <span className="pm-pill mb-4">Transparent pricing {config.flag}</span>
           <h1 className="pm-heading text-4xl sm:text-5xl mb-4">
             Simple, honest pricing
           </h1>
@@ -77,42 +107,42 @@ export default function PricingPage() {
         <div className="grid sm:grid-cols-2 gap-6 mb-20 max-w-2xl mx-auto">
           <div className="pm-card p-8">
             <div className="mb-6">
-              <p className="text-sm font-semibold text-[#5f7c70] mb-2">Free</p>
+              <p className="text-sm font-semibold text-pm-ink-500 mb-2">Free</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-semibold text-[#173f34]">$0</span>
-                <span className="text-[#8ca196] text-lg">/month</span>
+                <span className="text-5xl font-semibold text-pm-ink-900">{freePrice}</span>
+                <span className="text-pm-ink-500 text-lg">/month</span>
               </div>
-              <p className="text-sm text-[#5f7c70] mt-2">No credit card required</p>
+              <p className="text-sm text-pm-ink-500 mt-2">No credit card required</p>
             </div>
             <ul className="space-y-3 mb-8">
               {FREE_FEATURES.map((f) => (
-                <li key={f} className="text-sm text-[#335448]">{f}</li>
+                <li key={f} className="text-sm text-pm-ink-700">{f}</li>
               ))}
             </ul>
-            <Link href="/calculator" className="pm-button w-full text-center">
+            <Link href={`/${region}/calculator`} className="pm-button w-full text-center">
               Get started free
             </Link>
           </div>
 
-          <div className="rounded-2xl border-2 border-[#0f766e] bg-[#f3fbf8] p-8 shadow-sm">
+          <div className="rounded-2xl border-2 border-pm-accent bg-pm-accent-soft/20 p-8 shadow-sm">
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-[#0f766e]">Pro</p>
-                <span className="text-xs bg-[#e7f6f2] text-[#0f5f57] rounded-full px-2.5 py-0.5 border border-[#b8e3da]">Live</span>
+                <p className="text-sm font-semibold text-pm-accent">Pro</p>
+                <span className="text-xs bg-pm-accent-soft text-pm-accent-strong rounded-full px-2.5 py-0.5 border border-pm-accent-soft">Live</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-semibold text-[#173f34]">$9.99</span>
-                <span className="text-[#8ca196] text-lg">/month</span>
+                <span className="text-5xl font-semibold text-pm-ink-900">{proPrice}</span>
+                <span className="text-pm-ink-500 text-lg">/month</span>
               </div>
-              <p className="text-sm text-[#5f7c70] mt-2">Cancel anytime</p>
+              <p className="text-sm text-pm-ink-500 mt-2">Cancel anytime</p>
             </div>
             <ul className="space-y-3 mb-8">
               {PRO_FEATURES.map((f) => (
-                <li key={f} className="text-sm text-[#335448]">{f}</li>
+                <li key={f} className="text-sm text-pm-ink-700">{f}</li>
               ))}
             </ul>
             <Suspense fallback={<button className="pm-button w-full opacity-70 cursor-wait" disabled>Loading…</button>}>
-              <PricingActions />
+              <PricingActions region={region} />
             </Suspense>
           </div>
         </div>
@@ -120,10 +150,10 @@ export default function PricingPage() {
         <div className="max-w-2xl mx-auto">
           <h2 className="pm-heading text-2xl mb-8 text-center">Frequently asked questions</h2>
           <div className="space-y-4">
-            {FAQ.map((item, i) => (
+            {faq.map((item, i) => (
               <div key={i} className="pm-card p-6">
-                <p className="font-semibold text-[#173f34] mb-2">{item.q}</p>
-                <p className="text-sm text-[#5f7c70] leading-relaxed">{item.a}</p>
+                <p className="font-semibold text-pm-ink-900 mb-2">{item.q}</p>
+                <p className="text-sm text-pm-ink-500 leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>

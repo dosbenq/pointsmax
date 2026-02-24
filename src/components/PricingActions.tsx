@@ -5,7 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { trackEvent } from '@/lib/analytics'
 
-export default function PricingActions() {
+interface PricingActionsProps {
+  region?: string
+}
+
+export default function PricingActions({ region = 'us' }: PricingActionsProps) {
   const { loading, user, userRecord, signInWithGoogle } = useAuth()
   const searchParams = useSearchParams()
   const [busy, setBusy] = useState<'checkout' | 'portal' | null>(null)
@@ -71,13 +75,13 @@ export default function PricingActions() {
   return (
     <div className="space-y-3">
       {checkoutStatus === 'success' && (
-        <p className="text-xs text-[#157347] bg-[#ecf9f1] border border-[#c7e7d4] rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-success bg-pm-success/10 border border-pm-success/30 rounded-lg px-3 py-2">
           Payment received. Your Pro access will be enabled shortly.
         </p>
       )}
 
       {checkoutStatus === 'cancelled' && (
-        <p className="text-xs text-[#7a5f2d] bg-[#fff8eb] border border-[#f2d8ad] rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-warning bg-pm-warning/10 border border-pm-warning/30 rounded-lg px-3 py-2">
           Checkout canceled. You can resume anytime.
         </p>
       )}
@@ -105,13 +109,13 @@ export default function PricingActions() {
       )}
 
       {!isPremium && (
-        <p className="text-xs text-[#5f7c70] text-center">
+        <p className="text-xs text-pm-ink-500 text-center">
           {user ? 'Secure checkout via Stripe.' : 'Sign in first to attach Pro to your account.'}
         </p>
       )}
 
       {error && (
-        <p className="text-xs text-[#b42318] bg-[#fff2f2] border border-[#f9d4d4] rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-danger bg-red-50 border border-pm-danger/20 rounded-lg px-3 py-2">
           {error}
         </p>
       )}

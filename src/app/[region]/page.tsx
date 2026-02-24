@@ -35,8 +35,37 @@ type SiteStats = {
   users: number
   pointsOptimized: number
   trackedPoints: number
+  valueUsd?: number
+  valueInr?: number
 }
 
+type Program = {
+  id: string
+  name: string
+  short_name: string
+  slug: string
+  cpp_cents: number
+}
+
+// X1: Hero copy variations by region - focused on value gap
+const HERO_COPY: Record<Region, {
+  headline: string
+  subhead: string
+  trustSignal: string
+}> = {
+  us: {
+    headline: 'Stop leaving 3× value on the table.',
+    subhead: 'PointsMax shows you the exact redemption that maximizes your Chase, Amex, and Citi points — before you commit.',
+    trustSignal: 'No credit card needed · Your data stays private',
+  },
+  in: {
+    headline: 'Most HDFC Infinia holders redeem points at ₹0.33 each. You can get ₹1.50.',
+    subhead: 'PointsMax finds the redemption path that multiplies your points — before you transfer.',
+    trustSignal: 'No credit card needed · Your data stays private',
+  },
+}
+
+// Outcome examples for the visual
 const OUTCOMES_US = [
   {
     id: 'tokyo',
@@ -91,6 +120,22 @@ const OUTCOMES_IN = [
   },
 ]
 
+// X2: Quick value widget - programs and their CPP values
+const WIDGET_PROGRAMS: Record<Region, { slug: string; name: string; cpp: number }[]> = {
+  us: [
+    { slug: 'chase-ur', name: 'Chase Ultimate Rewards', cpp: 2.0 },
+    { slug: 'amex-mr', name: 'Amex Membership Rewards', cpp: 2.0 },
+    { slug: 'capital-one-miles', name: 'Capital One Miles', cpp: 1.8 },
+    { slug: 'hyatt-points', name: 'World of Hyatt', cpp: 1.7 },
+  ],
+  in: [
+    { slug: 'hdfc-millennia', name: 'HDFC Millennia', cpp: 50 }, // paise
+    { slug: 'axis-edge', name: 'Axis EDGE Rewards', cpp: 50 },
+    { slug: 'amex-india-mr', name: 'Amex India MR', cpp: 75 },
+    { slug: 'air-india', name: 'Air India Maharaja Club', cpp: 100 },
+  ],
+}
+
 export default function LandingPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
@@ -100,6 +145,15 @@ export default function LandingPage() {
   const outcomes = region === 'in' ? OUTCOMES_IN : OUTCOMES_US
   const [activeOutcome, setActiveOutcome] = useState(outcomes[0])
   const [stats, setStats] = useState<SiteStats | null>(null)
+  
+  // X2: Quick value widget state
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [selectedProgram, setSelectedProgram] = useState<string>('')
+  const [pointInput, setPointInput] = useState<string>('')
+  const widgetPrograms = WIDGET_PROGRAMS[region]
+
+  // Hero copy for this region
+  const heroCopy = HERO_COPY[region]
 
   useEffect(() => {
     fetch('/api/stats')
@@ -112,17 +166,49 @@ export default function LandingPage() {
       .catch(() => {})
   }, [])
 
+  // Fetch programs for quick value widget
+  useEffect(() => {
+    fetch(`/api/programs?region=${region.toUpperCase()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setPrograms(data)
+          if (data.length > 0) {
+            setSelectedProgram(data[0].id)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [region])
+
   const statsLabel = useMemo(() => {
     if (!stats) return null
     const users = stats.users.toLocaleString()
-    const optimizedDollars = stats.pointsOptimized / 100
     if (region === 'in') {
-      const inrApprox = optimizedDollars * 83
-      const crore = inrApprox / 10_000_000
+      const crore = (stats.valueInr || 0) / 10000000
       return `${users} travelers · ₹${crore.toFixed(1)} crore optimized`
     }
-    return `${users} travelers · ${optimizedDollars.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} optimized`
+    return `${users} travelers · $${(stats.valueUsd || 0).toLocaleString()} optimized`
   }, [stats, region])
+
+  // X2: Calculate quick value
+  const quickValue = useMemo(() => {
+    const points = parseInt(pointInput.replace(/[^\d]/g, ''), 10)
+    if (!points || !selectedProgram) return null
+    
+    const program = programs.find(p => p.id === selectedProgram)
+    if (!program) return null
+    
+    if (region === 'in') {
+      // CPP is in paise for India
+      const inrValue = (points * program.cpp_cents) / 100
+      return `₹${Math.round(inrValue).toLocaleString()}`
+    } else {
+      // CPP is in cents for US
+      const usdValue = (points * program.cpp_cents) / 100
+      return `$${Math.round(usdValue).toLocaleString()}`
+    }
+  }, [pointInput, selectedProgram, programs, region])
 
   const entryPaths = [
     {
@@ -159,22 +245,26 @@ export default function LandingPage() {
       <NavBar />
 
       <main className="flex-1">
+        {/* Hero Section with X1 copy and X2 quick value widget */}
         <section className="pt-16 pb-12 sm:pt-22 sm:pb-14">
           <div className="pm-shell">
             <div className="grid gap-10 lg:grid-cols-12 items-end">
+              {/* Left: Copy */}
               <div className="lg:col-span-7 space-y-6">
                 <span className="pm-pill">Points decisions made simple {config.flag}</span>
+                
+                {/* X1: New hero headline focused on value gap */}
                 <h1 className="pm-heading text-4xl sm:text-5xl lg:text-6xl leading-[1.05]">
-                  {region === 'in' ? "India's first AI-powered credit card optimizer" : 'Know your best redemption before you transfer.'}
+                  {heroCopy.headline}
                 </h1>
                 <p className="pm-subtle text-base sm:text-lg max-w-xl leading-relaxed">
-                  {region === 'in'
-                    ? 'Optimize HDFC, Axis, and Amex India points with wallet-aware transfer guidance and booking steps.'
-                    : 'PointsMax shows what your points are worth right now, where to move them, and what to book next.'}
+                  {heroCopy.subhead}
                 </p>
+                
                 {statsLabel && (
-                  <p className="text-sm text-[#0f766e] font-semibold">{statsLabel}</p>
+                  <p className="text-sm text-pm-accent font-semibold">{statsLabel}</p>
                 )}
+                
                 <div className="flex flex-wrap items-center gap-3">
                   {user ? (
                     <Link
@@ -191,38 +281,72 @@ export default function LandingPage() {
                   )}
                   <Link
                     href={`/${region}/how-it-works`}
-                    className="text-sm font-semibold text-[#0f766e] hover:text-[#0b5e57]"
+                    className="text-sm font-semibold text-pm-accent hover:text-pm-accent-strong"
                     onClick={() => trackEvent('landing_secondary_cta_clicked', { location: 'hero', target: 'how_it_works', region })}
                   >
                     See how it works
                   </Link>
                 </div>
+                
+                {/* X1: Trust signal below CTA */}
+                <p className="text-sm text-pm-ink-500">{heroCopy.trustSignal}</p>
               </div>
 
+              {/* Right: X2 Quick Value Widget */}
               <div className="lg:col-span-5">
                 <div className="pm-card-soft p-6 sm:p-7">
-                  <p className="pm-label mb-2">Quick answer customers want</p>
-                  <h2 className="pm-heading text-xl mb-4">How much value am I missing?</h2>
-
-                  <div className="space-y-3">
-                    <div className="pm-card p-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-[#5a7468]">Simple cash redemption</p>
-                        <p className="text-sm font-semibold text-[#183d33]">Safe baseline</p>
-                      </div>
-                      <p className="text-xl font-bold text-[#2a5b4d]">{activeOutcome.cash}</p>
+                  <p className="pm-label mb-2">Quick value check</p>
+                  <h2 className="pm-heading text-xl mb-4">What are your points worth?</h2>
+                  
+                  <div className="space-y-4">
+                    {/* Program selector */}
+                    <div>
+                      <label className="pm-label block mb-1.5">I have</label>
+                      <select
+                        value={selectedProgram}
+                        onChange={(e) => setSelectedProgram(e.target.value)}
+                        className="pm-input"
+                      >
+                        {programs.length > 0 ? (
+                          programs.slice(0, 8).map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))
+                        ) : (
+                          widgetPrograms.map((p) => (
+                            <option key={p.slug} value={p.slug}>{p.name}</option>
+                          ))
+                        )}
+                      </select>
                     </div>
-                    <div className="pm-card p-4 flex items-center justify-between border-[#8ed3c8] bg-[#ecfaf7]">
-                      <div>
-                        <p className="text-xs text-[#43766c]">Best practical path</p>
-                        <p className="text-sm font-semibold text-[#154a42]">With transfer strategy</p>
-                      </div>
-                      <p className="text-xl font-bold text-[#0f766e]">{activeOutcome.best}</p>
+                    
+                    {/* Points input */}
+                    <div>
+                      <label className="pm-label block mb-1.5">Points balance</label>
+                      <input
+                        type="text"
+                        placeholder={region === 'in' ? '50000' : '100000'}
+                        value={pointInput}
+                        onChange={(e) => setPointInput(e.target.value)}
+                        className="pm-input"
+                      />
                     </div>
-                    <div className="rounded-xl border border-[#c7e7d4] bg-[#ecf9f1] px-4 py-3">
-                      <p className="text-xs text-[#4f8c66]">Value lift</p>
-                      <p className="text-lg font-bold text-[#157347]">{activeOutcome.lift}</p>
+                    
+                    {/* Result */}
+                    <div className="pm-card p-4 bg-pm-accent-soft/20 border-pm-accent-soft">
+                      <p className="text-xs text-pm-accent-strong mb-1">Best value potential</p>
+                      <p className="text-2xl font-bold text-pm-accent">
+                        {quickValue || (region === 'in' ? '₹—' : '$—')}
+                      </p>
                     </div>
+                    
+                    {/* CTA to full calculator */}
+                    <Link
+                      href={`/${region}/calculator`}
+                      className="block text-center text-sm font-semibold text-pm-accent hover:text-pm-accent-strong"
+                      onClick={() => trackEvent('landing_widget_cta_clicked', { region })}
+                    >
+                      See full breakdown →
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -230,7 +354,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-[#d7e8dd] bg-[rgba(236,246,240,0.54)]">
+        {/* Proof strip */}
+        <section className="border-y border-pm-border bg-pm-bg/50">
           <div className="pm-shell py-5">
             <div className="flex flex-wrap gap-2">
               {PROOF_STRIP.map((item) => (
@@ -239,7 +364,7 @@ export default function LandingPage() {
                 </span>
               ))}
               {featuredCards.map((card) => (
-                <span key={card} className="pm-pill text-[11px] border-[#b7e2d9] bg-[#eff9f6] text-[#0f5f57]">
+                <span key={card} className="pm-pill text-[11px] border-pm-accent-soft bg-pm-accent-soft/50 text-pm-accent-strong">
                   Featured: {card}
                 </span>
               ))}
@@ -247,6 +372,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Entry paths */}
         <section className="py-10 sm:py-12">
           <div className="pm-shell">
             <p className="pm-label mb-2">Choose your path</p>
@@ -262,13 +388,14 @@ export default function LandingPage() {
                   <span className="pm-pill text-[11px] mb-3">{item.badge}</span>
                   <h3 className="pm-heading text-lg mb-1.5">{item.title}</h3>
                   <p className="pm-subtle text-sm">{item.body}</p>
-                  <p className="text-sm font-semibold text-[#0f766e] mt-4">Open →</p>
+                  <p className="text-sm font-semibold text-pm-accent mt-4">Open →</p>
                 </Link>
               ))}
             </div>
           </div>
         </section>
 
+        {/* Outcomes section */}
         <section className="py-14 sm:py-16">
           <div className="pm-shell grid gap-8 lg:grid-cols-12">
             <div className="lg:col-span-4">
@@ -288,8 +415,8 @@ export default function LandingPage() {
                     }}
                     className={`px-3 py-2 rounded-full text-sm font-semibold border transition-colors ${
                       activeOutcome.id === item.id
-                        ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                        : 'bg-white text-[#365649] border-[#d5e5d9] hover:border-[#99ccbe]'
+                        ? 'bg-pm-accent text-white border-pm-accent'
+                        : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-soft'
                     }`}
                   >
                     {item.label}
@@ -298,19 +425,19 @@ export default function LandingPage() {
               </div>
 
               <div className="pm-card-soft p-5 sm:p-6">
-                <p className="text-sm text-[#2a4b3f]">{activeOutcome.detail}</p>
+                <p className="text-sm text-pm-ink-900">{activeOutcome.detail}</p>
                 <div className="grid sm:grid-cols-3 gap-3 mt-4">
                   <div className="pm-card p-4">
-                    <p className="text-xs text-[#688377]">Cash path</p>
-                    <p className="text-lg font-bold text-[#2a5b4d] mt-1">{activeOutcome.cash}</p>
+                    <p className="text-xs text-pm-ink-500">Cash path</p>
+                    <p className="text-lg font-bold text-pm-ink-700 mt-1">{activeOutcome.cash}</p>
                   </div>
-                  <div className="pm-card p-4 border-[#8ed3c8] bg-[#ecfaf7]">
-                    <p className="text-xs text-[#43766c]">Best path</p>
-                    <p className="text-lg font-bold text-[#0f766e] mt-1">{activeOutcome.best}</p>
+                  <div className="pm-card p-4 border-pm-accent-soft bg-pm-accent-soft/30">
+                    <p className="text-xs text-pm-accent-strong">Best path</p>
+                    <p className="text-lg font-bold text-pm-accent mt-1">{activeOutcome.best}</p>
                   </div>
-                  <div className="pm-card p-4 border-[#c7e7d4] bg-[#ecf9f1]">
-                    <p className="text-xs text-[#4f8c66]">Lift</p>
-                    <p className="text-lg font-bold text-[#157347] mt-1">{activeOutcome.lift}</p>
+                  <div className="pm-card p-4 border-pm-success/30 bg-pm-success/10">
+                    <p className="text-xs text-pm-success">Lift</p>
+                    <p className="text-lg font-bold text-pm-success mt-1">{activeOutcome.lift}</p>
                   </div>
                 </div>
               </div>
@@ -318,14 +445,15 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="py-14 sm:py-16 border-y border-[#d7e8dd] bg-[rgba(236,246,240,0.45)]">
+        {/* How it works */}
+        <section className="py-14 sm:py-16 border-y border-pm-border bg-pm-bg/45">
           <div className="pm-shell">
             <p className="pm-label mb-2">How it works</p>
             <h2 className="pm-heading text-3xl mb-7">A clean 3-step decision flow</h2>
             <div className="grid gap-4 sm:grid-cols-3">
               {PROCESS.map((item, idx) => (
                 <div key={item.title} className="pm-card p-5 sm:p-6">
-                  <p className="text-xs font-semibold text-[#0f766e] mb-2">Step {idx + 1}</p>
+                  <p className="text-xs font-semibold text-pm-accent mb-2">Step {idx + 1}</p>
                   <h3 className="pm-heading text-lg mb-2">{item.title}</h3>
                   <p className="pm-subtle text-sm leading-relaxed">{item.body}</p>
                 </div>
@@ -334,6 +462,7 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Final CTA */}
         <section className="py-16 sm:py-20">
           <div className="pm-shell">
             <div className="pm-card-soft p-7 sm:p-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">

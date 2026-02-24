@@ -40,14 +40,14 @@ export default function NavBar() {
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur border-b border-[#d5e5d9]/90 bg-[rgba(243,248,243,0.86)]">
+    <header className="sticky top-0 z-50 backdrop-blur border-b border-pm-border/90 bg-pm-bg/90">
       <div className="pm-shell h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
             href={`/${region}`}
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 border border-[#a9d8cf] bg-white text-[#0f3f36] hover:bg-[#f3fbf8] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 border border-pm-border bg-pm-surface text-pm-ink-900 hover:bg-pm-surface-soft transition-colors"
           >
-            <span className="inline-flex w-6 h-6 rounded-full bg-[#0f766e] text-white items-center justify-center text-xs font-bold">P</span>
+            <span className="inline-flex w-6 h-6 rounded-full bg-pm-accent text-white items-center justify-center text-xs font-bold">P</span>
             <span className="text-sm font-semibold tracking-wide">PointsMax</span>
           </Link>
 
@@ -60,8 +60,8 @@ export default function NavBar() {
                   href={link.href}
                   className={`px-3 py-2 rounded-full text-sm transition-colors ${
                     isActive
-                      ? 'bg-[#def4ef] text-[#0f5f57] font-semibold'
-                      : 'text-[#365649] hover:bg-white hover:text-[#143d33]'
+                      ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
+                      : 'text-pm-ink-700 hover:bg-pm-surface hover:text-pm-ink-900'
                   }`}
                 >
                   {link.label}
@@ -74,8 +74,8 @@ export default function NavBar() {
                 onClick={() => setToolsOpen((v) => !v)}
                 className={`px-3 py-2 rounded-full text-sm transition-colors flex items-center gap-1 ${
                   isToolsActive
-                    ? 'bg-[#def4ef] text-[#0f5f57] font-semibold'
-                    : 'text-[#365649] hover:bg-white hover:text-[#143d33]'
+                    ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
+                    : 'text-pm-ink-700 hover:bg-pm-surface hover:text-pm-ink-900'
                 }`}
               >
                 Tools
@@ -90,11 +90,11 @@ export default function NavBar() {
                       href={tool.href}
                       onClick={() => setToolsOpen(false)}
                       className={`block rounded-xl px-3 py-2.5 transition-colors ${
-                        pathname === tool.href ? 'bg-[#e8f6f1]' : 'hover:bg-[#f4faf7]'
+                        pathname === tool.href ? 'bg-pm-accent-soft' : 'hover:bg-pm-surface-soft'
                       }`}
                     >
-                      <p className="text-sm font-semibold text-[#153d32]">{tool.label}</p>
-                      <p className="text-xs text-[#5b776a] mt-0.5">{tool.desc}</p>
+                      <p className="text-sm font-semibold text-pm-ink-900">{tool.label}</p>
+                      <p className="text-xs text-pm-ink-500 mt-0.5">{tool.desc}</p>
                     </Link>
                   ))}
                 </div>
@@ -106,14 +106,14 @@ export default function NavBar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#c5ddd1] bg-white hover:bg-[#f4faf7] transition-colors"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-pm-border bg-pm-surface hover:bg-pm-surface-soft transition-colors"
             aria-label="Toggle theme"
             type="button"
           >
             {resolvedTheme === 'dark' ? (
-              <Sun className="h-4 w-4 text-[#365649]" />
+              <Sun className="h-4 w-4 text-pm-ink-700" />
             ) : (
-              <Moon className="h-4 w-4 text-[#365649]" />
+              <Moon className="h-4 w-4 text-pm-ink-700" />
             )}
           </button>
 
@@ -130,7 +130,7 @@ export default function NavBar() {
           </button>
 
           {loading ? (
-            <div className="w-8 h-8 rounded-full bg-[#dce9e1] animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-pm-border animate-pulse" />
           ) : user ? (
             <div className="relative">
               <button
@@ -139,21 +139,21 @@ export default function NavBar() {
                   setToolsOpen(false)
                   setMenuOpen(false)
                 }}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-[#c5ddd1] bg-white hover:bg-[#f4faf7] transition-colors"
+                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-pm-border bg-pm-surface hover:bg-pm-surface-soft transition-colors"
               >
-                <span className="w-7 h-7 rounded-full bg-[#0f766e] text-white text-xs font-bold flex items-center justify-center">
+                <span className="w-7 h-7 rounded-full bg-pm-accent text-white text-xs font-bold flex items-center justify-center">
                   {avatarLetter}
                 </span>
-                <span className="hidden sm:block text-xs text-[#426457] max-w-40 truncate">{user.email}</span>
+                <span className="hidden sm:block text-xs text-pm-ink-700 max-w-40 truncate">{user.email}</span>
               </button>
 
               {accountOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 pm-card p-2 shadow-2xl">
-                  <p className="px-3 py-2 text-xs text-[#5b776a] border-b border-[#e1ece6] truncate">{user.email}</p>
+                  <p className="px-3 py-2 text-xs text-pm-ink-500 border-b border-pm-border truncate">{user.email}</p>
                   <Link
                     href="/profile"
                     onClick={() => setAccountOpen(false)}
-                    className="block px-3 py-2 text-sm rounded-lg hover:bg-[#f3faf6] text-[#1b4438]"
+                    className="block px-3 py-2 text-sm rounded-lg hover:bg-pm-surface-soft text-pm-ink-900"
                   >
                     Profile &amp; Settings
                   </Link>
@@ -162,7 +162,7 @@ export default function NavBar() {
                       setAccountOpen(false)
                       signOut()
                     }}
-                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-[#fff4f3] text-[#b42318]"
+                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-red-50 text-pm-danger"
                   >
                     Sign out
                   </button>
@@ -178,7 +178,7 @@ export default function NavBar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-[#dbe9e1] bg-[rgba(243,248,243,0.96)]">
+        <div className="md:hidden border-t border-pm-border bg-pm-bg/96">
           <div className="pm-shell py-3 space-y-1">
             {navLinks.map((link) => (
               <Link
@@ -187,26 +187,26 @@ export default function NavBar() {
                 onClick={() => setMenuOpen(false)}
                 className={`block rounded-xl px-3 py-2 text-sm ${
                   pathname === link.href
-                    ? 'bg-[#def4ef] text-[#0f5f57] font-semibold'
-                    : 'text-[#2f5548] hover:bg-white'
+                    ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
+                    : 'text-pm-ink-700 hover:bg-pm-surface'
                 }`}
               >
                 {link.label}
               </Link>
             ))}
 
-            <p className="px-3 pt-2 text-[11px] uppercase tracking-wider text-[#6a8579]">Tools</p>
+            <p className="px-3 pt-2 text-[11px] uppercase tracking-wider text-pm-ink-500">Tools</p>
             {toolLinks.map((tool) => (
               <Link
                 key={tool.href}
                 href={tool.href}
                 onClick={() => setMenuOpen(false)}
                 className={`block rounded-xl px-3 py-2 ${
-                  pathname === tool.href ? 'bg-[#e8f6f1]' : 'hover:bg-white'
+                  pathname === tool.href ? 'bg-pm-accent-soft' : 'hover:bg-pm-surface'
                 }`}
               >
-                <p className="text-sm font-medium text-[#183e33]">{tool.label}</p>
-                <p className="text-xs text-[#648274]">{tool.desc}</p>
+                <p className="text-sm font-medium text-pm-ink-900">{tool.label}</p>
+                <p className="text-xs text-pm-ink-500">{tool.desc}</p>
               </Link>
             ))}
           </div>
