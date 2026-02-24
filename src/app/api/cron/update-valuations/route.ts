@@ -245,7 +245,7 @@ export async function GET(req: NextRequest) {
     .select('id, slug')
     .in('slug', candidateSlugs)
     .eq('is_active', true)
-    .not('slug', 'in', `(${indiaSlugs.map(s => `"${s}"`).join(',')})`)
+    .not('slug', 'in', `(${indiaSlugs.join(',')})`)
 
   if (programErr) {
     logError('cron_update_valuations_program_lookup_failed', {

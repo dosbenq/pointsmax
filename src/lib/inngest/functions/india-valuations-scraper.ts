@@ -160,8 +160,6 @@ export const indiaValuationsScraper = inngest.createFunction(
       source: string
       notes: string
       effective_date: string
-      auto_detected: boolean
-      verified: boolean
     }[] = []
 
     for (const valuation of allValuations) {
@@ -189,10 +187,8 @@ export const indiaValuationsScraper = inngest.createFunction(
         program_id: programId as string,
         cpp_cents: cppPaise,
         source: 'india-scraper' as const,
-        notes: `Auto-detected: ${valuation.source_quote.slice(0, 200)}`,
+        notes: `Auto-detected (unverified): ${valuation.source_quote.slice(0, 180)}`,
         effective_date: new Date().toISOString().slice(0, 10),
-        auto_detected: true,
-        verified: false,
       })
       
       processedSlugs.add(slug)

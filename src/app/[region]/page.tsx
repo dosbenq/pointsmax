@@ -196,19 +196,31 @@ export default function LandingPage() {
     const points = parseInt(pointInput.replace(/[^\d]/g, ''), 10)
     if (!points || !selectedProgram) return null
     
-    const program = programs.find(p => p.id === selectedProgram)
-    if (!program) return null
+    // Try to find program from API data first
+    let cppValue: number | null = null
+    
+    if (programs.length > 0) {
+      // Using API data - match by id
+      const program = programs.find(p => p.id === selectedProgram)
+      if (program) cppValue = program.cpp_cents
+    } else {
+      // Using fallback data - match by slug
+      const fallbackProgram = widgetPrograms.find(p => p.slug === selectedProgram)
+      if (fallbackProgram) cppValue = fallbackProgram.cpp
+    }
+    
+    if (cppValue === null) return null
     
     if (region === 'in') {
       // CPP is in paise for India
-      const inrValue = (points * program.cpp_cents) / 100
+      const inrValue = (points * cppValue) / 100
       return `₹${Math.round(inrValue).toLocaleString()}`
     } else {
       // CPP is in cents for US
-      const usdValue = (points * program.cpp_cents) / 100
+      const usdValue = (points * cppValue) / 100
       return `$${Math.round(usdValue).toLocaleString()}`
     }
-  }, [pointInput, selectedProgram, programs, region])
+  }, [pointInput, selectedProgram, programs, widgetPrograms, region])
 
   const entryPaths = [
     {

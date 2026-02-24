@@ -33,6 +33,10 @@ WHERE program_id IN (
   '33333333-0003-0003-0003-000000000101'  -- Taj
 );
 
+-- Ensure unique constraint exists for ON CONFLICT
+CREATE UNIQUE INDEX IF NOT EXISTS idx_valuations_program_date_source 
+ON valuations (program_id, effective_date, source);
+
 -- Insert new valuations if they don't exist (fallback)
 INSERT INTO valuations (program_id, cpp_cents, source, notes, effective_date)
 SELECT 

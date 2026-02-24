@@ -276,14 +276,14 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
 
       {rec.total_summary && (
         <div className="rounded-xl px-4 py-3 border border-pm-success/30 bg-pm-success/10">
-          <p className="text-xs text-[#157347] font-semibold uppercase tracking-wider">Total</p>
-          <p className="text-[#10613a] text-sm font-semibold mt-1">{rec.total_summary}</p>
+          <p className="text-xs text-pm-success font-semibold uppercase tracking-wider">Total</p>
+          <p className="text-pm-success text-sm font-semibold mt-1">{rec.total_summary}</p>
         </div>
       )}
 
       {rec.steps?.length > 0 && (
         <div>
-          <p className="pm-label text-[#0f766e]">How to book</p>
+          <p className="pm-label text-pm-accent">How to book</p>
           <ol className="mt-2 space-y-2">
             {rec.steps.map((step, i) => (
               <li key={i} className="flex gap-3 items-start">
@@ -299,8 +299,8 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
 
       {rec.tip && (
         <div className="rounded-xl px-4 py-3 border border-pm-warning/30 bg-pm-warning/10">
-          <p className="text-xs text-[#b45309] font-semibold uppercase tracking-wider">Pro tip</p>
-          <p className="text-[#8a4e12] text-sm mt-1 leading-relaxed">{rec.tip}</p>
+          <p className="text-xs text-pm-warning font-semibold uppercase tracking-wider">Pro tip</p>
+          <p className="text-pm-warning text-sm mt-1 leading-relaxed">{rec.tip}</p>
         </div>
       )}
 

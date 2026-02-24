@@ -39,7 +39,7 @@ const VALUE_GAP_DATA: Record<Region, {
     ],
   },
   in: {
-    headline: 'Your HDFC Infinia points are worth ₹1 each — not 0.3 paise.',
+    headline: 'Your HDFC Infinia points are worth ₹1 each — not ₹0.33.',
     subhead: 'Most cardholders redeem for statement credit. PointsMax shows you the 3-5x value waiting in transfer partners.',
     pointsExample: '50,000 HDFC Infinia points',
     redemptionOptions: [
@@ -124,6 +124,23 @@ const getFAQ = (region: Region) => region === 'in' ? [
 export default function HowItWorksPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
+  
+  // Guard against invalid regions
+  if (!REGIONS[region] || !VALUE_GAP_DATA[region]) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <NavBar />
+        <main className="flex-1 pm-shell py-20 text-center">
+          <h1 className="pm-heading text-2xl mb-4">Page not found</h1>
+          <Link href="/us/how-it-works" className="pm-button">
+            Go to US version
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+  
   const config = REGIONS[region]
   const valueGap = VALUE_GAP_DATA[region]
   const steps = getSteps(region)

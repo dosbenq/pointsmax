@@ -178,7 +178,7 @@ export default function NavBar() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-pm-border bg-pm-bg/96">
+        <div className="md:hidden border-t border-pm-border bg-pm-bg/95">
           <div className="pm-shell py-3 space-y-1">
             {navLinks.map((link) => (
               <Link
