@@ -13,6 +13,10 @@ type LinkHealthRow = {
   cards: { name: string } | { name: string }[] | null
 }
 
+type LatestRunRow = {
+  run_id: string | null
+}
+
 export async function GET(req: NextRequest) {
   const authError = await requireAdmin(req)
   if (authError) return authError
@@ -20,7 +24,7 @@ export async function GET(req: NextRequest) {
   const db = createAdminClient()
   const summaryOnly = req.nextUrl.searchParams.get('summary') === '1'
 
-  const { data: latest, error: latestErr } = await db
+  const { data: latestData, error: latestErr } = await db
     .from('link_health_log')
     .select('run_id')
     .order('checked_at', { ascending: false })
@@ -31,6 +35,8 @@ export async function GET(req: NextRequest) {
     logError('admin_link_health_latest_failed', { error: latestErr.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
+
+  const latest = (latestData ?? null) as LatestRunRow | null
 
   if (!latest?.run_id) {
     return NextResponse.json({
@@ -53,7 +59,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const rows = (data ?? []) as LinkHealthRow[]
+  const rows = (data ?? []) as unknown as LinkHealthRow[]
   const checkedAt = rows[0]?.checked_at ?? null
   const broken = rows.filter((row) => !row.ok).length
   const totals = {

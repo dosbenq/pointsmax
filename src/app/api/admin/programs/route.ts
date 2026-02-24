@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
+type ProgramRow = {
+  id: string
+  [key: string]: unknown
+}
+
+type LatestValuationRow = {
+  program_id: string
+  [key: string]: unknown
+}
+
 export async function GET(req: Request) {
   const authError = await requireAdmin(req)
   if (authError) return authError
@@ -13,9 +23,12 @@ export async function GET(req: Request) {
     db.from('latest_valuations').select('*'),
   ])
 
-  const result = (programs ?? []).map(p => ({
+  const programRows = (programs ?? []) as ProgramRow[]
+  const valuationRows = (valuations ?? []) as LatestValuationRow[]
+
+  const result = programRows.map(p => ({
     ...p,
-    latest_valuation: (valuations ?? []).find(v => v.program_id === p.id) ?? null,
+    latest_valuation: valuationRows.find(v => v.program_id === p.id) ?? null,
   }))
 
   return NextResponse.json({ programs: result })
@@ -39,7 +52,7 @@ export async function PATCH(request: Request) {
     cpp_cents: parseFloat(cpp_cents),
     source: source ?? 'manual',
     effective_date: today,
-  })
+  } as never)
 
   if (error) {
     console.error('admin_programs_valuation_insert_failed', { error: error.message })

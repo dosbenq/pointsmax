@@ -6,6 +6,28 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
 
 const REGIONS = ['us', 'in'] as const
 
+type SitemapCardRow = {
+  name: string
+  geography: string | null
+}
+
+type SitemapProgramRow = {
+  slug: string
+  geography: string | null
+}
+
+function isSitemapCardRow(value: unknown): value is SitemapCardRow {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return typeof row.name === 'string'
+}
+
+function isSitemapProgramRow(value: unknown): value is SitemapProgramRow {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return typeof row.slug === 'string'
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
   const staticRoutes = [
@@ -49,7 +71,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       db.from('programs').select('slug, geography').eq('is_active', true),
     ])
 
-    for (const card of cards ?? []) {
+    const normalizedCards = ((cards ?? []) as unknown[]).filter(isSitemapCardRow)
+    const normalizedPrograms = ((programs ?? []) as unknown[]).filter(isSitemapProgramRow)
+
+    for (const card of normalizedCards) {
       const region = card.geography === 'IN' ? 'in' : 'us'
       items.push({
         url: `${BASE_URL}/${region}/cards/${slugifyCardName(card.name)}`,
@@ -59,7 +84,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
     }
 
-    for (const program of programs ?? []) {
+    for (const program of normalizedPrograms) {
       const regions =
         program.geography === 'IN'
           ? ['in']

@@ -9,6 +9,11 @@ type CreateValuationBody = {
   notes?: unknown
 }
 
+type ProgramLookupRow = {
+  id: string
+  slug: string
+}
+
 export async function GET(req: Request) {
   const authError = await requireAdmin(req)
   if (authError) return authError
@@ -50,13 +55,14 @@ export async function POST(request: Request) {
   }
 
   const db = createAdminClient()
-  const { data: program, error: programErr } = await db
+  const { data: programData, error: programErr } = await db
     .from('programs')
     .select('id, slug')
     .eq('slug', programSlug)
     .eq('is_active', true)
     .single()
 
+  const program = (programData ?? null) as ProgramLookupRow | null
   if (programErr || !program) {
     return NextResponse.json({ error: 'Unknown program_slug' }, { status: 400 })
   }
@@ -68,7 +74,7 @@ export async function POST(request: Request) {
     source: 'manual',
     effective_date: effectiveDate,
     notes: notes || null,
-  })
+  } as never)
 
   if (insertErr) {
     logError('admin_valuations_insert_failed', {

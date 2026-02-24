@@ -4,7 +4,52 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const pooledUrl = process.env.SUPABASE_DB_URL_POOLED?.trim()
 const dbUrl = pooledUrl && pooledUrl.startsWith('https://') ? pooledUrl : supabaseUrl
-type GenericSupabaseClient = ReturnType<typeof createClient<any>>
+
+type GenericTableShape = {
+  Row: Record<string, unknown>
+  Insert: Record<string, unknown>
+  Update: Record<string, unknown>
+  Relationships: GenericRelationship[]
+}
+
+type GenericRelationship = {
+  foreignKeyName: string
+  columns: string[]
+  isOneToOne?: boolean
+  referencedRelation: string
+  referencedColumns: string[]
+}
+
+type GenericViewShape = {
+  Row: Record<string, unknown>
+  Insert?: Record<string, unknown>
+  Update?: Record<string, unknown>
+  Relationships: GenericRelationship[]
+}
+
+type GenericFunctionShape = {
+  Args: Record<string, unknown> | never
+  Returns: unknown
+  SetofOptions?: {
+    isSetofReturn?: boolean
+    isOneToOne?: boolean
+    isNotNullable?: boolean
+    to: string
+    from: string
+  }
+}
+
+type GenericDatabase = {
+  public: {
+    Tables: Record<string, GenericTableShape>
+    Views: Record<string, GenericViewShape>
+    Functions: Record<string, GenericFunctionShape>
+  }
+}
+
+export type { GenericDatabase }
+
+type GenericSupabaseClient = ReturnType<typeof createClient<GenericDatabase>>
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check .env.local')
@@ -16,7 +61,7 @@ let adminClientSingleton: GenericSupabaseClient | null = null
 // Server-side public client (anon key, respects RLS)
 export function createPublicClient(): GenericSupabaseClient {
   if (!publicClientSingleton) {
-    publicClientSingleton = createClient<any>(dbUrl, supabaseAnonKey, {
+    publicClientSingleton = createClient<GenericDatabase>(dbUrl, supabaseAnonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
   }
@@ -30,7 +75,7 @@ export function createAdminClient(): GenericSupabaseClient {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY not set — admin client unavailable')
   }
   if (!adminClientSingleton) {
-    adminClientSingleton = createClient<any>(dbUrl, serviceRoleKey, {
+    adminClientSingleton = createClient<GenericDatabase>(dbUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
   }

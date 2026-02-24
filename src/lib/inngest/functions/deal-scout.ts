@@ -6,6 +6,68 @@ import { StubProvider } from '@/lib/award-search/stub-provider'
 import type { CabinClass } from '@/lib/award-search/types'
 import type { AwardProvider } from '@/lib/award-search'
 
+type WatchRow = {
+  id: string
+  user_id: string
+  origin: string
+  destination: string
+  cabin: string
+  start_date: string
+  end_date: string
+  max_points: number | null
+  last_checked_at: string | null
+  users: unknown
+}
+
+type BalanceRow = {
+  user_id: string
+  program_id: string
+  balance: number
+}
+
+function normalizeWatchRow(value: unknown): WatchRow | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  if (
+    typeof row.id !== 'string'
+    || typeof row.user_id !== 'string'
+    || typeof row.origin !== 'string'
+    || typeof row.destination !== 'string'
+    || typeof row.cabin !== 'string'
+    || typeof row.start_date !== 'string'
+    || typeof row.end_date !== 'string'
+  ) {
+    return null
+  }
+  const maxPoints = typeof row.max_points === 'number' ? row.max_points : null
+  const lastChecked = typeof row.last_checked_at === 'string' ? row.last_checked_at : null
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    origin: row.origin,
+    destination: row.destination,
+    cabin: row.cabin,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    max_points: maxPoints,
+    last_checked_at: lastChecked,
+    users: row.users,
+  }
+}
+
+function normalizeBalanceRow(value: unknown): BalanceRow | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  if (typeof row.user_id !== 'string' || typeof row.program_id !== 'string') return null
+  const numericBalance = Number(row.balance)
+  if (!Number.isFinite(numericBalance)) return null
+  return {
+    user_id: row.user_id,
+    program_id: row.program_id,
+    balance: numericBalance,
+  }
+}
+
 /**
  * The Deal Scout Agent
  * Periodic background worker that checks award availability for user "watches".
@@ -37,11 +99,15 @@ export const dealScout = inngest.createFunction(
       .order('last_checked_at', { ascending: true, nullsFirst: true })
       .limit(200)
 
-    if (!watches?.length) {
+    const normalizedWatches = ((watches ?? []) as unknown[])
+      .map(normalizeWatchRow)
+      .filter((watch): watch is WatchRow => watch !== null)
+
+    if (!normalizedWatches.length) {
       return { message: 'No active watches to check' }
     }
 
-    const dueWatches = watches
+    const dueWatches = normalizedWatches
       .filter((watch) => {
         const lastChecked = typeof watch.last_checked_at === 'string'
           ? Date.parse(watch.last_checked_at)
@@ -62,7 +128,10 @@ export const dealScout = inngest.createFunction(
       .in('user_id', uniqueUserIds)
 
     const balancesByUser = new Map<string, Array<{ program_id: string; amount: number }>>()
-    for (const row of balances ?? []) {
+    const normalizedBalances = ((balances ?? []) as unknown[])
+      .map(normalizeBalanceRow)
+      .filter((row): row is BalanceRow => row !== null)
+    for (const row of normalizedBalances) {
       const next = balancesByUser.get(row.user_id) ?? []
       next.push({
         program_id: row.program_id,

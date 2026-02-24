@@ -11,6 +11,17 @@ type ProgramMapping = {
   aliases: string[]
 }
 
+type ProgramRow = {
+  id: string
+  slug: string
+}
+
+function isProgramRow(value: unknown): value is ProgramRow {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return typeof row.id === 'string' && typeof row.slug === 'string'
+}
+
 const PROGRAM_MAPPINGS: ProgramMapping[] = [
   {
     key: 'chase',
@@ -239,7 +250,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const programIdBySlug = new Map((programRows ?? []).map((row) => [row.slug, row.id]))
+  const normalizedProgramRows = ((programRows ?? []) as unknown[]).filter(isProgramRow)
+  const programIdBySlug = new Map<string, string>(normalizedProgramRows.map((row) => [row.slug, row.id]))
   const programIdByKey = new Map<string, string>()
   const missingProgramKeys: string[] = []
 
@@ -272,16 +284,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    existingToday = new Set((existingRows ?? []).map((row) => row.program_id))
+    const existingProgramIds = ((existingRows ?? []) as Array<{ program_id?: unknown }>)
+      .map((row) => row.program_id)
+      .filter((value): value is string => typeof value === 'string')
+    existingToday = new Set(existingProgramIds)
   }
 
   const inserts = mappedProgramKeys
     .map((programKey) => {
       const programId = programIdByKey.get(programKey)
       if (!programId || existingToday.has(programId)) return null
+      const cppCents = parsed.mapped.get(programKey)
+      if (typeof cppCents !== 'number') return null
       return {
         program_id: programId,
-        cpp_cents: parsed.mapped.get(programKey),
+        cpp_cents: cppCents,
         source: 'tpg' as const,
         source_url: TPG_VALUATIONS_URL,
         effective_date: today,

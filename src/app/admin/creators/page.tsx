@@ -25,24 +25,27 @@ export default function AdminCreatorsPage() {
 
   async function load() {
     setLoading(true)
-    const res = await fetch('/api/admin/creators')
-    const data = await res.json()
-    const rows = (data.creators ?? []) as Creator[]
-    setCreators(rows)
+    try {
+      const res = await fetch('/api/admin/creators')
+      const data = await res.json()
+      const rows = (data.creators ?? []) as Creator[]
+      setCreators(rows)
 
-    const statsEntries = await Promise.all(
-      rows.map(async (creator) => {
-        const statRes = await fetch(`/api/admin/creators/${encodeURIComponent(creator.slug)}/stats`)
-        const statData = await statRes.json()
-        return [creator.slug, statData] as const
-      }),
-    )
-    setStats(Object.fromEntries(statsEntries))
-    setLoading(false)
+      const statsEntries = await Promise.all(
+        rows.map(async (creator) => {
+          const statRes = await fetch(`/api/admin/creators/${encodeURIComponent(creator.slug)}/stats`)
+          const statData = await statRes.json()
+          return [creator.slug, statData] as const
+        }),
+      )
+      setStats(Object.fromEntries(statsEntries))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    load().catch(() => setLoading(false))
+    void load()
   }, [])
 
   async function createCreator(e: FormEvent) {

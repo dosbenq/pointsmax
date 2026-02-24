@@ -30,7 +30,7 @@ export async function GET(req: Request) {
 
   const counts = new Map<string, { card_id: string; card_name: string; source_page: string; creator_slug: string | null; clicks: number }>()
 
-  for (const row of (data ?? []) as ClickRow[]) {
+  for (const row of (data ?? []) as unknown as ClickRow[]) {
     if (!row.card_id) continue
     const cardName = Array.isArray(row.cards)
       ? (row.cards[0]?.name ?? 'Unknown card')

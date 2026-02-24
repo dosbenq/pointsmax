@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
@@ -10,28 +10,27 @@ import { Moon, Sun } from 'lucide-react'
 
 export default function NavBar() {
   const { user, signInWithGoogle, signOut, loading } = useAuth()
-  const { theme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const pathname = usePathname()
   const region = getRegionFromPath(pathname)
-  const [mounted, setMounted] = useState(false)
   
   const [toolsOpen, setToolsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
 
-  const navLinks = [
+  const navLinks = useMemo(() => ([
     { href: `/${region}/calculator`, label: 'Calculator' },
     { href: `/${region}/how-it-works`, label: 'How it works' },
     { href: `/${region}/pricing`, label: 'Pricing' },
-  ]
+  ]), [region])
 
-  const toolLinks = [
+  const toolLinks = useMemo(() => ([
     { href: `/${region}/award-search`, label: 'Award Search', desc: 'Quick route and availability scan' },
     { href: `/${region}/inspire`, label: 'Inspire Me', desc: 'Find destinations from your wallet' },
     { href: `/${region}/earning-calculator`, label: 'Earning Calculator', desc: 'Optimize monthly card earnings' },
     { href: `/${region}/card-recommender`, label: 'Card Recommender', desc: 'Choose the best next card' },
     { href: `/${region}/trip-builder`, label: 'Trip Builder', desc: 'Generate a full points plan' },
-  ]
+  ]), [region])
 
   const isToolsActive = useMemo(
     () => toolLinks.some((item) => pathname === item.href),
@@ -39,10 +38,6 @@ export default function NavBar() {
   )
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur border-b border-[#d5e5d9]/90 bg-[rgba(243,248,243,0.86)]">
@@ -110,14 +105,12 @@ export default function NavBar() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#c5ddd1] bg-white hover:bg-[#f4faf7] transition-colors"
             aria-label="Toggle theme"
             type="button"
           >
-            {!mounted ? (
-              <span className="h-4 w-4 rounded-full bg-[#dce9e1]" />
-            ) : theme === 'dark' ? (
+            {resolvedTheme === 'dark' ? (
               <Sun className="h-4 w-4 text-[#365649]" />
             ) : (
               <Moon className="h-4 w-4 text-[#365649]" />

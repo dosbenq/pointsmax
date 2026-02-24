@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
         .select('id')
         .eq('auth_id', authUserId)
         .maybeSingle()
-      createdBy = userRow?.id ?? null
+      const maybeId = (userRow as { id?: unknown } | null)?.id
+      createdBy = typeof maybeId === 'string' ? maybeId : null
     }
   } catch {
     createdBy = null

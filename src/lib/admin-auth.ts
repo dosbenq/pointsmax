@@ -43,7 +43,7 @@ export async function logAdminAction(
       action,
       target_id: targetId,
       payload: payload ?? {},
-    })
+    } as never)
   } catch {
     // Never block admin flows on audit logging failures.
   }

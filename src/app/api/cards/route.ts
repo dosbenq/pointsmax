@@ -10,6 +10,31 @@ import type { CardWithRates, SpendCategory } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError } from '@/lib/logger'
 
+type CardRow = {
+  id: string
+  name: string
+  issuer: string
+  annual_fee_usd: number
+  signup_bonus_pts: number
+  signup_bonus_spend: number
+  program_id: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+  currency?: unknown
+  earn_unit?: unknown
+  geography?: unknown
+  apply_url?: unknown
+}
+
+type ValuationRow = {
+  program_id: string
+  cpp_cents: number
+  program_name: string
+  program_slug: string
+  program_type: string
+}
+
 function normalizeGeographyParam(value: string | null): 'US' | 'IN' {
   if (!value) return 'US'
   return value.toUpperCase() === 'IN' ? 'IN' : 'US'
@@ -56,11 +81,11 @@ export async function GET(request?: Request) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const cardsRaw = cardsRes.data ?? []
-  const cards = cardsTableMissingGeography
+  const cardsRaw = (cardsRes.data ?? []) as CardRow[]
+  const cards: CardRow[] = cardsTableMissingGeography
     ? (geography === 'US' ? cardsRaw : [])
     : cardsRaw
-  const valuations = valuationsRes.data ?? []
+  const valuations = (valuationsRes.data ?? []) as ValuationRow[]
   const activeCardIds = cards.map(card => card.id)
   let rates: Array<{
     card_id: string
@@ -78,7 +103,11 @@ export async function GET(request?: Request) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    rates = ratesRes.data ?? []
+    rates = (ratesRes.data ?? []) as Array<{
+      card_id: string
+      category: string
+      earn_multiplier: number
+    }>
   }
 
   // Build lookup maps

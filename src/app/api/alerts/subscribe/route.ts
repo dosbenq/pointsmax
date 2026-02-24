@@ -12,6 +12,8 @@ import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_BODY_BYTES = 16_000
+type UserIdRow = { id: string }
+type ExistingSubscriptionRow = { id: string; user_id: string | null }
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
@@ -85,11 +87,12 @@ export async function POST(req: NextRequest) {
 
       // Look up internal user record
       const db = createAdminClient()
-      const { data: userRow } = await db
+      const { data: userRowData } = await db
         .from('users')
         .select('id')
         .eq('auth_id', session.user.id)
         .single()
+      const userRow = (userRowData ?? null) as UserIdRow | null
       user_id = userRow?.id ?? null
     }
   } catch {
@@ -97,11 +100,12 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createAdminClient()
-  const { data: existing } = await db
+  const { data: existingData } = await db
     .from('alert_subscriptions')
     .select('id, user_id')
     .eq('email', normalizedEmail)
     .maybeSingle()
+  const existing = (existingData ?? null) as ExistingSubscriptionRow | null
 
   // Authenticated users can only mutate their own email subscription.
   if (user_id) {
@@ -115,7 +119,7 @@ export async function POST(req: NextRequest) {
     const { error } = await db
       .from('alert_subscriptions')
       .upsert(
-        { email: normalizedEmail, user_id, program_ids: cleanedProgramIds, is_active: true },
+        { email: normalizedEmail, user_id, program_ids: cleanedProgramIds, is_active: true } as never,
         { onConflict: 'email' },
       )
 
@@ -143,7 +147,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await db
     .from('alert_subscriptions')
-    .insert({ email: normalizedEmail, user_id: null, program_ids: cleanedProgramIds, is_active: true })
+    .insert({ email: normalizedEmail, user_id: null, program_ids: cleanedProgramIds, is_active: true } as never)
 
   if (error) {
     logError('alerts_subscribe_insert_failed', { requestId, error: error.message })

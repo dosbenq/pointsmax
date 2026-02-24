@@ -29,7 +29,7 @@ export async function PATCH(request: Request) {
   }
 
   const db = createAdminClient()
-  const { error } = await db.from('users').update({ tier }).eq('id', user_id)
+  const { error } = await db.from('users').update({ tier } as never).eq('id', user_id)
 
   if (error) {
     console.error('admin_users_update_failed', { error: error.message })

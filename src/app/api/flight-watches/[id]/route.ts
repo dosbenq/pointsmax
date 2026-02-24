@@ -163,8 +163,15 @@ export async function PATCH(
     return NextResponse.json({ error: 'No valid fields provided for update' }, { status: 400 })
   }
 
-  const startDate = (updates.start_date as string | undefined) ?? existing.start_date
-  const endDate = (updates.end_date as string | undefined) ?? existing.end_date
+  const existingStartDate = parseIsoDate((existing as { start_date?: unknown }).start_date)
+  const existingEndDate = parseIsoDate((existing as { end_date?: unknown }).end_date)
+  if (!existingStartDate || !existingEndDate) {
+    logError('flight_watches_update_invalid_existing_dates', { requestId, watch_id: id, user_id: auth.userId })
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+
+  const startDate = (updates.start_date as string | undefined) ?? existingStartDate
+  const endDate = (updates.end_date as string | undefined) ?? existingEndDate
   const dateRangeError = validateDateRange(startDate, endDate)
   if (dateRangeError) {
     return NextResponse.json({ error: dateRangeError }, { status: 400 })

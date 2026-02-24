@@ -11,6 +11,44 @@ import { createAdminClient } from '@/lib/supabase'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
+type BonusRow = {
+  id: string
+  transfer_partner_id: string
+  bonus_pct: number
+  start_date: string
+  end_date: string
+}
+
+type PartnerRow = {
+  id: string
+  from_program_id: string
+  to_program_id: string
+  from_program: { name?: string } | null
+  to_program: { name?: string } | null
+}
+
+function isBonusRow(value: unknown): value is BonusRow {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return (
+    typeof row.id === 'string' &&
+    typeof row.transfer_partner_id === 'string' &&
+    typeof row.bonus_pct === 'number' &&
+    typeof row.start_date === 'string' &&
+    typeof row.end_date === 'string'
+  )
+}
+
+function isPartnerRow(value: unknown): value is PartnerRow {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return (
+    typeof row.id === 'string' &&
+    typeof row.from_program_id === 'string' &&
+    typeof row.to_program_id === 'string'
+  )
+}
+
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
@@ -131,7 +169,7 @@ export async function GET(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
 
   // Find active bonuses that haven't been alerted yet
-  const { data: bonuses, error: bonusErr } = await db
+  const { data: bonusesRaw, error: bonusErr } = await db
     .from('transfer_bonuses')
     .select(`
       id, transfer_partner_id, bonus_pct, start_date, end_date
@@ -145,7 +183,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  if (!bonuses || bonuses.length === 0) {
+  const bonuses = ((bonusesRaw ?? []) as unknown[]).filter(isBonusRow)
+
+  if (bonuses.length === 0) {
     logInfo('cron_bonus_alerts_no_work', { requestId, latency_ms: Date.now() - startedAt })
     return NextResponse.json({ ok: true, bonuses_processed: 0, emails_sent: 0 })
   }
@@ -155,7 +195,7 @@ export async function GET(req: NextRequest) {
   const failedBonusIds: string[] = []
 
   const partnerIds = [...new Set(bonuses.map(b => b.transfer_partner_id))]
-  const { data: partnerRows, error: partnerErr } = await db
+  const { data: partnerRowsRaw, error: partnerErr } = await db
     .from('transfer_partners')
     .select(`
       id, from_program_id, to_program_id,
@@ -169,11 +209,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const partnerById = new Map(
-    (partnerRows ?? []).map((row) => [row.id, row]),
-  )
+  const partnerRows = ((partnerRowsRaw ?? []) as unknown[]).filter(isPartnerRow)
+  const partnerById = new Map<string, PartnerRow>(partnerRows.map((row) => [row.id, row]))
   const fromProgramIds = [
-    ...new Set((partnerRows ?? []).map((row) => row.from_program_id).filter(Boolean)),
+    ...new Set(partnerRows.map((row) => row.from_program_id).filter(Boolean)),
   ]
 
   const subscribersByProgram = new Map<string, string[]>()
@@ -189,7 +228,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    for (const row of subscriberRows ?? []) {
+    for (const row of (subscriberRows ?? []) as Array<{ email: unknown; program_ids: unknown }>) {
+      if (typeof row.email !== 'string') continue
       if (!Array.isArray(row.program_ids)) continue
       for (const programId of row.program_ids) {
         if (typeof programId !== 'string') continue
@@ -209,8 +249,8 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    const fromName = (partnerDetail.from_program as unknown as { name: string })?.name ?? 'Unknown'
-    const toName = (partnerDetail.to_program as unknown as { name: string })?.name ?? 'Unknown'
+    const fromName = partnerDetail.from_program?.name ?? 'Unknown'
+    const toName = partnerDetail.to_program?.name ?? 'Unknown'
     const fromProgramId = partnerDetail.from_program_id
 
     let bonusHadFailures = false

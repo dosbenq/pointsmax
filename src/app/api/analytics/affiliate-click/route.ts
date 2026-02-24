@@ -13,6 +13,10 @@ type Payload = {
   source_page?: unknown
 }
 
+type CreatorSlugRow = { slug: string }
+type CardRow = { id: string; apply_url: string | null }
+type UserIdRow = { id: string }
+
 function normalizeSourcePage(value: unknown): string {
   if (typeof value !== 'string') return 'unknown'
   const trimmed = value.trim()
@@ -66,19 +70,21 @@ async function trackAndReturn(
   const creatorSlug = normalizeCreatorSlug(req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null)
   let resolvedCreatorSlug: string | null = null
   if (creatorSlug) {
-    const { data: creator } = await db
+    const { data: creatorData } = await db
       .from('creators')
       .select('slug')
       .eq('slug', creatorSlug)
       .maybeSingle()
+    const creator = (creatorData ?? null) as CreatorSlugRow | null
     resolvedCreatorSlug = creator?.slug ?? null
   }
-  const { data: card, error: cardErr } = await db
+  const { data: cardData, error: cardErr } = await db
     .from('cards')
     .select('id, apply_url')
     .eq('id', cardId)
     .eq('is_active', true)
     .single()
+  const card = (cardData ?? null) as CardRow | null
 
   if (cardErr || !card) {
     logWarn('affiliate_click_unknown_card', {
@@ -100,11 +106,12 @@ async function trackAndReturn(
     const { data: authData } = await supabase.auth.getUser()
     const authUserId = authData.user?.id ?? null
     if (authUserId) {
-      const { data: userRow } = await db
+      const { data: userRowData } = await db
         .from('users')
         .select('id')
         .eq('auth_id', authUserId)
         .single()
+      const userRow = (userRowData ?? null) as UserIdRow | null
       userId = userRow?.id ?? null
     }
   } catch {
@@ -116,7 +123,7 @@ async function trackAndReturn(
     user_id: userId,
     source_page: sourcePage,
     creator_slug: resolvedCreatorSlug,
-  })
+  } as never)
 
   if (insertErr) {
     logError('affiliate_click_insert_failed', {

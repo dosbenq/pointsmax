@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     slug,
     platform,
     profile_url: profileUrl,
-  })
+  } as never)
 
   if (error) {
     logError('admin_creator_create_failed', { error: error.message, slug })

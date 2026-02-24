@@ -421,7 +421,10 @@ export default function InspirePage() {
           {results.length > 0 && (
             <div className="flex items-center justify-between">
               <h2 className="pm-heading text-xl">Top Picks</h2>
-              <span className="text-xs text-[#5f7c70]">{results.length} destinations found</span>
+              <span className="text-xs text-[#5f7c70]">
+                {results.length} destinations found
+                {failedDestinations.length > 0 ? ` · ${failedDestinations.length} failed` : ''}
+              </span>
             </div>
           )}
 
@@ -492,6 +495,12 @@ export default function InspirePage() {
             <div className="text-center py-12 text-[#5f7c70]">
               <p>Ready to explore? Enter your details above and hit Inspire Me.</p>
             </div>
+          )}
+
+          {failedDestinations.length > 0 && (
+            <p className="text-xs text-[#8a5b12] bg-[#fff8eb] border border-[#f2d8ad] rounded-xl px-3 py-2">
+              Some destinations could not be scored this run. Try again to refresh route coverage.
+            </p>
           )}
         </div>
       </main>

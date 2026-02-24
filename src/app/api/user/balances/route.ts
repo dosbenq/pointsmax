@@ -1,25 +1,33 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 
+async function getCurrentUserRowId(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  authId: string,
+): Promise<string | null> {
+  const { data: userRecord } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', authId)
+    .single()
+
+  const id = (userRecord as { id?: unknown } | null)?.id
+  return typeof id === 'string' ? id : null
+}
+
 // GET /api/user/balances — returns saved balances for current user
 export async function GET() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Look up users.id via auth_id
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  if (!userRecord) return NextResponse.json({ balances: [] })
+  const userId = await getCurrentUserRowId(supabase, user.id)
+  if (!userId) return NextResponse.json({ balances: [] })
 
   const { data: balances } = await supabase
     .from('user_balances')
     .select('program_id, balance')
-    .eq('user_id', userRecord.id)
+    .eq('user_id', userId)
 
   return NextResponse.json({ balances: balances ?? [] })
 }
@@ -31,34 +39,47 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { balances } = await req.json()
+  let parsedBody: unknown
+  try {
+    parsedBody = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const balances = (parsedBody as { balances?: unknown })?.balances
   if (!Array.isArray(balances)) {
     return NextResponse.json({ error: 'balances must be an array' }, { status: 400 })
   }
 
-  // Look up users.id via auth_id
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  if (!userRecord) return NextResponse.json({ error: 'User record not found' }, { status: 404 })
+  const userId = await getCurrentUserRowId(supabase, user.id)
+  if (!userId) return NextResponse.json({ error: 'User record not found' }, { status: 404 })
 
   // Upsert each balance
-  const rows = balances.map((b: { program_id: string; balance: number }) => ({
-    user_id: userRecord.id,
-    program_id: b.program_id,
-    balance: b.balance,
-    updated_at: new Date().toISOString(),
-  }))
+  const rows = balances
+    .map((row) => {
+      const b = row as { program_id?: unknown; balance?: unknown }
+      if (typeof b.program_id !== 'string') return null
+      const numericBalance = Number(b.balance)
+      if (!Number.isFinite(numericBalance)) return null
+      return {
+        user_id: userId,
+        program_id: b.program_id,
+        balance: numericBalance,
+        updated_at: new Date().toISOString(),
+      }
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+
+  if (rows.length === 0) {
+    return NextResponse.json({ error: 'No valid balances provided' }, { status: 400 })
+  }
 
   const { error } = await supabase
     .from('user_balances')
     .upsert(rows, { onConflict: 'user_id,program_id' })
 
   if (error) {
-    console.error('user_balances_upsert_failed', { user_id: userRecord.id, error: error.message })
+    console.error('user_balances_upsert_failed', { user_id: userId, error: error.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

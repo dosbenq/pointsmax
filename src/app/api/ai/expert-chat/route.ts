@@ -29,10 +29,12 @@ async function fetchKnowledgeChunks(queryVector: number[], rawMessage: string): 
     query_embedding: queryVector,
     match_threshold: 0.45,
     match_count: 6,
-  })
+  } as never)
 
-  if (!rpc.error && Array.isArray(rpc.data) && rpc.data.length > 0) {
-    return rpc.data
+  const rpcRows = Array.isArray(rpc.data) ? (rpc.data as Array<Record<string, unknown>>) : []
+
+  if (!rpc.error && rpcRows.length > 0) {
+    return rpcRows
       .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
       .map((row) => ({
         id: String(row.id ?? ''),

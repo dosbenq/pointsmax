@@ -9,7 +9,6 @@ import type { CardWithRates, SpendCategory } from '@/types/database'
 import {
   CATEGORIES,
   formatCurrencyRounded,
-  PROGRAM_GOAL_MAP,
   spendInputPrefix,
   yearlyPointsFromSpend,
 } from '@/lib/card-tools'
@@ -26,8 +25,8 @@ const TRAVEL_GOALS = [
 
 type SpendInputs = Record<SpendCategory, string>
 
-function goalMatchScore(card: CardWithRates, goals: Set<string>): number {
-  const programGoals = PROGRAM_GOAL_MAP[card.program_slug] ?? []
+function goalMatchScore(card: CardWithRates, goals: Set<string>, programGoalMap: Record<string, string[]>): number {
+  const programGoals = programGoalMap[card.program_slug] ?? []
   let count = 0
   for (const goal of goals) {
     if (programGoals.includes(goal)) {
@@ -51,14 +50,16 @@ export default function CardRecommenderPage() {
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [spend, setSpend] = useState<SpendInputs>({
-    dining: '500', groceries: '400', travel: '300',
-    gas: '200', streaming: '50', other: '500',
-  })
+  const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
   const [travelGoals, setTravelGoals] = useState<Set<string>>(new Set())
   const [ownedCards, setOwnedCards] = useState<Set<string>>(new Set())
   const [showResults, setShowResults] = useState(false)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
+
+  // Reset spend when region changes
+  useEffect(() => {
+    setSpend(config.defaultSpend as SpendInputs)
+  }, [config.defaultSpend])
 
   useEffect(() => {
     fetch(`/api/cards?geography=${encodeURIComponent(regionCode.toUpperCase())}`)
@@ -121,12 +122,12 @@ export default function CardRecommenderPage() {
         const annualValue = (pointsPerYear * card.cpp_cents) / 100
         const signupValue = (card.signup_bonus_pts * card.cpp_cents) / 100
         const firstYearValue = annualValue + signupValue - card.annual_fee_usd
-        const goalCount = goalMatchScore(card, travelGoals)
+        const goalCount = goalMatchScore(card, travelGoals, config.programGoalMap)
         const finalScore = firstYearValue * (1 + 0.1 * goalCount)
         return { card, pointsPerYear, annualValue, signupValue, firstYearValue, goalCount, finalScore }
       })
       .sort((a, b) => b.finalScore - a.finalScore)
-  }, [cards, ownedCards, spend, travelGoals, showResults])
+  }, [cards, ownedCards, spend, travelGoals, showResults, config.programGoalMap])
 
   const handleApplyClick = async (
     card: CardWithRates,
