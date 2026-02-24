@@ -107,21 +107,40 @@ export class QueryTimeoutError extends Error {
   }
 }
 
+type CountOption = { count?: 'exact' | 'planned' | 'estimated' }
+
+type QueryThen = (
+  onfulfilled?: ((value: unknown) => unknown) | null,
+  onrejected?: ((reason: unknown) => unknown) | null
+) => Promise<unknown>
+
+type SelectQueryBuilder = {
+  then: QueryThen
+}
+
+type FromBuilder = {
+  select: (columns: string, options?: CountOption) => SelectQueryBuilder
+}
+
+type SupabaseLikeClient = {
+  from: (table: string) => FromBuilder
+}
+
 /**
  * Wrapper for Supabase queries with timeout
  */
-export function createTimeoutWrapper(supabaseClient: any) {
+export function createTimeoutWrapper(supabaseClient: SupabaseLikeClient) {
   return {
     from: (table: string) => {
       const builder = supabaseClient.from(table)
       const originalSelect = builder.select.bind(builder)
 
-      builder.select = (columns: string, options?: { count?: 'exact' | 'planned' | 'estimated' }) => {
+      builder.select = (columns: string, options?: CountOption) => {
         const queryBuilder = originalSelect(columns, options)
         const originalExecute = queryBuilder.then.bind(queryBuilder)
 
         // Wrap the promise execution with timeout
-        const wrappedExecute = async (callback?: (data: any) => void) => {
+        const wrappedExecute: QueryThen = async (callback) => {
           return withTimeout(
             () => originalExecute(callback),
             {
@@ -139,4 +158,3 @@ export function createTimeoutWrapper(supabaseClient: any) {
     },
   }
 }
-

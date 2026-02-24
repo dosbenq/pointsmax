@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import {
   success,
   created,
@@ -331,25 +332,14 @@ describe('api-response', () => {
     })
 
     it('validates against schema when provided', () => {
-      const schema = {
-        safeParse: (data: unknown) => ({
-          success: typeof data === 'object' && data !== null && 'id' in (data as object),
-          data: data as { id: string },
-        }),
-      }
-      
-      const result = safeJsonParse('{"id": "123"}', schema as any)
+      const schema = z.object({ id: z.string() })
+      const result = safeJsonParse('{"id": "123"}', schema)
       expect(result.success).toBe(true)
     })
 
     it('returns error when schema validation fails', () => {
-      const schema = {
-        safeParse: () => ({
-          success: false,
-        }),
-      }
-      
-      const result = safeJsonParse('{"id": "123"}', schema as any)
+      const schema = z.object({ id: z.string(), name: z.string() })
+      const result = safeJsonParse('{"id": "123"}', schema)
       expect(result.success).toBe(false)
       if (!result.success) {
         expect(result.error).toContain('Schema validation failed')
