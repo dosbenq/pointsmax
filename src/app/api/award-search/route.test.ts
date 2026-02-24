@@ -35,7 +35,7 @@ describe('POST /api/award-search validation', () => {
     const body = await res.json()
 
     expect(res.status).toBe(400)
-    expect(body.error).toContain('origin')
+    expect(body.error?.message?.toLowerCase()).toContain('origin')
   })
 
   it('rejects end_date before start_date', async () => {
@@ -53,7 +53,7 @@ describe('POST /api/award-search validation', () => {
     const body = await res.json()
 
     expect(res.status).toBe(400)
-    expect(body.error).toContain('end_date')
+    expect(body.error?.message?.toLowerCase()).toContain('end_date')
   })
 
   it('rejects balances with malformed UUID', async () => {
@@ -71,6 +71,6 @@ describe('POST /api/award-search validation', () => {
     const body = await res.json()
 
     expect(res.status).toBe(400)
-    expect(body.error).toContain('program_id')
+    expect(body.error?.message?.toLowerCase()).toContain('program_id')
   })
 })

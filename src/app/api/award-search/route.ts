@@ -4,6 +4,7 @@ import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-
 import { StubProvider } from '@/lib/award-search/stub-provider'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
+import { badRequest, internalError } from '@/lib/error-utils'
 import {
   ESTIMATES_ONLY_MESSAGE,
   MAX_AWARD_SEARCH_BODY_BYTES,
@@ -25,10 +26,11 @@ export async function POST(req: NextRequest) {
     return sizeError
   }
 
+  // Rate limit: 10 requests per minute per IP (external API calls behind it)
   const rateLimitError = await enforceRateLimit(req, {
     namespace: 'award_search_ip',
-    maxRequests: 40,
-    windowMs: 10 * 60 * 1000,
+    maxRequests: 10,
+    windowMs: 60 * 1000,
   })
   if (rateLimitError) {
     logWarn('award_search_rate_limited', { requestId })
@@ -39,13 +41,13 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return badRequest('Invalid JSON')
   }
   const includeNarrative = shouldGenerateNarrative(body)
 
   const validated = validateSearchParams(body)
   if ('error' in validated) {
-    return NextResponse.json({ error: validated.error }, { status: 400 })
+    return badRequest(validated.error)
   }
 
   const params = validated
@@ -105,10 +107,7 @@ export async function POST(req: NextRequest) {
           requestId,
           error: fallbackErr instanceof Error ? fallbackErr.message : 'fallback_failed',
         })
-        return NextResponse.json(
-          { error: 'Search failed' },
-          { status: 500 },
-        )
+        return internalError('Search failed')
       }
     }
 
@@ -117,9 +116,6 @@ export async function POST(req: NextRequest) {
       error: err instanceof Error ? err.message : 'Search failed',
       latency_ms: Date.now() - startedAt,
     })
-    return NextResponse.json(
-      { error: 'Search failed' },
-      { status: 500 },
-    )
+    return internalError('Search failed')
   }
 }

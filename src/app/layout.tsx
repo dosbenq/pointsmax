@@ -7,6 +7,7 @@ import MonitoringBoot from '@/components/MonitoringBoot'
 import PostHogProvider from '@/components/PostHogProvider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 
 if (process.env.NODE_ENV === 'production') {
   assertServerEnv()
@@ -102,7 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)}
         />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <PostHogProvider>

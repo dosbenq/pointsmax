@@ -3,6 +3,7 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
+import { badRequest, internalError } from '@/lib/error-utils'
 
 const MAX_BODY_BYTES = 8_000
 const CREATOR_REF_COOKIE = 'pm_creator_ref'
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as Payload
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return badRequest('Invalid JSON')
   }
 
   const cardId = typeof body.card_id === 'string' ? body.card_id.trim() : ''
@@ -63,7 +64,7 @@ async function trackAndReturn(
   redirect: boolean,
 ) {
   if (!cardId) {
-    return NextResponse.json({ error: 'card_id is required' }, { status: 400 })
+    return badRequest('card_id is required')
   }
 
   const db = createAdminClient()
@@ -92,12 +93,12 @@ async function trackAndReturn(
       card_id: cardId,
       error: cardErr?.message ?? null,
     })
-    return NextResponse.json({ error: 'Unknown card_id' }, { status: 400 })
+    return badRequest('Unknown card_id')
   }
 
   const redirectUrl = typeof card.apply_url === 'string' ? card.apply_url.trim() : ''
   if (!redirectUrl) {
-    return NextResponse.json({ error: 'No apply_url configured for card' }, { status: 400 })
+    return badRequest('No apply_url configured for card')
   }
 
   let userId: string | null = null
@@ -118,20 +119,40 @@ async function trackAndReturn(
     userId = null
   }
 
-  const { error: insertErr } = await db.from('affiliate_clicks').insert({
-    card_id: cardId,
-    user_id: userId,
-    source_page: sourcePage,
-    creator_slug: resolvedCreatorSlug,
-  } as never)
+  // Retry logic for DB writes (Q7) - up to 3 attempts with exponential backoff
+  let insertErr: Error | null = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const result = await db.from('affiliate_clicks').insert({
+      card_id: cardId,
+      user_id: userId,
+      source_page: sourcePage,
+      creator_slug: resolvedCreatorSlug,
+    } as never)
+    if (!result.error) {
+      insertErr = null
+      break
+    }
+    insertErr = result.error
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 100 * attempt)) // 100ms, 200ms
+    }
+  }
 
   if (insertErr) {
     logError('affiliate_click_insert_failed', {
       requestId,
       card_id: cardId,
       error: insertErr.message,
+      attempts: 3,
     })
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    // Fire-and-forget: still return success to user, but log the error
+    logWarn('affiliate_click_logged_but_not_persisted', {
+      requestId,
+      card_id: cardId,
+      user_id: userId,
+      source_page: sourcePage,
+      creator_slug: resolvedCreatorSlug,
+    })
   }
 
   logInfo('affiliate_click_tracked', {

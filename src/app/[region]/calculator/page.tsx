@@ -926,6 +926,15 @@ export default function CalculatorPage() {
       return
     }
 
+    // Validate program IDs against loaded programs (Q6)
+    const validProgramIds = new Set(programs.map(p => p.id))
+    const invalidBalances = balances.filter(b => !validProgramIds.has(b.program_id))
+    if (invalidBalances.length > 0) {
+      setCalcError('One or more selected programs are invalid. Please refresh and try again.')
+      trackEvent('calculator_calculate_blocked', { reason: 'invalid_program_ids', region })
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch('/api/calculate', {
