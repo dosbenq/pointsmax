@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { applySecurityHeaders } from '@/lib/security-headers'
 
 const CORS_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
 const CORS_HEADERS = 'Content-Type, Authorization, X-Requested-With, X-Request-Id'
@@ -90,7 +91,7 @@ export async function middleware(request: NextRequest) {
         const denied = NextResponse.json({ error: 'Origin not allowed' }, { status: 403 })
         denied.headers.set('x-request-id', requestId)
         applyCreatorRefCookie(denied, creatorSlug)
-        return denied
+        return applySecurityHeaders(denied)
       }
       const preflight = new NextResponse(null, { status: 204 })
       appendCorsHeaders(preflight, requestOrigin, true)
@@ -103,7 +104,7 @@ export async function middleware(request: NextRequest) {
     appendCorsHeaders(response, requestOrigin, true)
     response.headers.set('x-request-id', requestId)
     applyCreatorRefCookie(response, creatorSlug)
-    return response
+    return applySecurityHeaders(response)
   }
 
   let supabaseResponse = NextResponse.next({ request: { headers: forwardedHeaders } })
@@ -147,11 +148,11 @@ export async function middleware(request: NextRequest) {
     url.pathname = `/${region}`
     const redirect = NextResponse.redirect(url)
     applyCreatorRefCookie(redirect, creatorSlug)
-    return redirect
+    return applySecurityHeaders(redirect)
   }
 
   applyCreatorRefCookie(supabaseResponse, creatorSlug)
-  return supabaseResponse
+  return applySecurityHeaders(supabaseResponse)
 }
 
 export const config = {
