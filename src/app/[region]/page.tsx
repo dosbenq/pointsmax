@@ -181,7 +181,10 @@ export default function LandingPage() {
 
   // Fetch programs for quick value widget
   useEffect(() => {
-    fetch(`/api/programs?region=${region.toUpperCase()}`)
+    fetch(`/api/programs?region=${region.toUpperCase()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

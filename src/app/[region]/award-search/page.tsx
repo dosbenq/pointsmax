@@ -152,7 +152,10 @@ export default function AwardSearchPage() {
   }, [region])
 
   useEffect(() => {
-    fetch(`/api/programs?region=${region.toUpperCase()}`)
+    fetch(`/api/programs?region=${region.toUpperCase()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load programs (${res.status})`)
         return res.json() as Promise<ProgramOption[]>
@@ -164,7 +167,10 @@ export default function AwardSearchPage() {
   // Load balances (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load balances (${res.status})`)
         return res.json() as Promise<{ balances?: Array<{ program_id: string; balance: number }> }>

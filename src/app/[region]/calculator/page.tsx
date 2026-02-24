@@ -865,7 +865,10 @@ export default function CalculatorPage() {
   useEffect(() => {
     setProgramsLoading(true)
     setPrograms([]) // Clear programs immediately when region changes
-    fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`)
+    fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(async (r) => {
         if (!r.ok) throw new Error(`Failed to load programs (${r.status})`)
         return r.json()
@@ -909,7 +912,10 @@ export default function CalculatorPage() {
   // Load saved balances on sign-in (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(r => r.json())
       .then(({ balances }) => {
         if (!balances?.length) {

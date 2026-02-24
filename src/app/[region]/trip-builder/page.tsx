@@ -135,7 +135,10 @@ export default function TripBuilderPage() {
   }, [region])
 
   useEffect(() => {
-    fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`)
+    fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(r => {
         if (!r.ok) {
           console.error('Failed to load programs:', r.statusText)
@@ -154,7 +157,10 @@ export default function TripBuilderPage() {
   // Auto-load balances if logged in (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
       .then(r => {
         if (!r.ok) {
           console.error('Failed to load user balances:', r.statusText)
