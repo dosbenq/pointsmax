@@ -46,11 +46,9 @@ function normalizeCardCppCents(cppCents: number, currency: 'USD' | 'INR'): numbe
   return cppCents
 }
 
-export async function GET(request?: Request) {
+export async function GET(request: Request) {
   const db = createPublicClient()
-  const geography = normalizeGeographyParam(
-    request ? new URL(request.url).searchParams.get('geography') : null,
-  )
+  const geography = normalizeGeographyParam(new URL(request.url).searchParams.get('geography'))
 
   let cardsRes = await db
     .from('cards')
