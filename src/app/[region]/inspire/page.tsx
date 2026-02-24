@@ -9,6 +9,11 @@ import type { Program } from '@/types/database'
 import type { AwardSearchResponse, AwardSearchResult, CabinClass } from '@/lib/award-search/types'
 import { REGIONS, type Region } from '@/lib/regions'
 
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
 
@@ -310,15 +315,36 @@ export default function InspirePage() {
                 className="pm-input font-mono uppercase"
               />
             </div>
+            {/* K12: Month/Year selects instead of native month input */}
             <div>
-              <label htmlFor="month" className="pm-label block mb-1.5">Month</label>
-              <input
-                id="month"
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="pm-input"
-              />
+              <label className="pm-label block mb-1.5">Month</label>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={month.split('-')[1] || '01'}
+                  onChange={(e) => {
+                    const year = month.split('-')[0] || new Date().getFullYear().toString()
+                    setMonth(`${year}-${e.target.value}`)
+                  }}
+                  className="pm-input"
+                >
+                  {MONTH_LABELS.map((label, idx) => {
+                    const value = `${idx + 1}`.padStart(2, '0')
+                    return <option key={value} value={value}>{label}</option>
+                  })}
+                </select>
+                <select
+                  value={month.split('-')[0] || new Date().getFullYear().toString()}
+                  onChange={(e) => {
+                    const monthVal = month.split('-')[1] || '01'
+                    setMonth(`${e.target.value}-${monthVal}`)
+                  }}
+                  className="pm-input"
+                >
+                  {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() + i).map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div>
               <label htmlFor="region" className="pm-label block mb-1.5">Region</label>
