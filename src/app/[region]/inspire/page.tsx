@@ -122,6 +122,16 @@ export default function InspirePage() {
   const regionCode = (params.region as Region) || 'us'
   const config = REGIONS[regionCode]
   const { user } = useAuth()
+  
+  // N1: Region-aware CPP formatting
+  const cppLabel = regionCode === 'in' ? 'paise/pt' : '¢/pt'
+  const formatCpp = (cppCents: number): string => {
+    if (regionCode === 'in') {
+      return `${Math.round(cppCents)} ${cppLabel}`
+    }
+    return `${cppCents.toFixed(2)}${cppLabel}`
+  }
+  
   const [programs, setPrograms] = useState<ProgramOption[]>([])
   const [rows, setRows] = useState<BalanceRow[]>([{ id: '1', program_id: '', amount: '' }])
   const [origin, setOrigin] = useState('')
@@ -311,7 +321,7 @@ export default function InspirePage() {
                 maxLength={3}
                 value={origin}
                 onChange={(e) => setOrigin(e.target.value.toUpperCase())}
-                placeholder="JFK"
+                placeholder={regionCode === 'in' ? 'DEL' : 'JFK'}
                 className="pm-input font-mono uppercase"
               />
             </div>
@@ -494,7 +504,7 @@ export default function InspirePage() {
                         </div>
                         <div>
                           <p className="text-[10px] text-[#5f7c70]">Value</p>
-                          <p className="font-bold text-[#157347]">{item.best.cpp_cents.toFixed(2)}¢</p>
+                          <p className="font-bold text-[#157347]">{formatCpp(item.best.cpp_cents)}</p>
                         </div>
                       </div>
                     </div>

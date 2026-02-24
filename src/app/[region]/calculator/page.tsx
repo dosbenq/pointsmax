@@ -191,6 +191,15 @@ function fmt(cents: number | null | undefined, symbol: string) {
   }).format(cents / 100)}`
 }
 
+// N2: Region-aware CPP formatter
+function formatCpp(cppCents: number | null | undefined, region: Region): string {
+  if (cppCents == null || !Number.isFinite(cppCents)) return '—'
+  if (region === 'in') {
+    return `${Math.round(cppCents)} paise/pt`
+  }
+  return `${cppCents.toFixed(2)}¢/pt`
+}
+
 function parsePointsInput(raw: string): number {
   const digitsOnly = raw.replace(/[^\d]/g, '')
   if (!digitsOnly) return NaN
@@ -352,6 +361,7 @@ function AwardSearchPanel({
   awardResult,
   awardError,
   onSearch,
+  region,
 }: {
   awardParams: AwardParams
   setAwardParams: React.Dispatch<React.SetStateAction<AwardParams>>
@@ -359,6 +369,7 @@ function AwardSearchPanel({
   awardResult: AwardSearchResponse | null
   awardError: string | null
   onSearch: () => void
+  region: Region
 }) {
   const reachable = awardResult?.results.filter(r => r.is_reachable) ?? []
   const unreachable = awardResult?.results.filter(r => !r.is_reachable) ?? []
@@ -597,7 +608,7 @@ function AwardSearchPanel({
             <div className="space-y-3">
               <p className="pm-label text-pm-success">Reachable with your points</p>
               {reachable.map(r => (
-                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} />
+                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} region={region} />
               ))}
             </div>
           )}
@@ -606,7 +617,7 @@ function AwardSearchPanel({
             <div className="space-y-3">
               <p className="pm-label">Need more points</p>
               {unreachable.map(r => (
-                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} muted />
+                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} muted region={region} />
               ))}
             </div>
           )}
@@ -620,10 +631,12 @@ function AwardResultCard({
   result: r,
   topSlug,
   muted = false,
+  region,
 }: {
   result: AwardSearchResult
   topSlug?: string
   muted?: boolean
+  region: Region
 }) {
   const isTopPick = r.program_slug === topSlug
 
@@ -668,7 +681,7 @@ function AwardResultCard({
         </div>
         <div>
           <p className="text-[#5f7c70] uppercase tracking-wider font-semibold text-[10px]">Rate</p>
-          <p className="text-[#244437] mt-0.5">{r.cpp_cents.toFixed(2)}¢/pt</p>
+          <p className="text-[#244437] mt-0.5">{formatCpp(r.cpp_cents, region)}</p>
         </div>
       </div>
 
@@ -1670,7 +1683,7 @@ export default function CalculatorPage() {
                   <p className="pm-label text-pm-accent">Current top path</p>
                   <p className="text-sm font-semibold text-pm-ink-900 mt-1">{bestOverall.label}</p>
                   <p className="text-xs text-pm-ink-500 mt-1">
-                    {bestOverall.points_in.toLocaleString()} pts · {bestOverall.cpp_cents.toFixed(2)}¢/pt
+                    {bestOverall.points_in.toLocaleString()} pts · {formatCpp(bestOverall.cpp_cents, region)}
                   </p>
                   <p className="text-lg font-bold text-pm-success mt-2">{fmt(bestOverall.total_value_cents, config.currencySymbol)}</p>
                   <button
@@ -1781,7 +1794,7 @@ export default function CalculatorPage() {
                             <p className="text-xs text-pm-ink-500 mt-0.5">
                               {r.points_in.toLocaleString()} pts
                               {r.category === 'transfer_partner' && ` → ${r.points_out.toLocaleString()} ${r.to_program?.short_name ?? ''}`}
-                              {' · '}{transferTime(r)}{' · '}{r.cpp_cents.toFixed(2)}¢/pt
+                              {' · '}{transferTime(r)}{' · '}{formatCpp(r.cpp_cents, region)}
                             </p>
                           </div>
                           <p className={`text-base font-bold tabular-nums flex-shrink-0 ${r.is_best ? 'text-pm-accent-strong' : 'text-pm-ink-900'}`}>
@@ -1849,6 +1862,7 @@ export default function CalculatorPage() {
                 awardResult={awardResult}
                 awardError={awardError}
                 onSearch={runAwardSearch}
+                region={region}
               />
             )}
 

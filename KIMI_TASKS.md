@@ -6,6 +6,32 @@
 
 ---
 
+## Task Status
+
+| Task | Title | Status |
+|------|-------|--------|
+| K1 | Region filtering — India never shows US programs | ✅ Done |
+| K2 | NaN in Best Potential Value | ✅ Done |
+| K3 | Inspire Me / AI Advisor — broken for India | ⚠️ Partial — see below |
+| K4 | Travel goal filter changes card rankings | ✅ Done |
+| K5 | Flexible date "------" in Trip Builder | ✅ Done |
+| K6 | Landing page hero rewrite | ❌ Not started |
+| K7 | Default airports — India must use Indian airports | ❌ Not started |
+| K8 | Default spending — realistic for premium cardholders | ❌ Not started |
+| K9 | One-way trip option in Trip Builder | ✅ Done |
+| K10 | Signup bonus display + soft benefit tags | ✅ Done |
+| K11 | More cards — expand DB coverage | ❌ Not started |
+| K12 | Better calendar in Trip Builder | ✅ Done |
+| N1 | CPP unit hardcoded to ¢ in Inspire Me (India shows wrong unit) | ❌ New bug |
+| N2 | CPP unit hardcoded to ¢ in Calculator award results | ❌ New bug |
+| N3 | Annual fee field — verify India cards store INR correctly | ❌ Needs investigation |
+| N4 | Earning Calculator page unreachable — not in navigation | ❌ New bug |
+| N5 | Award search page has no region-aware airport defaults | ❌ New bug |
+
+> **K3 partial status**: The AI prompt is now region-aware (currency units, example routes). Empty balances returns a helpful prompt message (no AI call). BUT the Inspire Me page still displays CPP values with a hardcoded `¢` symbol regardless of region — India users see "150.00¢" instead of "150 paise". This is tracked as N1 below.
+
+---
+
 ## Priority 1 — Critical Bugs (Broken UX, Fix Immediately)
 
 ---
@@ -358,6 +384,160 @@ Note: Adding `shopping` as a new category for India means also updating the Earn
 **Do NOT**: Build a custom calendar from scratch. Use shadcn/ui Calendar which wraps react-day-picker.
 
 **Acceptance criteria**: Date selection in Trip Builder uses a popover calendar (not native browser input). Works consistently in Chrome, Safari, Firefox, and mobile. Keyboard navigation works (arrow keys, Enter to select).
+
+---
+
+---
+
+## Priority 4 — New Bugs Found in Product Audit (Fix Before Next Sprint)
+
+---
+
+### N1 · Fix CPP unit in Inspire Me — India must show "paise/pt" not "¢"
+
+**Why**: The Inspire Me page (`/inspire`) displays the value-per-point for each destination with a hardcoded `¢` symbol. India users see "150.00¢" which is meaningless to them — the unit should be "paise/pt" (150 paise = ₹1.50).
+
+**File**: `src/app/[region]/inspire/page.tsx`
+
+**Find**: The line displaying CPP — it looks like `{item.best.cpp_cents.toFixed(2)}¢` — and any other hardcoded `¢` or `cents` label on this page.
+
+**Fix**: Make the CPP label region-aware:
+```typescript
+// At the top of the component, derive from region:
+const cppLabel = region === 'in' ? 'paise/pt' : '¢/pt'
+const cppValue = region === 'in'
+  ? Math.round(item.best.cpp_cents)          // whole paise, no decimals
+  : item.best.cpp_cents.toFixed(2)           // cents with 2 decimals
+
+// In JSX:
+<span>{cppValue}{cppLabel}</span>
+```
+
+Also fix the `placeholder="JFK"` on the origin airport input (same file) to be region-aware:
+```typescript
+placeholder={region === 'in' ? 'DEL' : 'JFK'}
+```
+
+**Acceptance criteria**:
+- On `/in/inspire`, CPP shows as "150 paise/pt" (whole number, paise unit)
+- On `/us/inspire`, CPP shows as "2.50¢/pt" (2 decimal places, cent unit)
+- Origin airport placeholder shows "DEL" on India, "JFK" on US
+- No other hardcoded `¢` or `cents` labels remain on this page
+
+---
+
+### N2 · Fix CPP unit in Calculator award results — hardcoded "¢/pt" for all regions
+
+**Why**: The main calculator displays award search results and the "Best Potential Value" panel with hardcoded `¢/pt` labels. India users see "150.00¢/pt" — a completely wrong unit.
+
+**File**: `src/app/[region]/calculator/page.tsx`
+
+**Find all instances**: Search the file for `¢/pt`, `¢`, and `cpp_cents.toFixed` — each one needs to become region-aware.
+
+**Fix pattern** (derive `cppLabel` and `formatCpp` from region once, use everywhere):
+```typescript
+const cppLabel = region === 'in' ? 'paise/pt' : '¢/pt'
+
+function formatCpp(cppCents: number | null | undefined): string {
+  if (cppCents == null || !Number.isFinite(cppCents)) return '—'
+  if (region === 'in') return `${Math.round(cppCents)} paise/pt`
+  return `${cppCents.toFixed(2)}¢/pt`
+}
+```
+
+Replace every hardcoded `{r.cpp_cents.toFixed(2)}¢/pt` with `{formatCpp(r.cpp_cents)}`.
+
+**Acceptance criteria**:
+- On `/in/calculator`, award results show "150 paise/pt" (whole number)
+- On `/us/calculator`, award results show "2.50¢/pt"
+- The "Best Potential Value" panel shows the correct unit
+- No remaining hardcoded `¢` in this file (grep to verify)
+
+---
+
+### N3 · Verify annual fee currency for India cards — potential ~83x calculation error
+
+**Why**: Cards are stored with an `annual_fee_usd` column. If India card fees are stored as USD values (e.g., $150 for a card that actually costs ₹12,500), then the scoring engine subtracts the wrong amount — $150 instead of ₹12,500 — making India cards appear 83× more valuable than they are. If fees are already stored as INR values (12500 = ₹12,500), the math is correct but the field name is misleading.
+
+**This needs investigation first — do NOT change code until you confirm the data.**
+
+**Step 1 — Check the database**:
+Run this in the Supabase SQL editor:
+```sql
+SELECT name, annual_fee_usd, currency, geography
+FROM cards
+WHERE geography = 'IN'
+ORDER BY annual_fee_usd DESC
+LIMIT 10;
+```
+- If HDFC Infinia shows `annual_fee_usd = 12500` → data is stored as INR (field name is wrong but math is OK)
+- If HDFC Infinia shows `annual_fee_usd = 150` → data is stored as USD (math is broken — massive bug)
+
+**Step 2 — If data is in USD (math is broken)**:
+Add a migration that renames/adds the column and converts values:
+```sql
+-- Add INR column, populate from USD conversion
+ALTER TABLE cards ADD COLUMN annual_fee_local INTEGER;
+UPDATE cards SET annual_fee_local = CASE
+  WHEN geography = 'IN' THEN ROUND(annual_fee_usd * 83.5)
+  ELSE annual_fee_usd
+END;
+```
+Then update the scoring code to use `annual_fee_local` instead of `annual_fee_usd`.
+
+**Step 3 — If data is in local currency (just rename)**:
+File a note confirming the data is correct. Optionally rename the column in a migration to `annual_fee` with a `annual_fee_currency` companion field for clarity.
+
+**Files to check after DB investigation**:
+- `src/app/[region]/card-recommender/page.tsx` — `firstYearValue` calculation
+- `src/app/[region]/earning-calculator/page.tsx` — `netValue` calculation
+- Both subtract `card.annual_fee_usd` from a locally-denominated value
+
+**Acceptance criteria**: You can confirm in writing (in the PR description) whether India card fees are stored in USD or INR, and if in USD, provide the migration + code fix that corrects the math.
+
+---
+
+### N4 · Add Earning Calculator to navigation — it's an orphaned page
+
+**Why**: There is a full `/earning-calculator` page that ranks cards by how many points you'd earn from your specific spending — a genuinely useful tool. But it's not linked from the navigation, the landing page, or any other page. Users can only find it by guessing the URL.
+
+**File**: `src/app/[region]/layout.tsx` — the nav component (or wherever `<nav>` links are defined)
+
+**What to add**:
+1. Add "Earning Calculator" to the navigation menu, between "Calculator" and "Card Recommender"
+2. Link: `/{region}/earning-calculator`
+3. On mobile nav, include it in the hamburger menu
+
+Also check `src/app/[region]/page.tsx` (landing page) — there may be a tools section or CTA grid where the Earning Calculator should appear as a card alongside the main calculator.
+
+**Acceptance criteria**: A user can reach `/in/earning-calculator` and `/us/earning-calculator` by clicking a nav link. The page is labelled "Earning Calculator" in the nav.
+
+---
+
+### N5 · Fix award search page defaults — no region-aware airports or cabin preset
+
+**Why**: When a user navigates to `/in/award-search` or `/us/award-search` directly (or via a nav link), the origin and destination fields are empty. This forces the user to type before they can do anything. Even worse, any placeholder text shows "JFK" regardless of region.
+
+**File**: `src/app/[region]/award-search/page.tsx`
+
+**Fix — region-aware defaults**:
+```typescript
+const defaultOrigin = region === 'in' ? 'DEL' : 'JFK'
+const defaultDestination = region === 'in' ? 'LHR' : 'NRT'
+const defaultCabin = 'business'  // aspirational — most users checking award space want business class
+```
+
+Set these as the initial `useState` values (not just placeholders — actually pre-fill the inputs):
+```typescript
+const [origin, setOrigin] = useState(defaultOrigin)
+const [destination, setDestination] = useState(defaultDestination)
+```
+
+**Acceptance criteria**:
+- `/in/award-search` loads with DEL pre-filled as origin, LHR as destination
+- `/us/award-search` loads with JFK pre-filled as origin, NRT as destination
+- Cabin defaults to "Business" for both regions
+- User can clear and type their own values normally
 
 ---
 
