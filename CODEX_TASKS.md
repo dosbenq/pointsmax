@@ -908,3 +908,215 @@ CREATE TABLE admin_audit_log (
 **Change**: Apply rate limiting to all admin routes — 20 requests per minute per IP. Use the existing `rateLimit()` utility already in the codebase.
 
 **Acceptance criteria**: More than 20 requests per minute to any `/api/admin/*` route from a single IP returns 429. Verified with a quick `ab` or `curl` loop test.
+
+---
+
+## Sprint 13 — India Data Integrity (Correctness Bugs — Fix Before Any Marketing)
+
+> **PM note**: These are not polish issues — they are correctness bugs that make the India product actively wrong. A user seeing Chase UR on the India site or a point value of ₹0.01 will immediately lose trust. Fix these before any user acquisition effort.
+
+### F1 · Fix dark mode — replace hardcoded colors with semantic CSS variables
+
+**Why**: Dark mode is broken because components use hardcoded Tailwind arbitrary values (`bg-[#f3faf6]`, `text-[#1b4438]`) instead of the CSS variables defined in `globals.css`. The CSS variables for dark mode are already defined and correct — they just aren't being used.
+
+**Root cause** (confirmed by audit):
+- `globals.css` defines proper `--pm-surface`, `--pm-text`, `--pm-border` etc. for both light (`:root`) and dark (`.dark`) modes
+- But components reference colors directly: `bg-[#f3faf6]` instead of `bg-pm-surface`
+- Tailwind's `dark:` variants never fire because the CSS variables aren't wired into class names
+
+**Step 1 — Wire CSS variables into Tailwind config** (`tailwind.config.ts`):
+Add to the `theme.extend.colors` block:
+```typescript
+colors: {
+  'pm-bg':         'var(--pm-bg)',
+  'pm-surface':    'var(--pm-surface)',
+  'pm-border':     'var(--pm-border)',
+  'pm-text':       'var(--pm-text)',
+  'pm-text-muted': 'var(--pm-text-muted)',
+  'pm-primary':    'var(--pm-primary)',
+  'pm-primary-fg': 'var(--pm-primary-fg)',
+  'pm-error':      'var(--pm-error)',
+  'pm-success':    'var(--pm-success)',
+}
+```
+
+**Step 2 — Audit and replace hardcoded colors in these files** (highest impact, do in this order):
+1. `src/components/NavBar.tsx` — replace all `bg-[#...]`, `text-[#...]` with `bg-pm-surface`, `text-pm-text` etc.
+2. `src/components/Footer.tsx` — same
+3. `src/app/[region]/page.tsx` (landing page) — replace hero section hardcoded colors
+4. `src/app/[region]/calculator/page.tsx` — this is the most extensive; replace all result card colors
+5. `src/app/[region]/how-it-works/page.tsx`
+6. `src/app/[region]/pricing/page.tsx`
+
+**Do NOT change**: shadcn/ui components in `src/components/ui/` — these already use CSS variables correctly via their own design tokens.
+
+**Step 3 — Verify `globals.css`** has complete dark mode variable coverage. Every variable defined in `:root` must have a counterpart in `.dark { }`.
+
+**Acceptance criteria**: Toggle dark mode → every page switches cleanly. No white cards on dark background, no dark text on dark background. Test on: landing, calculator, how-it-works, pricing, profile. No hardcoded `bg-[#...]` or `text-[#...]` classes remain in the 6 files listed above.
+
+---
+
+### F2 · Fix Indian point valuations — correct values + INR-aware scraper
+
+**Why**: The current India valuations are wrong in two ways: (1) the seeded values are arbitrary guesses, and (2) the TPG scraper (T3) only covers US programs. Indian users see wildly incorrect point values, which destroys trust immediately.
+
+**Current state** (confirmed by audit):
+- Migration 011 stores Indian valuations in paise (subunits of INR): HDFC = 120 paise (₹1.20/pt), Axis = 115 paise, etc.
+- The calculator displays these correctly as ₹ amounts (divides by 100)
+- BUT: the values are wrong — HDFC Infinia points at ₹1.20 is too high for a generic card reward program. Real values vary by redemption type.
+- TPG scraper (T3) runs monthly and overwrites programs by slug — it will try to scrape Indian programs from TPG and find nothing, potentially zeroing out Indian valuations.
+
+**Correct seed values to update via migration** (`supabase/migrations/021_india_valuations_fix.sql`):
+
+Valuations are in **paise** (multiply INR by 100 to get paise):
+
+| Program slug | CPP (paise) | Rationale |
+|---|---|---|
+| hdfc-millennia | 50 | ₹0.50/pt — conservative blended (statement credit ~₹0.33, airline transfer ~₹1.50) |
+| axis-edge | 50 | ₹0.50/pt — similar to HDFC structure |
+| amex-india-mr | 75 | ₹0.75/pt — Amex India has better airline partners than domestic programs |
+| air-india | 100 | ₹1.00/mile — Air India business class awards average ~₹1–1.5/mile |
+| indigo-6e | 30 | ₹0.30/pt — very limited redemption options, low value |
+| taj-innercircle | 80 | ₹0.80/pt — Taj hotel redemptions average ~₹0.70–0.90/pt |
+
+**Update TPG scraper to skip India programs** (`src/app/api/cron/update-valuations/route.ts`):
+- After fetching TPG data, before upserting: check if `program.geography === 'IN'` — skip those programs entirely
+- Add a log entry: `skipped_india_programs: N` in the response
+
+**New Inngest function** — Indian valuations scraper (`src/lib/inngest/functions/india-valuations-scraper.ts`):
+
+Schedule: monthly (1st of month at 11am UTC, same day as TPG scraper)
+
+Logic:
+1. Fetch these specific pages (they contain editorial point valuations):
+   - `https://www.cardexpert.in/best-credit-cards/` (card comparison table with reward rates)
+   - `https://technofino.in/credit-card-reward-points-value/` (if this page exists, else search for "reward points value" on the site)
+2. Pass the HTML content to Gemini with this prompt:
+   ```
+   Extract credit card reward point valuations from this page.
+   Return a JSON array of: { program_name: string, cpp_inr: number, source_quote: string }
+   where cpp_inr is rupees per point (e.g. 1.50 means ₹1.50 per point).
+   Only include entries where a numeric value is clearly stated or calculable.
+   ```
+3. Map extracted program names to our slugs using a mapping object (same pattern as TPG scraper)
+4. Convert cpp_inr to paise (multiply by 100) before storing
+5. Insert into `valuations` with `source = 'india-scraper'`, `auto_detected = true`, `verified = false`
+6. Send admin email if new valuations differ by more than 20% from current values
+
+**Acceptance criteria**: Indian program pages show correct ₹ valuations (not USD, not wildly incorrect paise). Admin receives monthly update with any significant valuation changes. TPG scraper no longer touches Indian programs.
+
+---
+
+### F3 · Fix "How it works" page — full regional revamp
+
+**Why**: The current page lists hardcoded US programs (Chase, Amex, United, Delta, etc.) regardless of region. An Indian user sees this and immediately knows the product isn't for them. This page is also a conversion opportunity — it should show the AHA moment that converts skeptics.
+
+**File**: `src/app/[region]/how-it-works/page.tsx`
+
+**The AHA moment to engineer**: Users don't know their points are worth far more than face value. Show them the math concretely.
+
+**New page structure** (region-conditional throughout):
+
+**Hero section**:
+- India: "Your HDFC Infinia points are worth ₹1 each — not 0.3 paise"
+- US: "Your Chase points are worth 2¢ each — not 1¢ in cash"
+
+**The math section** (most important — this is what converts):
+- India example:
+  ```
+  50,000 HDFC Infinia points
+  ├── Statement credit:     ₹16,500  (₹0.33/pt)
+  ├── Amazon voucher:       ₹25,000  (₹0.50/pt)
+  └── Air India business:  ₹75,000+ (₹1.50+/pt) ← PointsMax shows you this
+  ```
+- US example:
+  ```
+  100,000 Chase Ultimate Rewards
+  ├── Cash back:            $1,000   (1¢/pt)
+  ├── Chase travel portal:  $1,500   (1.5¢/pt)
+  └── Lufthansa Business:  $4,200+  (4.2¢/pt) ← PointsMax shows you this
+  ```
+
+**How it works steps** (3 steps, region-specific copy):
+- India step 1: "Add your HDFC, Axis, and Amex India balances"
+- India step 2: "Tell us your travel goal (Mumbai → Dubai, Delhi → London)"
+- India step 3: "Get the best redemption path + transfer timing"
+
+**Programs supported section** (pull from DB by region — not hardcoded):
+- India: HDFC Millennia, Axis EDGE, Amex India MR, Air India Maharaja Club, IndiGo 6E, Taj InnerCircle
+- US: Chase UR, Amex MR, Capital One, Citi TYP, Bilt, United, Delta, AA, Southwest, Hyatt, Hilton, Marriott
+
+**Implementation**: Query `/api/programs?region=IN` (or US) at page load, render the program list dynamically. Remove ALL hardcoded program references.
+
+**FAQ section** (region-conditional):
+- India: "How are Indian card points valued?", "Can I transfer HDFC points to Air India?", "Is this different from CardExpert or Technofino?"
+- US: "How are points valued?", "What transfer partners are supported?", "Is this different from TPG?"
+
+**CTA**: "Calculate my [HDFC/Chase] points value →" linking to `/${region}/calculator`
+
+**Acceptance criteria**: `/in/how-it-works` shows only India programs, India-specific math example, INR amounts, and India FAQ. `/us/how-it-works` shows only US content. No hardcoded program lists in the file.
+
+---
+
+### F4 · Audit and fix all hardcoded USD across the India experience
+
+**Why**: Despite the calculator using `config.currencySymbol`, there are likely places where `$` is hardcoded or where USD assumptions leak through.
+
+**Files to audit** (search for `$`, `USD`, `cents`, `cpp` display strings):
+1. `src/app/[region]/pricing/page.tsx` — pricing must show $ for US, ₹ for India
+2. `src/app/[region]/cards/[slug]/page.tsx` — card review pages
+3. `src/app/[region]/programs/[slug]/page.tsx` — program pages
+4. `src/app/[region]/card-recommender/page.tsx`
+5. `src/app/[region]/earning-calculator/page.tsx`
+6. `src/app/api/stats/route.ts` — the social proof counter converts to USD; India should show INR crore
+
+**Specific fixes**:
+- Pricing page: wrap price display in region-aware component. India Pro plan price must show ₹ (set a `STRIPE_PRO_PRICE_INR` env var for the India plan — can be same product, different price object in Stripe)
+- Stats API: add `currency` field to response — India clients receive `{ users: N, value_inr: N, value_usd: N }`, landing page uses the right one
+- Program CPP display: `1.5¢ per point` on US → `₹1.50 per point` on India. Format using `region.currencySymbol` + `region.currency` everywhere
+
+**Acceptance criteria**: Visit every page at `/in/*` — no `$` or `USD` appears anywhere except in context that explicitly references US (e.g., "transfers to US airlines"). Visit `/us/*` — no `₹` or `INR` appears.
+
+---
+
+## Sprint 14 — Content & Positioning (Make Pages Earn Their Keep)
+
+> **PM note**: Every page is either a conversion tool or a liability. Right now most content pages are liabilities — they exist but don't convert. Each page should have one job and do it well.
+
+### X1 · Landing page hero — A/B test copy variants
+
+**Why**: The current hero is functional but not differentiated. "India's first AI-powered credit card optimizer" is a claim; we need to support it with proof in the hero itself.
+
+**File**: `src/app/[region]/page.tsx`
+
+**India hero change**:
+- Current: generic headline + generic CTA
+- New: Lead with the value gap. Show the number.
+  - Headline: "Most HDFC Infinia holders redeem points at ₹0.33 each. You can get ₹1.50."
+  - Subhead: "PointsMax finds the redemption path that multiplies your points — before you transfer."
+  - CTA: "Calculate my points value" (no login required)
+  - Trust signal below CTA: "No credit card needed · Your data stays private"
+
+**US hero change**:
+- Headline: "Stop leaving 3× value on the table."
+- Subhead: "PointsMax shows you the exact redemption that maximizes your Chase, Amex, and Citi points — before you commit."
+
+**Acceptance criteria**: Updated copy live at `/in` and `/us`. CTA links directly to calculator (no login wall).
+
+---
+
+### X2 · Add a "Quick value check" widget to landing page (no signup required)
+
+**Why**: The biggest conversion barrier is asking users to sign up before they see value. A landing page widget that calculates point value in 10 seconds (no account required) is the highest-leverage conversion improvement possible.
+
+**Implementation**:
+- Add a compact widget directly on the landing page (below the hero, above the "How it works" steps)
+- Widget: 3 dropdowns + 1 number input:
+  - "I have" [program dropdown — India or US depending on region]
+  - [number input] points
+  - "→ Best value: [calculated]" (updates in real time as user types)
+- No API call needed — embed the CPP values directly in the page (fetched at SSR time from `/api/programs?region=X`)
+- Calculation: `points × cpp_value = best_value_display`
+- Below the result: "See full breakdown →" → links to calculator
+
+**Acceptance criteria**: Widget works without login. As user types point balance, estimated value updates in <100ms. CTA to full calculator is prominent below the result.
