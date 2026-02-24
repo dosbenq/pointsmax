@@ -17,6 +17,7 @@ import type {
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
 import { resolveCppCents } from '@/lib/cpp-fallback'
+import { sortAwardResultsByPoints } from './sort-results'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
 const SEATS_AERO_SOURCE_TO_SLUG: Record<string, string> = {
@@ -317,13 +318,7 @@ export class SeatsAeroProvider implements AwardProvider {
       })
     }
 
-    results.sort((a, b) => {
-      if (a.is_reachable !== b.is_reachable) return a.is_reachable ? -1 : 1
-      if (a.has_real_availability !== b.has_real_availability) return a.has_real_availability ? -1 : 1
-      return b.estimated_cash_value_cents - a.estimated_cash_value_cents
-    })
-
-    return results
+    return sortAwardResultsByPoints(results)
   }
 
   private async fetchSeatsAero(

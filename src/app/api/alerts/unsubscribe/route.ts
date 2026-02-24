@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const appUrl = getSafeAppUrl()
+  const homeUrl = new URL('/', getSafeAppUrl()).toString()
 
   return new NextResponse(
     `<!DOCTYPE html>
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   <div class="card">
     <h1>You've been unsubscribed</h1>
     <p>You'll no longer receive transfer bonus alerts from PointsMax.</p>
-    <p style="margin-top:16px"><a href="${appUrl}">← Back to PointsMax</a></p>
+    <p style="margin-top:16px"><a href="${homeUrl}">← Back to PointsMax</a></p>
   </div>
 </body>
 </html>`,

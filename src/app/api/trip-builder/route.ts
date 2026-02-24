@@ -6,17 +6,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createServerDbClient } from '@/lib/supabase'
-import { createAwardProvider } from '@/lib/award-search'
+import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
 import type { AwardSearchParams } from '@/lib/award-search'
 import type { TripBuilderResponse, TripBuilderFlightOption } from '@/types/database'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
-import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
+import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
+import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
 
 // Known hotel award portal URLs — AI picks from these so it can't hallucinate property-specific links
 const HOTEL_BOOKING_URLS = `
 Known hotel award booking portals (use ONLY these exact URLs for hotel.booking_url):
-- World of Hyatt: https://www.hyatt.com/en-US/rewards/use-points/book-with-points
+- World of Hyatt: https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html
 - Marriott Bonvoy: https://www.marriott.com/loyalty/redeem.mi
 - Hilton Honors: https://www.hilton.com/en/hilton-honors/points/
 - IHG One Rewards: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
@@ -151,7 +152,7 @@ export async function POST(req: NextRequest) {
   try {
     const db = createServerDbClient()
     const provider = createAwardProvider()
-    const results = await provider.search(awardParams, db)
+    const results = sortAwardResultsByPoints(await provider.search(awardParams, db))
 
     // Build top flights from award search results
     const top_flights: TripBuilderFlightOption[] = results.slice(0, 5).map(r => ({
@@ -165,14 +166,20 @@ export async function POST(req: NextRequest) {
     }))
 
     // Build Gemini prompt
+    const geminiDisabled = isGeminiDisabled()
     const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      logWarn('trip_builder_missing_gemini_key', { requestId })
+    if (geminiDisabled || !apiKey) {
+      logWarn('trip_builder_ai_disabled', {
+        requestId,
+        reason: geminiDisabled ? 'safe_mode' : 'missing_api_key',
+      })
       return NextResponse.json({
         top_flights,
         hotel: null,
         booking_steps: [],
-        ai_summary: 'AI planning unavailable — GEMINI_API_KEY not configured.',
+        ai_summary: geminiDisabled
+          ? 'AI planning is in safe mode. Flight options are still available below.'
+          : 'AI planning unavailable — GEMINI_API_KEY not configured.',
         points_summary: '',
       } as TripBuilderResponse)
     }
@@ -305,6 +312,14 @@ Rules:
     } as TripBuilderResponse)
 
   } catch (err) {
+    if (err instanceof AwardProviderUnavailableError) {
+      logWarn('trip_builder_provider_unavailable', {
+        requestId,
+        error: err.message,
+      })
+      return NextResponse.json({ error: err.message }, { status: 503 })
+    }
+
     logError('trip_builder_failed', {
       requestId,
       error: err instanceof Error ? err.message : 'Trip planning failed',

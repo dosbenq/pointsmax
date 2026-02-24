@@ -1,3 +1,5 @@
+import { capturePosthogEvent } from '@/lib/posthog'
+
 type EventPayload = Record<string, string | number | boolean | null | undefined>
 
 declare global {
@@ -23,6 +25,8 @@ export function trackEvent(event: string, payload: EventPayload = {}) {
   if (typeof window.gtag === 'function') {
     window.gtag('event', event, payload)
   }
+
+  capturePosthogEvent(event, payload)
 
   if (process.env.NODE_ENV !== 'production') {
     console.info('[analytics]', data)

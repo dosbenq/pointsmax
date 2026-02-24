@@ -31,6 +31,7 @@ export interface Program {
   short_name: string
   slug: string
   type: ProgramType
+  geography: string
   issuer: string | null
   logo_url: string | null
   color_hex: string
@@ -71,6 +72,11 @@ export interface TransferPartner {
 export interface TransferBonus {
   id: string
   transfer_partner_id: string
+  // Present on table rows used by alert cron idempotency tracking.
+  alerted_at: string | null
+  // Present on joined payloads/views used by admin and display surfaces.
+  from_program_id?: string
+  to_program_id?: string
   bonus_pct: number          // e.g. 30 = 30% extra miles
   start_date: string
   end_date: string
@@ -115,6 +121,29 @@ export interface AlertSubscription {
   created_at: string
 }
 
+export interface AdminAuditLogEntry {
+  id: string
+  admin_email: string
+  action: string
+  target_id: string | null
+  payload: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface FlightWatch {
+  id: string
+  user_id: string
+  origin: string
+  destination: string
+  cabin: 'economy' | 'premium_economy' | 'business' | 'first'
+  start_date: string
+  end_date: string
+  max_points: number | null
+  is_active: boolean
+  last_checked_at: string | null
+  created_at: string
+}
+
 // ─────────────────────────────────────────────
 // VIEW ROWS (joined/computed from DB views)
 // ─────────────────────────────────────────────
@@ -148,9 +177,13 @@ export interface Card {
   name: string
   issuer: string
   annual_fee_usd: number
+  currency: string
+  earn_unit: string
+  geography: string
   signup_bonus_pts: number
   signup_bonus_spend: number
   program_id: string
+  apply_url: string | null
   is_active: boolean
   display_order: number
   created_at: string

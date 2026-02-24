@@ -3,7 +3,7 @@
 ## Verification Snapshot (2026-02-21)
 
 - `npm run check:env` passes (required vars present).
-- `npm run test -- --run` passes (`7/7` files, `18/18` tests).
+- `npm run test -- --run` passes (`12/12` files, `31/31` tests).
 - `npm run preflight` passes (env check + lint + typecheck + prod build).
 - `npm run smoke:http` passes (critical marketing/product routes).
 - `npm run check:links` passes with `hard failures: 0` (`1` soft bot-throttle on Hyatt).
@@ -30,6 +30,8 @@
    - `UPSTASH_REDIS_REST_URL`
    - `UPSTASH_REDIS_REST_TOKEN`
    - `CRON_SECRET`
+   - `INNGEST_EVENT_KEY`
+   - `INNGEST_SIGNING_KEY`
    - `ALERTS_TOKEN_SECRET`
    - `RESEND_API_KEY`
    - `RESEND_FROM_EMAIL`

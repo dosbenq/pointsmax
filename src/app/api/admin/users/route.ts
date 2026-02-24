@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { requireAdmin } from '@/lib/admin-auth'
+import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
-export async function GET() {
-  const authError = await requireAdmin()
+export async function GET(req: Request) {
+  const authError = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const authError = await requireAdmin()
+  const authError = await requireAdmin(request)
   if (authError) return authError
 
   const { user_id, tier } = await request.json()
@@ -35,5 +35,6 @@ export async function PATCH(request: Request) {
     console.error('admin_users_update_failed', { error: error.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
+  await logAdminAction('user.tier_update', String(user_id), { tier })
   return NextResponse.json({ ok: true })
 }

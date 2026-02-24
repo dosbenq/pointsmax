@@ -62,6 +62,8 @@ export interface AwardSearchResponse {
   results: AwardSearchResult[]
   ai_narrative: AwardNarrative | null
   searched_at: string
+  error?: 'real_availability_unavailable'
+  message?: string
 }
 
 export interface AwardProvider {

@@ -1,0 +1,68 @@
+import type { Metadata } from 'next'
+import NavBar from '@/components/NavBar'
+import Footer from '@/components/Footer'
+
+export const metadata: Metadata = {
+  title: 'Terms of Service | PointsMax',
+  description: 'Terms for using the PointsMax website and tools.',
+  alternates: { canonical: '/terms' },
+}
+
+const LAST_UPDATED = 'February 21, 2026'
+
+export default function TermsPage() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <NavBar />
+
+      <main className="pm-shell py-10 sm:py-12 w-full flex-1">
+        <div className="max-w-3xl mx-auto space-y-8">
+          <header className="space-y-2">
+            <span className="pm-pill">Legal</span>
+            <h1 className="pm-heading text-3xl sm:text-4xl">Terms of Service</h1>
+            <p className="pm-subtle text-sm">Last updated: {LAST_UPDATED}</p>
+          </header>
+
+          <section className="pm-card p-6 space-y-3">
+            <h2 className="pm-heading text-lg">Use of Service</h2>
+            <p className="text-sm text-[#355246]">
+              PointsMax provides informational tools for travel rewards planning. You are responsible for your financial
+              and booking decisions, including transfer and redemption actions.
+            </p>
+          </section>
+
+          <section className="pm-card p-6 space-y-3">
+            <h2 className="pm-heading text-lg">No Financial Advice</h2>
+            <p className="text-sm text-[#355246]">
+              Content and recommendations are educational and do not constitute legal, tax, financial, or investment advice.
+            </p>
+          </section>
+
+          <section className="pm-card p-6 space-y-3">
+            <h2 className="pm-heading text-lg">Accounts and Billing</h2>
+            <p className="text-sm text-[#355246]">
+              Paid subscriptions are billed by Stripe under their payment terms. You may cancel through the billing portal at any time.
+            </p>
+          </section>
+
+          <section className="pm-card p-6 space-y-3">
+            <h2 className="pm-heading text-lg">Affiliate Relationships</h2>
+            <p className="text-sm text-[#355246]">
+              Some outbound links are affiliate links. PointsMax may earn a commission if you apply or purchase through those links.
+            </p>
+          </section>
+
+          <section className="pm-card p-6 space-y-3">
+            <h2 className="pm-heading text-lg">Contact</h2>
+            <p className="text-sm text-[#355246]">
+              For support or legal inquiries, email: <a className="text-[#0f766e] hover:underline" href="mailto:hello@pointsmax.com">hello@pointsmax.com</a>.
+            </p>
+          </section>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  )
+}
+

@@ -1,44 +1,55 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-
-const NAV_LINKS = [
-  { href: '/calculator', label: 'Calculator' },
-  { href: '/how-it-works', label: 'How it works' },
-  { href: '/pricing', label: 'Pricing' },
-]
-
-const TOOL_LINKS = [
-  { href: '/award-search', label: 'Award Search', desc: 'Quick route and availability scan' },
-  { href: '/inspire', label: 'Inspire Me', desc: 'Find destinations from your wallet' },
-  { href: '/earning-calculator', label: 'Earning Calculator', desc: 'Optimize monthly card earnings' },
-  { href: '/card-recommender', label: 'Card Recommender', desc: 'Choose the best next card' },
-  { href: '/trip-builder', label: 'Trip Builder', desc: 'Generate a full points plan' },
-]
+import { getRegionFromPath } from '@/lib/regions'
+import { useTheme } from 'next-themes'
+import { Moon, Sun } from 'lucide-react'
 
 export default function NavBar() {
   const { user, signInWithGoogle, signOut, loading } = useAuth()
+  const { theme, setTheme } = useTheme()
   const pathname = usePathname()
+  const region = getRegionFromPath(pathname)
+  const [mounted, setMounted] = useState(false)
+  
   const [toolsOpen, setToolsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
 
+  const navLinks = [
+    { href: `/${region}/calculator`, label: 'Calculator' },
+    { href: `/${region}/how-it-works`, label: 'How it works' },
+    { href: `/${region}/pricing`, label: 'Pricing' },
+  ]
+
+  const toolLinks = [
+    { href: `/${region}/award-search`, label: 'Award Search', desc: 'Quick route and availability scan' },
+    { href: `/${region}/inspire`, label: 'Inspire Me', desc: 'Find destinations from your wallet' },
+    { href: `/${region}/earning-calculator`, label: 'Earning Calculator', desc: 'Optimize monthly card earnings' },
+    { href: `/${region}/card-recommender`, label: 'Card Recommender', desc: 'Choose the best next card' },
+    { href: `/${region}/trip-builder`, label: 'Trip Builder', desc: 'Generate a full points plan' },
+  ]
+
   const isToolsActive = useMemo(
-    () => TOOL_LINKS.some((item) => pathname === item.href),
-    [pathname],
+    () => toolLinks.some((item) => pathname === item.href),
+    [pathname, toolLinks],
   )
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur border-b border-[#d5e5d9]/90 bg-[rgba(243,248,243,0.86)]">
       <div className="pm-shell h-16 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href="/"
+            href={`/${region}`}
             className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 border border-[#a9d8cf] bg-white text-[#0f3f36] hover:bg-[#f3fbf8] transition-colors"
           >
             <span className="inline-flex w-6 h-6 rounded-full bg-[#0f766e] text-white items-center justify-center text-xs font-bold">P</span>
@@ -46,7 +57,7 @@ export default function NavBar() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map((link) => {
+            {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
                 <Link
@@ -78,7 +89,7 @@ export default function NavBar() {
 
               {toolsOpen && (
                 <div className="absolute top-full left-0 mt-2 w-72 pm-card p-2 shadow-2xl">
-                  {TOOL_LINKS.map((tool) => (
+                  {toolLinks.map((tool) => (
                     <Link
                       key={tool.href}
                       href={tool.href}
@@ -98,6 +109,21 @@ export default function NavBar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#c5ddd1] bg-white hover:bg-[#f4faf7] transition-colors"
+            aria-label="Toggle theme"
+            type="button"
+          >
+            {!mounted ? (
+              <span className="h-4 w-4 rounded-full bg-[#dce9e1]" />
+            ) : theme === 'dark' ? (
+              <Sun className="h-4 w-4 text-[#365649]" />
+            ) : (
+              <Moon className="h-4 w-4 text-[#365649]" />
+            )}
+          </button>
+
           <button
             onClick={() => {
               setMenuOpen((v) => !v)
@@ -161,7 +187,7 @@ export default function NavBar() {
       {menuOpen && (
         <div className="md:hidden border-t border-[#dbe9e1] bg-[rgba(243,248,243,0.96)]">
           <div className="pm-shell py-3 space-y-1">
-            {NAV_LINKS.map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -177,7 +203,7 @@ export default function NavBar() {
             ))}
 
             <p className="px-3 pt-2 text-[11px] uppercase tracking-wider text-[#6a8579]">Tools</p>
-            {TOOL_LINKS.map((tool) => (
+            {toolLinks.map((tool) => (
               <Link
                 key={tool.href}
                 href={tool.href}

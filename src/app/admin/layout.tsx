@@ -10,7 +10,11 @@ const NAV = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/programs', label: 'Programs & CPP' },
   { href: '/admin/bonuses', label: 'Transfer Bonuses' },
+  { href: '/admin/link-health', label: 'Link Health' },
+  { href: '/admin/creators', label: 'Creators' },
+  { href: '/admin/audit-log', label: 'Audit Log' },
   { href: '/admin/users', label: 'Users' },
+  { href: '/admin/workflow-health', label: 'Workflow Health' },
 ]
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL

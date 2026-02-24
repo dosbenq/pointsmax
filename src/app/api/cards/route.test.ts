@@ -23,12 +23,12 @@ function makeDbClient(options: {
   return {
     from: vi.fn((table: string) => {
       if (table === 'cards') {
+        const cardsQuery = {
+          eq: vi.fn(() => cardsQuery),
+          order: vi.fn(async () => options.cards),
+        }
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              order: vi.fn(async () => options.cards),
-            })),
-          })),
+          select: vi.fn(() => cardsQuery),
         }
       }
 
@@ -65,7 +65,7 @@ describe('GET /api/cards', () => {
       })
     )
 
-    const res = await GET()
+    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
 
     expect(res.status).toBe(500)
@@ -89,6 +89,7 @@ describe('GET /api/cards', () => {
               signup_bonus_pts: 50000,
               signup_bonus_spend: 3000,
               program_id: 'program-1',
+              apply_url: 'https://example.com/apply/card-1',
               is_active: true,
               display_order: 1,
               created_at: '2026-01-01T00:00:00.000Z',
@@ -112,7 +113,7 @@ describe('GET /api/cards', () => {
       })
     )
 
-    const res = await GET()
+    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
 
     expect(res.status).toBe(500)
@@ -162,7 +163,7 @@ describe('GET /api/cards', () => {
       })
     )
 
-    const res = await GET()
+    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
 
     expect(res.status).toBe(200)
@@ -171,6 +172,10 @@ describe('GET /api/cards', () => {
     expect(body.cards[0]).toEqual(
       expect.objectContaining({
         id: 'card-1',
+        geography: 'US',
+        currency: 'USD',
+        earn_unit: '1_dollar',
+        apply_url: null,
         program_name: 'Program One',
         program_slug: 'program-one',
       })
@@ -180,6 +185,116 @@ describe('GET /api/cards', () => {
         dining: 3,
         groceries: 1,
         travel: 1,
+      })
+    )
+  })
+
+  it('normalizes india valuation units from rupees to paise when needed', async () => {
+    createPublicClientMock.mockReturnValue(
+      makeDbClient({
+        cards: {
+          data: [
+            {
+              id: 'card-in-1',
+              name: 'India Card',
+              issuer: 'Issuer',
+              annual_fee_usd: 5000,
+              signup_bonus_pts: 0,
+              signup_bonus_spend: 0,
+              program_id: 'program-in-1',
+              currency: 'INR',
+              earn_unit: '100_inr',
+              geography: 'IN',
+              is_active: true,
+              display_order: 1,
+              created_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+          error: null,
+        },
+        valuations: {
+          data: [
+            {
+              program_id: 'program-in-1',
+              cpp_cents: '1.20',
+              program_name: 'India Program',
+              program_slug: 'india-program',
+              program_type: 'transferable_points',
+            },
+          ],
+          error: null,
+        },
+        rates: {
+          data: [{ card_id: 'card-in-1', category: 'dining', earn_multiplier: 3.33 }],
+          error: null,
+        },
+      })
+    )
+
+    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=IN'))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.geography).toBe('IN')
+    expect(body.cards[0]).toEqual(
+      expect.objectContaining({
+        geography: 'IN',
+        currency: 'INR',
+        earn_unit: '100_inr',
+        cpp_cents: 120,
+      })
+    )
+  })
+
+  it('keeps already-normalized india valuation units unchanged', async () => {
+    createPublicClientMock.mockReturnValue(
+      makeDbClient({
+        cards: {
+          data: [
+            {
+              id: 'card-in-2',
+              name: 'India Card 2',
+              issuer: 'Issuer',
+              annual_fee_usd: 2500,
+              signup_bonus_pts: 0,
+              signup_bonus_spend: 0,
+              program_id: 'program-in-2',
+              currency: 'INR',
+              earn_unit: '100_inr',
+              geography: 'IN',
+              is_active: true,
+              display_order: 1,
+              created_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+          error: null,
+        },
+        valuations: {
+          data: [
+            {
+              program_id: 'program-in-2',
+              cpp_cents: '120',
+              program_name: 'India Program 2',
+              program_slug: 'india-program-2',
+              program_type: 'transferable_points',
+            },
+          ],
+          error: null,
+        },
+        rates: {
+          data: [{ card_id: 'card-in-2', category: 'dining', earn_multiplier: 2.67 }],
+          error: null,
+        },
+      })
+    )
+
+    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=IN'))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.cards[0]).toEqual(
+      expect.objectContaining({
+        cpp_cents: 120,
       })
     )
   })

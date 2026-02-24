@@ -1,10 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const pooledUrl = process.env.SUPABASE_DB_URL_POOLED?.trim()
+const serverClientUrl = pooledUrl && pooledUrl.startsWith('https://') ? pooledUrl : supabaseUrl
+
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  return createServerClient<any>(
+    serverClientUrl,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

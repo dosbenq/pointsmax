@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
+import type { SubscriptionTier } from '@/types/database'
 
 type Preferences = {
   home_airport: string | null
@@ -14,7 +15,7 @@ type Preferences = {
 type UserRecord = {
   id: string
   email: string
-  tier: string
+  tier: SubscriptionTier
 }
 
 type AuthContextValue = {

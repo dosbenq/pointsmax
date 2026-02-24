@@ -11,6 +11,9 @@ type Bonus = {
   start_date: string
   end_date: string
   source_url: string | null
+  auto_detected?: boolean
+  verified?: boolean
+  active?: boolean
   is_verified: boolean
   notes: string | null
   created_at: string
@@ -43,6 +46,7 @@ export default function AdminBonuses() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [deleting, setDeleting] = useState<Record<string, boolean>>({})
+  const [updating, setUpdating] = useState<Record<string, boolean>>({})
 
   async function load() {
     const data = await fetch('/api/admin/bonuses').then(r => r.json())
@@ -91,7 +95,28 @@ export default function AdminBonuses() {
 
   const today = new Date().toISOString().split('T')[0]
   const isActive = (bonus: Bonus) =>
-    bonus.start_date <= today && bonus.end_date >= today
+    bonus.start_date <= today && bonus.end_date >= today && (bonus.active ?? true)
+
+  const isVerified = (bonus: Bonus) =>
+    (bonus.verified ?? bonus.is_verified) === true
+
+  async function updateBonus(id: string, action: 'verify' | 'reject') {
+    setUpdating((prev) => ({ ...prev, [id]: true }))
+    await fetch(`/api/admin/bonuses/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    await load()
+    setUpdating((prev) => ({ ...prev, [id]: false }))
+  }
+
+  const sortedBonuses = [...bonuses].sort((a, b) => {
+    const aNeedsReview = !isVerified(a) && (a.auto_detected ?? false)
+    const bNeedsReview = !isVerified(b) && (b.auto_detected ?? false)
+    if (aNeedsReview !== bNeedsReview) return aNeedsReview ? -1 : 1
+    return b.start_date.localeCompare(a.start_date)
+  })
 
   return (
     <div className="p-8 max-w-4xl">
@@ -219,7 +244,7 @@ export default function AdminBonuses() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {bonuses.map(bonus => (
+              {sortedBonuses.map(bonus => (
                 <tr key={bonus.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5 text-slate-900">
                     <span className="font-medium">{bonus.from_program?.short_name ?? '?'}</span>
@@ -233,7 +258,11 @@ export default function AdminBonuses() {
                     {bonus.start_date} – {bonus.end_date}
                   </td>
                   <td className="px-5 py-3.5">
-                    {isActive(bonus) ? (
+                    {!isVerified(bonus) ? (
+                      <span className="text-xs bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded-full">
+                        Needs review
+                      </span>
+                    ) : isActive(bonus) ? (
                       <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full">
                         Active
                       </span>
@@ -242,13 +271,33 @@ export default function AdminBonuses() {
                     )}
                   </td>
                   <td className="px-4 py-3.5">
-                    <button
-                      onClick={() => deleteBonus(bonus.id)}
-                      disabled={deleting[bonus.id]}
-                      className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
-                    >
-                      {deleting[bonus.id] ? '…' : 'Delete'}
-                    </button>
+                    <div className="flex items-center gap-2 justify-end">
+                      {!isVerified(bonus) && (
+                        <>
+                          <button
+                            onClick={() => updateBonus(bonus.id, 'verify')}
+                            disabled={updating[bonus.id]}
+                            className="text-xs text-emerald-600 hover:text-emerald-800 disabled:opacity-40 transition-colors"
+                          >
+                            {updating[bonus.id] ? '…' : 'Verify'}
+                          </button>
+                          <button
+                            onClick={() => updateBonus(bonus.id, 'reject')}
+                            disabled={updating[bonus.id]}
+                            className="text-xs text-amber-600 hover:text-amber-800 disabled:opacity-40 transition-colors"
+                          >
+                            {updating[bonus.id] ? '…' : 'Reject'}
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => deleteBonus(bonus.id)}
+                        disabled={deleting[bonus.id]}
+                        className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
+                      >
+                        {deleting[bonus.id] ? '…' : 'Delete'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

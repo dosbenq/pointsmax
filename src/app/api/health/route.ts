@@ -1,57 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { getEnvSummary } from '@/lib/env'
+
+type HealthChecks = {
+  db: 'ok' | 'missing' | 'error'
+  ai: 'ok' | 'missing'
+  inngest: 'ok' | 'missing'
+}
+
+function hasValue(value: string | undefined): boolean {
+  return typeof value === 'string' && value.trim().length > 0
+}
 
 export async function GET(req: NextRequest) {
   const startedAt = Date.now()
-  const env = getEnvSummary()
+  const checks: HealthChecks = {
+    db: 'missing',
+    ai: hasValue(process.env.GEMINI_API_KEY) ? 'ok' : 'missing',
+    inngest: hasValue(process.env.INNGEST_EVENT_KEY) ? 'ok' : 'missing',
+  }
+
   const healthSecret = process.env.HEALTHCHECK_SECRET?.trim()
   const requestSecret = req.headers.get('x-health-secret')?.trim()
-  const canViewSensitiveDetails =
+  const canViewErrors =
     process.env.NODE_ENV !== 'production' ||
-    (healthSecret && requestSecret && healthSecret === requestSecret)
+    (healthSecret && requestSecret && requestSecret === healthSecret)
 
-  let dbOk = false
   let dbError: string | null = null
-
   try {
     const db = createAdminClient()
-    const { error } = await db.from('programs').select('id', { count: 'exact', head: true })
+    const { error } = await db.from('programs').select('id').limit(1)
     if (error) {
+      checks.db = 'error'
       dbError = error.message
     } else {
-      dbOk = true
+      checks.db = 'ok'
     }
   } catch (err) {
+    checks.db = 'error'
     dbError = err instanceof Error ? err.message : 'Unknown database error'
   }
 
-  const ok = env.requiredMissing.length === 0 && dbOk
-  const status = ok ? 200 : 503
+  const ok = checks.db === 'ok' && checks.ai === 'ok' && checks.inngest === 'ok'
 
   return NextResponse.json(
     {
       ok,
+      checks,
       timestamp: new Date().toISOString(),
-      version:
-        process.env.VERCEL_GIT_COMMIT_SHA ??
-        process.env.VERCEL_GITHUB_COMMIT_SHA ??
-        process.env.npm_package_version ??
-        'unknown',
-      uptime_seconds: Math.floor(process.uptime()),
-      checks: {
-        required_env: env.requiredMissing.length === 0,
-        database: dbOk,
-      },
-      details: {
-        required_env_missing: canViewSensitiveDetails ? env.requiredMissing : [],
-        optional_env_missing: canViewSensitiveDetails ? env.optionalMissing : [],
-        db_error: canViewSensitiveDetails ? dbError : null,
-      },
       latency_ms: Date.now() - startedAt,
+      ...(canViewErrors && dbError ? { error: dbError } : {}),
     },
     {
-      status,
+      status: ok ? 200 : 503,
       headers: { 'Cache-Control': 'no-store' },
     },
   )

@@ -1,0 +1,910 @@
+# PointsMax — Codex Task Backlog
+
+> PM notes in **bold**. Tasks are ordered by priority within each sprint.
+> Do not re-implement things that are already working. Read the referenced files before touching them.
+
+---
+
+## Sprint 1 — Cleanup (unblock UX, no new features)
+
+### T1 · Remove dead premium-gate UI from calculator
+
+**Why**: The AI advisor premium gate was removed (server-side check deleted, `isPremiumUser` hardcoded to `true`). Several conditional blocks that previously showed "upgrade" prompts are now unreachable dead code that clutters the file.
+
+**Files**: `src/app/calculator/page.tsx`
+
+**What to delete** (these conditions evaluate to `false` permanently):
+- Line ~1683–1685: `{!isPremiumUser && <span>Pro required</span>}` — remove the span
+- Lines ~1703–1718: `{hasCalculatorResult && !isPremiumUser && <div>upgrade prompt</div>}` — remove entire block
+- Lines ~1811–1824: `{) : !isPremiumUser ? (<div>upgrade CTA</div>`) — remove the ternary branch, keep only the `:` branch
+- Lines ~1852–1909: The entire upgrade modal (`{showUpgradeModal && <div className="fixed inset-0 ...">...</div>}`) — remove it
+- Line ~1188–1192: Inside `switchPanel`, the `if (!isPremiumUser)` guard — remove it
+- Line ~1058–1061: The `if (!isPremiumUser)` guard that sets `aiError` and `showUpgradeModal` — remove it
+
+**Also remove** the now-unused state: `const [showUpgradeModal, setShowUpgradeModal] = useState(false)` (line ~760).
+
+**Acceptance criteria**: `npm run build` passes. No "upgrade", "Pro required", or modal code remains. The AI advisor panel is always accessible after running the calculator.
+
+---
+
+### T2 · Soften the "run calculator first" requirement for AI advisor
+
+**Why**: After removing the premium gate, the AI advisor still blocks itself with "Run the calculator first to unlock AI recommendations." This creates unnecessary friction — users with balances entered should be able to ask the AI without running the full calculator.
+
+**File**: `src/app/calculator/page.tsx`
+
+**Current logic** (switchPanel function, ~line 1183–1186):
+```typescript
+if (panel === 'advisor') {
+  if (!hasCalculatorResult) {
+    setAiError('Run the calculator first to unlock AI recommendations.')
+    return
+  }
+```
+
+**Change**: Remove the hard block. Instead, let the user open the advisor panel without a calculator result. The AI can still work with just the balances they've entered. If `!hasCalculatorResult`, show a soft inline hint at the top of the advisor panel: "Add a destination in the calculator for more specific recommendations." but don't block.
+
+**Also update** the `canUseAdvisor` derivation (line ~1170): remove the `hasCalculatorResult` requirement:
+```typescript
+const canUseAdvisor = true // balances are sufficient; calculator result improves recommendations
+```
+
+**Acceptance criteria**: User can open AI advisor tab immediately after entering balances, without hitting calculate. Advisor still works (sends balances to API). If no calculator result, the prompt sent to Gemini should just omit the `topResults` field.
+
+---
+
+## Sprint 2 — Live Data (highest ROI, no external API keys needed)
+
+### T3 · TPG valuations scraper cron job
+
+**Why**: All CPP (cents-per-point) values in the DB are static seeds from January 2025. The Points Guy publishes monthly updates. A monthly scrape keeps our recommendations more accurate than competitors using stale data.
+
+**New file**: `src/app/api/cron/update-valuations/route.ts`
+
+**Logic**:
+1. Auth check: `Authorization: Bearer CRON_SECRET` header OR `?secret=CRON_SECRET` query param
+2. Fetch TPG valuations page (`https://thepointsguy.com/points-miles-valuations/`)
+3. Parse with `cheerio` (add `npm install cheerio`) — find the valuations table, extract program name → cpp value pairs
+4. Map TPG program names to our `programs.slug` values (maintain a mapping object in the file — e.g. `"Chase Ultimate Rewards" → "chase-ur"`, `"Amex Membership Rewards" → "amex-mr"`, etc.)
+5. For each matched program: `INSERT INTO valuations (program_id, cpp_cents, source, source_url, effective_date) VALUES (...) ON CONFLICT DO NOTHING` — use `source = 'tpg'` and today's date as `effective_date`
+6. Return `{ ok: true, updated: N, skipped: M, unmapped: [...] }`
+
+**Mapping needed** (at minimum): chase-ur, amex-mr, capital-one-miles, citi-thankyou, bilt, united-miles, delta-skymiles, aa-miles, southwest-points, hyatt-points, hilton-honors, marriott-bonvoy, alaska-miles, jetblue-points
+
+**Update `vercel.json`**: Add cron entry:
+```json
+{ "path": "/api/cron/update-valuations", "schedule": "0 10 1 * *" }
+```
+(Runs on the 1st of each month at 10am UTC)
+
+**Add `cheerio` dependency**: `npm install cheerio` + `npm install -D @types/cheerio` if needed.
+
+**Acceptance criteria**:
+- `GET /api/cron/update-valuations?secret=X` inserts new rows into `valuations` table
+- `latest_valuations` view returns updated values immediately after
+- If TPG page structure changes (parse fails), the route returns `{ ok: false, error: "parse failed" }` without crashing — graceful degradation
+
+---
+
+### T4 · Admin UI for manual valuation override
+
+**Why**: The scraper will sometimes miss programs or get incorrect values. Admins need a way to manually set CPP without touching the DB directly.
+
+**File**: `src/app/api/admin/valuations/route.ts` (new)
+
+**Endpoints**:
+- `GET /api/admin/valuations` — returns `latest_valuations` view (all current CPP values)
+- `POST /api/admin/valuations` — body: `{ program_slug: string, cpp_cents: number, notes?: string }` → upserts into `valuations` with `source = 'manual'`
+
+**Auth**: Same admin secret pattern as existing `src/app/api/admin/bonuses/route.ts` — check `ADMIN_SECRET` env var.
+
+**Acceptance criteria**: POST with a valid program slug updates the value visible in the calculator immediately (via `latest_valuations` view).
+
+---
+
+## Sprint 3 — India Expansion
+
+> **PM note**: Indian airports (DEL, BOM, BLR, HYD, MAA, CCU etc.) are already in `award-charts.ts` under the `SE_ASIA` group. The gap is: (a) no Indian credit cards in the `cards` table, and (b) no geography filter in the UI. Address these in order.
+
+### T5 · Add Indian credit cards migration
+
+**Why**: The DB has 6 Indian loyalty programs but zero Indian credit cards. The Earning Calculator and Card Recommender are completely empty for India users.
+
+**New file**: `supabase/migrations/007_india_cards.sql`
+
+**Cards to add** (research the exact current earn rates from each bank's website before coding — do not guess):
+
+| Card | Program | Annual Fee (INR) |
+|---|---|---|
+| HDFC Infinia | HDFC Millennia Rewards | ₹12,500 |
+| HDFC Regalia Gold | HDFC Millennia Rewards | ₹2,500 |
+| Axis Atlas | Axis EDGE Rewards | ₹5,000 |
+| Axis Ace | Axis EDGE Rewards | ₹499 |
+| Amex Platinum (India) | Amex MR India | ₹60,000 |
+| Amex Gold (India) | Amex MR India | ₹4,500 |
+| Air India SBI Signature | Air India Maharaja Club | ₹4,999 |
+
+**Schema changes needed first** — add to the migration:
+```sql
+ALTER TABLE cards ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD';
+ALTER TABLE cards ADD COLUMN earn_unit TEXT NOT NULL DEFAULT '1_dollar';
+-- earn_unit values: '1_dollar', '100_inr', '1_euro' etc.
+-- This lets the UI display "per ₹100 spent" for Indian cards
+```
+
+**Earning rates**: Express as `earn_multiplier` = points per 1 unit of `earn_unit`. E.g., HDFC Infinia earns 5 points per ₹150 → per ₹100 that's 3.33 → `earn_multiplier = 3.33`, `earn_unit = '100_inr'`.
+
+**Acceptance criteria**: After migration, `/api/cards` returns the new Indian cards. The Earning Calculator shows them. Annual fees display in INR.
+
+---
+
+### T6 · Geography filter — cards API and UI
+
+**Why**: US and Indian cards should not show mixed together with no context. Users should see cards relevant to their region.
+
+**Files to change**:
+
+1. `src/app/api/cards/route.ts`:
+   - Accept optional query param `?geography=IN` (or `US`, default `US`)
+   - Add `WHERE cards.geography = $1` filter (need to add `geography TEXT DEFAULT 'US'` column to `cards` — include in T5 migration)
+   - Default: return only US cards (existing behavior unchanged)
+
+2. `src/app/earning-calculator/page.tsx`:
+   - Add a region toggle: `🇺🇸 US Cards` / `🇮🇳 India Cards` (simple tab or dropdown)
+   - Pass `?geography=IN` when India is selected
+   - Show annual fee in INR for Indian cards (use `currency` field from card object)
+
+3. `src/app/card-recommender/page.tsx`:
+   - Same geography toggle
+   - Same currency display logic
+
+**Acceptance criteria**: Switching to India shows only Indian cards with INR fees. Switching back to US restores US cards. Default is US. No cards from the wrong region mix in.
+
+---
+
+## Sprint 4 — Product Quality
+
+### T7 · Award search graceful degradation (no Seats.aero key)
+
+**Why**: In production without `SEATS_AERO_API_KEY`, the award search throws `AwardProviderUnavailableError` which surfaces as a generic error. Users don't know why and can't take action.
+
+**Files**: `src/app/api/award-search/route.ts` + `src/app/award-search/page.tsx` (or wherever award search errors are displayed)
+
+**Change**: Catch `AwardProviderUnavailableError` specifically and return a clear `{ error: "real_availability_unavailable", message: "Live award availability is not configured. Showing chart estimates only.", results: [...stub_results] }`.
+
+The stub provider should still run and return estimated results — don't show a blank error screen. Just add a prominent banner: "Showing chart estimates · Live seat availability requires API configuration."
+
+**Acceptance criteria**: Without Seats.aero key, award search returns estimated results with a clear "estimates only" banner. No raw error messages shown to users.
+
+---
+
+### T8 · Affiliate click tracking
+
+**Why**: We need to measure which cards are generating apply clicks so we know what's working and can optimize placement. Currently clicks go directly to affiliate links with no tracking.
+
+**File**: `src/app/api/analytics/affiliate-click/route.ts` (new)
+
+**Logic**:
+- `POST /api/analytics/affiliate-click` body: `{ card_id, program_id, source_page }`
+- Insert into a new `affiliate_clicks` table: `(id, card_id, user_id nullable, source_page, created_at)`
+- Return `{ ok: true, redirect_url }` where `redirect_url` is the card's `apply_url`
+
+**DB migration** `supabase/migrations/008_affiliate_clicks.sql`:
+```sql
+CREATE TABLE affiliate_clicks (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id     UUID REFERENCES cards(id),
+  user_id     UUID REFERENCES users(id), -- nullable
+  source_page TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Update `src/app/card-recommender/page.tsx`**: Change "Apply Now" buttons from direct `<a href>` to fire a `POST` to this endpoint, then do a client-side redirect to the returned URL. This gives us a click event in DB before the redirect.
+
+**Acceptance criteria**: Each "Apply Now" click inserts a row in `affiliate_clicks`. `GET /api/admin/affiliate-clicks` (add this too) returns click counts grouped by `card_id` and `source_page` for the last 30 days.
+
+---
+
+### T9 · Update pricing page to reflect open access
+
+**Why**: The pricing page says "AI advisor concierge" is a Pro feature — but we just opened it to everyone. The page is now misleading.
+
+**File**: `src/app/pricing/page.tsx`
+
+**Change `PRO_FEATURES` constant** (line ~31):
+```typescript
+const PRO_FEATURES = [
+  'Everything in Free',
+  'Real-time award availability (Seats.aero)',  // keep — still Pro-only
+  'Transfer bonus and seat alerts',             // keep
+  'Priority support',                           // keep
+  'Early access to new features',              // add
+]
+```
+
+Remove "AI advisor concierge" from Pro features since it's now free.
+
+**Also update `FREE_FEATURES`**:
+```typescript
+const FREE_FEATURES = [
+  'Full points calculator',
+  'AI advisor concierge',    // ADD this
+  '20+ loyalty programs',
+  'Award flight search',
+  'Trip Builder',            // ADD this
+  'Card Recommender',        // ADD this
+  'Save balances & preferences',
+]
+```
+
+**Update FAQ** (line ~39): Change "How much is Pro?" answer to clarify what Pro actually adds now (live seat availability, alerts).
+
+**Acceptance criteria**: Pricing page accurately describes what's free vs Pro. No mention of AI advisor being Pro-only.
+
+---
+
+## Blocked — Needs Human Action First
+
+These cannot be coded until external accounts/keys are provisioned:
+
+| Task | Blocker | Who |
+|---|---|---|
+| Seats.aero live availability | Need API key from seats.aero | PM — contact seats.aero for partner access |
+| Email alerts (Resend) | Need `RESEND_API_KEY` and verified sender domain | PM — sign up at resend.com |
+| Stripe checkout | Need `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID` | PM — create Stripe account + product |
+| Rate limiting (Upstash) | Need `UPSTASH_REDIS_REST_URL` + `TOKEN` | PM — create Upstash account (free tier) |
+| PostHog analytics | Need `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` | PM — create PostHog account (free tier, 1M events/month) |
+| Sentry error tracking | Need `NEXT_PUBLIC_SENTRY_DSN` | PM — create Sentry account (free tier) |
+
+---
+
+## Out of Scope (for now)
+
+- **Direct airline award scraping** — against ToS for most airlines, unreliable, and Seats.aero is the correct solution here.
+- **Annual subscription option** — wait until monthly plan has validation.
+- **Transfer bonus scraper** — moved to Sprint 8 as a monitored Inngest job; see D1.
+
+---
+
+## Sprint 5 — Zero-Manual Infrastructure (Pre-Launch Critical)
+
+> **PM note**: The goal is zero human intervention after launch. Everything that currently requires manual action must become automated. Complete this sprint before going live.
+
+### A1 · Move all scheduled jobs from Vercel cron → Inngest
+
+**Why**: Vercel cron jobs require a Pro plan ($20/mo). Inngest scheduled functions are free (50k runs/month) and already integrated. The three crons in `vercel.json` must move entirely to Inngest.
+
+**Current state**: `vercel.json` defines 3 crons that hit API routes. Inngest functions exist in `src/lib/inngest/functions/` but are not yet scheduled there.
+
+**What to do**:
+1. In each Inngest function (`youtube-learner.ts`, `bonus-curator.ts`), add a `cron` trigger using the Inngest `schedules.every` / `onSchedule` API
+2. Remove all entries from the `crons` array in `vercel.json`
+3. The API routes (`/api/cron/*`) can stay as manual-trigger fallbacks but should no longer be the primary scheduler
+4. Add `CRON_SECRET` check to each route as a manual-only safeguard
+
+**Acceptance criteria**: `vercel.json` has an empty `crons: []`. All three jobs fire on schedule via Inngest dashboard. No Vercel Pro plan required.
+
+---
+
+### A2 · Supabase keepalive via GitHub Actions
+
+**Why**: Supabase free tier pauses your database after 7 days of inactivity. If this happens in production, the site goes down silently.
+
+**New file**: `.github/workflows/supabase-keepalive.yml`
+
+**Logic**:
+```yaml
+on:
+  schedule:
+    - cron: '0 8 */5 * *'   # every 5 days at 8am UTC
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: curl -f ${{ secrets.APP_URL }}/api/health
+```
+
+The `/api/health` endpoint (A3) must exist first.
+
+**GitHub secret needed**: `APP_URL` (set to production URL in GitHub repo settings — one-time human action).
+
+**Acceptance criteria**: GitHub Actions tab shows successful runs every 5 days. Supabase project stays active indefinitely.
+
+---
+
+### A3 · `/api/health` endpoint
+
+**Why**: Single endpoint that verifies all critical services are reachable. Used by the keepalive cron (A2), monitoring tools, and uptime checkers.
+
+**New file**: `src/app/api/health/route.ts`
+
+**Logic**:
+- `GET /api/health`
+- Check 1: Supabase — run `SELECT 1` query
+- Check 2: Gemini — verify `GEMINI_API_KEY` env var is set (do not make a live API call on every health check)
+- Check 3: Inngest — verify `INNGEST_EVENT_KEY` env var is set
+- Return `{ ok: true, checks: { db: "ok", ai: "ok", inngest: "ok" }, timestamp }` with 200
+- If any check fails, return `{ ok: false, checks: {...}, error: "..." }` with 503
+
+**Acceptance criteria**: `GET /api/health` returns 200 with all checks passing on a correctly configured environment.
+
+---
+
+### A4 · Sentry error monitoring
+
+**Why**: Without error tracking, production bugs are invisible. Sentry's free tier (5k errors/month) is sufficient for MVP. `NEXT_PUBLIC_SENTRY_DSN` is already in `.env.local.example` — it just needs to be wired up.
+
+**Files to change**:
+1. `npm install @sentry/nextjs`
+2. `sentry.client.config.ts` + `sentry.server.config.ts` — standard Next.js Sentry setup
+3. `next.config.ts` — wrap with `withSentryConfig`
+4. Add `SENTRY_DSN` to `.env.local.example` (already present as `NEXT_PUBLIC_SENTRY_DSN`, just confirm the variable name matches)
+
+**Scope**: Capture unhandled exceptions in API routes and client pages. Do not add manual `Sentry.captureException` calls everywhere — let the default integration handle it.
+
+**Acceptance criteria**: Deliberately throwing an error in an API route causes it to appear in the Sentry dashboard within 30 seconds.
+
+---
+
+### A5 · Affiliate link health checker (weekly Inngest cron)
+
+**Why**: Card affiliate URLs go stale — banks change URLs, affiliate programs expire. A broken link = zero commission. Currently there is no automated check.
+
+**New Inngest function**: `src/lib/inngest/functions/link-checker.ts`
+
+**Logic**:
+1. Schedule: weekly (every Monday)
+2. Fetch all `cards` rows where `apply_url IS NOT NULL`
+3. For each URL, `HEAD` request with a 5s timeout
+4. If status >= 400 or timeout: insert a row into a new `link_health_log` table: `(card_id, url, status_code, checked_at, ok: false)`
+5. If 5+ cards are broken, send an admin email via Resend: "Link health check: 5 broken affiliate URLs need attention"
+
+**New migration**: `supabase/migrations/015_link_health_log.sql`
+```sql
+CREATE TABLE link_health_log (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id    UUID REFERENCES cards(id),
+  url        TEXT,
+  status_code INT,
+  ok         BOOLEAN,
+  checked_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Admin API**: Add `GET /api/admin/link-health` that returns the last check's results grouped by `ok` status.
+
+**Acceptance criteria**: Weekly Inngest run logs results to `link_health_log`. Admin can view broken links at `/admin` without touching the DB.
+
+---
+
+## Sprint 6 — India-First SEO (Acquisition)
+
+> **PM note**: This is the primary acquisition strategy. The goal is to rank for Indian credit card and points queries where there is currently zero quality competition. All pages are generated from DB data — no manual content writing required.
+
+### S1 · Programmatic card pages
+
+**Why**: A dedicated, indexable page per card ("HDFC Infinia Credit Card — earn rates, point value, best redemptions") captures high-intent search traffic. We have all this data in the DB already.
+
+**New route**: `src/app/[region]/cards/[slug]/page.tsx`
+
+**Data to display** (all from DB):
+- Card name, issuer, annual fee (with currency based on region)
+- Earn rates (formatted as "X points per ₹100 spent" for India, "X points per $1" for US)
+- Program it belongs to + current CPP valuation from `latest_valuations` view
+- "Effective cashback rate" = earn rate × cpp (calculated, not stored)
+- Apply Now button → affiliate click tracking endpoint (T8)
+- Link to program page (S2)
+
+**SEO requirements**:
+- `generateMetadata` with title: `"{card name} Review — Earn Rates & Point Value | PointsMax"`
+- Description: auto-generated from card data
+- JSON-LD `FinancialProduct` schema
+- `generateStaticParams` — pre-render all cards at build time from DB
+
+**Index page**: `src/app/[region]/cards/page.tsx` — lists all cards for that region, links to individual pages.
+
+**Acceptance criteria**: `/in/cards/hdfc-infinia` renders with correct data, passes `next build`, has valid JSON-LD.
+
+---
+
+### S2 · Programmatic program pages
+
+**Why**: Loyalty program pages ("Air India Maharaja Club — current point value, transfer partners, best redemptions") target the research phase of the user journey.
+
+**New route**: `src/app/[region]/programs/[slug]/page.tsx`
+
+**Data to display**:
+- Program name, type, current CPP from `latest_valuations`
+- Cards that earn into this program (from DB)
+- Transfer partners (if stored — add a `transfer_partners` JSONB column to `programs` if not present)
+- "Best redemptions" — 3 bullet points (store as a `best_uses TEXT[]` column on `programs`)
+
+**SEO requirements**: Same pattern as S1 — `generateMetadata`, JSON-LD `FinancialProduct`, `generateStaticParams`.
+
+**Acceptance criteria**: `/in/programs/air-india-maharaja-club` renders correctly and is statically generated.
+
+---
+
+### S3 · Sitemap.xml — auto-generated from DB
+
+**Why**: Without a sitemap, Google discovers pages slowly. With programmatic pages, a sitemap is critical for indexing at scale.
+
+**New file**: `src/app/sitemap.ts` (Next.js built-in sitemap support)
+
+**Logic**:
+- Static routes: home, how-it-works, pricing, calculator, etc. for both regions
+- Dynamic card pages: query all `cards` slugs from DB, generate `/us/cards/[slug]` and `/in/cards/[slug]`
+- Dynamic program pages: same pattern for `programs`
+- `changeFrequency`: cards = 'monthly', programs = 'monthly', static = 'yearly'
+- `priority`: home = 1.0, programmatic pages = 0.8
+
+**Acceptance criteria**: `GET /sitemap.xml` returns valid XML with all card and program URLs. Validates with Google's sitemap validator.
+
+---
+
+### S4 · JSON-LD structured data on all SEO pages
+
+**Why**: Structured data enables rich results in Google (star ratings, prices, FAQs). `FinancialProduct` schema is directly applicable to credit cards.
+
+**Scope**: Add to card pages (S1) and program pages (S2). Do not add to calculator/tool pages.
+
+**Implementation**: Export a `generateJsonLd(card)` helper from `src/lib/seo.ts`. Include in the `<head>` via a `<script type="application/ld+json">` tag in each page's layout.
+
+**Acceptance criteria**: Google's Rich Results Test tool validates the JSON-LD on `/in/cards/hdfc-infinia` without errors.
+
+---
+
+## Sprint 7 — Revenue Automation
+
+> **PM note**: None of the revenue streams are live yet. This sprint makes money flow without any human action per transaction.
+
+### R1 · PostHog analytics integration
+
+**Why**: Cannot make product decisions without knowing where users drop off. PostHog free tier covers 1M events/month — more than sufficient for MVP. Must be in place before launch so we have data from day one.
+
+**Install**: `npm install posthog-js`
+
+**Files**:
+1. `src/lib/posthog.ts` — initialize client (reads `NEXT_PUBLIC_POSTHOG_KEY`)
+2. `src/app/layout.tsx` — wrap with `PostHogProvider`
+3. Track these specific events (no more, no less):
+   - `calculator_run` — when user hits Calculate
+   - `advisor_opened` — when AI advisor tab is opened
+   - `card_apply_clicked` — on affiliate click (in addition to DB log)
+   - `award_search_run` — when award search fires
+   - `upgrade_clicked` — when user clicks Stripe checkout
+4. Add `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` to `.env.local.example`
+
+**Acceptance criteria**: The 5 events above appear in PostHog Live Events within 60 seconds of triggering them in the browser.
+
+---
+
+### R2 · Stripe checkout + webhook fully live
+
+**Why**: Premium tier (live award availability + alerts) exists in code but no real payment can be made. Stripe keys are blocked on PM provisioning them, but the code must be ready.
+
+**Files**: `src/lib/stripe.ts`, `src/app/api/stripe/route.ts` (check if route already exists and extend it)
+
+**What to implement**:
+1. `POST /api/stripe/create-checkout` — creates a Stripe Checkout session for `STRIPE_PRO_PRICE_ID`, redirects user to Stripe
+2. `POST /api/stripe/webhook` — handles `checkout.session.completed`: update `users` table `is_premium = true` for the paying user
+3. `GET /api/stripe/portal` — Stripe Customer Portal link for subscription management (cancel, update payment method)
+4. On `customer.subscription.deleted` webhook event: set `is_premium = false`
+
+**Test**: Include a Stripe test mode smoke test in `scripts/smoke-stripe-webhook.mjs` (already exists — verify it covers the above events).
+
+**Acceptance criteria**: Full happy path works in Stripe test mode. `is_premium` flips correctly on payment and cancellation.
+
+---
+
+### R3 · Email onboarding drip (3 emails via Resend)
+
+**Why**: Users who sign up and never return are wasted acquisition. A 3-email sequence re-engages them at the right moments.
+
+**New Inngest function**: `src/lib/inngest/functions/onboarding-drip.ts`
+
+**Trigger**: Fire when a new user signs up (hook into Supabase auth webhook or poll `users` table for `created_at` within last hour).
+
+**Sequence**:
+1. **Email 1 — Welcome** (immediately on signup): "Here's how PointsMax works in 2 minutes" — link to `/[region]/how-it-works`
+2. **Email 2 — First value moment** (day 2, if user has not run calculator): "You have [X] cards — here's what your points are worth" — link to `/[region]/calculator`
+3. **Email 3 — Retention** (day 7, if user has not returned): "Transfer bonus alert: [most recent bonus from DB]" — link to `/[region]/calculator`
+
+**Skip logic**: If user has run the calculator (check `affiliate_clicks` or add a `last_active_at` column to `users`), skip Email 2. Always send Email 1.
+
+**Acceptance criteria**: New test signup triggers all 3 emails at correct intervals in Resend dashboard (use test mode).
+
+---
+
+### R4 · Creator affiliate link system
+
+**Why**: Partnering with Indian personal finance YouTubers is the fastest zero-cost acquisition channel. Each creator needs a unique tracking link so we know which creators convert.
+
+**New migration**: `supabase/migrations/016_creator_links.sql`
+```sql
+CREATE TABLE creators (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  slug        TEXT UNIQUE NOT NULL,   -- e.g. "sharan-hegde"
+  platform    TEXT,                   -- "youtube", "instagram", "twitter"
+  profile_url TEXT,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE affiliate_clicks ADD COLUMN creator_slug TEXT REFERENCES creators(slug);
+```
+
+**Middleware change**: In `middleware.ts`, read `?ref=sharan-hegde` query param and store `creator_slug` in a cookie (7-day expiry). All subsequent affiliate clicks in that session get the creator_slug attached.
+
+**Admin endpoints**:
+- `POST /api/admin/creators` — add a new creator
+- `GET /api/admin/creators/[slug]/stats` — clicks, card applications, estimated revenue for that creator
+
+**Acceptance criteria**: Visiting `/?ref=sharan-hegde` and then clicking "Apply Now" on any card records `creator_slug = "sharan-hegde"` in `affiliate_clicks`.
+
+---
+
+## Sprint 8 — Data Freshness (Keep Everything Accurate Automatically)
+
+> **PM note**: Stale data kills trust. Every data point visible to users must have an automated update path. No human should need to update valuations, transfer bonuses, or card data manually.
+
+### D1 · Transfer bonus monitor (Inngest cron)
+
+**Why**: Transfer bonuses (e.g. "40% bonus transferring Chase UR to Avianca through Jan 31") are time-sensitive and high-value. Missing them makes the AI advisor less useful than a Reddit post.
+
+**Source**: Doctor of Credit (`doctorofcredit.com/best-credit-card-sign-up-bonuses/`) and/or FlyerTalk transfer bonus threads. These are crawlable (no ToS restriction on reading public content).
+
+**New Inngest function**: `src/lib/inngest/functions/transfer-bonus-monitor.ts`
+
+**Schedule**: Daily at 7am UTC
+
+**Logic**:
+1. Fetch Doctor of Credit transfer bonus page
+2. Parse with `cheerio` — extract (program, bonus %, expiry date) tuples
+3. For each parsed bonus: check if it already exists in `transfer_bonuses` table (match on program + expiry)
+4. If new: insert row + send admin email "New transfer bonus detected: [details] — verify and publish"
+5. For expired bonuses (expiry_date < today): set `active = false` automatically
+
+**New DB column**: `transfer_bonuses` table needs `source_url TEXT`, `auto_detected BOOLEAN DEFAULT false`, `verified BOOLEAN DEFAULT false`. Admin must verify auto-detected bonuses before they go live to users (`WHERE verified = true` in public queries).
+
+**Acceptance criteria**: New transfer bonus on Doctor of Credit appears in admin inbox within 24 hours. Expired bonuses are deactivated automatically.
+
+---
+
+### D2 · Admin quick-entry UI for transfer bonuses
+
+**Why**: D1 auto-detects but requires human verification. The admin UI must make that verification take under 60 seconds.
+
+**File**: `src/app/admin/` — add a "Transfer Bonuses" section
+
+**What to build**:
+- List view: shows auto-detected unverified bonuses at the top (highlighted), verified/active bonuses below
+- Each unverified row has: [Verify & Publish] and [Reject] buttons
+- [Verify & Publish] sets `verified = true`, `active = true`
+- Add manual entry form: program (dropdown from `programs` table), bonus %, expiry date, notes
+- No direct DB access ever needed
+
+**Acceptance criteria**: Admin can verify a new auto-detected bonus in under 3 clicks. No Supabase dashboard required.
+
+---
+
+## Sprint 9 — Growth Loops
+
+> **PM note**: After launch, growth comes from users sharing. Build the mechanics for organic sharing before running any campaigns.
+
+### G1 · Shareable trip/result URLs
+
+**Why**: "I optimized my trip to Tokyo for ₹0 using PointsMax" is a powerful share moment. Users need a URL to share, not a screenshot.
+
+**New migration**: `supabase/migrations/017_shared_trips.sql`
+```sql
+CREATE TABLE shared_trips (
+  id          TEXT PRIMARY KEY,  -- short nanoid, e.g. "abc123"
+  region      TEXT NOT NULL,
+  trip_data   JSONB NOT NULL,    -- snapshot of calculator result
+  created_by  UUID REFERENCES users(id),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**New API**: `POST /api/trips/share` — takes current calculator state, stores it, returns `{ url: "/us/trips/abc123" }`
+
+**New page**: `src/app/[region]/trips/[id]/page.tsx` — read-only view of the shared trip. No login required. Shows: destination, points used, programs, estimated value saved.
+
+**Share button**: Add "Share this trip" button to the calculator results panel. Copies URL to clipboard. Fires `trip_shared` PostHog event.
+
+**Acceptance criteria**: Sharing a trip generates a public URL. Visiting that URL shows the correct trip without logging in.
+
+---
+
+### G2 · Social proof counter on landing page
+
+**Why**: "Join X travelers who have optimized Y points" builds trust at zero cost and updates automatically.
+
+**Implementation**:
+- New DB view: `CREATE VIEW site_stats AS SELECT COUNT(*) as user_count, SUM(...)...`
+- New API: `GET /api/stats` — returns `{ users: N, pointsOptimized: N }` (cached in Upstash Redis for 1 hour)
+- Landing page (`/[region]/page.tsx`) — add a stats bar: "4,200 travelers · ₹38 crore in points optimized"
+- Numbers update automatically as the view recalculates
+
+**Acceptance criteria**: Landing page shows real numbers from DB. Refreshing after new signups shows updated count within 1 hour.
+
+---
+
+### G3 · India landing page — differentiated positioning
+
+**Why**: The `/in` landing page currently shows the same content as `/us`. India users need to see India-specific value props, Indian card names, INR amounts, and social proof relevant to them.
+
+**File**: `src/app/[region]/page.tsx` — add region-conditional rendering for hero copy, featured cards, and testimonials section
+
+**India-specific changes**:
+- Hero headline: "India's first AI-powered credit card optimizer" (if region === 'in')
+- Featured cards: HDFC Infinia, Axis Atlas, Amex Platinum India (not Chase/Amex US)
+- Value prop example: "Fly Mumbai → London in Business Class for ₹0" instead of US example
+- CTA: "Optimize your HDFC/Axis/Amex points →"
+
+**Acceptance criteria**: `/in` and `/us` landing pages have visibly different hero content, featured cards, and value proposition examples.
+
+---
+
+## Sprint 10 — Performance & Speed (Fix the Biggest UX Problem)
+
+> **PM note**: Speed IS the product. Every 100ms of latency costs conversion. The audit identified 3 concrete bottlenecks that must be fixed before launch. These are engineering tasks, not design tasks.
+
+### P1 · Fix Supabase connection pooling for serverless
+
+**Why**: Every serverless function invocation currently creates a new database connection from scratch. In Vercel's serverless environment, this means cold connection overhead on every API request (50–200ms per request). Supabase provides a pgBouncer pooled connection URL that reuses connections.
+
+**What to change**: In `src/lib/supabase.ts` and `src/lib/supabase-server.ts`, the DB client should use the pooled connection URL for all non-realtime queries.
+
+1. Add `SUPABASE_DB_URL_POOLED` to `.env.local.example` (this is the `?pgbouncer=true&connection_limit=1` URL from Supabase project settings → Database → Connection string → URI → Session mode pooler)
+2. In `createServerDbClient()`: use `SUPABASE_DB_URL_POOLED` instead of the direct connection URL for all standard query clients
+3. Keep the direct connection (non-pooled) only for migrations and admin operations that require DDL
+
+**Acceptance criteria**: API response times for `/api/calculate` and `/api/cards` drop by at least 100ms on cold starts measured with `curl -w "%{time_total}"`.
+
+---
+
+### P2 · Award search — return results immediately, stream narrative async
+
+**Why**: The award search currently does: (1) fetch availability, (2) generate AI narrative, (3) return everything together. Step 2 takes 1–3 seconds. Users are blocked waiting for AI prose they may not even read, when the actual flight data is already ready.
+
+**File**: `src/app/api/award-search/route.ts`
+
+**Change**:
+1. Return flight results immediately in the response (don't await narrative)
+2. Add a separate `GET /api/award-search/narrative?params=...` endpoint that generates just the narrative
+3. On the frontend (`src/app/[region]/award-search/page.tsx`): render results immediately, then fetch narrative in a second `useEffect` call that populates a "summary" section after results appear
+
+**Acceptance criteria**: Flight results appear within 1 second of submitting search. AI narrative appears 1–3 seconds later without blocking the results. User sees results, not a spinner, first.
+
+---
+
+### P3 · Add `loading.tsx` skeleton files for all main routes
+
+**Why**: Next.js App Router supports `loading.tsx` files that show immediately while the page's data is loading. Without these, users see a blank/frozen screen during navigation. This is the single highest-impact perceived-performance improvement.
+
+**Create these files** (each should be a skeleton that matches the page layout):
+
+- `src/app/[region]/calculator/loading.tsx` — skeleton with 3 input fields + results panel outline
+- `src/app/[region]/award-search/loading.tsx` — skeleton with search form + 3 result card outlines
+- `src/app/[region]/card-recommender/loading.tsx` — skeleton with filter sidebar + 4 card outlines
+- `src/app/[region]/earning-calculator/loading.tsx` — skeleton with table rows
+- `src/app/[region]/cards/loading.tsx` — skeleton grid of card tiles
+- `src/app/[region]/programs/loading.tsx` — skeleton list of program rows
+
+**Implementation**: Each `loading.tsx` should use `animate-pulse` on `div` placeholders that mirror the real layout. Use Tailwind only — no additional dependencies.
+
+**Acceptance criteria**: Navigating between pages shows skeleton immediately (0ms delay) instead of blank screen. Verify with Chrome DevTools → Network → Slow 3G throttling.
+
+---
+
+### P4 · ISR (Incremental Static Regeneration) for programmatic SEO pages
+
+**Why**: Card and program pages (S1, S2) query the database on every request. These pages change at most once a month (when valuations update). Caching them at the CDN edge eliminates the DB round-trip entirely for the vast majority of requests.
+
+**Files**: `src/app/[region]/cards/[slug]/page.tsx` and `src/app/[region]/programs/[slug]/page.tsx`
+
+**Change**: Add `export const revalidate = 3600` (1 hour) at the top of both page files. This tells Next.js to cache the page at Vercel's edge and regenerate it in the background every hour.
+
+**Also add** to `next.config.ts`:
+```typescript
+// Ensure ISR pages get fresh data after valuations update
+// The update-valuations cron should call revalidatePath after updating
+```
+
+In `src/app/api/cron/update-valuations/route.ts`, after updating valuations: call `revalidateTag('valuations')` and tag card/program pages with this tag so they invalidate when valuations change.
+
+**Acceptance criteria**: Card pages load from CDN cache (verify via `x-vercel-cache: HIT` response header). After running the valuations cron, pages show updated CPP within 60 seconds.
+
+---
+
+## Sprint 11 — World-Class UI Polish
+
+> **PM note**: The gap between "functional" and "professional" is mostly: consistent components, motion, and loading states. Top companies (Linear, Vercel, Stripe) all use shadcn/ui + Framer Motion + Geist font. Adopt this stack — it's compatible with existing Tailwind classes.
+
+### U1 · Install shadcn/ui and replace ad-hoc form components
+
+**Why**: The current `pm-button`, `pm-input`, `pm-card` classes are custom CSS in globals.css. shadcn/ui provides accessible, animated, consistent versions of the same components built on Radix UI primitives. This eliminates accessibility bugs (focus rings, ARIA, keyboard navigation) and makes the UI feel polished.
+
+**Install**:
+```bash
+npx shadcn@latest init
+# Choose: TypeScript, Tailwind, src/ directory, app router
+npx shadcn@latest add button input card badge tabs dialog toast select label
+```
+
+**What to replace** (do NOT touch custom calculator logic, just UI components):
+- All `<button className="pm-button...">` → `<Button>` from shadcn
+- All `<input className="pm-input...">` → `<Input>` from shadcn
+- All card containers with `pm-card` → `<Card>` from shadcn
+- Program/card selection dropdowns → `<Select>` from shadcn
+- Modal dialogs → `<Dialog>` from shadcn
+- Toast notifications → shadcn `toast` (replace any existing toast implementation)
+- Tab switchers (calculator tabs, region tabs) → `<Tabs>` from shadcn
+
+**Keep** the existing Tailwind color tokens (`pm-shell` for max-width, custom teal color) — shadcn works alongside these.
+
+**Acceptance criteria**: `npm run build` passes. All interactive elements have visible focus rings. No custom `pm-button`/`pm-input` CSS remaining in globals.css.
+
+---
+
+### U2 · Add Framer Motion — page transitions + micro-interactions
+
+**Why**: The difference between a "vibecoded" site and a professional one is motion. Subtle animations signal quality. Framer Motion is the standard for Next.js apps.
+
+**Install**: `npm install framer-motion`
+
+**Apply to these specific places** (do not animate everything — restraint is the mark of good design):
+
+1. **Page transitions** — wrap page content in `<motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>` in a shared layout
+2. **Calculator results** — animate result cards into view with stagger: each card delays by `0.05s * index`
+3. **Award search results** — same stagger pattern as calculator results
+4. **Card recommender cards** — stagger on initial load
+5. **Number counters** — on the landing page stats (G2), animate numbers counting up from 0 on first viewport entry
+6. **Modal/dialog open** — already handled by shadcn/Radix, but verify smooth animation
+
+**Do NOT animate**: NavBar, Footer, form inputs, buttons (shadcn handles hover states via CSS)
+
+**Acceptance criteria**: Results panels animate in smoothly. No layout shift. `prefers-reduced-motion` media query is respected (Framer Motion handles this automatically via `useReducedMotion`).
+
+---
+
+### U3 · Dark mode with Tailwind
+
+**Why**: ~50% of users have OS-level dark mode enabled. A site that ignores this feels unfinished. Tailwind's `dark:` variant makes this a CSS-only change once the toggle mechanism is in place.
+
+**Implementation**:
+1. In `tailwind.config.ts`: set `darkMode: 'class'` (class-based, not media query — gives user control)
+2. In `src/app/layout.tsx`: add `ThemeProvider` from `next-themes` (`npm install next-themes`)
+3. In `NavBar.tsx`: add a sun/moon toggle button using Lucide icons (`SunIcon`, `MoonIcon`)
+4. Audit all existing Tailwind classes and add `dark:` counterparts for:
+   - Background colors: `bg-white` → `bg-white dark:bg-gray-900`
+   - Text colors: `text-gray-900` → `text-gray-900 dark:text-gray-100`
+   - Border colors: `border-gray-200` → `border-gray-200 dark:border-gray-700`
+   - Card backgrounds: `bg-gray-50` → `bg-gray-50 dark:bg-gray-800`
+5. shadcn/ui components (from U1) have dark mode built in — they just need the class toggle
+
+**Acceptance criteria**: Toggling dark mode switches all pages smoothly. No white flash on page load. Preference is persisted in localStorage.
+
+---
+
+### U4 · Geist font + tightened typography scale
+
+**Why**: Inter is good, but Geist (Vercel's open-source font) is now the standard for premium developer/fintech tools. More importantly, the current type scale is likely inconsistent — headings, body text, and captions need a clear hierarchy.
+
+**Install**:
+```bash
+npm install geist
+```
+
+**Files**:
+1. `src/app/layout.tsx`: replace `Inter` import with `GeistSans` and `GeistMono` from `geist/font`
+2. `tailwind.config.ts`: add `fontFamily: { sans: ['var(--font-geist-sans)'], mono: ['var(--font-geist-mono)'] }`
+3. Define a strict type scale in `tailwind.config.ts` theme extension:
+   - `text-display`: 3rem/1.1 (hero headlines)
+   - `text-title`: 1.5rem/1.3 (page titles)
+   - `text-heading`: 1.125rem/1.4 (section headings)
+   - `text-body`: 1rem/1.6 (body text)
+   - `text-caption`: 0.875rem/1.5 (labels, helper text)
+
+**Audit**: Replace all raw `text-2xl font-bold` style combinations with the defined scale classes. Consistency here is what separates "designed" from "built."
+
+**Acceptance criteria**: Geist font loads correctly. All pages use the defined type scale. No mixing of `text-xl font-semibold` and `text-2xl font-bold` for the same semantic level.
+
+---
+
+### U5 · Comprehensive empty states and error states
+
+**Why**: Empty states are a conversion opportunity. Error states are a trust signal. Both are currently under-designed.
+
+**Empty states to add/improve**:
+- **Calculator — no balances yet**: "Add your points balances above to see what your points are worth" with an arrow pointing up
+- **Award search — no results**: "No award availability found. Try flexible dates or nearby airports." with a date-range suggestion
+- **Card recommender — no cards match filters**: "No cards match your filters. Try broadening your spend categories."
+- **Profile — no alerts set**: "You're not watching any programs yet. Set an alert to get notified of transfer bonuses."
+
+**Error states to improve**:
+- All API errors should show a human message + a "Try again" button that retries the last action
+- Network errors should distinguish between "no internet" and "server error"
+- AI errors should show "Our AI is taking a break. Here are your raw results." (fallback to non-AI output)
+
+**Acceptance criteria**: Every list/results area has a designed empty state. Every API call has a designed error state. No raw `error.message` strings shown to users.
+
+---
+
+## Sprint 12 — Profile, Security & Compliance
+
+> **PM note**: A world-class product handles account management, data rights, and security properly. These are not optional — they're table stakes for any site handling user accounts and financial data.
+
+### C1 · Account deletion (GDPR/data rights)
+
+**Why**: Any site with user accounts in the EU or India (PDPB) must allow users to delete their data. This is also a trust signal — users sign up more freely when they know they can leave.
+
+**What to build**:
+1. `DELETE /api/user/account` — authenticated, deletes all user data:
+   - `user_preferences` — delete
+   - `alert_subscriptions` — delete
+   - `affiliate_clicks` (user_id column) — anonymize (set to NULL, don't delete rows — affiliate reporting integrity)
+   - `shared_trips` — delete
+   - `users` row — delete last
+   - Supabase auth account — call `supabase.auth.admin.deleteUser(userId)`
+2. Profile page: add "Delete Account" button at the bottom, behind a confirmation dialog
+3. Confirmation dialog: "This cannot be undone. Type DELETE to confirm." — use shadcn `<AlertDialog>`
+
+**Acceptance criteria**: User can delete their account entirely from the profile page. All their data is gone from the DB. They are logged out and redirected to home.
+
+---
+
+### C2 · Billing management in profile
+
+**Why**: Users who upgrade to Pro have no way to manage or cancel their subscription from within the app. They'd have to email support. This is a bad experience and increases churn.
+
+**The Stripe Customer Portal already exists** at `/api/stripe/portal` — it just needs to be surfaced in the UI.
+
+**File**: `src/app/profile/page.tsx`
+
+**What to add**:
+- If `user.is_premium === true`: show a "Manage Subscription" button that redirects to Stripe portal
+- Show current plan status: "Pro — renews [date]" or "Free"
+- If `user.is_premium === false`: show "Upgrade to Pro" button → Stripe checkout
+
+**Acceptance criteria**: Pro user can access Stripe billing portal from their profile page in 1 click. Free user sees a clear upgrade prompt.
+
+---
+
+### C3 · Admin audit log
+
+**Why**: Currently there is no record of what admin actions were taken (who changed a valuation, who verified a transfer bonus, who deleted a user). For a financial data product this is a liability.
+
+**New migration**: `supabase/migrations/018_admin_audit_log.sql`
+```sql
+CREATE TABLE admin_audit_log (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_email TEXT NOT NULL,
+  action      TEXT NOT NULL,   -- e.g. "valuation.update", "bonus.verify", "user.delete"
+  target_id   TEXT,            -- ID of the affected record
+  payload     JSONB,           -- before/after values
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Implementation**: Add a `logAdminAction(action, targetId, payload)` helper to `src/lib/admin-auth.ts`. Call it in every admin POST/PATCH/DELETE route handler.
+
+**Admin UI**: Add an "Audit Log" tab to the admin dashboard showing the last 100 actions.
+
+**Acceptance criteria**: Every admin write operation (valuation update, bonus verify/reject, user delete) creates an audit log entry. Visible in admin dashboard.
+
+---
+
+### C4 · Rate limiting on admin routes
+
+**Why**: Admin routes (`/api/admin/*`) currently have no rate limiting. An attacker who obtains admin credentials can hammer these routes freely.
+
+**File**: `src/lib/api-security.ts` (rate limiting already implemented for public routes)
+
+**Change**: Apply rate limiting to all admin routes — 20 requests per minute per IP. Use the existing `rateLimit()` utility already in the codebase.
+
+**Acceptance criteria**: More than 20 requests per minute to any `/api/admin/*` route from a single IP returns 429. Verified with a quick `ab` or `curl` loop test.

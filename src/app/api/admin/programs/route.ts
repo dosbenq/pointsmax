@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { requireAdmin } from '@/lib/admin-auth'
+import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
-export async function GET() {
-  const authError = await requireAdmin()
+export async function GET(req: Request) {
+  const authError = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -23,7 +23,7 @@ export async function GET() {
 
 // PATCH: insert a new valuation record for a program (keeps history)
 export async function PATCH(request: Request) {
-  const authError = await requireAdmin()
+  const authError = await requireAdmin(request)
   if (authError) return authError
 
   const { program_id, cpp_cents, source } = await request.json()
@@ -45,5 +45,9 @@ export async function PATCH(request: Request) {
     console.error('admin_programs_valuation_insert_failed', { error: error.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
+  await logAdminAction('valuation.update', String(program_id), {
+    cpp_cents: parseFloat(cpp_cents),
+    source: source ?? 'manual',
+  })
   return NextResponse.json({ ok: true })
 }

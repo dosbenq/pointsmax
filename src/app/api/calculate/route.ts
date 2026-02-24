@@ -4,11 +4,54 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import type { BalanceInput } from '@/types/database'
 
 const MAX_BODY_BYTES = 48_000
+const RESULT_CACHE_TTL_MS = Number.parseInt(
+  process.env.CALCULATE_RESULT_CACHE_TTL_MS ?? '15000',
+  10,
+)
+
+type ResultCacheEntry = {
+  expiresAt: number
+  data: unknown
+}
+
+function getResultCacheStore(): Map<string, ResultCacheEntry> {
+  const globalRef = globalThis as typeof globalThis & {
+    __pointsmaxCalculateResultCache?: Map<string, ResultCacheEntry>
+  }
+  if (!globalRef.__pointsmaxCalculateResultCache) {
+    globalRef.__pointsmaxCalculateResultCache = new Map<string, ResultCacheEntry>()
+  }
+  return globalRef.__pointsmaxCalculateResultCache
+}
+
+function pruneExpiredEntries(store: Map<string, ResultCacheEntry>, now: number) {
+  for (const [key, value] of store.entries()) {
+    if (value.expiresAt <= now) store.delete(key)
+  }
+  if (store.size <= 500) return
+  const keys = store.keys()
+  while (store.size > 500) {
+    const next = keys.next()
+    if (next.done) break
+    store.delete(next.value)
+  }
+}
+
+function balancesCacheKey(balances: BalanceInput[]): string {
+  const normalized = balances
+    .map((b) => ({
+      program_id: b.program_id,
+      amount: Math.floor(b.amount),
+    }))
+    .sort((a, b) => a.program_id.localeCompare(b.program_id))
+  return JSON.stringify(normalized)
+}
 
 // POST /api/calculate
 // Body: { balances: [{ program_id: string, amount: number }] }
 // Returns: ranked redemption options with dollar values
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now()
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
   if (sizeError) return sizeError
 
@@ -43,9 +86,35 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const cacheTtl = Number.isFinite(RESULT_CACHE_TTL_MS) && RESULT_CACHE_TTL_MS > 0
+    ? RESULT_CACHE_TTL_MS
+    : 15000
+  const cacheKey = balancesCacheKey(balances)
+  const resultCache = getResultCacheStore()
+  const now = Date.now()
+  pruneExpiredEntries(resultCache, now)
+  const cached = resultCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return NextResponse.json(cached.data, {
+      headers: {
+        'X-PointsMax-Cache': 'HIT',
+        'X-Calculate-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
+  }
+
   try {
     const result = await calculateRedemptions(balances)
-    return NextResponse.json(result)
+    resultCache.set(cacheKey, {
+      data: result,
+      expiresAt: now + cacheTtl,
+    })
+    return NextResponse.json(result, {
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-Calculate-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
   } catch (err) {
     console.error('Calculation error:', err)
     return NextResponse.json({ error: 'Calculation failed' }, { status: 500 })

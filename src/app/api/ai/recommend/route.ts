@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
-import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
+import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
 // Known booking URLs — AI picks from these so it can't hallucinate links
 const BOOKING_URLS = `
@@ -12,7 +12,7 @@ Known booking URLs (only use these exact URLs in links):
 - Capital One transfer partners: https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/
 - Citi ThankYou transfer partners: https://www.citi.com/credit-cards/thankyou-rewards
 - Bilt transfer partners: https://www.bilt.com/rewards/travel
-- Hyatt award search: https://www.hyatt.com/en-US/rewards/use-points/book-with-points
+- Hyatt award search: https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html
 - Marriott Bonvoy award search: https://www.marriott.com/loyalty/redeem.mi
 - Hilton Honors award search: https://www.hilton.com/en/hilton-honors/points/
 - IHG One Rewards award search: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
@@ -38,9 +38,71 @@ type TopResult = {
   active_bonus_pct?: number
 }
 
+type AiSafeModeResponse = {
+  type: 'recommendation'
+  headline: string
+  reasoning: string
+  flight: null
+  hotel: null
+  total_summary: string
+  steps: string[]
+  tip: string
+  links: Array<{ label: string; url: string }>
+}
+
+
 const MAX_BODY_BYTES = 64_000
 const MAX_MESSAGE_CHARS = 2_000
 const MAX_HISTORY_ITEMS = 24
+
+function getSafeAppUrl(): string {
+  const fallback = 'https://pointsmax.com'
+  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
+  try {
+    const parsed = new URL(raw)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
+    return parsed.origin
+  } catch {
+    return fallback
+  }
+}
+
+function buildSafeModeResponse(topResults: TopResult[]): AiSafeModeResponse {
+  const best = topResults[0]
+  const bestValue = best
+    ? (best.total_value_cents / 100).toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    })
+    : null
+
+  const headline = best
+    ? `Start with ${best.label}`
+    : 'Start with your top redemption option'
+  const reasoning = best
+    ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${best.cpp_cents.toFixed(2)} cents per point (about ${bestValue}).`
+    : 'AI is currently in safe mode, so this recommendation uses your pre-calculated results only.'
+
+  return {
+    type: 'recommendation',
+    headline,
+    reasoning,
+    flight: null,
+    hotel: null,
+    total_summary: best
+      ? `Prioritize ${best.label} as your first booking path.`
+      : 'Review your top redemption rows and pick the highest-value option.',
+    steps: [
+      'Open your calculator results and confirm the top-ranked option.',
+      'Verify live award availability before transferring points.',
+      'Transfer only after confirming exact flight/hotel availability.',
+      'Book immediately after transfer to reduce availability risk.',
+    ],
+    tip: 'Never transfer points speculatively. Confirm availability first.',
+    links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/calculator` }],
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object'
@@ -106,7 +168,7 @@ function toTopResults(value: unknown): TopResult[] {
 }
 
 // POST /api/ai/recommend
-// Body: { history: GeminiContent[], message: string, balances, topResults, preferences? }
+// Body: { history: GeminiContent[], message: string, balances, topResults?, preferences? }
 // Streams back a JSON string the client accumulates then parses
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
@@ -126,12 +188,6 @@ export async function POST(req: NextRequest) {
   if (rateLimitError) {
     logWarn('ai_recommend_rate_limited', { requestId })
     return rateLimitError
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    logError('ai_recommend_missing_env', { requestId, env: 'GEMINI_API_KEY' })
-    return new Response('GEMINI_API_KEY not configured', { status: 500 })
   }
 
   let payload: unknown
@@ -154,15 +210,29 @@ export async function POST(req: NextRequest) {
   if (balances.length === 0) {
     return new Response('balances must include at least one valid entry', { status: 400 })
   }
-  if (topResults.length === 0) {
-    return new Response('topResults must include at least one valid entry', { status: 400 })
-  }
 
   const history = Array.isArray(payload.history) ? payload.history : []
   if (history.length > MAX_HISTORY_ITEMS) {
     return new Response(`history too long (max ${MAX_HISTORY_ITEMS} entries)`, { status: 400 })
   }
   const preferences = isRecord(payload.preferences) ? payload.preferences : null
+
+  const apiKey = process.env.GEMINI_API_KEY
+  const geminiDisabled = isGeminiDisabled()
+
+  if (geminiDisabled || !apiKey) {
+    if (!apiKey && !geminiDisabled) {
+      logError('ai_recommend_missing_env', { requestId, env: 'GEMINI_API_KEY' })
+    }
+    logWarn('ai_recommend_safe_mode', {
+      requestId,
+      reason: geminiDisabled ? 'gemini_disabled' : 'missing_api_key',
+      latency_ms: Date.now() - startedAt,
+    })
+    return new Response(JSON.stringify(buildSafeModeResponse(topResults)), {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
+  }
 
   // ── Build context (re-injected every turn via system prompt) ───
   const balanceSummary = balances
@@ -185,16 +255,18 @@ export async function POST(req: NextRequest) {
     .map(([prog, partners]) => `  - ${prog} → ${partners.join(', ')}`)
     .join('\n') || '  (none)'
 
-  const topValueSummary = topResults
-    .slice(0, 8)
-    .map((r) => {
-      const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
-        style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+  const topValueSummary = topResults.length > 0
+    ? topResults
+      .slice(0, 8)
+      .map((r) => {
+        const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
+          style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+        })
+        const bonus = r.active_bonus_pct ? ` ⚡+${r.active_bonus_pct}% bonus` : ''
+        return `  - ${r.label}: ${dollars} (${r.cpp_cents.toFixed(2)}¢/pt)${bonus}`
       })
-      const bonus = r.active_bonus_pct ? ` ⚡+${r.active_bonus_pct}% bonus` : ''
-      return `  - ${r.label}: ${dollars} (${r.cpp_cents.toFixed(2)}¢/pt)${bonus}`
-    })
-    .join('\n')
+      .join('\n')
+    : '  (No pre-calculated redemption rows were provided for this chat turn.)'
 
   // ── User preferences context ────────────────────────────────────
   const todayDate = new Date().toLocaleDateString('en-US', {
@@ -247,7 +319,7 @@ CONVERSATION RULES:
 1. If the user's first message is vague (no destination, dates, travelers, or cabin class), ask 2-3 friendly clarifying questions. Keep the message short and warm.
 2. Once you have enough info (destination + at least one of: dates/flexibility, travelers, cabin preference), give the full recommendation.
 3. If the user asks a follow-up question after a recommendation, answer it conversationally and update the recommendation if needed.
-4. Always reference the user's actual balances and calculated dollar values.
+4. Always reference the user's actual balances and any calculated dollar values provided.
 5. Only recommend transfer partners the user has access to.
 
 RESPONSE FORMAT — return ONLY valid JSON (no markdown, no code fences):

@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BalanceInput } from '@/types/database'
 
-type QueryResult = { data: unknown[]; error: null }
+type QueryError = { message: string; code?: string } | null
+type QueryResult = { data: unknown[] | null; error: QueryError }
 
 const mockData: Record<string, unknown[]> = {
   latest_valuations: [
@@ -22,16 +23,33 @@ const mockData: Record<string, unknown[]> = {
   ],
 }
 
+let mockErrors: Record<string, QueryError> = {}
+let simulateProgramsGeographyMissing = false
+
 function makeQuery(tableName: string) {
+  let selectClause = ''
   const builder = {
-    select: vi.fn(() => builder),
+    select: vi.fn((clause: string) => {
+      selectClause = clause
+      return builder
+    }),
     in: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     then<TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
       onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
     ) {
-      return Promise.resolve({ data: mockData[tableName] ?? [], error: null }).then(
+      let result: QueryResult = { data: mockData[tableName] ?? [], error: mockErrors[tableName] ?? null }
+
+      if (
+        tableName === 'programs' &&
+        simulateProgramsGeographyMissing &&
+        selectClause.includes('geography')
+      ) {
+        result = { data: null, error: { message: 'column programs.geography does not exist', code: '42703' } }
+      }
+
+      return Promise.resolve(result).then(
         onfulfilled ?? undefined,
         onrejected ?? undefined,
       )
@@ -49,6 +67,11 @@ vi.mock('@/lib/supabase', () => ({
 
 const { calculateRedemptions } = await import('./calculate')
 
+afterEach(() => {
+  mockErrors = {}
+  simulateProgramsGeographyMissing = false
+})
+
 describe('calculateRedemptions', () => {
   it('ranks best option and computes totals for a basic transferable balance', async () => {
     const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
@@ -61,5 +84,21 @@ describe('calculateRedemptions', () => {
     expect(result.results.length).toBe(3)
     expect(result.results[0].label).toBe('Transfer to World of Hyatt')
     expect(result.results[0].is_best).toBe(true)
+  })
+
+  it('falls back to legacy programs select when geography column is missing', async () => {
+    simulateProgramsGeographyMissing = true
+    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
+    const result = await calculateRedemptions(balances)
+
+    expect(result.total_optimal_value_cents).toBe(18000)
+    expect(result.results[0].label).toBe('Transfer to World of Hyatt')
+  })
+
+  it('throws when a required query fails', async () => {
+    mockErrors.latest_valuations = { message: 'boom' }
+    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
+
+    await expect(calculateRedemptions(balances)).rejects.toThrow('Failed to load valuations')
   })
 })

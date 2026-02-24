@@ -50,24 +50,84 @@ interface RedemptionOptionRow {
   label: string
 }
 
-// ─────────────────────────────────────────────
-// MAIN EXPORT
-// ─────────────────────────────────────────────
+type DbError = { message: string; code?: string }
 
-export async function calculateRedemptions(
-  balances: BalanceInput[]
-): Promise<CalculateResponse> {
-  const client = createServerDbClient()
+type ReferenceData = {
+  valuationMap: Map<string, ValuationRow>
+  programMap: Map<string, Program>
+  bonusMap: Map<string, number>
+  directOptionsByProgram: Map<string, RedemptionOptionRow[]>
+  partnersByFromProgram: Map<string, TransferPartnerRow[]>
+}
 
-  const programIds = balances.map(b => b.program_id)
+type ReferenceCacheStore = {
+  expiresAt: number
+  data: ReferenceData | null
+  pending: Promise<ReferenceData> | null
+}
 
-  // ── Fetch everything we need in parallel (like async tasks in C++) ──
+const REFERENCE_CACHE_TTL_MS = Number.parseInt(
+  process.env.CALCULATE_REFERENCE_CACHE_TTL_MS ?? '120000',
+  10,
+)
+
+function shouldBypassReferenceCache(): boolean {
+  if (process.env.NODE_ENV === 'test') return true
+  const flag = process.env.DISABLE_CALCULATE_REFERENCE_CACHE
+  return flag === '1' || flag === 'true'
+}
+
+function getReferenceCacheStore(): ReferenceCacheStore {
+  const globalRef = globalThis as typeof globalThis & {
+    __pointsmaxCalculateReferenceCache?: ReferenceCacheStore
+  }
+  if (!globalRef.__pointsmaxCalculateReferenceCache) {
+    globalRef.__pointsmaxCalculateReferenceCache = {
+      expiresAt: 0,
+      data: null,
+      pending: null,
+    }
+  }
+  return globalRef.__pointsmaxCalculateReferenceCache
+}
+
+async function loadProgramsWithFallback(client: ReturnType<typeof createServerDbClient>): Promise<Program[]> {
+  const latest = await client
+    .from('programs')
+    .select('id, name, short_name, slug, color_hex, type, geography')
+
+  // Backward compatibility: geography column added in migration 006.
+  if (latest.error && (latest.error as DbError).code === '42703') {
+    const legacy = await client
+      .from('programs')
+      .select('id, name, short_name, slug, color_hex, type')
+
+    if (legacy.error) {
+      throw new Error(`Failed to load programs: ${legacy.error.message}`)
+    }
+
+    const rows = (legacy.data as Array<Omit<Program, 'geography'>> ?? [])
+      .map((p) => ({ ...p, geography: 'global' }))
+    return rows
+  }
+
+  if (latest.error) {
+    throw new Error(`Failed to load programs: ${latest.error.message}`)
+  }
+
+  return (latest.data as Program[] ?? []).map((p) => ({
+    ...p,
+    geography: p.geography ?? 'global',
+  }))
+}
+
+async function loadReferenceData(client: ReturnType<typeof createServerDbClient>): Promise<ReferenceData> {
   const [
-    { data: valuations },
-    { data: transferPartners },
-    { data: activeBonuses },
-    { data: redemptionOptions },
-    { data: allPrograms },
+    valuationsRes,
+    transferPartnersRes,
+    activeBonusesRes,
+    redemptionOptionsRes,
+    allPrograms,
   ] = await Promise.all([
     client
       .from('latest_valuations')
@@ -76,7 +136,6 @@ export async function calculateRedemptions(
     client
       .from('transfer_partners')
       .select('id, from_program_id, to_program_id, ratio_from, ratio_to, transfer_time_max_hrs, is_instant')
-      .in('from_program_id', programIds)
       .eq('is_active', true),
 
     client
@@ -85,25 +144,108 @@ export async function calculateRedemptions(
 
     client
       .from('redemption_options')
-      .select('program_id, category, cpp_cents, label')
-      .in('program_id', programIds),
+      .select('program_id, category, cpp_cents, label'),
 
-    client
-      .from('programs')
-      .select('id, name, short_name, slug, color_hex, type'),
+    loadProgramsWithFallback(client),
   ])
 
-  // ── Build lookup maps (like hash maps / unordered_map in C++) ──
+  if (valuationsRes.error) {
+    throw new Error(`Failed to load valuations: ${valuationsRes.error.message}`)
+  }
+  if (transferPartnersRes.error) {
+    throw new Error(`Failed to load transfer partners: ${transferPartnersRes.error.message}`)
+  }
+  if (activeBonusesRes.error) {
+    throw new Error(`Failed to load active bonuses: ${activeBonusesRes.error.message}`)
+  }
+  if (redemptionOptionsRes.error) {
+    throw new Error(`Failed to load redemption options: ${redemptionOptionsRes.error.message}`)
+  }
+
   const valuationMap = new Map<string, ValuationRow>(
-    (valuations as ValuationRow[] ?? []).map(v => [v.program_id, v])
+    (valuationsRes.data as ValuationRow[] ?? []).map((v) => [v.program_id, v]),
   )
   const programMap = new Map<string, Program>(
-    (allPrograms as Program[] ?? []).map(p => [p.id, p])
+    (allPrograms ?? []).map((p) => [p.id, p]),
   )
-  // Map: transfer_partner_id → bonus_pct
   const bonusMap = new Map<string, number>(
-    (activeBonuses as ActiveBonusRow[] ?? []).map(b => [b.transfer_partner_id, b.bonus_pct])
+    (activeBonusesRes.data as ActiveBonusRow[] ?? []).map((b) => [b.transfer_partner_id, b.bonus_pct]),
   )
+
+  const directOptionsByProgram = new Map<string, RedemptionOptionRow[]>()
+  for (const row of (redemptionOptionsRes.data as RedemptionOptionRow[] ?? [])) {
+    const existing = directOptionsByProgram.get(row.program_id)
+    if (existing) {
+      existing.push(row)
+    } else {
+      directOptionsByProgram.set(row.program_id, [row])
+    }
+  }
+
+  const partnersByFromProgram = new Map<string, TransferPartnerRow[]>()
+  for (const row of (transferPartnersRes.data as TransferPartnerRow[] ?? [])) {
+    const existing = partnersByFromProgram.get(row.from_program_id)
+    if (existing) {
+      existing.push(row)
+    } else {
+      partnersByFromProgram.set(row.from_program_id, [row])
+    }
+  }
+
+  return {
+    valuationMap,
+    programMap,
+    bonusMap,
+    directOptionsByProgram,
+    partnersByFromProgram,
+  }
+}
+
+async function getReferenceData(): Promise<ReferenceData> {
+  if (shouldBypassReferenceCache()) {
+    return loadReferenceData(createServerDbClient())
+  }
+
+  const store = getReferenceCacheStore()
+  const now = Date.now()
+  const ttl = Number.isFinite(REFERENCE_CACHE_TTL_MS) && REFERENCE_CACHE_TTL_MS > 0
+    ? REFERENCE_CACHE_TTL_MS
+    : 120000
+
+  if (store.data && store.expiresAt > now) return store.data
+  if (store.pending) return store.pending
+
+  store.pending = loadReferenceData(createServerDbClient())
+    .then((data) => {
+      store.data = data
+      store.expiresAt = Date.now() + ttl
+      return data
+    })
+    .finally(() => {
+      store.pending = null
+    })
+
+  return store.pending
+}
+
+// ─────────────────────────────────────────────
+// MAIN EXPORT
+// ─────────────────────────────────────────────
+
+export async function calculateRedemptions(
+  balances: BalanceInput[]
+): Promise<CalculateResponse> {
+  const {
+    valuationMap,
+    programMap,
+    bonusMap,
+    directOptionsByProgram,
+    partnersByFromProgram,
+  } = await getReferenceData()
+
+  if (programMap.size === 0) {
+    throw new Error('No programs loaded from database')
+  }
 
   const results: RedemptionResult[] = []
   let totalCashValue = 0
@@ -118,8 +260,7 @@ export async function calculateRedemptions(
 
     // 1. Direct redemption options (travel portal, cash back, gift cards, etc.)
     //    These come from the redemption_options table seeded in the DB.
-    const directOptions = (redemptionOptions as RedemptionOptionRow[] ?? [])
-      .filter(r => r.program_id === balance.program_id)
+    const directOptions = directOptionsByProgram.get(balance.program_id) ?? []
 
     for (const opt of directOptions) {
       options.push({
@@ -138,8 +279,7 @@ export async function calculateRedemptions(
     // 2. Transfer partner options
     //    For each partner: apply transfer ratio, apply active bonus if any,
     //    then multiply by the destination program's CPP.
-    const partners = (transferPartners as TransferPartnerRow[] ?? [])
-      .filter(tp => tp.from_program_id === balance.program_id)
+    const partners = partnersByFromProgram.get(balance.program_id) ?? []
 
     for (const partner of partners) {
       const toValuation = valuationMap.get(partner.to_program_id)

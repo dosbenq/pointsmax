@@ -9,14 +9,34 @@ type Stats = {
   recent_signups: number
 }
 
+type LinkHealthSummary = {
+  run_id: string | null
+  checked_at: string | null
+  totals: {
+    checked: number
+    broken: number
+    healthy: number
+  }
+}
+
 export default function AdminOverview() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [linkHealth, setLinkHealth] = useState<LinkHealthSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then(r => r.json())
-      .then(data => { setStats(data); setLoading(false) })
+    Promise.all([
+      fetch('/api/admin/stats').then(r => r.json()),
+      fetch('/api/admin/link-health?summary=1').then(r => r.json()),
+    ])
+      .then(([statsData, linkData]) => {
+        setStats(statsData)
+        setLinkHealth(linkData)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+      })
   }, [])
 
   const cards = [
@@ -39,6 +59,16 @@ export default function AdminOverview() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 bg-white border border-slate-200 rounded-xl p-5">
+        <p className="text-xs text-slate-400 mb-2">Affiliate link health (latest weekly run)</p>
+        <p className="text-2xl font-semibold text-slate-900">
+          {loading ? '—' : `${linkHealth?.totals.broken ?? 0} broken / ${linkHealth?.totals.checked ?? 0} checked`}
+        </p>
+        <p className="text-xs text-slate-500 mt-1">
+          {linkHealth?.checked_at ? `Checked at ${new Date(linkHealth.checked_at).toLocaleString()}` : 'No link-health run found yet.'}
+        </p>
       </div>
     </div>
   )

@@ -5,6 +5,21 @@ const DEFAULT_CPP_BY_TYPE: Record<string, number> = {
   cashback: 1.0,
 }
 
+function parsePositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number') {
+    if (Number.isFinite(value) && value > 0) return value
+    return null
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim())
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+    return null
+  }
+
+  return null
+}
+
 const DEFAULT_GLOBAL_CPP = 1.0
 
 function parseEnvNumber(key: string): number | null {
@@ -34,9 +49,10 @@ function getTypeFallback(programType: string | undefined): number {
   return parseEnvNumber('DEFAULT_CPP_CENTS') ?? DEFAULT_GLOBAL_CPP
 }
 
-export function resolveCppCents(cppCents: number | null | undefined, programType?: string): number {
-  if (typeof cppCents === 'number' && Number.isFinite(cppCents) && cppCents > 0) {
-    return cppCents
+export function resolveCppCents(cppCents: number | string | null | undefined, programType?: string): number {
+  const parsedCppCents = parsePositiveNumber(cppCents)
+  if (parsedCppCents != null) {
+    return parsedCppCents
   }
 
   return getTypeFallback(programType)

@@ -1,6 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { requireAdmin } from '@/lib/admin-auth'
+import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
+
+type ProgramRow = {
+  id: string
+  name: string
+  short_name: string
+}
+
+type PartnerRow = {
+  id: string
+  from_program_id: string
+  to_program_id: string
+}
+
+type BonusRow = {
+  transfer_partner_id: string
+  [key: string]: unknown
+}
 
 function getSafeAppUrl(): string {
   const fallback =
@@ -17,8 +34,8 @@ function getSafeAppUrl(): string {
   }
 }
 
-export async function GET() {
-  const authError = await requireAdmin()
+export async function GET(req: Request) {
+  const authError = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -31,8 +48,9 @@ export async function GET() {
     db.from('programs').select('id, name, short_name').eq('is_active', true),
   ])
 
-  const programs = programsRes.data ?? []
-  const partners = (partnersRes.data ?? []).map(p => ({
+  const programs = (programsRes.data ?? []) as ProgramRow[]
+  const partnerRows = (partnersRes.data ?? []) as PartnerRow[]
+  const partners = partnerRows.map(p => ({
     id: p.id,
     from_program_id: p.from_program_id,
     to_program_id: p.to_program_id,
@@ -42,7 +60,7 @@ export async function GET() {
       programs.find(prog => prog.id === p.to_program_id)?.name ?? 'Unknown',
   }))
 
-  const bonuses = (bonusesRes.data ?? []).map(bonus => {
+  const bonuses = ((bonusesRes.data ?? []) as BonusRow[]).map(bonus => {
     const partner = partners.find(p => p.id === bonus.transfer_partner_id)
     return {
       ...bonus,
@@ -59,7 +77,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireAdmin()
+  const authError = await requireAdmin(request)
   if (authError) return authError
 
   const { transfer_partner_id, bonus_pct, start_date, end_date, source_url, notes } =
@@ -83,13 +101,23 @@ export async function POST(request: Request) {
     end_date,
     source_url: source_url || null,
     notes: notes || null,
-    is_verified: false,
+    verified: true,
+    is_verified: true,
+    active: true,
+    auto_detected: false,
   })
 
   if (error) {
     console.error('admin_bonuses_insert_failed', { error: error.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
+
+  await logAdminAction('bonus.create', String(transfer_partner_id), {
+    bonus_pct: parsedBonusPct,
+    start_date,
+    end_date,
+    source_url: source_url || null,
+  })
 
   // Fire-and-forget: trigger alert emails if the bonus starts today
   const today = new Date().toISOString().split('T')[0]

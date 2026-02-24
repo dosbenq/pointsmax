@@ -5,6 +5,19 @@ import { useRouter } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 type Preferences = {
   home_airport: string | null
@@ -116,6 +129,11 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
               )
             })}
           </div>
+          {selectedIds.size === 0 && (
+            <p className="text-xs text-[#6a8579] mt-2">
+              You&apos;re not watching any programs yet. Set at least one alert to get bonus notifications.
+            </p>
+          )}
         </div>
 
         <button
@@ -143,6 +161,11 @@ export default function ProfilePage() {
   const [prefInput, setPrefInput] = useState({ preferred: '', avoided: '' })
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(false)
+  const [billingLoading, setBillingLoading] = useState<'checkout' | 'portal' | null>(null)
+  const [billingError, setBillingError] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Auth guard
   useEffect(() => {
@@ -192,6 +215,62 @@ export default function ProfilePage() {
     setTimeout(() => setToast(false), 3000)
   }
 
+  const openBillingPortal = async () => {
+    setBillingLoading('portal')
+    setBillingError(null)
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const payload = await res.json()
+      if (!res.ok || !payload?.url) {
+        throw new Error(payload?.error || 'Unable to open billing portal.')
+      }
+      window.location.href = payload.url
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Unable to open billing portal.')
+    } finally {
+      setBillingLoading(null)
+    }
+  }
+
+  const startCheckout = async () => {
+    setBillingLoading('checkout')
+    setBillingError(null)
+    try {
+      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const payload = await res.json()
+      if (!res.ok || !payload?.url) {
+        throw new Error(payload?.error || 'Unable to start checkout.')
+      }
+      window.location.href = payload.url
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Unable to start checkout.')
+    } finally {
+      setBillingLoading(null)
+    }
+  }
+
+  const deleteAccount = async () => {
+    if (deleteConfirm.trim() !== 'DELETE') {
+      setDeleteError('Type DELETE to confirm account removal.')
+      return
+    }
+
+    setDeleteLoading(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch('/api/user/account', { method: 'DELETE' })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Unable to delete account right now.')
+      }
+      await signOut()
+      router.replace('/')
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Unable to delete account right now.')
+      setDeleteLoading(false)
+    }
+  }
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -223,8 +302,8 @@ export default function ProfilePage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-[#173f34] font-medium truncate">{user.email}</p>
-              <div className="mt-1.5">
-                {userRecord?.tier === 'pro' ? (
+              <div className="mt-1.5 flex items-center gap-2">
+                {userRecord?.tier === 'premium' ? (
                   <span className="inline-flex items-center text-xs font-semibold bg-[#0f766e] text-white px-2.5 py-0.5 rounded-full">
                     Pro
                   </span>
@@ -233,15 +312,41 @@ export default function ProfilePage() {
                     Free
                   </span>
                 )}
+                <span className="text-xs text-[#6a8579]">
+                  {userRecord?.tier === 'premium' ? 'Pro plan active' : 'Free plan'}
+                </span>
               </div>
             </div>
-            <button
-              onClick={signOut}
-              className="text-sm text-[#b42318] hover:text-[#7a1e16] font-medium border border-[#f5c8c5] hover:border-[#eba8a4] px-4 py-2 rounded-xl transition-colors flex-shrink-0"
-            >
-              Sign out
-            </button>
+            <div className="flex gap-2">
+              {userRecord?.tier === 'premium' ? (
+                <Button
+                  onClick={openBillingPortal}
+                  disabled={billingLoading !== null}
+                  variant="outline"
+                  size="sm"
+                >
+                  {billingLoading === 'portal' ? 'Opening...' : 'Manage Subscription'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={startCheckout}
+                  disabled={billingLoading !== null}
+                  size="sm"
+                >
+                  {billingLoading === 'checkout' ? 'Loading...' : 'Upgrade to Pro'}
+                </Button>
+              )}
+              <button
+                onClick={signOut}
+                className="text-sm text-[#b42318] hover:text-[#7a1e16] font-medium border border-[#f5c8c5] hover:border-[#eba8a4] px-4 py-2 rounded-xl transition-colors flex-shrink-0"
+              >
+                Sign out
+              </button>
+            </div>
           </div>
+          {billingError && (
+            <p className="text-xs text-[#b42318] mt-3">{billingError}</p>
+          )}
         </div>
 
         <AlertSubscriptionsCard userEmail={user.email ?? ''} />
@@ -357,6 +462,51 @@ export default function ProfilePage() {
               {saving ? 'Saving…' : 'Save Preferences'}
             </button>
           </div>
+        </div>
+
+        <div className="pm-card p-6 border border-[#f6cdcb]">
+          <h2 className="pm-heading text-base text-[#8a1c16]">Delete Account</h2>
+          <p className="text-sm text-[#7c3a35] mt-2">
+            Permanently delete your account and associated data. This cannot be undone.
+          </p>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="mt-4">
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action is permanent. Type DELETE to confirm.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-2">
+                <Input
+                  value={deleteConfirm}
+                  onChange={(event) => setDeleteConfirm(event.target.value)}
+                  placeholder="Type DELETE"
+                />
+                {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setDeleteConfirm(''); setDeleteError(null) }}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(event) => {
+                    event.preventDefault()
+                    void deleteAccount()
+                  }}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Delete Account'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </main>
 

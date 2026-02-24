@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 type RateLimitConfig = {
   namespace: string
@@ -81,7 +81,7 @@ return {count, ttl}
   }
 }
 
-export function getClientIp(req: NextRequest): string {
+export function getClientIp(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for')
   if (forwarded) {
     const first = forwarded.split(',')[0]?.trim()
@@ -91,7 +91,7 @@ export function getClientIp(req: NextRequest): string {
 }
 
 export function enforceJsonContentLength(
-  req: NextRequest,
+  req: Request,
   maxBytes: number,
 ): NextResponse | undefined {
   const contentLength = req.headers.get('content-length')
@@ -108,7 +108,7 @@ export function enforceJsonContentLength(
 }
 
 function enforceRateLimitInMemory(
-  req: NextRequest,
+  req: Request,
   config: RateLimitConfig,
   customKey?: string,
 ): Counter {
@@ -132,7 +132,7 @@ function enforceRateLimitInMemory(
 }
 
 export async function enforceRateLimit(
-  req: NextRequest,
+  req: Request,
   config: RateLimitConfig,
   customKey?: string,
 ): Promise<NextResponse | undefined> {

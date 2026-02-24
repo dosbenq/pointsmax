@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
+import { GeistMono, GeistSans } from 'geist/font'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { assertServerEnv } from '@/lib/env'
+import MonitoringBoot from '@/components/MonitoringBoot'
+import PostHogProvider from '@/components/PostHogProvider'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/toaster'
 
 if (process.env.NODE_ENV === 'production') {
   assertServerEnv()
@@ -93,15 +98,21 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans`} suppressHydrationWarning>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <PostHogProvider>
+            <AuthProvider>
+              <MonitoringBoot />
+              {children}
+              <Toaster />
+            </AuthProvider>
+          </PostHogProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

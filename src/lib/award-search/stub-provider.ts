@@ -16,6 +16,7 @@ import type {
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
 import { resolveCppCents } from '@/lib/cpp-fallback'
+import { sortAwardResultsByPoints } from './sort-results'
 
 export class StubProvider implements AwardProvider {
   readonly name = 'stub' as const
@@ -173,14 +174,6 @@ export class StubProvider implements AwardProvider {
       })
     }
 
-    // ── Sort: reachable first, then by estimated cash value desc ─
-    results.sort((a, b) => {
-      if (a.is_reachable !== b.is_reachable) {
-        return a.is_reachable ? -1 : 1
-      }
-      return b.estimated_cash_value_cents - a.estimated_cash_value_cents
-    })
-
-    return results
+    return sortAwardResultsByPoints(results)
   }
 }

@@ -5,8 +5,8 @@ Last updated: 2026-02-21 (local verification complete by Codex)
 ## Already Completed in Repo
 
 - [x] Lint/typecheck/build pipeline is green.
-- [x] Unit/API tests are green (`18/18`).
-- [x] Smoke checks pass for `/`, `/calculator`, `/card-recommender`, `/earning-calculator`, `/trip-builder`, `/pricing`, `/how-it-works`.
+- [x] Unit/API tests are green (`31/31`).
+- [x] Smoke checks pass for `/`, `/calculator`, `/award-search`, `/inspire`, `/card-recommender`, `/earning-calculator`, `/trip-builder`, `/pricing`, `/how-it-works`.
 - [x] Outbound links have `hard failures: 0`.
 - [x] Security/rate-limit/cors/health hardening is implemented in code.
 
@@ -23,6 +23,8 @@ Last updated: 2026-02-21 (local verification complete by Codex)
 - [ ] Set `CORS_ALLOWED_ORIGINS`.
 - [ ] Set `UPSTASH_REDIS_REST_URL`.
 - [ ] Set `UPSTASH_REDIS_REST_TOKEN`.
+- [ ] Set `INNGEST_EVENT_KEY` (required for booking workflow events).
+- [ ] Set `INNGEST_SIGNING_KEY` (required to verify `/api/inngest` requests).
 - [ ] Set `HEALTHCHECK_SECRET`.
 - [ ] Set `SENTRY_DSN` (recommended).
 
@@ -73,6 +75,8 @@ Acceptance criteria:
 - [ ] Reverse search flow: `/inspire` returns ranked destination ideas for selected month/region.
 - [ ] Auth flow: sign in -> balances/preferences save/load.
 - [ ] Trip builder flow: exact dates + flexible date search.
+- [ ] Save a watch from `/award-search` and verify it appears in `/api/flight-watches`.
+- [ ] Start + progress booking workflow from `/trip-builder` (`/api/booking-guide/start`, `/api/booking-guide/step-complete`).
 - [ ] Card recommender flow: recommendations render from live `/api/cards`.
 - [ ] Admin flow: bonuses/programs/users pages work with policy checks.
 

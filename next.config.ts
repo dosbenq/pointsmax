@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const isProd = process.env.NODE_ENV === 'production'
 const csp = [
@@ -7,7 +8,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com https://seats.aero",
+  "connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com https://seats.aero https://*.ingest.sentry.io",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -15,6 +16,7 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  // ISR pages for cards/programs are revalidated by cron via revalidateTag/revalidatePath.
   turbopack: {
     root: __dirname,
   },
@@ -42,4 +44,12 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  sourcemaps: { disable: isProd },
+  disableLogger: true,
+  automaticVercelMonitors: true,
+})

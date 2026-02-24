@@ -2,12 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 
-export async function GET() {
+export async function GET(req: Request) {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const authError = await requireAdmin()
+  const authError = await requireAdmin(req)
   if (authError) return authError
 
   const client = createClient(

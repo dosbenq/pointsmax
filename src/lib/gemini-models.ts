@@ -21,6 +21,18 @@ type ModelCacheEntry = {
 const MODEL_LIST_CACHE_TTL_MS = 5 * 60 * 1000
 const MODEL_BLACKLIST_TTL_MS = 60 * 60 * 1000
 
+function parseBooleanFlag(value: string | undefined): boolean {
+  if (!value) return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+}
+
+export function isGeminiDisabled(): boolean {
+  // Keep test runs deterministic and offline-safe by default.
+  if (process.env.NODE_ENV === 'test') return true
+  return parseBooleanFlag(process.env.DISABLE_GEMINI)
+}
+
 function parseCandidates(value: string | undefined): string[] {
   if (!value) return []
   return value

@@ -1,0 +1,34 @@
+name: Automation Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ secrets.BASE_URL != '' && secrets.CRON_SECRET != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run automation watchdog
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PROGRAM_ID: ${{ secrets.PROGRAM_ID }}
+          CARD_ID: ${{ secrets.CARD_ID }}
+          TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
+          MAX_CALCULATE_LATENCY_MS: '2500'
+        run: npm run ops:watchdog

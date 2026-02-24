@@ -8,7 +8,7 @@ type SentryParts = {
 
 let cachedParts: SentryParts | null | undefined
 
-function parseSentryDsn(rawDsn: string): SentryParts | null {
+export function parseSentryDsn(rawDsn: string): SentryParts | null {
   try {
     const dsn = new URL(rawDsn)
     const publicKey = dsn.username
@@ -26,7 +26,7 @@ function parseSentryDsn(rawDsn: string): SentryParts | null {
 
 function getSentryParts(): SentryParts | null {
   if (cachedParts !== undefined) return cachedParts
-  const dsn = process.env.SENTRY_DSN?.trim()
+  const dsn = process.env.SENTRY_DSN?.trim() || process.env.NEXT_PUBLIC_SENTRY_DSN?.trim()
   cachedParts = dsn ? parseSentryDsn(dsn) : null
   return cachedParts
 }
