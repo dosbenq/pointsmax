@@ -32,6 +32,33 @@ function normalizeCreatorSlug(value: string | null): string | null {
   return /^[a-z0-9-]{2,64}$/.test(trimmed) ? trimmed : null
 }
 
+async function insertWithRetry(
+  db: ReturnType<typeof createAdminClient>,
+  payload: {
+    card_id: string
+    user_id: string | null
+    source_page: string
+    creator_slug: string | null
+  },
+  maxAttempts = 3,
+) {
+  let lastError: Error | null = null
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = await db.from('affiliate_clicks').insert(payload as never)
+    if (!result.error) {
+      return { ok: true as const }
+    }
+    lastError = result.error
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
+    }
+  }
+  return {
+    ok: false as const,
+    error: lastError?.message ?? 'DB insert failed after retries',
+  }
+}
+
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
@@ -119,40 +146,23 @@ async function trackAndReturn(
     userId = null
   }
 
-  // Retry logic for DB writes (Q7) - up to 3 attempts with exponential backoff
-  let insertErr: Error | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const result = await db.from('affiliate_clicks').insert({
-      card_id: cardId,
-      user_id: userId,
-      source_page: sourcePage,
-      creator_slug: resolvedCreatorSlug,
-    } as never)
-    if (!result.error) {
-      insertErr = null
-      break
-    }
-    insertErr = result.error
-    if (attempt < 3) {
-      await new Promise(r => setTimeout(r, 100 * attempt)) // 100ms, 200ms
-    }
-  }
-
-  if (insertErr) {
+  const insertResult = await insertWithRetry(db, {
+    card_id: cardId,
+    user_id: userId,
+    source_page: sourcePage,
+    creator_slug: resolvedCreatorSlug,
+  })
+  if (!insertResult.ok) {
     logError('affiliate_click_insert_failed', {
       requestId,
       card_id: cardId,
-      error: insertErr.message,
+      error: insertResult.error,
       attempts: 3,
-    })
-    // Fire-and-forget: still return success to user, but log the error
-    logWarn('affiliate_click_logged_but_not_persisted', {
-      requestId,
-      card_id: cardId,
       user_id: userId,
       source_page: sourcePage,
       creator_slug: resolvedCreatorSlug,
     })
+    return internalError('Failed to record affiliate click')
   }
 
   logInfo('affiliate_click_tracked', {

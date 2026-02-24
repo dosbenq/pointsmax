@@ -178,12 +178,8 @@ const ALERT_BANNER_DISMISSED_KEY = 'pm_alert_banner_dismissed_v1'
 // HELPERS
 // ─────────────────────────────────────────────
 
-// K2: Safe currency formatter - handles null, undefined, NaN
-function fmt(cents: number | null | undefined, symbol: string): string {
-  // Guard against falsy values (null, undefined, 0, NaN)
-  if (!cents || isNaN(cents)) {
-    return '—' // em-dash for unavailable value
-  }
+function fmt(cents: number | null | undefined, symbol: string) {
+  if (cents == null || !Number.isFinite(cents)) return '—'
   return `${symbol}${new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
   }).format(cents / 100)}`
