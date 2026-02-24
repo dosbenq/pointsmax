@@ -80,8 +80,7 @@ export default async function PricingPage({ params }: Props) {
   }
   
   const config = REGIONS[region]
-  const currencySymbol = config.currencySymbol
-  
+
   // Pricing in local currency
   // Using approximate conversions - in production these would come from Stripe
   const proPrice = region === 'in' ? '₹499' : '$9.99'

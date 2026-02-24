@@ -9,7 +9,7 @@ interface PricingActionsProps {
   region?: string
 }
 
-export default function PricingActions({ region = 'us' }: PricingActionsProps) {
+export default function PricingActions({ region: _region = 'us' }: PricingActionsProps) {
   const { loading, user, userRecord, signInWithGoogle } = useAuth()
   const searchParams = useSearchParams()
   const [busy, setBusy] = useState<'checkout' | 'portal' | null>(null)

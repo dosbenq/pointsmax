@@ -124,9 +124,30 @@ const getFAQ = (region: Region) => region === 'in' ? [
 export default function HowItWorksPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
-  
-  // Guard against invalid regions
-  if (!REGIONS[region] || !VALUE_GAP_DATA[region]) {
+
+  // All hooks must be called unconditionally before any early return
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [programsLoading, setProgramsLoading] = useState(true)
+
+  const validRegion = !!REGIONS[region] && !!VALUE_GAP_DATA[region]
+
+  // Fetch programs dynamically from API
+  useEffect(() => {
+    if (!validRegion) return
+    fetch(`/api/programs?region=${region.toUpperCase()}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPrograms(data)
+        }
+      })
+      .catch(() => setPrograms([]))
+      .finally(() => setProgramsLoading(false))
+  }, [region])
+
+  // Guard against invalid regions — after all hooks
+  if (!validRegion) {
     return (
       <div className="min-h-screen flex flex-col">
         <NavBar />
@@ -140,28 +161,11 @@ export default function HowItWorksPage() {
       </div>
     )
   }
-  
+
   const config = REGIONS[region]
   const valueGap = VALUE_GAP_DATA[region]
   const steps = getSteps(region)
   const faq = getFAQ(region)
-  
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [programsLoading, setProgramsLoading] = useState(true)
-
-  // Fetch programs dynamically from API
-  useEffect(() => {
-    fetch(`/api/programs?region=${region.toUpperCase()}`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setPrograms(data)
-        }
-      })
-      .catch(() => setPrograms([]))
-      .finally(() => setProgramsLoading(false))
-  }, [region])
 
   // Group programs by type
   const programsByType = programs.reduce((acc, p) => {

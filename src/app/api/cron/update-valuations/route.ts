@@ -238,7 +238,6 @@ export async function GET(req: NextRequest) {
 
   // Skip India programs - they are handled by a separate scraper
   const indiaSlugs = ['hdfc-millennia', 'axis-edge', 'amex-india-mr', 'air-india', 'indigo-6e', 'taj-innercircle']
-  const skippedIndiaPrograms: string[] = []
 
   const { data: programRows, error: programErr } = await db
     .from('programs')
