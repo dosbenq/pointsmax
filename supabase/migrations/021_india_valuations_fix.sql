@@ -8,8 +8,23 @@
 -- - IndiGo 6E: ₹0.30/pt (limited redemption options)
 -- - Taj InnerCircle: ₹0.80/pt (hotel redemptions average)
 
--- First, ensure precision is sufficient
+-- Drop the view that depends on cpp_cents so we can alter the column type
+DROP VIEW IF EXISTS latest_valuations;
+
+-- Alter the column type for greater precision
 ALTER TABLE public.valuations ALTER COLUMN cpp_cents TYPE NUMERIC(10,4);
+
+-- Recreate the view identically
+CREATE VIEW latest_valuations AS
+  SELECT DISTINCT ON (program_id)
+    v.*,
+    p.name        AS program_name,
+    p.slug        AS program_slug,
+    p.type        AS program_type
+  FROM valuations v
+  JOIN programs p ON p.id = v.program_id
+  WHERE p.is_active = true
+  ORDER BY program_id, effective_date DESC, created_at DESC;
 
 -- Update India programs with correct valuations (in paise)
 UPDATE public.valuations
