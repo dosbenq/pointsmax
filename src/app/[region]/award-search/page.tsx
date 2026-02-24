@@ -54,7 +54,13 @@ function addDaysToIsoDate(days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function AwardResultCard({ result, topSlug }: { result: AwardSearchResult; topSlug?: string }) {
+function formatCpp(cppCents: number | null | undefined, region: Region): string {
+  if (cppCents == null || !Number.isFinite(cppCents)) return '—'
+  if (region === 'in') return `${Math.round(cppCents)} paise/pt`
+  return `${cppCents.toFixed(2)}¢/pt`
+}
+
+function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResult; topSlug?: string; region: Region }) {
   const isTopPick = result.program_slug === topSlug
   const resultClass = isTopPick
     ? 'bg-[#e9f8f3] border-[#9ad6c9]'
@@ -89,7 +95,7 @@ function AwardResultCard({ result, topSlug }: { result: AwardSearchResult; topSl
         </div>
         <div>
           <p className="text-[#5f7c70] uppercase tracking-wider font-semibold text-[10px]">Rate</p>
-          <p className="text-[#244437] mt-0.5">{result.cpp_cents.toFixed(2)}¢/pt</p>
+          <p className="text-[#244437] mt-0.5">{formatCpp(result.cpp_cents, region)}</p>
         </div>
       </div>
 
@@ -620,7 +626,7 @@ export default function AwardSearchPage() {
                         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? undefined : { duration: 0.2, delay: index * 0.05 }}
                       >
-                        <AwardResultCard result={r} topSlug={topSlug} />
+                        <AwardResultCard result={r} topSlug={topSlug} region={region} />
                       </motion.div>
                     ))}
                   </div>
@@ -636,7 +642,7 @@ export default function AwardSearchPage() {
                         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? undefined : { duration: 0.2, delay: index * 0.05 }}
                       >
-                        <AwardResultCard result={r} topSlug={topSlug} />
+                        <AwardResultCard result={r} topSlug={topSlug} region={region} />
                       </motion.div>
                     ))}
                   </div>
