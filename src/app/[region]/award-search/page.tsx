@@ -3,12 +3,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useParams, useSearchParams } from 'next/navigation'
+import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
 import type { Program } from '@/types/database'
 import type { AwardNarrative, AwardSearchResponse, AwardSearchResult, CabinClass } from '@/lib/award-search/types'
 import { type Region } from '@/lib/regions'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { CalendarIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
@@ -353,29 +359,90 @@ export default function AwardSearchPage() {
               </div>
             </div>
 
+            {/* K12: Date Pickers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="pm-label block mb-1.5">Earliest date</label>
-                <input
-                  type="date"
-                  value={params.start_date}
-                  onChange={(e) => setParams((p) => {
-                    const nextStart = e.target.value
-                    const clearEnd = Boolean(p.end_date && p.end_date < nextStart)
-                    return { ...p, start_date: nextStart, end_date: clearEnd ? '' : p.end_date }
-                  })}
-                  className="pm-input"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                        !params.start_date && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                      {params.start_date ? (
+                        format(parseISO(params.start_date), 'PP')
+                      ) : (
+                        <span>Pick date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={params.start_date ? parseISO(params.start_date) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          const isoDate = format(date, 'yyyy-MM-dd')
+                          setParams((p) => {
+                            const clearEnd = Boolean(p.end_date && p.end_date < isoDate)
+                            return { ...p, start_date: isoDate, end_date: clearEnd ? '' : p.end_date }
+                          })
+                        }
+                      }}
+                      disabled={(date) => isBefore(date, startOfToday())}
+                      initialFocus
+                      classNames={{
+                        day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
+                        day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <label className="pm-label block mb-1.5">Latest date</label>
-                <input
-                  type="date"
-                  value={params.end_date}
-                  min={params.start_date || undefined}
-                  onChange={(e) => setParams((p) => ({ ...p, end_date: e.target.value }))}
-                  className="pm-input"
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                        !params.end_date && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                      {params.end_date ? (
+                        format(parseISO(params.end_date), 'PP')
+                      ) : (
+                        <span>Pick date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={params.end_date ? parseISO(params.end_date) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          setParams((p) => ({ ...p, end_date: format(date, 'yyyy-MM-dd') }))
+                        }
+                      }}
+                      disabled={(date) => {
+                        const minDate = params.start_date ? parseISO(params.start_date) : startOfToday()
+                        return isBefore(date, minDate)
+                      }}
+                      initialFocus
+                      classNames={{
+                        day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
+                        day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

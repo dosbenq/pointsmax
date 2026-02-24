@@ -2,11 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
+import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
 import type { Program, TripBuilderResponse } from '@/types/database'
 import { REGIONS, type Region } from '@/lib/regions'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type UIState = 'form' | 'loading' | 'results'
 type DateMode = 'exact' | 'flexible_month'
@@ -378,34 +384,90 @@ export default function TripBuilderPage() {
 
               {dateMode === 'exact' ? (
                 <div className={`grid gap-4 ${tripType === 'one_way' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {/* K12: Departure Date Picker */}
                   <div>
-                    <label htmlFor="departDate" className="pm-label block mb-1.5">
-                      Departure Date *
-                    </label>
-                    <input
-                      id="departDate"
-                      type="date"
-                      value={departDate}
-                      onChange={e => {
-                        setDepartDate(e.target.value)
-                        if (returnDate && returnDate <= e.target.value) setReturnDate('')
-                      }}
-                      className="pm-input"
-                    />
+                    <label className="pm-label block mb-1.5">Departure Date *</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                            !departDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                          {departDate ? (
+                            format(parseISO(departDate), 'PPP')
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-white" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={departDate ? parseISO(departDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              const isoDate = format(date, 'yyyy-MM-dd')
+                              setDepartDate(isoDate)
+                              if (returnDate && returnDate <= isoDate) setReturnDate('')
+                            }
+                          }}
+                          disabled={(date) => isBefore(date, startOfToday())}
+                          initialFocus
+                          classNames={{
+                            day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
+                            day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  {/* K12: Return Date Picker (round trip only) */}
                   {tripType === 'round_trip' && (
                     <div>
-                      <label htmlFor="returnDate" className="pm-label block mb-1.5">
-                        Return Date *
-                      </label>
-                      <input
-                        id="returnDate"
-                        type="date"
-                        value={returnDate}
-                        min={departDate || undefined}
-                        onChange={e => setReturnDate(e.target.value)}
-                        className="pm-input"
-                      />
+                      <label className="pm-label block mb-1.5">Return Date *</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                              !returnDate && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                            {returnDate ? (
+                              format(parseISO(returnDate), 'PPP')
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-white" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={returnDate ? parseISO(returnDate) : undefined}
+                            onSelect={(date) => {
+                              if (date) {
+                                setReturnDate(format(date, 'yyyy-MM-dd'))
+                              }
+                            }}
+                            disabled={(date) => {
+                              const minDate = departDate ? parseISO(departDate) : startOfToday()
+                              return isBefore(date, minDate)
+                            }}
+                            initialFocus
+                            classNames={{
+                              day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
+                              day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
                 </div>
