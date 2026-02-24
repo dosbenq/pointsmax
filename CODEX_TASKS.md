@@ -1347,3 +1347,65 @@ return NextResponse.json(
 Audit every `return NextResponse.json(...)` with a 4xx/5xx status in middleware.ts and ensure `corsHeaders` is spread into the headers.
 
 **Acceptance criteria**: A cross-origin fetch to any API route that returns a 4xx error still delivers the error body to the browser JavaScript (not an opaque error). Verify with `fetch` from browser console to a non-whitelisted origin — the response body should be readable (status still 403, but CORS headers present so JS can read the response).
+
+---
+
+## Sprint 16 — Sprint 15 PR Fixes (Two Blockers Found in Review)
+
+> **PM note**: Kimi's Sprint 15 PR (branch `sprint-15-engineering-quality`) was reviewed before merge and two issues were found. These must be fixed on that branch before it can merge. Do NOT open a new PR — push fixes directly to `sprint-15-engineering-quality`.
+
+### R1 · Fix affiliate-click fire-and-forget: return 500 when all DB retries fail
+
+**Why**: Kimi's Q7 implementation fires the DB insert with retry logic but always returns `{ ok: true }` to the client — even when all 3 attempts fail. Analytics clicks are silently lost with no signal. This directly hurts revenue attribution.
+
+**File**: `src/app/api/analytics/affiliate-click/route.ts`
+
+**Current behavior (wrong)**:
+```typescript
+// After all retries exhausted:
+logError('Affiliate click insert failed', error, { ... })
+// Falls through and still returns { ok: true }
+```
+
+**What to fix**: After the final retry attempt fails, return a `500` response instead of swallowing the error:
+```typescript
+async function insertWithRetry(...): Promise<{ ok: true } | { ok: false; error: string }> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { error } = await supabase.from('affiliate_clicks').insert(payload)
+    if (!error) return { ok: true }
+    if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 100 * attempt))
+  }
+  return { ok: false, error: 'DB insert failed after retries' }
+}
+
+// In handler:
+const result = await insertWithRetry(payload)
+if (!result.ok) {
+  logError('Affiliate click lost after retries', null, { payload })
+  return internalError('Failed to record affiliate click')
+}
+return Response.json({ ok: true })
+```
+
+**Note**: The affiliate redirect (the user navigating to the partner site) should already have happened before this route is called, so returning 500 here does not affect the user's navigation — it only affects whether the frontend retries.
+
+**Acceptance criteria**: When the Supabase insert fails on all 3 attempts, the route returns `500`. When it succeeds on any attempt, it returns `{ ok: true }`. No silent data loss path exists.
+
+---
+
+### R2 · Restore NaN guard in `fmt()` helper in calculator page
+
+**Why**: Kimi's Sprint 15 commit simplified the `fmt()` helper in `src/app/[region]/calculator/page.tsx` by removing its null/NaN guard. The guard was previously:
+```typescript
+function fmt(cents: number | null | undefined, symbol: string): string {
+  if (cents == null || !Number.isFinite(cents)) return '—'
+  return `${symbol}${new Intl.NumberFormat(...).format(cents / 100)}`
+}
+```
+Without this guard, any falsy or NaN value passed to `fmt()` will render as `${symbol}NaN` or `${symbol}0` instead of `—`. This re-introduces the NaN display bug (K2) that was separately tracked.
+
+**File**: `src/app/[region]/calculator/page.tsx`
+
+**What to fix**: Restore the null/NaN safety check in the `fmt()` function. Do not change any of Kimi's other changes in this file (the program ID validation logic from Q6 is correct and should be kept).
+
+**Acceptance criteria**: A program with a `null` or `undefined` `cpp_cents` value in the API response renders `—` in the calculator UI, not `NaN` or `$NaN`. Verified by temporarily setting a program's value to `null` in the API mock or Supabase.

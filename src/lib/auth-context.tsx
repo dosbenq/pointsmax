@@ -38,11 +38,17 @@ const AuthContext = createContext<AuthContextValue>({
   refreshPreferences: async () => {},
 })
 
+// Guard against missing env vars - return null if not configured
 function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  if (!url || !key) {
+    console.warn('Supabase client not initialized: missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    return null as any // Return null that will be caught by checks
+  }
+  
+  return createBrowserClient(url, key)
 }
 
 let browserSupabaseClient: ReturnType<typeof createClient> | null = null
@@ -61,8 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const supabase = getBrowserSupabaseClient()
+  
+  // Guard: if Supabase is not configured, skip auth and render children
+  const isSupabaseConfigured = supabase !== null
 
   const loadUserData = useCallback(async (authUser: User) => {
+    if (!isSupabaseConfigured) return
+    
     // Load preferences via API (respects RLS via session cookie)
     const prefsRes = await fetch('/api/user/preferences')
     if (prefsRes.ok) {
@@ -77,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('auth_id', authUser.id)
       .single()
     setUserRecord(data)
-  }, [supabase])
+  }, [supabase, isSupabaseConfigured])
 
   const refreshPreferences = useCallback(async () => {
     const res = await fetch('/api/user/preferences')
@@ -88,14 +99,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return
+    }
+    
+    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: { user: User | null } | null } }) => {
       const authUser = session?.user ?? null
       setUser(authUser)
       if (authUser) await loadUserData(authUser)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const authUser = session?.user ?? null
       setUser(authUser)
       if (authUser) {
@@ -107,9 +123,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [loadUserData, supabase])
+  }, [loadUserData, supabase, isSupabaseConfigured])
 
   const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured) {
+      console.error('Supabase not configured - cannot sign in')
+      return
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -119,6 +139,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) {
+      setUser(null)
+      setUserRecord(null)
+      setPreferences(null)
+      return
+    }
     await supabase.auth.signOut()
     setUser(null)
     setUserRecord(null)

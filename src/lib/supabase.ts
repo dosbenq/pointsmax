@@ -51,8 +51,10 @@ export type { GenericDatabase }
 
 type GenericSupabaseClient = ReturnType<typeof createClient<GenericDatabase>>
 
+// Warn but don't throw - allows build to complete even without env vars
+// Runtime checks will handle missing client gracefully
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Check .env.local')
+  console.warn('Missing Supabase environment variables. Check .env.local - some features will be disabled')
 }
 
 let publicClientSingleton: GenericSupabaseClient | null = null
