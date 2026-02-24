@@ -221,9 +221,10 @@ export function safeJsonParse<T>(
 
     return { success: true, data: parsed }
   } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown parse error'
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Invalid JSON',
+      error: `Invalid JSON: ${message}`,
     }
   }
 }

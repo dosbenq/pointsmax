@@ -15,11 +15,11 @@ import {
 
 describe('api-response', () => {
   describe('success', () => {
-    it('returns 200 with data', () => {
+    it('returns 200 with data', async () => {
       const response = success({ id: '123', name: 'Test' })
       expect(response.status).toBe(200)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.data).toEqual({ id: '123', name: 'Test' })
     })
 
@@ -33,12 +33,12 @@ describe('api-response', () => {
       expect(response.headers.get('X-Total')).toBe('100')
     })
 
-    it('includes meta information', () => {
+    it('includes meta information', async () => {
       const response = success([1, 2, 3], {
         meta: { page: 1, limit: 10, total: 100, hasMore: true },
       })
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.meta).toEqual({
         page: 1,
         limit: 10,
@@ -49,11 +49,11 @@ describe('api-response', () => {
   })
 
   describe('created', () => {
-    it('returns 201 with data', () => {
+    it('returns 201 with data', async () => {
       const response = created({ id: '123' })
       expect(response.status).toBe(201)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.data).toEqual({ id: '123' })
     })
 
@@ -72,35 +72,38 @@ describe('api-response', () => {
   })
 
   describe('error', () => {
-    it('returns error with code and message', () => {
-      const response = error('BAD_REQUEST', 'Invalid input', 400)
+    it('returns error with code and message', async () => {
+      const response = error('BAD_REQUEST', 'Invalid input', { status: 400 })
       expect(response.status).toBe(400)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.code).toBe('BAD_REQUEST')
       expect(body.error.message).toBe('Invalid input')
     })
 
-    it('includes error details', () => {
-      const response = error('VALIDATION_ERROR', 'Validation failed', 400, {
+    it('includes error details', async () => {
+      const response = error('VALIDATION_ERROR', 'Validation failed', {
+        status: 400,
         details: { field: 'email', issue: 'invalid' },
       })
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.details).toEqual({ field: 'email', issue: 'invalid' })
     })
 
-    it('includes request ID', () => {
-      const response = error('INTERNAL_ERROR', 'Server error', 500, {
+    it('includes request ID', async () => {
+      const response = error('INTERNAL_ERROR', 'Server error', {
+        status: 500,
         requestId: 'abc-123',
       })
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.requestId).toBe('abc-123')
     })
 
     it('includes custom headers', () => {
-      const response = error('RATE_LIMITED', 'Too many requests', 429, {
+      const response = error('RATE_LIMITED', 'Too many requests', {
+        status: 429,
         headers: { 'Retry-After': '60' },
       })
       expect(response.headers.get('Retry-After')).toBe('60')
@@ -123,41 +126,41 @@ describe('api-response', () => {
       ]
 
       testCases.forEach(({ code, expectedStatus }) => {
-        const response = error(code, 'Test', expectedStatus)
+        const response = error(code, 'Test')
         expect(response.status).toBe(expectedStatus)
       })
     })
   })
 
   describe('error helpers', () => {
-    it('badRequest returns 400', () => {
+    it('badRequest returns 400', async () => {
       const response = errors.badRequest('Invalid input')
       expect(response.status).toBe(400)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.code).toBe('BAD_REQUEST')
       expect(body.error.message).toBe('Invalid input')
     })
 
-    it('badRequest includes details', () => {
+    it('badRequest includes details', async () => {
       const response = errors.badRequest('Invalid input', { field: 'email' })
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.details).toEqual({ field: 'email' })
     })
 
-    it('unauthorized returns 401 with default message', () => {
+    it('unauthorized returns 401 with default message', async () => {
       const response = errors.unauthorized()
       expect(response.status).toBe(401)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toBe('Unauthorized')
     })
 
-    it('unauthorized accepts custom message', () => {
+    it('unauthorized accepts custom message', async () => {
       const response = errors.unauthorized('Token expired')
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toBe('Token expired')
     })
 
@@ -166,11 +169,11 @@ describe('api-response', () => {
       expect(response.status).toBe(403)
     })
 
-    it('notFound returns 404 with resource name', () => {
+    it('notFound returns 404 with resource name', async () => {
       const response = errors.notFound('User')
       expect(response.status).toBe(404)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toBe('User not found')
     })
 
@@ -179,11 +182,11 @@ describe('api-response', () => {
       expect(response.status).toBe(409)
     })
 
-    it('payloadTooLarge returns 413 with size info', () => {
+    it('payloadTooLarge returns 413 with size info', async () => {
       const response = errors.payloadTooLarge(50000)
       expect(response.status).toBe(413)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toContain('50000')
     })
 
@@ -193,11 +196,11 @@ describe('api-response', () => {
       expect(response.headers.get('Retry-After')).toBe('60')
     })
 
-    it('internal returns 500 with default message', () => {
+    it('internal returns 500 with default message', async () => {
       const response = errors.internal()
       expect(response.status).toBe(500)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toBe('Internal server error')
     })
 
@@ -206,44 +209,44 @@ describe('api-response', () => {
       expect(response.status).toBe(503)
     })
 
-    it('validation returns 400 with details', () => {
+    it('validation returns 400 with details', async () => {
       const response = errors.validation('Validation failed', { fields: [] })
       expect(response.status).toBe(400)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.code).toBe('VALIDATION_ERROR')
       expect(body.error.details).toEqual({ fields: [] })
     })
 
-    it('timeout returns 504', () => {
+    it('timeout returns 504', async () => {
       const response = errors.timeout('database_query')
       expect(response.status).toBe(504)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.message).toContain('database_query')
     })
 
-    it('circuitOpen returns 503', () => {
+    it('circuitOpen returns 503', async () => {
       const response = errors.circuitOpen('gemini-api')
       expect(response.status).toBe(503)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.code).toBe('CIRCUIT_OPEN')
       expect(body.error.message).toContain('gemini-api')
     })
   })
 
   describe('validationError', () => {
-    it('returns 400 with field errors', () => {
+    it('returns 400 with field errors', async () => {
       const fieldErrors = [
         { field: 'email', message: 'Invalid email' },
         { field: 'password', message: 'Too short' },
       ]
       const response = validationError(fieldErrors, 'req-123')
-      
+
       expect(response.status).toBe(400)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.error.code).toBe('VALIDATION_ERROR')
       expect(body.error.details.fields).toEqual(fieldErrors)
       expect(body.error.requestId).toBe('req-123')
@@ -251,17 +254,17 @@ describe('api-response', () => {
   })
 
   describe('paginated', () => {
-    it('returns paginated response with meta', () => {
+    it('returns paginated response with meta', async () => {
       const response = paginated({
         items: [1, 2, 3],
         total: 100,
         page: 2,
         limit: 10,
       })
-      
+
       expect(response.status).toBe(200)
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.data).toEqual([1, 2, 3])
       expect(body.meta).toEqual({
         page: 2,
@@ -271,15 +274,15 @@ describe('api-response', () => {
       })
     })
 
-    it('calculates hasMore correctly', () => {
+    it('calculates hasMore correctly', async () => {
       const response = paginated({
         items: [1, 2],
         total: 10,
         page: 1,
         limit: 10,
       })
-      
-      const body = JSON.parse(JSON.stringify(response))
+
+      const body = await response.json()
       expect(body.meta.hasMore).toBe(false)
     })
 
