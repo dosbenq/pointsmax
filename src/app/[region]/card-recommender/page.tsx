@@ -123,7 +123,21 @@ export default function CardRecommenderPage() {
         const signupValue = (card.signup_bonus_pts * card.cpp_cents) / 100
         const firstYearValue = annualValue + signupValue - card.annual_fee_usd
         const goalCount = goalMatchScore(card, travelGoals, config.programGoalMap)
-        const finalScore = firstYearValue * (1 + 0.1 * goalCount)
+        // K4: Heavy penalty/boost based on travel goal matching
+        let finalScore: number
+        if (travelGoals.size > 0) {
+          const hasAnyMatch = goalCount > 0
+          if (!hasAnyMatch) {
+            // Card doesn't serve this goal at all — heavy penalty
+            finalScore = firstYearValue * 0.3
+          } else {
+            // Card matches — boost scales with match quality
+            finalScore = firstYearValue * (1 + 0.4 * goalCount)
+          }
+        } else {
+          // No goal selected — rank purely by value
+          finalScore = firstYearValue
+        }
         return { card, pointsPerYear, annualValue, signupValue, firstYearValue, goalCount, finalScore }
       })
       .sort((a, b) => b.finalScore - a.finalScore)
@@ -347,13 +361,27 @@ export default function CardRecommenderPage() {
                     </div>
                   </div>
 
-                  {goalCount > 0 && (
+                  {/* K4: Visual indicator for travel goal matching */}
+                  {travelGoals.size > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {TRAVEL_GOALS.filter(g => travelGoals.has(g.key)).map(goal => (
-                        <span key={goal.key} className="text-xs bg-[#ecf9f7] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full">
-                          {goal.label}
+                      {goalCount > 0 ? (
+                        // Card matches selected goals - show which ones
+                        <>
+                          <span className="text-xs bg-[#ecf9f7] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full font-medium">
+                            ✓ Excellent for your travel goals
+                          </span>
+                          {TRAVEL_GOALS.filter(g => travelGoals.has(g.key)).map(goal => (
+                            <span key={goal.key} className="text-xs bg-[#f4faf7] text-[#5f7c70] border border-[#d5e5d9] px-2 py-0.5 rounded-full">
+                              {goal.label}
+                            </span>
+                          ))}
+                        </>
+                      ) : (
+                        // Card doesn't match any goals - show warning
+                        <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Not ideal for your travel goals
                         </span>
-                      ))}
+                      )}
                     </div>
                   )}
 
