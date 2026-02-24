@@ -30,38 +30,40 @@ export async function GET(request: NextRequest) {
   const regionRaw = (url.searchParams.get('region') ?? '').trim().toUpperCase()
   const region = regionRaw === 'US' || regionRaw === 'IN' ? regionRaw : null
 
-  // Build base query - join with programs to get geography
-  let query = supabase
+  // Fetch all user's balances
+  const { data: balances, error: balancesError } = await supabase
     .from('user_balances')
-    .select(`
-      program_id, 
-      balance,
-      programs!inner(geography)
-    `)
+    .select('program_id, balance')
     .eq('user_id', userId)
 
-  // If region specified, filter to only include:
-  // - Programs with matching geography
-  // - Programs with 'global' geography (hotels, airlines shared across regions)
-  if (region) {
-    query = query.in('programs.geography', [region, 'global'])
-  }
-
-  const { data: balances, error } = await query
-
-  if (error) {
-    console.error('user_balances_fetch_failed', { user_id: userId, error: error.message })
+  if (balancesError) {
+    console.error('user_balances_fetch_failed', { user_id: userId, error: balancesError.message })
     return NextResponse.json({ balances: [] })
   }
 
-  // Transform to simple format (remove joined programs data)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const simplifiedBalances = (balances ?? []).map((b: any) => ({
-    program_id: String(b.program_id),
-    balance: Number(b.balance),
-  }))
+  // If no region filter, return all balances
+  if (!region) {
+    return NextResponse.json({ balances: balances ?? [] })
+  }
 
-  return NextResponse.json({ balances: simplifiedBalances })
+  // Fetch programs to filter by geography
+  const { data: programs, error: programsError } = await supabase
+    .from('programs')
+    .select('id, geography')
+    .in('geography', [region, 'global'])
+
+  if (programsError) {
+    console.error('programs_fetch_failed', { error: programsError.message })
+    return NextResponse.json({ balances: balances ?? [] })
+  }
+
+  // Create set of valid program IDs for this region
+  const validProgramIds = new Set(programs?.map(p => p.id) ?? [])
+
+  // Filter balances to only include programs valid for this region
+  const filteredBalances = (balances ?? []).filter(b => validProgramIds.has(b.program_id))
+
+  return NextResponse.json({ balances: filteredBalances })
 }
 
 // POST /api/user/balances — upserts balances for current user

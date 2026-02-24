@@ -49,9 +49,12 @@ export async function GET(request: Request) {
     return internalError('Failed to load programs')
   }
 
+  // Add region to cache key via Vary header, but disable caching to ensure
+  // region-specific data is never mixed. Client-side caching is handled by React Query/SWR if needed.
   return NextResponse.json(data, {
     headers: {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      'Cache-Control': 'no-store, private',
+      'Vary': 'Accept-Encoding',
     },
   })
 }
