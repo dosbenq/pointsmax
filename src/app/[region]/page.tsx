@@ -121,11 +121,17 @@ const OUTCOMES_IN = [
 ]
 
 // X2: Quick value widget - programs and their CPP values
+// K1: Region-specific fallbacks - must never mix US/India programs
 const WIDGET_PROGRAMS: Record<Region, { slug: string; name: string; cpp: number }[]> = {
   us: [
     { slug: 'chase-ur', name: 'Chase Ultimate Rewards', cpp: 2.0 },
     { slug: 'amex-mr', name: 'Amex Membership Rewards', cpp: 2.0 },
     { slug: 'capital-one-miles', name: 'Capital One Miles', cpp: 1.8 },
+    { slug: 'citi-thankyou', name: 'Citi ThankYou Points', cpp: 1.8 },
+    { slug: 'bilt', name: 'Bilt Rewards', cpp: 1.8 },
+    { slug: 'united-mileageplus', name: 'United MileagePlus', cpp: 1.2 },
+    { slug: 'delta-skymiles', name: 'Delta SkyMiles', cpp: 1.0 },
+    { slug: 'american-aadvantage', name: 'American AAdvantage', cpp: 1.3 },
     { slug: 'hyatt-points', name: 'World of Hyatt', cpp: 1.7 },
   ],
   in: [
@@ -133,6 +139,8 @@ const WIDGET_PROGRAMS: Record<Region, { slug: string; name: string; cpp: number 
     { slug: 'axis-edge', name: 'Axis EDGE Rewards', cpp: 50 },
     { slug: 'amex-india-mr', name: 'Amex India MR', cpp: 75 },
     { slug: 'air-india', name: 'Air India Maharaja Club', cpp: 100 },
+    { slug: 'indigo-6e', name: 'IndiGo 6E Rewards', cpp: 100 },
+    { slug: 'taj-innercircle', name: 'Taj InnerCircle', cpp: 100 },
   ],
 }
 

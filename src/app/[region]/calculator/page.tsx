@@ -726,6 +726,7 @@ export default function CalculatorPage() {
   const { user, preferences, refreshPreferences } = useAuth()
 
   const [programs, setPrograms]             = useState<Program[]>([])
+  const [programsLoading, setProgramsLoading] = useState(true) // K1: Track program loading
   const [rows, setRows]                     = useState<BalanceRow[]>([{ id: '1', program_id: '', amount: '' }])
   const [result, setResult]                 = useState<CalculateResponse | null>(null)
   const [loading, setLoading]               = useState(false)
@@ -776,15 +777,31 @@ export default function CalculatorPage() {
   const statusTimer   = useRef<ReturnType<typeof setInterval> | null>(null)
   const milestoneFired = useRef<Set<string>>(new Set())
 
-  // Load programs for the current region
+  // K1: Load programs for the current region with loading state and validation
   useEffect(() => {
+    setProgramsLoading(true)
+    setPrograms([]) // Clear programs immediately when region changes
     fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`Failed to load programs (${r.status})`)
         return r.json()
       })
-      .then((data) => setPrograms(Array.isArray(data) ? data : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // K1: Validate all programs match current region
+          const validPrograms = data.filter((p: Program) => {
+            // Programs without geography are global (valid for all)
+            if (!p.geography) return true
+            // Programs with geography must match current region
+            return p.geography === 'global' || p.geography.toLowerCase() === region.toLowerCase()
+          })
+          setPrograms(validPrograms)
+        } else {
+          setPrograms([])
+        }
+      })
       .catch(() => setPrograms([]))
+      .finally(() => setProgramsLoading(false))
   }, [region])
 
   // Restore alert-banner dismissed preference.
@@ -1326,7 +1343,17 @@ export default function CalculatorPage() {
               </div>
 
               <div className="px-5 sm:px-6 py-5 space-y-3">
-                {rows.map((row) => {
+                {/* K1: Show loading state while programs are loading */}
+                {programsLoading && (
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="w-3 h-3 rounded-full flex-shrink-0 bg-pm-accent/20 animate-pulse" />
+                    <div className="pm-input flex-1 bg-pm-surface-soft text-pm-ink-500 cursor-not-allowed">
+                      Loading programs…
+                    </div>
+                    <div className="pm-input w-28 sm:w-36 bg-pm-surface-soft" />
+                  </div>
+                )}
+                {!programsLoading && rows.map((row) => {
                   const selected = programs.find((p) => p.id === row.program_id)
                   return (
                     <div key={row.id} className="flex items-center gap-2.5 sm:gap-3">
@@ -1338,6 +1365,7 @@ export default function CalculatorPage() {
                         value={row.program_id}
                         onChange={(e) => updateRow(row.id, 'program_id', e.target.value)}
                         className="pm-input flex-1"
+                        disabled={programsLoading}
                       >
                         <option value="">Select a program…</option>
                         <optgroup label="Transferable Points">
