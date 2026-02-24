@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { payloadTooLarge, rateLimited } from './error-utils'
 
 type RateLimitConfig = {
   namespace: string
@@ -101,10 +102,7 @@ export function enforceJsonContentLength(
   if (!Number.isFinite(value)) return undefined
   if (value <= maxBytes) return undefined
 
-  return NextResponse.json(
-    { error: `Payload too large. Max ${maxBytes} bytes.` },
-    { status: 413 },
-  )
+  return payloadTooLarge(maxBytes)
 }
 
 function enforceRateLimitInMemory(
@@ -151,11 +149,5 @@ export async function enforceRateLimit(
 
   const now = Date.now()
   const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000))
-  return NextResponse.json(
-    { error: 'Too many requests. Please try again shortly.' },
-    {
-      status: 429,
-      headers: { 'Retry-After': String(retryAfterSeconds) },
-    },
-  )
+  return rateLimited(retryAfterSeconds)
 }

@@ -9,7 +9,10 @@ import { z } from 'zod'
 // Common Validators
 // ============================================================================
 
-export const uuidSchema = z.string().uuid()
+export const uuidSchema = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  'Must be a valid UUID'
+)
 
 export const iataCodeSchema = z.string().regex(/^[A-Z]{3}$/, 'Must be a valid 3-letter IATA code')
 
