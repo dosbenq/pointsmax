@@ -7,10 +7,10 @@ on:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'   # only trigger when a migration file changes
+      - 'supabase/migrations/**'
       - '.github/workflows/migrate.yml'
 
-  workflow_dispatch:               # allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
     inputs:
       dry_run:
         description: 'Dry run — show pending migrations without applying'
@@ -28,39 +28,137 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Link Supabase project
-        run: |
-          supabase link \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+      - name: Apply pending migrations
+        if: ${{ inputs.dry_run != 'true' }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request
+          import urllib.error
+          import json
+          import os
+          import sys
+          import glob
+
+          project_ref = os.environ['SUPABASE_PROJECT_REF']
+          access_token = os.environ['SUPABASE_ACCESS_TOKEN']
+          api_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
+          headers = {
+              "Authorization": f"Bearer {access_token}",
+              "Content-Type": "application/json",
+          }
+
+          def run_sql(sql, label=""):
+              data = json.dumps({"query": sql}).encode()
+              req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      return json.loads(resp.read().decode())
+              except urllib.error.HTTPError as e:
+                  body = e.read().decode()
+                  print(f"SQL error{' in ' + label if label else ''} ({e.code}): {body}", file=sys.stderr)
+                  sys.exit(1)
+
+          # Get already-applied migrations
+          result = run_sql(
+              "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version",
+              "fetch applied"
+          )
+          applied = {row['version'] for row in result}
+          print(f"Already applied: {len(applied)} migrations")
+
+          # Find local files and compute pending
+          files = sorted(glob.glob("supabase/migrations/*.sql"))
+          pending = []
+          for f in files:
+              version = os.path.basename(f).replace('.sql', '')
+              if version not in applied:
+                  pending.append((version, f))
+
+          if not pending:
+              print("Nothing to do — all migrations already applied.")
+              sys.exit(0)
+
+          print(f"Pending ({len(pending)}): {[v for v, _ in pending]}")
+
+          for version, filepath in pending:
+              print(f"\nApplying {version} ...")
+              with open(filepath) as f:
+                  sql = f.read()
+              run_sql(sql, version)
+              run_sql(
+                  f"INSERT INTO supabase_migrations.schema_migrations (version) "
+                  f"VALUES ('{version}') ON CONFLICT DO NOTHING",
+                  f"record {version}"
+              )
+              print(f"  ✓ {version}")
+
+          print(f"\nDone — {len(pending)} migration(s) applied.")
+          EOF
 
       - name: Show pending migrations (dry run)
         if: ${{ inputs.dry_run == 'true' }}
-        run: supabase db push --dry-run --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request
+          import json
+          import os
+          import glob
 
-      - name: Apply pending migrations
-        if: ${{ inputs.dry_run != 'true' }}
-        run: supabase db push --linked
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          project_ref = os.environ['SUPABASE_PROJECT_REF']
+          access_token = os.environ['SUPABASE_ACCESS_TOKEN']
+          api_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
+          headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
+          def run_sql(sql):
+              data = json.dumps({"query": sql}).encode()
+              req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
+              with urllib.request.urlopen(req) as resp:
+                  return json.loads(resp.read().decode())
+
+          applied = {r['version'] for r in run_sql("SELECT version FROM supabase_migrations.schema_migrations")}
+          files = sorted(glob.glob("supabase/migrations/*.sql"))
+          pending = [os.path.basename(f) for f in files if os.path.basename(f).replace('.sql','') not in applied]
+
+          if pending:
+              print(f"Pending migrations ({len(pending)}):")
+              for f in pending:
+                  print(f"  • {f}")
+          else:
+              print("No pending migrations.")
+          EOF
 
       - name: Verify schema (post-migration smoke check)
         if: ${{ inputs.dry_run != 'true' }}
-        run: |
-          # Quick sanity: confirm all expected tables exist
-          supabase db execute --linked --sql "
-            SELECT tablename FROM pg_tables
-            WHERE schemaname = 'public'
-            ORDER BY tablename;
-          "
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request
+          import json
+          import os
+          import sys
+
+          project_ref = os.environ['SUPABASE_PROJECT_REF']
+          access_token = os.environ['SUPABASE_ACCESS_TOKEN']
+          api_url = f"https://api.supabase.com/v1/projects/{project_ref}/database/query"
+          headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
+          data = json.dumps({"query": "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"}).encode()
+          req = urllib.request.Request(api_url, data=data, headers=headers, method="POST")
+          with urllib.request.urlopen(req) as resp:
+              tables = [r['tablename'] for r in json.loads(resp.read().decode())]
+
+          required = ['programs', 'cards', 'valuations', 'users']
+          missing = [t for t in required if t not in tables]
+          if missing:
+              print(f"FAIL — missing tables: {missing}", file=sys.stderr)
+              sys.exit(1)
+          print(f"Schema OK — {len(tables)} public tables: {', '.join(tables)}")
+          EOF
