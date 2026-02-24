@@ -97,10 +97,19 @@ export async function GET() {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const payload = {
+  const basePayload = {
     users: Number(data?.user_count ?? 0),
     trackedPoints: Number(data?.tracked_points ?? 0),
     pointsOptimized: Number(data?.optimized_value_cents ?? 0),
+  }
+  
+  // Include both USD and INR values for regional display
+  const payload = {
+    ...basePayload,
+    // Original USD values
+    valueUsd: Math.round(basePayload.pointsOptimized / 100),
+    // Approximate INR conversion (1 USD ≈ 83 INR)
+    valueInr: Math.round(basePayload.pointsOptimized * 0.83),
   }
   cache.stats = {
     payload,

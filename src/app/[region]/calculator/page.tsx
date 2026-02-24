@@ -207,17 +207,17 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
   return (
     <div className="pm-card p-4 sm:p-5 space-y-4">
       <div className="space-y-1.5">
-        <p className="pm-label text-[#0f766e]">Recommendation</p>
+        <p className="pm-label text-pm-accent">Recommendation</p>
         <h3 className="pm-heading text-base">{rec.headline}</h3>
         <p className="pm-subtle text-sm leading-relaxed">{rec.reasoning}</p>
       </div>
 
       {rec.flight && (
-        <div className="rounded-xl border border-[#d5e5d9] bg-[#f7fcf9] p-4 space-y-3">
+        <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-4 space-y-3">
           <div className="flex items-center gap-2">
             <span>✈️</span>
-            <span className="text-[#173f34] font-semibold text-sm">Flight</span>
-            <span className="ml-auto text-xs bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full">
+            <span className="text-pm-ink-900 font-semibold text-sm">Flight</span>
+            <span className="ml-auto text-xs bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft px-2 py-0.5 rounded-full">
               {rec.flight.cabin}
             </span>
           </div>
@@ -240,17 +240,17 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
             </div>
           </div>
           {rec.flight.notes && (
-            <p className="text-[#5f7c70] text-xs border-t border-[#dbeae1] pt-2">{rec.flight.notes}</p>
+            <p className="text-pm-ink-500 text-xs border-t border-pm-border pt-2">{rec.flight.notes}</p>
           )}
         </div>
       )}
 
       {rec.hotel && (
-        <div className="rounded-xl border border-[#d5e5d9] bg-[#f7fcf9] p-4 space-y-3">
+        <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-4 space-y-3">
           <div className="flex items-center gap-2">
             <span>🏨</span>
-            <span className="text-[#173f34] font-semibold text-sm">Hotel</span>
-            <span className="ml-auto text-xs bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full">
+            <span className="text-pm-ink-900 font-semibold text-sm">Hotel</span>
+            <span className="ml-auto text-xs bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft px-2 py-0.5 rounded-full">
               {rec.hotel.chain}
             </span>
           </div>
@@ -275,22 +275,22 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
       )}
 
       {rec.total_summary && (
-        <div className="rounded-xl px-4 py-3 border border-[#c7e7d4] bg-[#ecf9f1]">
-          <p className="text-xs text-[#157347] font-semibold uppercase tracking-wider">Total</p>
-          <p className="text-[#10613a] text-sm font-semibold mt-1">{rec.total_summary}</p>
+        <div className="rounded-xl px-4 py-3 border border-pm-success/30 bg-pm-success/10">
+          <p className="text-xs text-pm-success font-semibold uppercase tracking-wider">Total</p>
+          <p className="text-pm-success text-sm font-semibold mt-1">{rec.total_summary}</p>
         </div>
       )}
 
       {rec.steps?.length > 0 && (
         <div>
-          <p className="pm-label text-[#0f766e]">How to book</p>
+          <p className="pm-label text-pm-accent">How to book</p>
           <ol className="mt-2 space-y-2">
             {rec.steps.map((step, i) => (
               <li key={i} className="flex gap-3 items-start">
-                <span className="w-5 h-5 rounded-full bg-[#def4ef] text-[#0f5f57] text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5 border border-[#b8e3da]">
+                <span className="w-5 h-5 rounded-full bg-pm-accent-soft text-pm-accent-strong text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5 border border-pm-accent-soft">
                   {i + 1}
                 </span>
-                <span className="text-[#2a4b3f] text-sm leading-relaxed">{step}</span>
+                <span className="text-pm-ink-900 text-sm leading-relaxed">{step}</span>
               </li>
             ))}
           </ol>
@@ -298,9 +298,9 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
       )}
 
       {rec.tip && (
-        <div className="rounded-xl px-4 py-3 border border-[#f2d8ad] bg-[#fff8eb]">
-          <p className="text-xs text-[#b45309] font-semibold uppercase tracking-wider">Pro tip</p>
-          <p className="text-[#8a4e12] text-sm mt-1 leading-relaxed">{rec.tip}</p>
+        <div className="rounded-xl px-4 py-3 border border-pm-warning/30 bg-pm-warning/10">
+          <p className="text-xs text-pm-warning font-semibold uppercase tracking-wider">Pro tip</p>
+          <p className="text-pm-warning text-sm mt-1 leading-relaxed">{rec.tip}</p>
         </div>
       )}
 
@@ -314,10 +314,10 @@ function RecommendationCard({ rec }: { rec: AIRec }) {
                 href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs bg-[#edf6f0] hover:bg-[#e2f2ea] text-[#1f4a3d] border border-[#cfe2d5] px-3 py-1.5 rounded-full transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-accent-soft/50 text-pm-ink-900 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
               >
                 {link.label}
-                <span className="text-[#5f7c70]">↗</span>
+                <span className="text-pm-ink-500">↗</span>
               </a>
             ))}
           </div>
@@ -362,7 +362,7 @@ function AwardSearchPanel({
 
   return (
     <div className="pm-card-soft overflow-hidden">
-      <div className="px-6 py-4 border-b border-[#d5e5d9] flex items-center gap-2">
+      <div className="px-6 py-4 border-b border-pm-border flex items-center gap-2">
         <span className="text-xl">✈️</span>
         <h2 className="pm-heading text-base">Find Award Flights</h2>
         <span className="pm-pill ml-1">
@@ -467,10 +467,10 @@ function AwardSearchPanel({
         </div>
 
         {awardError && (
-          <p className="text-sm text-[#b42318] bg-[#fff2f2] rounded-xl px-4 py-2 border border-[#f9d4d4]">{awardError}</p>
+          <p className="text-sm text-pm-danger bg-red-50 rounded-xl px-4 py-2 border border-pm-danger/20">{awardError}</p>
         )}
         {estimatesOnly && (
-          <p className="text-sm text-[#8a5b12] bg-[#fff8eb] rounded-xl px-4 py-2 border border-[#f2d8ad]">
+          <p className="text-sm text-pm-warning bg-pm-warning/10 rounded-xl px-4 py-2 border border-pm-warning/30">
             {awardResult?.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
           </p>
         )}
@@ -493,28 +493,28 @@ function AwardSearchPanel({
       </div>
 
       {awardResult && (
-        <div className="border-t border-[#d5e5d9] px-6 py-5 space-y-5 bg-[#f7fcf9]">
+        <div className="border-t border-pm-border px-6 py-5 space-y-5 bg-pm-surface-soft/50">
           {narrative && (
-            <div className="rounded-xl p-4 space-y-3 border border-[#bfe4dc] bg-[#ecfaf7]">
-              <p className="pm-label text-[#0f766e]">AI analysis</p>
+            <div className="rounded-xl p-4 space-y-3 border border-pm-accent-soft bg-pm-accent-soft/30">
+              <p className="pm-label text-pm-accent">AI analysis</p>
               <p className="pm-heading text-base leading-snug">{narrative.headline}</p>
-              <p className="text-[#2c4d41] text-sm leading-relaxed">{narrative.body}</p>
+              <p className="text-pm-ink-900 text-sm leading-relaxed">{narrative.body}</p>
               {narrative.booking_tips?.length > 0 && (
                 <div>
-                  <p className="pm-label text-[#0f766e] mb-1.5">Booking tips</p>
+                  <p className="pm-label text-pm-accent mb-1.5">Booking tips</p>
                   <ul className="space-y-1">
                     {narrative.booking_tips.map((tip, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-[#2c4d41]">
-                        <span className="text-[#0f766e] flex-shrink-0">•</span>{tip}
+                      <li key={i} className="flex gap-2 text-sm text-pm-ink-900">
+                        <span className="text-pm-accent flex-shrink-0">•</span>{tip}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
               {narrative.warnings?.length > 0 && (
-                <div className="bg-[#fff8eb] border border-[#f2d8ad] rounded-lg px-3 py-2 space-y-1">
+                <div className="bg-pm-warning/10 border border-pm-warning/30 rounded-lg px-3 py-2 space-y-1">
                   {narrative.warnings.map((w, i) => (
-                    <p key={i} className="text-[#a7631c] text-xs flex gap-2">
+                    <p key={i} className="text-pm-warning text-xs flex gap-2">
                       <span>⚠️</span>{w}
                     </p>
                   ))}
@@ -523,7 +523,7 @@ function AwardSearchPanel({
             </div>
           )}
 
-          <p className="text-xs text-[#5f7c70]">
+          <p className="text-xs text-pm-ink-500">
             {awardResult.params.origin} → {awardResult.params.destination} ·{' '}
             {CABIN_LABELS[awardResult.params.cabin]} · {awardResult.params.passengers} pax ·{' '}
             {reachable.length} reachable program{reachable.length !== 1 ? 's' : ''}
@@ -531,7 +531,7 @@ function AwardSearchPanel({
 
           {reachable.length > 0 && (
             <div className="space-y-3">
-              <p className="pm-label text-[#157347]">Reachable with your points</p>
+              <p className="pm-label text-pm-success">Reachable with your points</p>
               {reachable.map(r => (
                 <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} />
               ))}
@@ -573,19 +573,19 @@ function AwardResultCard({
     }`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: r.program_color }} />
-        <span className="text-[#173f34] font-semibold text-sm">{r.program_name}</span>
+        <span className="text-pm-ink-900 font-semibold text-sm">{r.program_name}</span>
 
         {isTopPick && !muted && (
-          <span className="text-xs bg-[#0f766e] text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
+          <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
         )}
         {r.has_real_availability && (
-          <span className="text-xs bg-[#ecf9f1] text-[#157347] border border-[#c7e7d4] px-2 py-0.5 rounded-full">Live</span>
+          <span className="text-xs bg-pm-success/10 text-pm-success border border-pm-success/30 px-2 py-0.5 rounded-full">Live</span>
         )}
         {!r.has_real_availability && (
-          <span className="text-xs bg-[#f2f7f3] text-[#607d71] border border-[#d6e5dc] px-2 py-0.5 rounded-full">Estimate</span>
+          <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Estimate</span>
         )}
         {r.transfer_is_instant && r.transfer_chain && (
-          <span className="text-xs bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full">Instant transfer</span>
+          <span className="text-xs bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft px-2 py-0.5 rounded-full">Instant transfer</span>
         )}
       </div>
 
@@ -609,17 +609,17 @@ function AwardResultCard({
       </div>
 
       {r.availability && (
-        <div className="text-xs text-[#157347]">
+        <div className="text-xs text-pm-success">
           ✓ Available on {new Date(r.availability.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </div>
       )}
 
       {r.transfer_chain && (
-        <p className="text-xs text-[#0f766e]">{r.transfer_chain}</p>
+        <p className="text-xs text-pm-accent">{r.transfer_chain}</p>
       )}
 
       {!r.is_reachable && (
-        <p className="text-xs text-[#6a8579]">
+        <p className="text-xs text-pm-ink-500">
           Need {r.points_needed_from_wallet.toLocaleString()} points from wallet.
         </p>
       )}
@@ -628,13 +628,13 @@ function AwardResultCard({
         href={r.deep_link.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs bg-[#edf6f0] hover:bg-[#e2f2ea] text-[#1f4a3d] border border-[#cfe2d5] px-3 py-1.5 rounded-full transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-accent-soft/50 text-pm-ink-900 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
       >
         {r.deep_link.label}
-        <span className="text-[#5f7c70]">↗</span>
+        <span className="text-pm-ink-500">↗</span>
       </a>
       {r.deep_link.note && (
-        <p className="text-[11px] text-[#6a8579]">{r.deep_link.note}</p>
+        <p className="text-[11px] text-pm-ink-500">{r.deep_link.note}</p>
       )}
     </div>
   )
@@ -672,12 +672,12 @@ function AlertWidget({
       <div className="flex items-start gap-3">
         <span className="text-lg">🔔</span>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-[#173f34]">Get notified of transfer bonuses</p>
-          <p className="text-xs text-[#5f7c70] mt-0.5">
+          <p className="text-sm font-semibold text-pm-ink-900">Get notified of transfer bonuses</p>
+          <p className="text-xs text-pm-ink-500 mt-0.5">
             We&apos;ll email you when {programNames.slice(0, 3).join(', ')} run a transfer bonus.
           </p>
           {alertSubscribed ? (
-            <p className="text-xs text-[#157347] font-medium mt-3">
+            <p className="text-xs text-pm-success font-medium mt-3">
               ✓ You&apos;re subscribed! We&apos;ll email you when bonuses appear.
             </p>
           ) : (
@@ -699,12 +699,12 @@ function AlertWidget({
               </button>
             </form>
           )}
-          {alertError && <p className="text-xs text-[#b42318] mt-2">{alertError}</p>}
+          {alertError && <p className="text-xs text-pm-danger mt-2">{alertError}</p>}
         </div>
         <button
           type="button"
           onClick={onDismiss}
-          className="text-[#8aa095] hover:text-[#173f34] text-sm px-1"
+          className="text-pm-ink-500 hover:text-pm-ink-900 text-sm px-1"
           aria-label="Dismiss transfer bonus alert signup"
         >
           ×
@@ -1278,7 +1278,7 @@ export default function CalculatorPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <section className="border-b border-pm-border bg-pm-bg/50">
         <div className="pm-shell py-10 sm:py-12 text-center">
           <span className="pm-pill mb-3">Clear path from points to booking {config.flag}</span>
           <h1 className="pm-heading text-3xl sm:text-4xl mb-2">Points Calculator</h1>
@@ -1296,8 +1296,8 @@ export default function CalculatorPage() {
                 key={step.label}
                 className={`rounded-xl px-3 py-2.5 border text-sm ${
                   step.done
-                    ? 'bg-[#ecf9f1] border-[#c7e7d4] text-[#157347]'
-                    : 'bg-[#f8fcf9] border-[#dbe9e2] text-[#6a8579]'
+                    ? 'bg-pm-success/10 border-pm-success/30 text-pm-success'
+                    : 'bg-pm-surface-soft border-pm-border text-pm-ink-500'
                 }`}
               >
                 <p className="text-[10px] uppercase tracking-wider font-semibold">Step {idx + 1}</p>
@@ -1310,14 +1310,14 @@ export default function CalculatorPage() {
         <div className="grid gap-6 lg:grid-cols-12 items-start">
           <div className="lg:col-span-8 space-y-6">
             <div className="pm-card-soft overflow-hidden">
-              <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-[#d5e5d9] flex items-center justify-between gap-3">
+              <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-pm-border flex items-center justify-between gap-3">
                 <div>
                   <h2 className="pm-heading text-lg">1. Your Points Balances</h2>
                   <p className="pm-subtle text-xs mt-0.5">Add one or many programs. We normalize and rank options for you.</p>
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                   {saveToast && (
-                    <span className="pm-pill text-[#157347] border-[#c7e7d4] bg-[#ecf9f1]">
+                    <span className="pm-pill text-pm-success border-pm-success/30 bg-pm-success/10">
                       ✓ Balances saved
                     </span>
                   )}
@@ -1361,7 +1361,7 @@ export default function CalculatorPage() {
                       {rows.length > 1 && (
                         <button
                           onClick={() => removeRow(row.id)}
-                          className="w-8 h-8 rounded-lg text-[#7b968a] hover:text-[#b42318] hover:bg-[#fff3f2] transition-colors text-lg leading-none flex-shrink-0"
+                          className="w-8 h-8 rounded-lg text-pm-ink-500 hover:text-pm-danger hover:bg-red-50 transition-colors text-lg leading-none flex-shrink-0"
                           aria-label="Remove program"
                         >
                           ×
@@ -1373,16 +1373,16 @@ export default function CalculatorPage() {
               </div>
 
               {calcError && (
-                <div className="mx-5 sm:mx-6 mb-4 text-sm text-[#b42318] bg-[#fff2f2] rounded-xl px-4 py-2 border border-[#f9d4d4]">
+                <div className="mx-5 sm:mx-6 mb-4 text-sm text-pm-danger bg-red-50 rounded-xl px-4 py-2 border border-pm-danger/20">
                   {calcError}
                 </div>
               )}
 
-              <div className="px-5 sm:px-6 py-4 bg-[#f6fbf8] border-t border-[#dbe9e2] flex items-center justify-between gap-3">
+              <div className="px-5 sm:px-6 py-4 bg-pm-surface-soft border-t border-pm-border flex items-center justify-between gap-3">
                 <button onClick={addRow} className="pm-button-secondary px-4 py-2 text-sm">
                   + Add program
                 </button>
-                <span className="text-xs text-[#6a8579]">
+                <span className="text-xs text-pm-ink-500">
                   {totalTrackedPoints.toLocaleString()} total tracked points
                 </span>
               </div>
@@ -1392,7 +1392,7 @@ export default function CalculatorPage() {
               <div className="pm-card overflow-hidden">
                 <button
                   onClick={() => setPrefOpen((v) => !v)}
-                  className="w-full px-5 sm:px-6 py-4 flex items-center justify-between text-left hover:bg-[#f6fbf8] transition-colors"
+                  className="w-full px-5 sm:px-6 py-4 flex items-center justify-between text-left hover:bg-pm-surface-soft transition-colors"
                 >
                   <div>
                     <h2 className="pm-heading text-base">2. Travel Preferences</h2>
@@ -1402,7 +1402,7 @@ export default function CalculatorPage() {
                 </button>
 
                 {prefOpen && (
-                  <div className="px-5 sm:px-6 pb-6 pt-4 border-t border-[#e2ece6] space-y-4">
+                  <div className="px-5 sm:px-6 pb-6 pt-4 border-t border-pm-border space-y-4">
                     <div>
                       <label htmlFor="homeAirport" className="pm-label block mb-1.5">Home Airport</label>
                       <input
@@ -1434,9 +1434,9 @@ export default function CalculatorPage() {
                       <label htmlFor="prefAirlines" className="pm-label block mb-1.5">Preferred Airlines</label>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {prefForm.preferred_airlines.map((a, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 bg-[#ecf9f7] text-[#0f5f57] text-xs px-2.5 py-1 rounded-full border border-[#b8e3da]">
+                          <span key={i} className="inline-flex items-center gap-1 bg-pm-accent-soft text-pm-accent-strong text-xs px-2.5 py-1 rounded-full border border-pm-accent-soft">
                             {a}
-                            <button onClick={() => removeTag('preferred_airlines', i)} className="hover:text-[#b42318] font-bold">×</button>
+                            <button onClick={() => removeTag('preferred_airlines', i)} className="hover:text-pm-danger font-bold">×</button>
                           </span>
                         ))}
                       </div>
@@ -1460,9 +1460,9 @@ export default function CalculatorPage() {
                       <label htmlFor="avoidAirlines" className="pm-label block mb-1.5">Airlines to Avoid</label>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {prefForm.avoided_airlines.map((a, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 bg-[#fff4f3] text-[#b42318] text-xs px-2.5 py-1 rounded-full border border-[#f5c8c5]">
+                          <span key={i} className="inline-flex items-center gap-1 bg-red-50 text-pm-danger text-xs px-2.5 py-1 rounded-full border border-pm-danger/20">
                             {a}
-                            <button onClick={() => removeTag('avoided_airlines', i)} className="hover:text-[#7a1e16] font-bold">×</button>
+                            <button onClick={() => removeTag('avoided_airlines', i)} className="hover:text-pm-danger font-bold">×</button>
                           </span>
                         ))}
                       </div>
@@ -1498,16 +1498,16 @@ export default function CalculatorPage() {
                 <h2 className="pm-heading text-lg">What to do next</h2>
 
                 <div className="mt-4 space-y-3">
-                  <div className="rounded-xl border border-[#dbe9e2] bg-white px-3.5 py-3">
-                    <p className="text-xs text-[#6a8579]">Tracked programs</p>
+                  <div className="rounded-xl border border-pm-border bg-pm-surface px-3.5 py-3">
+                    <p className="text-xs text-pm-ink-500">Tracked programs</p>
                     <p className="text-xl font-bold text-[#173f34] mt-0.5">{enteredBalances.length}</p>
                   </div>
-                  <div className="rounded-xl border border-[#dbe9e2] bg-white px-3.5 py-3">
-                    <p className="text-xs text-[#6a8579]">Tracked points</p>
+                  <div className="rounded-xl border border-pm-border bg-pm-surface px-3.5 py-3">
+                    <p className="text-xs text-pm-ink-500">Tracked points</p>
                     <p className="text-xl font-bold text-[#173f34] mt-0.5">{totalTrackedPoints.toLocaleString()}</p>
                   </div>
-                  <div className="rounded-xl border border-[#dbe9e2] bg-white px-3.5 py-3">
-                    <p className="text-xs text-[#6a8579]">Current goal</p>
+                  <div className="rounded-xl border border-pm-border bg-pm-surface px-3.5 py-3">
+                    <p className="text-xs text-pm-ink-500">Current goal</p>
                     <p className="text-sm font-semibold text-[#173f34] mt-0.5">
                       {awardParams.origin && awardParams.destination
                         ? `${awardParams.origin} → ${awardParams.destination}`
@@ -1550,12 +1550,12 @@ export default function CalculatorPage() {
 
               {bestOverall && (
                 <div className="pm-card p-4">
-                  <p className="pm-label text-[#0f766e]">Current top path</p>
-                  <p className="text-sm font-semibold text-[#173f34] mt-1">{bestOverall.label}</p>
-                  <p className="text-xs text-[#5f7c70] mt-1">
+                  <p className="pm-label text-pm-accent">Current top path</p>
+                  <p className="text-sm font-semibold text-pm-ink-900 mt-1">{bestOverall.label}</p>
+                  <p className="text-xs text-pm-ink-500 mt-1">
                     {bestOverall.points_in.toLocaleString()} pts · {bestOverall.cpp_cents.toFixed(2)}¢/pt
                   </p>
-                  <p className="text-lg font-bold text-[#157347] mt-2">{fmt(bestOverall.total_value_cents, config.currencySymbol)}</p>
+                  <p className="text-lg font-bold text-pm-success mt-2">{fmt(bestOverall.total_value_cents, config.currencySymbol)}</p>
                   <button
                     onClick={() => {
                       trackEvent('calculator_booking_plan_requested', { source: 'sticky_top_path' })
@@ -1585,8 +1585,8 @@ export default function CalculatorPage() {
                     disabled={tab.disabled}
                     className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                       activePanel === tab.key
-                        ? 'bg-[#0f766e] text-white'
-                        : 'bg-[#f2f8f3] text-[#365649] hover:bg-[#e6f3ec]'
+                        ? 'bg-pm-accent text-white'
+                        : 'bg-pm-surface-soft text-pm-ink-700 hover:bg-pm-accent-soft/50'
                     } ${tab.disabled ? 'opacity-50 cursor-not-allowed hover:bg-[#f2f8f3]' : ''}`}
                   >
                     {tab.label}
@@ -1601,23 +1601,23 @@ export default function CalculatorPage() {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
                     <div className="pm-card p-5">
                       <p className="pm-label">Cash Value</p>
-                      <p className="text-3xl font-extrabold text-[#2a4b3f] mt-2 tabular-nums">{fmt(result.total_cash_value_cents, config.currencySymbol)}</p>
+                      <p className="text-3xl font-extrabold text-pm-ink-900 mt-2 tabular-nums">{fmt(result.total_cash_value_cents, config.currencySymbol)}</p>
                       <p className="text-xs text-[#6a8579] mt-1">If redeemed for cash</p>
                     </div>
-                    <div className="rounded-2xl border border-[#9ad6c9] bg-[#e9f8f3] p-5">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-[#0f766e]">Best Value</p>
-                      <p className="text-3xl font-extrabold text-[#0f5f57] mt-2 tabular-nums">{fmt(result.total_optimal_value_cents, config.currencySymbol)}</p>
-                      <p className="text-xs text-[#3b7f74] mt-1">Optimal redemption path</p>
+                    <div className="rounded-2xl border border-pm-success/30 bg-pm-success/10 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-pm-accent">Best Value</p>
+                      <p className="text-3xl font-extrabold text-pm-accent-strong mt-2 tabular-nums">{fmt(result.total_optimal_value_cents, config.currencySymbol)}</p>
+                      <p className="text-xs text-pm-accent-strong mt-1">Optimal redemption path</p>
                     </div>
-                    <div className="rounded-2xl border border-[#c7e7d4] bg-[#ecf9f1] p-5 sm:col-span-2 lg:col-span-1">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-[#157347]">Extra Value</p>
-                      <p className="text-3xl font-extrabold text-[#157347] mt-2 tabular-nums">{fmt(result.value_left_on_table_cents, config.currencySymbol)}</p>
-                      <p className="text-xs text-[#4c8f67] mt-1">vs. simple cash back</p>
+                    <div className="rounded-2xl border border-pm-success/30 bg-pm-success/10 p-5 sm:col-span-2 lg:col-span-1">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-pm-success">Extra Value</p>
+                      <p className="text-3xl font-extrabold text-pm-success mt-2 tabular-nums">{fmt(result.value_left_on_table_cents, config.currencySymbol)}</p>
+                      <p className="text-xs text-pm-success mt-1">vs. simple cash back</p>
                     </div>
                   </div>
 
                   <div className="pm-card-soft overflow-hidden">
-                    <div className="px-5 sm:px-6 py-4 border-b border-[#dbe9e2] flex items-center justify-between gap-3">
+                    <div className="px-5 sm:px-6 py-4 border-b border-pm-border flex items-center justify-between gap-3">
                       <div>
                         <h2 className="pm-heading text-base">Top Redemption Options</h2>
                         <p className="pm-subtle text-xs mt-0.5">Ranked by total value</p>
@@ -1634,12 +1634,12 @@ export default function CalculatorPage() {
                       </div>
                     </div>
                     {shareUrl && (
-                      <div className="px-5 sm:px-6 py-2 border-b border-[#dbe9e2] text-xs text-[#0f766e]">
+                      <div className="px-5 sm:px-6 py-2 border-b border-pm-border text-xs text-pm-accent">
                         Share URL copied: <a className="underline" href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
                       </div>
                     )}
                     {shareError && (
-                      <div className="px-5 sm:px-6 py-2 border-b border-[#f8d7d7] text-xs text-[#b42318] bg-[#fff5f5]">
+                      <div className="px-5 sm:px-6 py-2 border-b border-pm-danger/20 text-xs text-pm-danger bg-red-50">
                         {shareError}
                       </div>
                     )}
@@ -1651,23 +1651,23 @@ export default function CalculatorPage() {
                           initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                           animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                           transition={reduceMotion ? undefined : { duration: 0.2, delay: i * 0.05 }}
-                          className={`px-5 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 transition-colors ${r.is_best ? 'bg-[#eef8f2]' : 'hover:bg-[#f6fbf8]'}`}
+                          className={`px-5 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 transition-colors ${r.is_best ? 'bg-pm-success/10' : 'hover:bg-pm-surface-soft'}`}
                         >
-                          <span className="text-xs text-[#95ada1] font-mono w-4 flex-shrink-0 text-center">{i + 1}</span>
+                          <span className="text-xs text-pm-ink-500 font-mono w-4 flex-shrink-0 text-center">{i + 1}</span>
                           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: r.from_program.color_hex }} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {r.is_best && <span className="text-xs bg-[#0f766e] text-white px-2 py-0.5 rounded-full font-semibold">Best</span>}
-                              {r.active_bonus_pct && <span className="text-xs bg-[#ecf9f1] text-[#157347] px-2 py-0.5 rounded-full border border-[#c7e7d4] font-semibold">+{r.active_bonus_pct}% bonus</span>}
-                              <span className="text-sm font-medium text-[#173f34]">{r.label}</span>
+                              {r.is_best && <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Best</span>}
+                              {r.active_bonus_pct && <span className="text-xs bg-pm-success/10 text-pm-success px-2 py-0.5 rounded-full border border-pm-success/30 font-semibold">+{r.active_bonus_pct}% bonus</span>}
+                              <span className="text-sm font-medium text-pm-ink-900">{r.label}</span>
                             </div>
-                            <p className="text-xs text-[#6a8579] mt-0.5">
+                            <p className="text-xs text-pm-ink-500 mt-0.5">
                               {r.points_in.toLocaleString()} pts
                               {r.category === 'transfer_partner' && ` → ${r.points_out.toLocaleString()} ${r.to_program?.short_name ?? ''}`}
                               {' · '}{transferTime(r)}{' · '}{r.cpp_cents.toFixed(2)}¢/pt
                             </p>
                           </div>
-                          <p className={`text-base font-bold tabular-nums flex-shrink-0 ${r.is_best ? 'text-[#0f5f57]' : 'text-[#2a4b3f]'}`}>
+                          <p className={`text-base font-bold tabular-nums flex-shrink-0 ${r.is_best ? 'text-pm-accent-strong' : 'text-pm-ink-900'}`}>
                             {fmt(r.total_value_cents, config.currencySymbol)}
                           </p>
                           <button
@@ -1690,7 +1690,7 @@ export default function CalculatorPage() {
                     {result.results.length > RESULTS_PREVIEW && (
                       <button
                         onClick={() => setShowAllResults((v) => !v)}
-                        className="w-full py-3.5 text-sm text-[#5c7a6d] hover:text-[#173f34] font-medium border-t border-[#dbe9e2] hover:bg-[#f3faf6] transition-colors"
+                        className="w-full py-3.5 text-sm text-pm-ink-500 hover:text-pm-ink-900 font-medium border-t border-pm-border hover:bg-pm-surface-soft transition-colors"
                       >
                         {showAllResults ? '↑ Show fewer' : `↓ Show all ${result.results.length} options`}
                       </button>
@@ -1737,24 +1737,24 @@ export default function CalculatorPage() {
 
             {activePanel === 'advisor' && (
               <div className="pm-card-soft overflow-hidden">
-                <div className="px-5 sm:px-6 py-4 border-b border-[#dbe9e2] flex items-center gap-2 flex-wrap">
+                <div className="px-5 sm:px-6 py-4 border-b border-pm-border flex items-center gap-2 flex-wrap">
                   <span className="text-xl">✨</span>
                   <h2 className="pm-heading text-base">AI Points Advisor</h2>
                   <span className="pm-pill">Powered by Gemini</span>
                   {canUseAdvisor && chatMessages.length > 0 && user && (
                     <button
                       onClick={() => { setChatMessages([]); setGeminiHistory([]); setMessageCount(0) }}
-                      className="ml-auto text-xs text-[#5c7a6d] hover:text-[#173f34] transition-colors"
+                      className="ml-auto text-xs text-pm-ink-500 hover:text-pm-ink-900 transition-colors"
                     >
                       Clear chat
                     </button>
                   )}
                 </div>
 
-                <div className="px-5 sm:px-6 py-5 space-y-4 max-h-[600px] overflow-y-auto bg-[#fbfefd]">
+                <div className="px-5 sm:px-6 py-5 space-y-4 max-h-[600px] overflow-y-auto bg-pm-surface-soft/30">
                   {!hasCalculatorResult && (
-                    <div className="rounded-xl border border-[#d6e5dc] bg-[#f3faf6] px-4 py-3">
-                      <p className="text-[#365649] text-sm">
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft px-4 py-3">
+                      <p className="text-pm-ink-700 text-sm">
                         Add a destination in the calculator for more specific recommendations.
                       </p>
                     </div>
@@ -1762,7 +1762,7 @@ export default function CalculatorPage() {
 
                   {canUseAdvisor && chatMessages.length === 0 && !aiLoading && (
                     <div>
-                      <p className="text-[#5f7c70] text-sm mb-4">
+                      <p className="text-pm-ink-500 text-sm mb-4">
                         Tell me where you want to go. I&apos;ll ask short clarifying questions and build a step-by-step plan with your points.
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -1784,22 +1784,22 @@ export default function CalculatorPage() {
                     <div key={i}>
                       {msg.role === 'user' ? (
                         <div className="flex justify-end">
-                          <div className="bg-[#0f766e] text-white text-sm px-4 py-2.5 rounded-2xl rounded-br-sm max-w-xs shadow-sm">
+                          <div className="bg-pm-accent text-white text-sm px-4 py-2.5 rounded-2xl rounded-br-sm max-w-xs shadow-sm">
                             {msg.text}
                           </div>
                         </div>
                       ) : msg.payload.type === 'clarifying' ? (
                         <div className="flex gap-3">
-                          <span className="w-7 h-7 rounded-full bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] flex items-center justify-center text-base flex-shrink-0 mt-0.5">
+                          <span className="w-7 h-7 rounded-full bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft flex items-center justify-center text-base flex-shrink-0 mt-0.5">
                             ✨
                           </span>
                           <div className="pm-card p-4 max-w-lg">
-                            <p className="text-[#2a4b3f] text-sm leading-relaxed">{msg.payload.message}</p>
+                            <p className="text-pm-ink-900 text-sm leading-relaxed">{msg.payload.message}</p>
                             {msg.payload.questions.length > 0 && (
                               <ul className="mt-2 space-y-1">
                                 {msg.payload.questions.map((q, qi) => (
-                                  <li key={qi} className="text-[#0f766e] text-sm flex gap-2">
-                                    <span className="text-[#0f766e]">•</span> {q}
+                                  <li key={qi} className="text-pm-accent text-sm flex gap-2">
+                                    <span className="text-pm-accent">•</span> {q}
                                   </li>
                                 ))}
                               </ul>
@@ -1808,7 +1808,7 @@ export default function CalculatorPage() {
                         </div>
                       ) : (
                         <div className="flex gap-3">
-                          <span className="w-7 h-7 rounded-full bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] flex items-center justify-center text-base flex-shrink-0 mt-0.5">
+                          <span className="w-7 h-7 rounded-full bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft flex items-center justify-center text-base flex-shrink-0 mt-0.5">
                             ✨
                           </span>
                           <div className="flex-1">
@@ -1821,28 +1821,28 @@ export default function CalculatorPage() {
 
                   {canUseAdvisor && aiLoading && (
                     <div className="flex gap-3">
-                      <span className="w-7 h-7 rounded-full bg-[#def4ef] text-[#0f5f57] border border-[#b8e3da] flex items-center justify-center text-base flex-shrink-0">
+                      <span className="w-7 h-7 rounded-full bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-soft flex items-center justify-center text-base flex-shrink-0">
                         ✨
                       </span>
                       <div className="pm-card px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <svg className="animate-spin w-3.5 h-3.5 text-[#0f766e]" viewBox="0 0 24 24" fill="none">
+                          <svg className="animate-spin w-3.5 h-3.5 text-pm-accent" viewBox="0 0 24 24" fill="none">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                           </svg>
-                          <span className="text-[#0f5f57] text-sm">{aiStatus}</span>
+                          <span className="text-pm-accent-strong text-sm">{aiStatus}</span>
                         </div>
                       </div>
                     </div>
                   )}
 
                   {aiError && (
-                    <div className="rounded-xl border border-[#f5c8c5] bg-[#fff4f3] px-4 py-3 text-sm">
-                      <p className="text-[#8d2f2b] font-medium">Our AI is taking a break. Here are your raw results.</p>
-                      <p className="text-[#8d2f2b] mt-1">{aiError}</p>
+                    <div className="rounded-xl border border-pm-danger/20 bg-red-50 px-4 py-3 text-sm">
+                      <p className="text-pm-danger font-medium">Our AI is taking a break. Here are your raw results.</p>
+                      <p className="text-pm-danger mt-1">{aiError}</p>
                       <button
                         onClick={() => switchPanel(result ? 'redemptions' : 'awards', 'ai_error_fallback')}
-                        className="mt-2 text-[#7a1e16] underline underline-offset-4"
+                        className="mt-2 text-pm-danger underline underline-offset-4"
                       >
                         View non-AI results
                       </button>
@@ -1852,7 +1852,7 @@ export default function CalculatorPage() {
                   <div ref={chatEndRef} />
                 </div>
 
-                <div className="px-5 sm:px-6 py-4 border-t border-[#dbe9e2] bg-[#f4faf7]">
+                <div className="px-5 sm:px-6 py-4 border-t border-pm-border bg-pm-surface-soft">
                   <div className="flex gap-3">
                     <input
                       type="text"

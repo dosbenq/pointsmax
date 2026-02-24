@@ -28,7 +28,7 @@ export default function Footer() {
   ]
 
   return (
-    <footer className="mt-auto border-t border-[#d5e5d9] bg-[rgba(238,247,241,0.72)]">
+    <footer className="mt-auto border-t border-pm-border bg-pm-bg/70">
       <div className="pm-shell py-12">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5 space-y-4">
@@ -42,13 +42,13 @@ export default function Footer() {
             <div className="flex items-center gap-4 pt-2">
               <Link 
                 href="/us" 
-                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-md border ${region === 'us' ? 'bg-white border-[#a9d8cf] text-[#0f3f36]' : 'border-transparent text-[#59766a] hover:text-[#0f766e]'}`}
+                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-md border ${region === 'us' ? 'bg-pm-surface border-pm-border text-pm-ink-900' : 'border-transparent text-pm-ink-500 hover:text-pm-accent'}`}
               >
                 <span>🇺🇸</span> US Edition
               </Link>
               <Link 
                 href="/in" 
-                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-md border ${region === 'in' ? 'bg-white border-[#a9d8cf] text-[#0f3f36]' : 'border-transparent text-[#59766a] hover:text-[#0f766e]'}`}
+                className={`text-xs flex items-center gap-1.5 px-2 py-1 rounded-md border ${region === 'in' ? 'bg-pm-surface border-pm-border text-pm-ink-900' : 'border-transparent text-pm-ink-500 hover:text-pm-accent'}`}
               >
                 <span>🇮🇳</span> India Edition
               </Link>
@@ -61,7 +61,7 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {productLinks.map((item) => (
                   <li key={item.href}>
-                    <Link href={item.href} className="text-sm text-[#264338] hover:text-[#0f766e] transition-colors">
+                    <Link href={item.href} className="text-sm text-pm-ink-700 hover:text-pm-accent transition-colors">
                       {item.label}
                     </Link>
                   </li>
@@ -74,7 +74,7 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {resourceLinks.map((item) => (
                   <li key={item.href}>
-                    <Link href={item.href} className="text-sm text-[#264338] hover:text-[#0f766e] transition-colors">
+                    <Link href={item.href} className="text-sm text-pm-ink-700 hover:text-pm-accent transition-colors">
                       {item.label}
                     </Link>
                   </li>
@@ -84,7 +84,7 @@ export default function Footer() {
 
             <div>
               <p className="pm-label mb-3">Data</p>
-              <ul className="space-y-2.5 text-sm text-[#59766a]">
+              <ul className="space-y-2.5 text-sm text-pm-ink-500">
                 <li>Monthly valuation updates</li>
                 <li>Transfer partner mapping</li>
                 <li>Award planning workflows</li>
@@ -93,9 +93,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-5 border-t border-[#d7e8dc] flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <p className="text-xs text-[#688477]">© 2026 PointsMax</p>
-          <p className="text-xs text-[#688477]">Built for better redemption decisions</p>
+        <div className="mt-10 pt-5 border-t border-pm-border flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <p className="text-xs text-pm-ink-500">© 2026 PointsMax</p>
+          <p className="text-xs text-pm-ink-500">Built for better redemption decisions</p>
         </div>
       </div>
     </footer>

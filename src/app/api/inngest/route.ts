@@ -9,6 +9,7 @@ import { scheduledBonusAlerts, scheduledValuationsUpdate, scheduledYoutubeIngest
 import { linkChecker } from "@/lib/inngest/functions/link-checker";
 import { onboardingDrip } from "@/lib/inngest/functions/onboarding-drip";
 import { transferBonusMonitor } from "@/lib/inngest/functions/transfer-bonus-monitor";
+import { indiaValuationsScraper } from "@/lib/inngest/functions/india-valuations-scraper";
 
 // Create an API route that serves the Inngest functions
 export const { GET, POST, PUT } = serve({
@@ -25,5 +26,6 @@ export const { GET, POST, PUT } = serve({
     linkChecker,
     onboardingDrip,
     transferBonusMonitor,
+    indiaValuationsScraper,
   ],
 });
