@@ -3,29 +3,8 @@ import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
-
-// Known booking URLs — AI picks from these so it can't hallucinate links
-const BOOKING_URLS = `
-Known booking URLs (only use these exact URLs in links):
-- Chase UR transfer partners: https://www.ultimaterewards.com
-- Amex MR transfer partners: https://global.americanexpress.com/rewards/transfer
-- Capital One transfer partners: https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/
-- Citi ThankYou transfer partners: https://www.citi.com/credit-cards/thankyou-rewards
-- Bilt transfer partners: https://www.bilt.com/rewards/travel
-- Hyatt award search: https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html
-- Marriott Bonvoy award search: https://www.marriott.com/loyalty/redeem.mi
-- Hilton Honors award search: https://www.hilton.com/en/hilton-honors/points/
-- IHG One Rewards award search: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
-- United MileagePlus award search: https://www.united.com/en/us/fly/travel/awards.html
-- Delta SkyMiles award search: https://www.delta.com/us/en/skymiles/overview
-- American AAdvantage award search: https://www.aa.com/homePage.do
-- Air France/KLM Flying Blue: https://www.flyingblue.com/en/spend/flights
-- British Airways Avios: https://www.britishairways.com/travel/home/public/en_us/
-- Air Canada Aeroplan: https://www.aircanada.com/ca/en/aco/home/aeroplan.html
-- Singapore KrisFlyer: https://www.singaporeair.com/en_UK/us/home
-- Turkish Miles&Smiles: https://www.turkishairlines.com/en-int/miles-and-smiles/
-- Avianca LifeMiles: https://www.lifemiles.com/fly/search
-`.trim()
+import { REGIONS, type Region } from '@/lib/regions'
+import { getBookingUrlsForPrompt } from '@/lib/booking-urls'
 
 type Balance = { name: string; amount: number }
 type TopResult = {
@@ -67,21 +46,33 @@ function getSafeAppUrl(): string {
   }
 }
 
-function buildSafeModeResponse(topResults: TopResult[]): AiSafeModeResponse {
+function buildSafeModeResponse(topResults: TopResult[], isIndia = false): AiSafeModeResponse {
   const best = topResults[0]
-  const bestValue = best
-    ? (best.total_value_cents / 100).toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    })
-    : null
+  let bestValue: string | null = null
+  let cppUnit = ''
+  
+  if (best) {
+    if (isIndia) {
+      // India: cpp_cents is in paise, total_value_cents is in paise
+      const rupees = Math.round(best.total_value_cents / 100)
+      bestValue = `₹${rupees.toLocaleString('en-IN')}`
+      cppUnit = `₹${(best.cpp_cents / 100).toFixed(2)} per point`
+    } else {
+      // US: cpp_cents is in cents
+      bestValue = (best.total_value_cents / 100).toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+      })
+      cppUnit = `${best.cpp_cents.toFixed(2)} cents per point`
+    }
+  }
 
   const headline = best
     ? `Start with ${best.label}`
     : 'Start with your top redemption option'
   const reasoning = best
-    ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${best.cpp_cents.toFixed(2)} cents per point (about ${bestValue}).`
+    ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${cppUnit} (about ${bestValue}).`
     : 'AI is currently in safe mode, so this recommendation uses your pre-calculated results only.'
 
   return {
@@ -223,6 +214,13 @@ export async function POST(req: NextRequest) {
     return new Response(`history too long (max ${MAX_HISTORY_ITEMS} entries)`, { status: 400 })
   }
   const preferences = isRecord(payload.preferences) ? payload.preferences : null
+  
+  // Get region from payload for currency-aware responses
+  const region: Region = (typeof payload.region === 'string' && (payload.region === 'in' || payload.region === 'us')) 
+    ? payload.region 
+    : 'us'
+  const regionConfig = REGIONS[region]
+  const isIndia = region === 'in'
 
   const apiKey = process.env.GEMINI_API_KEY
   const geminiDisabled = isGeminiDisabled()
@@ -236,7 +234,7 @@ export async function POST(req: NextRequest) {
       reason: geminiDisabled ? 'gemini_disabled' : 'missing_api_key',
       latency_ms: Date.now() - startedAt,
     })
-    return new Response(JSON.stringify(buildSafeModeResponse(topResults)), {
+    return new Response(JSON.stringify(buildSafeModeResponse(topResults, isIndia)), {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   }
@@ -266,11 +264,25 @@ export async function POST(req: NextRequest) {
     ? topResults
       .slice(0, 8)
       .map((r) => {
-        const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
-          style: 'currency', currency: 'USD', maximumFractionDigits: 0,
-        })
+        // Region-aware currency formatting
+        let value: string
+        let cppUnit: string
+        if (isIndia) {
+          // India: cpp_cents is in paise, total_value_cents is in paise
+          const rupees = Math.round(r.total_value_cents / 100)
+          const rupeesPerPoint = (r.cpp_cents / 100).toFixed(2)
+          value = `₹${rupees.toLocaleString('en-IN')}`
+          cppUnit = `₹${rupeesPerPoint}/pt`
+        } else {
+          // US: cpp_cents is in cents, total_value_cents is in cents
+          const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
+            style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+          })
+          value = dollars
+          cppUnit = `${r.cpp_cents.toFixed(2)}¢/pt`
+        }
         const bonus = r.active_bonus_pct ? ` ⚡+${r.active_bonus_pct}% bonus` : ''
-        return `  - ${r.label}: ${dollars} (${r.cpp_cents.toFixed(2)}¢/pt)${bonus}`
+        return `  - ${r.label}: ${value} (${cppUnit})${bonus}`
       })
       .join('\n')
     : '  (No pre-calculated redemption rows were provided for this chat turn.)'
@@ -307,6 +319,11 @@ export async function POST(req: NextRequest) {
   }
 
   // ── System prompt ───────────────────────────────────────────────
+  // Region-aware currency terms
+  const currencyUnit = isIndia ? 'rupees (₹)' : 'dollars ($)'
+  const cppUnit = isIndia ? 'paise per point (100 paise = ₹1)' : 'cents per point (100 cents = $1)'
+  const currencySymbol = regionConfig.currencySymbol
+  
   const systemPrompt = `You are a friendly, expert travel rewards advisor. You have a natural conversation with the user to understand their trip, then give a specific, actionable recommendation.
 
 Today's date: ${todayDate}${preferencesContext}
@@ -317,16 +334,16 @@ ${balanceSummary}
 TRANSFER PARTNERS AVAILABLE (only recommend programs from this list):
 ${partnerSummary}
 
-PRE-CALCULATED REDEMPTION VALUES:
+PRE-CALCULATED REDEMPTION VALUES (in ${currencyUnit}):
 ${topValueSummary}
 
-${BOOKING_URLS}
+${getBookingUrlsForPrompt(region)}
 
 CONVERSATION RULES:
 1. If the user's first message is vague (no destination, dates, travelers, or cabin class), ask 2-3 friendly clarifying questions. Keep the message short and warm.
 2. Once you have enough info (destination + at least one of: dates/flexibility, travelers, cabin preference), give the full recommendation.
 3. If the user asks a follow-up question after a recommendation, answer it conversationally and update the recommendation if needed.
-4. Always reference the user's actual balances and any calculated dollar values provided.
+4. Always reference the user's actual balances and any calculated ${currencyUnit} values provided. Point valuations are shown in ${cppUnit}.
 5. Only recommend transfer partners the user has access to.
 
 RESPONSE FORMAT — return ONLY valid JSON (no markdown, no code fences):
@@ -342,23 +359,23 @@ When recommending:
 {
   "type": "recommendation",
   "headline": "Specific one-line recommendation under 12 words",
-  "reasoning": "2-3 sentences with specific programs, sweet spots, and dollar values",
+  "reasoning": "2-3 sentences with specific programs, sweet spots, and ${currencyUnit} values",
   "flight": {
     "airline": "Specific airline",
     "cabin": "Economy | Business | First",
-    "route": "e.g. JFK-NRT",
+    "route": "e.g. ${isIndia ? 'BOM-LHR' : 'JFK-NRT'}",
     "points_needed": "e.g. 75,000 miles one-way",
-    "transfer_chain": "e.g. Chase UR → United MileagePlus (1:1)",
+    "transfer_chain": "e.g. ${isIndia ? 'HDFC Millennia → Air India Maharaja Club (1:1)' : 'Chase UR → United MileagePlus (1:1)'}",
     "notes": "Booking tip or sweet spot detail"
   },
   "hotel": {
-    "name": "Specific property (e.g. Park Hyatt Tokyo)",
+    "name": "Specific property (e.g. ${isIndia ? 'Taj Mahal Palace Mumbai' : 'Park Hyatt Tokyo'})",
     "chain": "Loyalty program name",
     "points_per_night": "e.g. 25,000 pts/night",
-    "transfer_chain": "e.g. Chase UR → World of Hyatt (1:1)",
+    "transfer_chain": "e.g. ${isIndia ? 'HDFC Millennia → Taj InnerCircle (2:1)' : 'Chase UR → World of Hyatt (1:1)'}",
     "notes": "Category, peak/off-peak, or availability note"
   },
-  "total_summary": "e.g. ~100,000 Chase UR for 2 nights + business class roundtrip",
+  "total_summary": "e.g. ~100,000 ${isIndia ? 'HDFC points' : 'Chase UR'} for 2 nights + business class roundtrip",
   "steps": ["Step 1 with specific platform/URL", "Step 2", "Step 3", "Step 4"],
   "tip": "Insider tip about award space, booking windows, or hidden value",
   "links": [

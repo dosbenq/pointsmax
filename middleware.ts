@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/')) {
     if (request.method === 'OPTIONS') {
       if (requestOrigin && !ALLOWED_CORS_ORIGINS.has(requestOrigin)) {
-        const denied = NextResponse.json({ error: 'Origin not allowed' }, { status: 403 })
+        const denied = NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Origin not allowed' } }, { status: 403 })
         denied.headers.set('x-request-id', requestId)
         applyCreatorRefCookie(denied, creatorSlug)
         return applySecurityHeaders(denied)

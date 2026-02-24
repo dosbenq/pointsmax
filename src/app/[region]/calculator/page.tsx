@@ -178,12 +178,8 @@ const ALERT_BANNER_DISMISSED_KEY = 'pm_alert_banner_dismissed_v1'
 // HELPERS
 // ─────────────────────────────────────────────
 
-// K2: Safe currency formatter - handles null, undefined, NaN
-function fmt(cents: number | null | undefined, symbol: string): string {
-  // Guard against falsy values (null, undefined, 0, NaN)
-  if (!cents || isNaN(cents)) {
-    return '—' // em-dash for unavailable value
-  }
+function fmt(cents: number | null | undefined, symbol: string) {
+  if (cents == null || !Number.isFinite(cents)) return '—'
   return `${symbol}${new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
   }).format(cents / 100)}`
@@ -923,6 +919,15 @@ export default function CalculatorPage() {
     if (balances.length === 0) {
       setCalcError('Select at least one program and enter a balance.')
       trackEvent('calculator_calculate_blocked', { reason: 'no_balances', region })
+      return
+    }
+
+    // Validate program IDs against loaded programs (Q6)
+    const validProgramIds = new Set(programs.map(p => p.id))
+    const invalidBalances = balances.filter(b => !validProgramIds.has(b.program_id))
+    if (invalidBalances.length > 0) {
+      setCalcError('One or more selected programs are invalid. Please refresh and try again.')
+      trackEvent('calculator_calculate_blocked', { reason: 'invalid_program_ids', region })
       return
     }
 
