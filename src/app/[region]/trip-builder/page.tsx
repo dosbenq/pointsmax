@@ -128,6 +128,12 @@ export default function TripBuilderPage() {
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0])
   const msgTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Clear balances when region changes
+  useEffect(() => {
+    setRows([{ id: '1', program_id: '', amount: '' }])
+    setResult(null)
+  }, [region])
+
   useEffect(() => {
     fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`)
       .then(r => {
@@ -145,10 +151,10 @@ export default function TripBuilderPage() {
       })
   }, [region])
 
-  // Auto-load balances if logged in
+  // Auto-load balances if logged in (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch('/api/user/balances')
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
       .then(r => {
         if (!r.ok) {
           console.error('Failed to load user balances:', r.statusText)
@@ -169,7 +175,7 @@ export default function TripBuilderPage() {
         console.error('Error fetching user balances:', err)
         setError('Failed to load your balances. Please try again.')
       })
-  }, [user])
+  }, [user, region])
 
   useEffect(() => {
     if (hotelNightsManuallySet) return

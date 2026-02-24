@@ -145,6 +145,12 @@ export default function AwardSearchPage() {
   const [watchSaving, setWatchSaving] = useState(false)
   const [watchStatus, setWatchStatus] = useState<string | null>(null)
 
+  // Clear balances when region changes
+  useEffect(() => {
+    setRows([{ id: 'seed-1', program_id: '', amount: '' }])
+    setResult(null)
+  }, [region])
+
   useEffect(() => {
     fetch(`/api/programs?region=${region.toUpperCase()}`)
       .then(async (res) => {
@@ -155,9 +161,10 @@ export default function AwardSearchPage() {
       .catch(() => setError('Failed to load program data. Please refresh and try again.'))
   }, [region])
 
+  // Load balances (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch('/api/user/balances')
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load balances (${res.status})`)
         return res.json() as Promise<{ balances?: Array<{ program_id: string; balance: number }> }>
@@ -176,7 +183,7 @@ export default function AwardSearchPage() {
       .catch(() => {
         // Keep form usable without blocking on profile data.
       })
-  }, [user])
+  }, [user, region])
 
   const byType = (type: Program['type']) => programs.filter((p) => p.type === type)
   const addRow = () => setRows((prev) => [...prev, { id: Date.now().toString(), program_id: '', amount: '' }])

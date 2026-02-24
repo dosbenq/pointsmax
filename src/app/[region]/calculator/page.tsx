@@ -854,6 +854,13 @@ export default function CalculatorPage() {
   const statusTimer   = useRef<ReturnType<typeof setInterval> | null>(null)
   const milestoneFired = useRef<Set<string>>(new Set())
 
+  // Clear balances when region changes (user will see empty wallet or load region-specific balances)
+  useEffect(() => {
+    setRows([{ id: '1', program_id: '', amount: '' }])
+    setResult(null)
+    setAwardResult(null)
+  }, [region])
+
   // K1: Load programs for the current region with loading state and validation
   useEffect(() => {
     setProgramsLoading(true)
@@ -899,18 +906,24 @@ export default function CalculatorPage() {
     }
   }, [user, alertEmailInput])
 
-  // Load saved balances on sign-in
+  // Load saved balances on sign-in (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch('/api/user/balances').then(r => r.json()).then(({ balances }) => {
-      if (!balances?.length) return
-      setRows(balances.map((b: { program_id: string; balance: number }, i: number) => ({
-        id: String(i + 1),
-        program_id: b.program_id,
-        amount: String(Math.max(0, Math.round(b.balance))),
-      })))
-    })
-  }, [user])
+    fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`)
+      .then(r => r.json())
+      .then(({ balances }) => {
+        if (!balances?.length) {
+          // No balances for this region - reset to single empty row
+          setRows([{ id: '1', program_id: '', amount: '' }])
+          return
+        }
+        setRows(balances.map((b: { program_id: string; balance: number }, i: number) => ({
+          id: String(i + 1),
+          program_id: b.program_id,
+          amount: String(Math.max(0, Math.round(b.balance))),
+        })))
+      })
+  }, [user, region])
 
   // Sync preferences form when preferences load
   useEffect(() => {

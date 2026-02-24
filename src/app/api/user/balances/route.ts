@@ -16,7 +16,8 @@ async function getCurrentUserRowId(
 }
 
 // GET /api/user/balances — returns saved balances for current user
-export async function GET() {
+// Query params: ?region=IN|US (optional, filters balances by program geography)
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -24,12 +25,43 @@ export async function GET() {
   const userId = await getCurrentUserRowId(supabase, user.id)
   if (!userId) return NextResponse.json({ balances: [] })
 
-  const { data: balances } = await supabase
+  // Get region filter from query params
+  const url = new URL(request.url)
+  const regionRaw = (url.searchParams.get('region') ?? '').trim().toUpperCase()
+  const region = regionRaw === 'US' || regionRaw === 'IN' ? regionRaw : null
+
+  // Build base query - join with programs to get geography
+  let query = supabase
     .from('user_balances')
-    .select('program_id, balance')
+    .select(`
+      program_id, 
+      balance,
+      programs!inner(geography)
+    `)
     .eq('user_id', userId)
 
-  return NextResponse.json({ balances: balances ?? [] })
+  // If region specified, filter to only include:
+  // - Programs with matching geography
+  // - Programs with 'global' geography (hotels, airlines shared across regions)
+  if (region) {
+    query = query.in('programs.geography', [region, 'global'])
+  }
+
+  const { data: balances, error } = await query
+
+  if (error) {
+    console.error('user_balances_fetch_failed', { user_id: userId, error: error.message })
+    return NextResponse.json({ balances: [] })
+  }
+
+  // Transform to simple format (remove joined programs data)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const simplifiedBalances = (balances ?? []).map((b: any) => ({
+    program_id: String(b.program_id),
+    balance: Number(b.balance),
+  }))
+
+  return NextResponse.json({ balances: simplifiedBalances })
 }
 
 // POST /api/user/balances — upserts balances for current user

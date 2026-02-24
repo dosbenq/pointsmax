@@ -156,9 +156,15 @@ export default function InspirePage() {
       .catch(() => setError('Failed to load program data. Please refresh and try again.'))
   }, [regionCode])
 
+  // Clear balances when region changes
+  useEffect(() => {
+    setRows([{ id: 'seed-1', program_id: '', amount: '' }])
+  }, [regionCode])
+
+  // Load balances (region-specific)
   useEffect(() => {
     if (!user) return
-    fetch('/api/user/balances')
+    fetch(`/api/user/balances?region=${encodeURIComponent(regionCode.toUpperCase())}`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load balances (${res.status})`)
         return res.json() as Promise<{ balances?: Array<{ program_id: string; balance: number }> }>
@@ -175,7 +181,7 @@ export default function InspirePage() {
         )
       })
       .catch((err) => console.warn('Failed to load user balances:', err))
-  }, [user])
+  }, [user, regionCode])
 
   const addRow = () => setRows((prev) => [...prev, { id: Date.now().toString(), program_id: '', amount: '' }])
   const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id))
