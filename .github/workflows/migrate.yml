@@ -46,7 +46,7 @@ jobs:
         # Supabase SQL Editor before this automation existed. The CLI has no record
         # of them. Mark them as applied so db push only runs truly new migrations.
         # Safe to re-run: `migration repair` is idempotent.
-        # IMPORTANT: Do NOT include the latest migration here — let db push apply it.
+        # IMPORTANT: Do NOT include 021 here — let db push apply it.
         run: |
           ALREADY_APPLIED=(
             001_initial_schema
@@ -71,9 +71,12 @@ jobs:
             020_admin_audit_log
           )
           for version in "${ALREADY_APPLIED[@]}"; do
-            supabase migration repair --status applied "$version" 2>&1 || true
+            echo "Marking $version as applied..."
+            supabase migration repair --linked --status applied "$version"
           done
           echo "Bootstrap reconcile complete — 001-020 marked as applied."
+          echo "Current remote migration state:"
+          supabase migration list --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
