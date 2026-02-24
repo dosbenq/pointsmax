@@ -262,7 +262,11 @@ All other variables (Stripe, Resend, PostHog, Sentry, Upstash, Inngest) are opti
 5. Deploy
 
 ### After first deploy
-1. Set `APP_URL` GitHub Actions secret (repo → Settings → Secrets → Actions) — used by Supabase keepalive
+1. Set GitHub Actions secrets (repo → Settings → Secrets → Actions):
+   - `APP_URL` → your Vercel URL (used by Supabase keepalive)
+   - `SUPABASE_ACCESS_TOKEN` → from supabase.com/dashboard/account/tokens
+   - `SUPABASE_PROJECT_REF` → your project ref (the subdomain in your Supabase URL, e.g. `abcdefghijklm`)
+   - `SUPABASE_DB_PASSWORD` → your Supabase database password
 2. Register Inngest app: Inngest dashboard → Apps → Sync → `https://your-app.vercel.app/api/inngest`
 3. Register Stripe webhook: Stripe dashboard → Developers → Webhooks → `https://your-app.vercel.app/api/stripe/webhook`
    - Events: `checkout.session.completed`, `customer.subscription.deleted`, `customer.subscription.updated`
@@ -353,15 +357,89 @@ _To be completed by PM before launch._
 
 ---
 
+## CI/CD Pipeline
+
+Every push and PR runs the full automated pipeline. **Nothing reaches production without passing all gates.**
+
+```
+Developer pushes branch
+        │
+        ▼
+┌───────────────────────────────────┐
+│  CI (on every push + PR)          │  ← blocks merge if any step fails
+│  1. ESLint                        │
+│  2. TypeScript check (tsc)        │
+│  3. Unit tests (Vitest)           │
+│  4. Production build              │
+│  5. HTTP smoke test               │
+│  6. Migration numbering check     │
+└───────────────────────────────────┘
+        │ (merge to main)
+        ▼
+┌───────────────────────────────────┐
+│  Vercel                           │  ← auto-deploys on main push
+│  Builds + deploys to production   │
+└───────────────────────────────────┘
+        │ (if migration files changed)
+        ▼
+┌───────────────────────────────────┐
+│  migrate.yml                      │  ← zero manual DB work
+│  supabase db push --linked        │
+│  Post-migration schema check      │
+└───────────────────────────────────┘
+        │ (every 5 days)
+        ▼
+┌───────────────────────────────────┐
+│  supabase-keepalive.yml           │  ← prevents free tier DB pause
+│  curl /api/health                 │
+└───────────────────────────────────┘
+```
+
+### Workflow files
+| File | Trigger | Purpose |
+|---|---|---|
+| `ci.yml` | Every push + PR | Lint, types, tests, build, smoke, migration numbering |
+| `migrate.yml` | Push to main (migrations changed) | Auto-apply DB migrations to production |
+| `supabase-keepalive.yml` | Every 5 days | Ping /api/health to prevent Supabase free tier pause |
+| `automation-watchdog.yml` | Scheduled | Monitor Inngest function health |
+| `link-health.yml` | Scheduled | Check affiliate link status |
+| `release-gate.yml` | Manual dispatch | Full preflight before a major release |
+
+### Required GitHub Secrets
+| Secret | Where to get it | Used by |
+|---|---|---|
+| `APP_URL` | Your Vercel URL | keepalive, smoke tests |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens | migrate.yml |
+| `SUPABASE_PROJECT_REF` | Supabase project URL subdomain | migrate.yml |
+| `SUPABASE_DB_PASSWORD` | Supabase → Settings → Database | migrate.yml |
+
+---
+
 ## Contributing
 
-This project is built with [Codex](https://openai.com/codex) for implementation and Claude Code for architecture/review. All tasks are tracked in [`CODEX_TASKS.md`](./CODEX_TASKS.md).
+This project uses:
+- **Codex** for sprint implementation (tasks defined in `CODEX_TASKS.md`)
+- **Claude Code** for architecture, code review, and planning
 
-Before starting a task:
-1. Read the full task description in `CODEX_TASKS.md`
-2. Read the referenced files — do not modify code you haven't read
-3. Run `npm run build` before and after changes
-4. All sprints have explicit acceptance criteria — verify them before marking done
+### Developer workflow (for all contributors including Codex and Kimi)
+1. **Never push directly to `main`** — always work on a branch
+2. Open a PR — CI runs automatically (lint + typecheck + tests + build)
+3. PR cannot merge if CI fails — this is enforced
+4. Once merged, Vercel deploys automatically and migrations apply automatically
+
+### Before starting any task
+1. Read the full task description in `CODEX_TASKS.md` — do not skim
+2. Read every file you plan to change — do not modify code you haven't read
+3. Run `npm run build` locally before opening a PR
+4. Each task has explicit acceptance criteria — verify all of them
+
+### Code review checklist
+- [ ] `npm run build` passes with zero warnings
+- [ ] No hardcoded secrets or API keys
+- [ ] No `any` TypeScript types introduced
+- [ ] New migrations are numbered sequentially (CI enforces this automatically)
+- [ ] No `console.log` left in production code
+- [ ] Region-aware: India pages show ₹, US pages show $
 
 ---
 
