@@ -124,10 +124,14 @@ export async function GET(request: Request) {
   for (const rate of rates) {
     if (!ratesByCard.has(rate.card_id)) {
       ratesByCard.set(rate.card_id, {
-        dining: 1, groceries: 1, travel: 1, gas: 1, streaming: 1, other: 1,
+        dining: 1, groceries: 1, travel: 1, gas: 1, shopping: NaN, streaming: 1, other: 1,
       })
     }
-    ratesByCard.get(rate.card_id)![rate.category as SpendCategory] = Number(rate.earn_multiplier)
+    const existing = ratesByCard.get(rate.card_id)!
+    const category = rate.category as SpendCategory
+    if (category in existing) {
+      existing[category] = Number(rate.earn_multiplier)
+    }
   }
 
   const result: CardWithRates[] = cards.map(card => {
@@ -146,9 +150,15 @@ export async function GET(request: Request) {
       program_name: val?.program_name ?? 'Unknown',
       program_slug: val?.program_slug ?? '',
       cpp_cents: normalizedCppCents,
-      earning_rates: ratesByCard.get(card.id) ?? {
-        dining: 1, groceries: 1, travel: 1, gas: 1, streaming: 1, other: 1,
-      },
+      earning_rates: (() => {
+        const base = ratesByCard.get(card.id) ?? {
+          dining: 1, groceries: 1, travel: 1, gas: 1, shopping: NaN, streaming: 1, other: 1,
+        }
+        if (!Number.isFinite(base.shopping) || base.shopping <= 0) {
+          base.shopping = base.other
+        }
+        return base
+      })(),
     }
   })
 

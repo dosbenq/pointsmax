@@ -44,7 +44,7 @@ type Program = {
   name: string
   short_name: string
   slug: string
-  cpp_cents: number
+  cpp_cents?: number
 }
 
 // X1: Hero copy variations by region - focused on value gap
@@ -54,14 +54,14 @@ const HERO_COPY: Record<Region, {
   trustSignal: string
 }> = {
   us: {
-    headline: 'Stop leaving 3× value on the table.',
-    subhead: 'PointsMax shows you the exact redemption that maximizes your Chase, Amex, and Citi points — before you commit.',
-    trustSignal: 'No credit card needed · Your data stays private',
+    headline: 'Stop leaving money on the table with your points.',
+    subhead: 'PointsMax finds the redemption that gets you 3–5× more value than cash back — across all your cards.',
+    trustSignal: 'Free · No signup required · Takes 30 seconds',
   },
   in: {
-    headline: 'Most HDFC Infinia holders redeem points at ₹0.33 each. You can get ₹1.50.',
-    subhead: 'PointsMax finds the redemption path that multiplies your points — before you transfer.',
-    trustSignal: 'No credit card needed · Your data stays private',
+    headline: 'Your credit card points are worth more than you think.',
+    subhead: 'PointsMax calculates the real value of your points and shows you the highest-value redemption — before you transfer.',
+    trustSignal: 'Free · No signup required · Takes 30 seconds',
   },
 }
 
@@ -122,27 +122,25 @@ const OUTCOMES_IN = [
 
 // X2: Quick value widget - programs and their CPP values
 // K1: Region-specific fallbacks - must never mix US/India programs
-const WIDGET_PROGRAMS: Record<Region, { slug: string; name: string; cpp: number }[]> = {
-  us: [
-    { slug: 'chase-ur', name: 'Chase Ultimate Rewards', cpp: 2.0 },
-    { slug: 'amex-mr', name: 'Amex Membership Rewards', cpp: 2.0 },
-    { slug: 'capital-one-miles', name: 'Capital One Miles', cpp: 1.8 },
-    { slug: 'citi-thankyou', name: 'Citi ThankYou Points', cpp: 1.8 },
-    { slug: 'bilt', name: 'Bilt Rewards', cpp: 1.8 },
-    { slug: 'united-mileageplus', name: 'United MileagePlus', cpp: 1.2 },
-    { slug: 'delta-skymiles', name: 'Delta SkyMiles', cpp: 1.0 },
-    { slug: 'american-aadvantage', name: 'American AAdvantage', cpp: 1.3 },
-    { slug: 'hyatt-points', name: 'World of Hyatt', cpp: 1.7 },
-  ],
-  in: [
-    { slug: 'hdfc-millennia', name: 'HDFC Millennia', cpp: 50 }, // paise
-    { slug: 'axis-edge', name: 'Axis EDGE Rewards', cpp: 50 },
-    { slug: 'amex-india-mr', name: 'Amex India MR', cpp: 75 },
-    { slug: 'air-india', name: 'Air India Maharaja Club', cpp: 100 },
-    { slug: 'indigo-6e', name: 'IndiGo 6E Rewards', cpp: 100 },
-    { slug: 'taj-innercircle', name: 'Taj InnerCircle', cpp: 100 },
-  ],
-}
+const WIDGET_PROGRAMS_US = [
+  { slug: 'chase-ur', name: 'Chase Ultimate Rewards', cpp: 2.0 },
+  { slug: 'amex-mr', name: 'Amex Membership Rewards', cpp: 2.0 },
+  { slug: 'capital-one', name: 'Capital One Miles', cpp: 1.8 },
+  { slug: 'citi-thankyou', name: 'Citi ThankYou Points', cpp: 1.8 },
+  { slug: 'bilt', name: 'Bilt Rewards', cpp: 1.8 },
+  { slug: 'united', name: 'United MileagePlus', cpp: 1.2 },
+  { slug: 'delta', name: 'Delta SkyMiles', cpp: 1.0 },
+  { slug: 'american', name: 'American AAdvantage', cpp: 1.3 },
+]
+
+const WIDGET_PROGRAMS_IN = [
+  { slug: 'hdfc-millennia', name: 'HDFC Millennia', cpp: 50 }, // paise
+  { slug: 'axis-edge', name: 'Axis EDGE Rewards', cpp: 50 },
+  { slug: 'amex-india-mr', name: 'Amex India MR', cpp: 75 },
+  { slug: 'air-india', name: 'Air India Maharaja Club', cpp: 100 },
+  { slug: 'indigo-6e', name: 'IndiGo 6E Rewards', cpp: 100 },
+  { slug: 'taj-innercircle', name: 'Taj InnerCircle', cpp: 100 },
+]
 
 export default function LandingPage() {
   const params = useParams()
@@ -158,7 +156,14 @@ export default function LandingPage() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [selectedProgram, setSelectedProgram] = useState<string>('')
   const [pointInput, setPointInput] = useState<string>('')
-  const widgetPrograms = WIDGET_PROGRAMS[region]
+  const widgetPrograms = region === 'in' ? WIDGET_PROGRAMS_IN : WIDGET_PROGRAMS_US
+  const effectiveSelectedProgram = useMemo(() => {
+    const options = programs.length > 0
+      ? programs.slice(0, 8).map((p) => p.slug)
+      : widgetPrograms.map((p) => p.slug)
+    if (options.includes(selectedProgram)) return selectedProgram
+    return options[0] ?? ''
+  }, [programs, selectedProgram, widgetPrograms])
 
   // Hero copy for this region
   const heroCopy = HERO_COPY[region]
@@ -181,9 +186,11 @@ export default function LandingPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setPrograms(data)
-          if (data.length > 0) {
-            setSelectedProgram(data[0].id)
-          }
+          setSelectedProgram((prev) => {
+            if (data.length === 0) return prev
+            if (data.some((p: Program) => p.slug === prev)) return prev
+            return data[0].slug
+          })
         }
       })
       .catch(() => {})
@@ -202,21 +209,12 @@ export default function LandingPage() {
   // X2: Calculate quick value
   const quickValue = useMemo(() => {
     const points = parseInt(pointInput.replace(/[^\d]/g, ''), 10)
-    if (!points || !selectedProgram) return null
-    
-    // Try to find program from API data first
-    let cppValue: number | null = null
-    
-    if (programs.length > 0) {
-      // Using API data - match by id
-      const program = programs.find(p => p.id === selectedProgram)
-      if (program) cppValue = program.cpp_cents
-    } else {
-      // Using fallback data - match by slug
-      const fallbackProgram = widgetPrograms.find(p => p.slug === selectedProgram)
-      if (fallbackProgram) cppValue = fallbackProgram.cpp
-    }
-    
+    if (!points || !effectiveSelectedProgram) return null
+
+    const fallbackProgram = widgetPrograms.find((p) => p.slug === effectiveSelectedProgram)
+    const apiProgram = programs.find((p) => p.slug === effectiveSelectedProgram)
+    const cppValue = fallbackProgram?.cpp ?? apiProgram?.cpp_cents ?? null
+
     if (cppValue === null) return null
     
     if (region === 'in') {
@@ -228,11 +226,13 @@ export default function LandingPage() {
       const usdValue = (points * cppValue) / 100
       return `$${Math.round(usdValue).toLocaleString()}`
     }
-  }, [pointInput, selectedProgram, programs, widgetPrograms, region])
+  }, [pointInput, effectiveSelectedProgram, programs, widgetPrograms, region])
 
   const entryPaths = [
     {
-      href: `/${region}/award-search`,
+      href: region === 'in'
+        ? `/${region}/award-search?origin=DEL&destination=LHR`
+        : `/${region}/award-search?origin=JFK&destination=LHR`,
       title: 'Quick Award Check',
       body: 'Know your route? Search flights and transfer paths directly.',
       badge: 'Fastest',
@@ -257,7 +257,8 @@ export default function LandingPage() {
 
   const handleStart = () => {
     trackEvent('landing_cta_clicked', { location: 'hero', authenticated: Boolean(user), region })
-    if (!user) signInWithGoogle()
+    const el = document.getElementById('quick-value-widget')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
@@ -286,19 +287,9 @@ export default function LandingPage() {
                 )}
                 
                 <div className="flex flex-wrap items-center gap-3">
-                  {user ? (
-                    <Link
-                      href={`/${region}/calculator`}
-                      className="pm-button"
-                      onClick={() => trackEvent('landing_cta_clicked', { location: 'hero', authenticated: true, region })}
-                    >
-                      Start free analysis
-                    </Link>
-                  ) : (
-                    <button onClick={handleStart} className="pm-button">
-                      Start free analysis
-                    </button>
-                  )}
+                  <button onClick={handleStart} className="pm-button">
+                    Check my points value
+                  </button>
                   <Link
                     href={`/${region}/how-it-works`}
                     className="text-sm font-semibold text-pm-accent hover:text-pm-accent-strong"
@@ -314,7 +305,7 @@ export default function LandingPage() {
 
               {/* Right: X2 Quick Value Widget */}
               <div className="lg:col-span-5">
-                <div className="pm-card-soft p-6 sm:p-7">
+                <div id="quick-value-widget" className="pm-card-soft p-6 sm:p-7">
                   <p className="pm-label mb-2">Quick value check</p>
                   <h2 className="pm-heading text-xl mb-4">What are your points worth?</h2>
                   
@@ -323,13 +314,13 @@ export default function LandingPage() {
                     <div>
                       <label className="pm-label block mb-1.5">I have</label>
                       <select
-                        value={selectedProgram}
+                        value={effectiveSelectedProgram}
                         onChange={(e) => setSelectedProgram(e.target.value)}
                         className="pm-input"
                       >
                         {programs.length > 0 ? (
                           programs.slice(0, 8).map((p) => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
+                            <option key={p.id} value={p.slug}>{p.name}</option>
                           ))
                         ) : (
                           widgetPrograms.map((p) => (

@@ -12,9 +12,33 @@ export const CATEGORIES: { key: SpendCategory; label: string; icon: string }[] =
   { key: 'groceries', label: 'Groceries', icon: '🛒' },
   { key: 'travel', label: 'Travel', icon: '✈️' },
   { key: 'gas', label: 'Gas', icon: '⛽' },
+  { key: 'shopping', label: 'Shopping', icon: '🛍️' },
   { key: 'streaming', label: 'Streaming', icon: '📺' },
   { key: 'other', label: 'Other', icon: '🛍️' },
 ]
+
+export function getCategoriesForRegion(region: 'us' | 'in'): { key: SpendCategory; label: string; icon: string }[] {
+  if (region === 'in') {
+    return [
+      { key: 'dining', label: 'Dining', icon: '🍽️' },
+      { key: 'groceries', label: 'Groceries', icon: '🛒' },
+      { key: 'travel', label: 'Travel', icon: '✈️' },
+      { key: 'gas', label: 'Fuel', icon: '⛽' },
+      { key: 'shopping', label: 'Shopping', icon: '🛍️' },
+      { key: 'streaming', label: 'Streaming', icon: '📺' },
+      { key: 'other', label: 'Other', icon: '📦' },
+    ]
+  }
+
+  return [
+    { key: 'dining', label: 'Dining', icon: '🍽️' },
+    { key: 'groceries', label: 'Groceries', icon: '🛒' },
+    { key: 'travel', label: 'Travel', icon: '✈️' },
+    { key: 'gas', label: 'Gas', icon: '⛽' },
+    { key: 'streaming', label: 'Streaming', icon: '📺' },
+    { key: 'other', label: 'Other', icon: '🛍️' },
+  ]
+}
 
 export const PROGRAM_GOAL_MAP: Record<string, string[]> = {
   // Current program slugs in database

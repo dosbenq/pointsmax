@@ -23,6 +23,32 @@ interface ValidationResult {
   values: Record<string, string | number | boolean>
 }
 
+function validateCorsAllowedOrigins(value: string): boolean | string {
+  const trimmed = value.trim()
+  if (!trimmed) return 'Must not be empty'
+  if (trimmed === '*') return true
+
+  const origins = trimmed
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (origins.length === 0) return 'Must contain at least one origin'
+
+  for (const origin of origins) {
+    try {
+      const parsed = new URL(origin)
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return `Invalid origin '${origin}': must use http or https`
+      }
+    } catch {
+      return `Invalid origin '${origin}': must be a valid URL`
+    }
+  }
+
+  return true
+}
+
 // Required environment variables for production
 const REQUIRED_ENV_VARS: EnvVarConfig[] = [
   // Supabase (Critical)
@@ -64,7 +90,7 @@ const REQUIRED_ENV_VARS: EnvVarConfig[] = [
   { name: 'ADMIN_API_KEY', type: 'string', required: false, validate: (v) => v.length >= 32 || 'Must be at least 32 characters' },
 
   // Security (Optional)
-  { name: 'CORS_ALLOWED_ORIGINS', type: 'url', required: false },
+  { name: 'CORS_ALLOWED_ORIGINS', type: 'string', required: false, validate: validateCorsAllowedOrigins },
 ]
 
 function validateValue(value: string, config: EnvVarConfig): string | null {

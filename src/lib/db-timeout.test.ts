@@ -83,7 +83,7 @@ describe('db-timeout', () => {
 
     it('rejects when concurrent query limit exceeded', async () => {
       // Create many concurrent queries to hit the limit
-      const promises: Promise<any>[] = []
+      const promises: Promise<unknown>[] = []
       
       for (let i = 0; i < 60; i++) {
         promises.push(

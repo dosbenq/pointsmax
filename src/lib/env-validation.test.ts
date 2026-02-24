@@ -48,6 +48,16 @@ describe('env-validation', () => {
       expect(result.errors.some(e => e.includes('NEXT_PUBLIC_SUPABASE_URL'))).toBe(true)
     })
 
+    it('accepts comma-separated CORS origins', () => {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key'
+      process.env.NEXT_PUBLIC_APP_URL = 'https://pointsmax.com'
+      process.env.CORS_ALLOWED_ORIGINS = 'https://pointsmax.com, https://app.pointsmax.com'
+
+      const result = validateEnv()
+      expect(result.valid).toBe(true)
+    })
+
     it('accepts valid URLs', () => {
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-key'

@@ -1164,6 +1164,7 @@ export default function CalculatorPage() {
     const namedBalances = rows
       .filter(r => r.program_id && r.amount)
       .map(r => ({
+        program_id: r.program_id,
         name: programs.find(p => p.id === r.program_id)?.name ?? r.program_id,
         amount: parsePointsInput(r.amount),
       }))
