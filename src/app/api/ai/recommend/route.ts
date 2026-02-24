@@ -1,11 +1,12 @@
 import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
+import { createServerDbClient } from '@/lib/supabase'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
 // Known booking URLs — AI picks from these so it can't hallucinate links
-const BOOKING_URLS = `
+const BOOKING_URLS_US = `
 Known booking URLs (only use these exact URLs in links):
 - Chase UR transfer partners: https://www.ultimaterewards.com
 - Amex MR transfer partners: https://global.americanexpress.com/rewards/transfer
@@ -21,21 +22,66 @@ Known booking URLs (only use these exact URLs in links):
 - American AAdvantage award search: https://www.aa.com/homePage.do
 - Air France/KLM Flying Blue: https://www.flyingblue.com/en/spend/flights
 - British Airways Avios: https://www.britishairways.com/travel/home/public/en_us/
-- Air Canada Aeroplan: https://www.aircanada.com/ca/en/aco/home/aeroplan.html
+- Air Canada Aeroplan: https://aeroplan.com
 - Singapore KrisFlyer: https://www.singaporeair.com/en_UK/us/home
 - Turkish Miles&Smiles: https://www.turkishairlines.com/en-int/miles-and-smiles/
 - Avianca LifeMiles: https://www.lifemiles.com/fly/search
 `.trim()
 
-type Balance = { name: string; amount: number }
+const BOOKING_URLS_IN = `
+Known booking URLs (only use these exact URLs in links):
+- HDFC transfer/rewards: https://www.hdfcbank.com/personal/pay/cards/credit-cards/reward-points
+- Axis EDGE rewards: https://www.axisbank.com/retail/cards/credit-card/edge-rewards
+- Amex India Membership Rewards: https://www.americanexpress.com/en-in/rewards/membership-rewards/
+- Air India Maharaja Club: https://www.airindia.com/in/en/maharaja-club.html
+- IndiGo 6E Rewards: https://www.goindigo.in/6e-rewards.html
+- Taj InnerCircle: https://www.tajhotels.com/en-in/tajinnercircle/
+- Accor ALL points: https://all.accor.com/loyalty-program/redeem-your-points/index.en.shtml
+`.trim()
+
+type Balance = { name: string; amount: number; program_id?: string }
 type TopResult = {
   category?: string
   label: string
-  from_program?: { name?: string }
-  to_program?: { name?: string } | null
+  from_program?: { id?: string; name?: string; slug?: string }
+  to_program?: { id?: string; name?: string; slug?: string } | null
   total_value_cents: number
   cpp_cents: number
   active_bonus_pct?: number
+}
+
+type RegionCode = 'us' | 'in'
+
+type RegionContext = {
+  code: RegionCode
+  currency: 'USD' | 'INR'
+  currencySymbol: '$' | '₹'
+  cppUnitLabel: string
+  displayName: string
+}
+
+type ProgramContextRow = {
+  id: string
+  name: string
+  slug: string
+  cpp_cents: number | null
+}
+
+const REGION_CONTEXT: Record<RegionCode, RegionContext> = {
+  us: {
+    code: 'us',
+    currency: 'USD',
+    currencySymbol: '$',
+    cppUnitLabel: '¢/pt',
+    displayName: 'United States',
+  },
+  in: {
+    code: 'in',
+    currency: 'INR',
+    currencySymbol: '₹',
+    cppUnitLabel: 'paise/pt',
+    displayName: 'India',
+  },
 }
 
 type AiSafeModeResponse = {
@@ -67,21 +113,122 @@ function getSafeAppUrl(): string {
   }
 }
 
-function buildSafeModeResponse(topResults: TopResult[]): AiSafeModeResponse {
+function normalizeRegion(value: unknown): RegionCode {
+  return value === 'in' ? 'in' : 'us'
+}
+
+function formatMinorCurrency(valueCents: number, regionCtx: RegionContext): string {
+  return (valueCents / 100).toLocaleString('en-US', {
+    style: 'currency',
+    currency: regionCtx.currency,
+    maximumFractionDigits: 0,
+  })
+}
+
+function formatCpp(cppCents: number, regionCtx: RegionContext): string {
+  if (regionCtx.code === 'in') {
+    return `${Math.round(cppCents)} paise/pt`
+  }
+  return `${cppCents.toFixed(2)}¢/pt`
+}
+
+async function fetchProgramContext(
+  balances: Balance[],
+  topResults: TopResult[],
+  regionCtx: RegionContext,
+): Promise<ProgramContextRow[]> {
+  const db = createServerDbClient()
+  const regionGeo = regionCtx.code.toUpperCase()
+
+  const { data: programsData, error: programsError } = await db
+    .from('programs')
+    .select('id, name, slug, geography')
+    .eq('is_active', true)
+    .in('geography', ['global', regionGeo])
+
+  if (programsError) return []
+
+  const { data: valuationData, error: valuationError } = await db
+    .from('latest_valuations')
+    .select('program_id, cpp_cents')
+
+  if (valuationError) return []
+
+  const valuations = new Map<string, number>(
+    (valuationData ?? [])
+      .map((row) => {
+        const programId = typeof row.program_id === 'string' ? row.program_id : ''
+        const cpp = typeof row.cpp_cents === 'number' && Number.isFinite(row.cpp_cents) ? row.cpp_cents : NaN
+        if (!programId || !Number.isFinite(cpp)) return null
+        return [programId, cpp] as const
+      })
+      .filter((row): row is readonly [string, number] => row !== null),
+  )
+
+  const programs = (programsData ?? [])
+    .map((row) => ({
+      id: typeof row.id === 'string' ? row.id : '',
+      name: typeof row.name === 'string' ? row.name : '',
+      slug: typeof row.slug === 'string' ? row.slug : '',
+    }))
+    .filter((row) => row.id && row.name && row.slug)
+
+  const programsById = new Map(programs.map((p) => [p.id, p]))
+  const programsByName = new Map(programs.map((p) => [p.name.toLowerCase(), p]))
+  const programsBySlug = new Map(programs.map((p) => [p.slug.toLowerCase(), p]))
+
+  const selected = new Map<string, ProgramContextRow>()
+  const attach = (programId: string) => {
+    const p = programsById.get(programId)
+    if (!p || selected.has(p.id)) return
+    selected.set(p.id, {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      cpp_cents: valuations.get(p.id) ?? null,
+    })
+  }
+
+  for (const b of balances) {
+    if (b.program_id) {
+      attach(b.program_id)
+      continue
+    }
+    const p = programsByName.get(b.name.toLowerCase())
+    if (p) attach(p.id)
+  }
+
+  for (const row of topResults) {
+    const fromId = row.from_program?.id
+    const toId = row.to_program?.id
+    if (fromId) attach(fromId)
+    if (toId) attach(toId)
+    const fromSlug = row.from_program?.slug?.toLowerCase()
+    const toSlug = row.to_program?.slug?.toLowerCase()
+    if (fromSlug) {
+      const p = programsBySlug.get(fromSlug)
+      if (p) attach(p.id)
+    }
+    if (toSlug) {
+      const p = programsBySlug.get(toSlug)
+      if (p) attach(p.id)
+    }
+  }
+
+  return [...selected.values()]
+}
+
+function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext): AiSafeModeResponse {
   const best = topResults[0]
   const bestValue = best
-    ? (best.total_value_cents / 100).toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    })
+    ? formatMinorCurrency(best.total_value_cents, regionCtx)
     : null
 
   const headline = best
     ? `Start with ${best.label}`
     : 'Start with your top redemption option'
   const reasoning = best
-    ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${best.cpp_cents.toFixed(2)} cents per point (about ${bestValue}).`
+    ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${formatCpp(best.cpp_cents, regionCtx)} (about ${bestValue}).`
     : 'AI is currently in safe mode, so this recommendation uses your pre-calculated results only.'
 
   return {
@@ -100,7 +247,7 @@ function buildSafeModeResponse(topResults: TopResult[]): AiSafeModeResponse {
       'Book immediately after transfer to reduce availability risk.',
     ],
     tip: 'Never transfer points speculatively. Confirm availability first.',
-    links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/calculator` }],
+    links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/${regionCtx.code}/calculator` }],
   }
 }
 
@@ -117,8 +264,9 @@ function toBalances(value: unknown): Balance[] {
     const amount = typeof entry.amount === 'number' && Number.isFinite(entry.amount)
       ? entry.amount
       : NaN
+    const program_id = typeof entry.program_id === 'string' ? entry.program_id : undefined
     if (!name || !Number.isFinite(amount) || amount < 0) continue
-    rows.push({ name, amount })
+    rows.push({ name, amount, program_id })
   }
   return rows.slice(0, 25)
 }
@@ -143,10 +291,18 @@ function toTopResults(value: unknown): TopResult[] {
 
     const category = typeof entry.category === 'string' ? entry.category : undefined
     const from_program = isRecord(entry.from_program)
-      ? { name: typeof entry.from_program.name === 'string' ? entry.from_program.name : undefined }
+      ? {
+        id: typeof entry.from_program.id === 'string' ? entry.from_program.id : undefined,
+        name: typeof entry.from_program.name === 'string' ? entry.from_program.name : undefined,
+        slug: typeof entry.from_program.slug === 'string' ? entry.from_program.slug : undefined,
+      }
       : undefined
     const to_program = isRecord(entry.to_program)
-      ? { name: typeof entry.to_program.name === 'string' ? entry.to_program.name : undefined }
+      ? {
+        id: typeof entry.to_program.id === 'string' ? entry.to_program.id : undefined,
+        name: typeof entry.to_program.name === 'string' ? entry.to_program.name : undefined,
+        slug: typeof entry.to_program.slug === 'string' ? entry.to_program.slug : undefined,
+      }
       : null
     const active_bonus_pct =
       typeof entry.active_bonus_pct === 'number' && Number.isFinite(entry.active_bonus_pct)
@@ -205,6 +361,8 @@ export async function POST(req: NextRequest) {
     return new Response(`message too long (max ${MAX_MESSAGE_CHARS} chars)`, { status: 400 })
   }
 
+  const region = normalizeRegion(payload.region)
+  const regionCtx = REGION_CONTEXT[region]
   const balances = toBalances(payload.balances)
   const topResults = toTopResults(payload.topResults)
   // K3: Return helpful message for empty balances instead of error
@@ -236,14 +394,27 @@ export async function POST(req: NextRequest) {
       reason: geminiDisabled ? 'gemini_disabled' : 'missing_api_key',
       latency_ms: Date.now() - startedAt,
     })
-    return new Response(JSON.stringify(buildSafeModeResponse(topResults)), {
+    return new Response(JSON.stringify(buildSafeModeResponse(topResults, regionCtx)), {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   }
 
+  const programContext = await fetchProgramContext(balances, topResults, regionCtx)
+
   // ── Build context (re-injected every turn via system prompt) ───
+  const programContextById = new Map(programContext.map((p) => [p.id, p]))
   const balanceSummary = balances
-    .map((b) => `  - ${b.name}: ${b.amount.toLocaleString()} points`)
+    .map((b) => {
+      if (!b.program_id) {
+        return `  - ${b.name}: ${b.amount.toLocaleString()} points`
+      }
+      const ctx = programContextById.get(b.program_id)
+      if (!ctx) {
+        return `  - ${b.name}: ${b.amount.toLocaleString()} points`
+      }
+      const cpp = typeof ctx.cpp_cents === 'number' ? ` · ${formatCpp(ctx.cpp_cents, regionCtx)}` : ''
+      return `  - ${ctx.name} (${ctx.slug}): ${b.amount.toLocaleString()} points${cpp}`
+    })
     .join('\n')
 
   const partnersByProgram: Record<string, string[]> = {}
@@ -266,14 +437,23 @@ export async function POST(req: NextRequest) {
     ? topResults
       .slice(0, 8)
       .map((r) => {
-        const dollars = (r.total_value_cents / 100).toLocaleString('en-US', {
-          style: 'currency', currency: 'USD', maximumFractionDigits: 0,
-        })
+        const displayValue = formatMinorCurrency(r.total_value_cents, regionCtx)
         const bonus = r.active_bonus_pct ? ` ⚡+${r.active_bonus_pct}% bonus` : ''
-        return `  - ${r.label}: ${dollars} (${r.cpp_cents.toFixed(2)}¢/pt)${bonus}`
+        return `  - ${r.label}: ${displayValue} (${formatCpp(r.cpp_cents, regionCtx)})${bonus}`
       })
       .join('\n')
     : '  (No pre-calculated redemption rows were provided for this chat turn.)'
+
+  const programCppSummary = programContext.length > 0
+    ? programContext
+      .map((p) => {
+        if (typeof p.cpp_cents !== 'number') {
+          return `  - ${p.name} (${p.slug}): valuation unavailable`
+        }
+        return `  - ${p.name} (${p.slug}): ${formatCpp(p.cpp_cents, regionCtx)}`
+      })
+      .join('\n')
+    : '  (No program valuation context found for this wallet.)'
 
   // ── User preferences context ────────────────────────────────────
   const todayDate = new Date().toLocaleDateString('en-US', {
@@ -320,13 +500,22 @@ ${partnerSummary}
 PRE-CALCULATED REDEMPTION VALUES:
 ${topValueSummary}
 
-${BOOKING_URLS}
+PROGRAM CPP REFERENCE (live DB values):
+${programCppSummary}
+
+REGION CONTEXT:
+- Region: ${regionCtx.displayName}
+- Currency: ${regionCtx.currencySymbol} (${regionCtx.currency})
+- Express valuations as ${regionCtx.cppUnitLabel}
+- For India, prioritize Indian programs and partners first (Air India Maharaja Club, Taj InnerCircle, Accor ALL, IndiGo 6E Rewards) when available.
+
+${regionCtx.code === 'in' ? BOOKING_URLS_IN : BOOKING_URLS_US}
 
 CONVERSATION RULES:
 1. If the user's first message is vague (no destination, dates, travelers, or cabin class), ask 2-3 friendly clarifying questions. Keep the message short and warm.
 2. Once you have enough info (destination + at least one of: dates/flexibility, travelers, cabin preference), give the full recommendation.
 3. If the user asks a follow-up question after a recommendation, answer it conversationally and update the recommendation if needed.
-4. Always reference the user's actual balances and any calculated dollar values provided.
+4. Always reference the user's actual balances and use ${regionCtx.currency} amounts for value examples.
 5. Only recommend transfer partners the user has access to.
 
 RESPONSE FORMAT — return ONLY valid JSON (no markdown, no code fences):

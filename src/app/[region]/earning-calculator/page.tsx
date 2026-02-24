@@ -7,14 +7,14 @@ import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 import {
-  CATEGORIES,
   formatCurrencyRounded,
+  getCategoriesForRegion,
   spendInputPrefix,
   yearlyPointsFromSpend,
 } from '@/lib/card-tools'
 import { REGIONS, type Region } from '@/lib/regions'
 
-type SpendInputs = Record<SpendCategory, string>
+type SpendInputs = Partial<Record<SpendCategory, string>>
 
 export default function EarningCalculatorPage() {
   const params = useParams()
@@ -23,12 +23,10 @@ export default function EarningCalculatorPage() {
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [spend, setSpend] = useState<SpendInputs>({
-    dining: '500', groceries: '400', travel: '300',
-    gas: '200', streaming: '50', other: '500',
-  })
+  const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set())
   const [allSelected, setAllSelected] = useState(true)
+  const categories = useMemo(() => getCategoriesForRegion(regionCode), [regionCode])
 
   useEffect(() => {
     fetch(`/api/cards?geography=${encodeURIComponent(regionCode.toUpperCase())}`)
@@ -78,9 +76,11 @@ export default function EarningCalculatorPage() {
     return cards
         .filter(c => selectedCards.has(c.id))
       .map(card => {
-        const pointsPerYear = CATEGORIES.reduce((sum, { key }) => {
-          const monthly = parseFloat(spend[key].replace(/,/g, '')) || 0
-          const multiplier = card.earning_rates[key] ?? 1
+        const pointsPerYear = categories.reduce((sum, { key }) => {
+          const monthly = parseFloat((spend[key] ?? '0').replace(/,/g, '')) || 0
+          const multiplier = key === 'shopping'
+            ? (card.earning_rates.shopping ?? card.earning_rates.other ?? 1)
+            : (card.earning_rates[key] ?? 1)
           return sum + yearlyPointsFromSpend({
             monthlySpend: monthly,
             earnMultiplier: multiplier,
@@ -92,7 +92,7 @@ export default function EarningCalculatorPage() {
         return { card, pointsPerYear, annualValue, netValue }
       })
       .sort((a, b) => b.netValue - a.netValue)
-  }, [cards, selectedCards, spend])
+  }, [cards, selectedCards, spend, categories])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -111,7 +111,7 @@ export default function EarningCalculatorPage() {
         <div className="pm-card-soft p-6">
           <h2 className="pm-heading text-lg mb-4">Monthly Spending ({config.id.toUpperCase()})</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {CATEGORIES.map(({ key, label, icon }) => (
+            {categories.map(({ key, label, icon }) => (
               <div key={key}>
                 <label className="pm-label block mb-1.5">
                   {icon} {label}
@@ -121,7 +121,7 @@ export default function EarningCalculatorPage() {
                   <input
                     type="number"
                     min="0"
-                    value={spend[key]}
+                    value={spend[key] ?? ''}
                     onChange={e => setSpend(p => ({ ...p, [key]: e.target.value }))}
                     className="pm-input pl-7"
                     placeholder="0"

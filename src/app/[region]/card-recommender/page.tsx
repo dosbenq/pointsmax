@@ -7,8 +7,8 @@ import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 import {
-  CATEGORIES,
   formatCurrencyRounded,
+  getCategoriesForRegion,
   spendInputPrefix,
   yearlyPointsFromSpend,
 } from '@/lib/card-tools'
@@ -23,7 +23,60 @@ const TRAVEL_GOALS = [
   { key: 'flex',       label: 'Transferable points flexibility' },
 ]
 
-type SpendInputs = Record<SpendCategory, string>
+type SpendInputs = Partial<Record<SpendCategory, string>>
+
+type SoftBenefitType =
+  | 'lounge_access'
+  | 'golf'
+  | 'concierge'
+  | 'hotel_status'
+  | 'travel_insurance'
+
+const SOFT_BENEFIT_COPY: Record<SoftBenefitType, string> = {
+  lounge_access: 'Lounge Access',
+  golf: 'Golf',
+  concierge: 'Concierge',
+  hotel_status: 'Hotel Status',
+  travel_insurance: 'Travel Insurance',
+}
+
+const SOFT_BENEFIT_VALUES: Record<'US' | 'IN', Record<SoftBenefitType, number>> = {
+  US: {
+    lounge_access: 500,
+    golf: 0,
+    concierge: 100,
+    hotel_status: 200,
+    travel_insurance: 150,
+  },
+  IN: {
+    lounge_access: 20000,
+    golf: 15000,
+    concierge: 10000,
+    hotel_status: 12000,
+    travel_insurance: 6000,
+  },
+}
+
+const CARD_SOFT_BENEFITS: Record<string, SoftBenefitType[]> = {
+  // India
+  'hdfc infinia': ['lounge_access', 'golf', 'concierge'],
+  'amex platinum (india)': ['lounge_access', 'hotel_status', 'concierge'],
+  'axis atlas': ['lounge_access', 'travel_insurance'],
+  // US
+  'amex platinum': ['lounge_access', 'hotel_status', 'concierge'],
+  'chase sapphire reserve': ['lounge_access', 'travel_insurance'],
+  'capital one venture x': ['lounge_access', 'travel_insurance'],
+}
+
+function getSoftBenefits(cardName: string): SoftBenefitType[] {
+  return CARD_SOFT_BENEFITS[cardName.trim().toLowerCase()] ?? []
+}
+
+function getSoftBenefitAnnualValue(cardName: string, regionCode: Region): number {
+  const regionKey = regionCode === 'in' ? 'IN' : 'US'
+  return getSoftBenefits(cardName)
+    .reduce((sum, benefit) => sum + (SOFT_BENEFIT_VALUES[regionKey][benefit] ?? 0), 0)
+}
 
 function goalMatchScore(card: CardWithRates, goals: Set<string>, programGoalMap: Record<string, string[]>): number {
   const programGoals = programGoalMap[card.program_slug] ?? []
@@ -55,6 +108,7 @@ export default function CardRecommenderPage() {
   const [ownedCards, setOwnedCards] = useState<Set<string>>(new Set())
   const [showResults, setShowResults] = useState(false)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
+  const categories = useMemo(() => getCategoriesForRegion(regionCode), [regionCode])
 
   // Reset spend when region changes
   useEffect(() => {
@@ -109,19 +163,23 @@ export default function CardRecommenderPage() {
   const results = useMemo(() => {
     if (!showResults) return []
     return cards
-      .filter(c => !ownedCards.has(c.id))
       .map(card => {
-        const pointsPerYear = CATEGORIES.reduce((sum, { key }) => {
-          const monthly = parseFloat(spend[key].replace(/,/g, '')) || 0
+        const pointsPerYear = categories.reduce((sum, { key }) => {
+          const monthly = parseFloat((spend[key] ?? '0').replace(/,/g, '')) || 0
           return sum + yearlyPointsFromSpend({
             monthlySpend: monthly,
-            earnMultiplier: card.earning_rates[key] ?? 1,
+            earnMultiplier: key === 'shopping'
+              ? (card.earning_rates.shopping ?? card.earning_rates.other ?? 1)
+              : (card.earning_rates[key] ?? 1),
             earnUnit: card.earn_unit,
           })
         }, 0)
-        const annualValue = (pointsPerYear * card.cpp_cents) / 100
+        const annualRewardsValue = (pointsPerYear * card.cpp_cents) / 100
         const signupValue = (card.signup_bonus_pts * card.cpp_cents) / 100
-        const firstYearValue = annualValue + signupValue - card.annual_fee_usd
+        const hasCardAlready = ownedCards.has(card.id)
+        const signupValueEligible = hasCardAlready ? 0 : signupValue
+        const softBenefitValue = getSoftBenefitAnnualValue(card.name, regionCode)
+        const firstYearValue = annualRewardsValue + signupValueEligible + softBenefitValue - card.annual_fee_usd
         const goalCount = goalMatchScore(card, travelGoals, config.programGoalMap)
         // K4: Heavy penalty/boost based on travel goal matching
         let finalScore: number
@@ -138,10 +196,22 @@ export default function CardRecommenderPage() {
           // No goal selected — rank purely by value
           finalScore = firstYearValue
         }
-        return { card, pointsPerYear, annualValue, signupValue, firstYearValue, goalCount, finalScore }
+        return {
+          card,
+          pointsPerYear,
+          annualRewardsValue,
+          signupValue,
+          signupValueEligible,
+          softBenefitValue,
+          softBenefits: getSoftBenefits(card.name),
+          firstYearValue,
+          goalCount,
+          finalScore,
+          hasCardAlready,
+        }
       })
       .sort((a, b) => b.finalScore - a.finalScore)
-  }, [cards, ownedCards, spend, travelGoals, showResults, config.programGoalMap])
+  }, [cards, ownedCards, spend, travelGoals, showResults, config.programGoalMap, categories, regionCode])
 
   const handleApplyClick = async (
     card: CardWithRates,
@@ -213,7 +283,7 @@ export default function CardRecommenderPage() {
         <div className="pm-card-soft p-6">
           <h2 className="pm-heading text-lg mb-4">Monthly Spending ({config.id.toUpperCase()})</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {CATEGORIES.map(({ key, label, icon }) => (
+            {categories.map(({ key, label, icon }) => (
               <div key={key}>
                 <label className="pm-label block mb-1.5">
                   {icon} {label}
@@ -223,7 +293,7 @@ export default function CardRecommenderPage() {
                   <input
                     type="number"
                     min="0"
-                    value={spend[key]}
+                    value={spend[key] ?? ''}
                     onChange={e => setSpend(p => ({ ...p, [key]: e.target.value }))}
                     className="pm-input pl-7"
                     placeholder="0"
@@ -260,7 +330,7 @@ export default function CardRecommenderPage() {
         {!loading && (
           <div className="pm-card p-6">
             <h2 className="pm-heading text-lg mb-1">Cards You Already Have</h2>
-            <p className="text-xs text-[#6a8579] mb-4">We&apos;ll exclude these from recommendations.</p>
+            <p className="text-xs text-[#6a8579] mb-4">We&apos;ll keep them visible, but remove signup bonus value from scoring.</p>
             <div className="flex flex-wrap gap-2">
               {cards.map(card => {
                 const owned = ownedCards.has(card.id)
@@ -306,7 +376,17 @@ export default function CardRecommenderPage() {
         {showResults && results.length > 0 && (
           <div className="space-y-4">
             <h2 className="pm-heading text-lg">Your Recommendations</h2>
-            {results.map(({ card, annualValue, signupValue, firstYearValue, goalCount }, i) => (
+            {results.map(({
+              card,
+              annualRewardsValue,
+              signupValue,
+              signupValueEligible,
+              softBenefitValue,
+              softBenefits,
+              firstYearValue,
+              goalCount,
+              hasCardAlready,
+            }, i) => (
               <motion.div
                 key={card.id}
                 initial={reduceMotion ? false : { opacity: 0, y: 10 }}
@@ -338,17 +418,37 @@ export default function CardRecommenderPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                  <div className="mb-3">
+                    <label className="inline-flex items-center gap-2 text-xs text-[#5f7c70] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasCardAlready}
+                        onChange={() => toggleOwned(card.id)}
+                        className="h-3.5 w-3.5 rounded border-[#b7d5c8] text-[#0f766e] focus:ring-[#0f766e]"
+                      />
+                      Already have this card (exclude signup bonus)
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center text-xs">
                     <div className="bg-[#f4faf7] rounded-xl p-2.5">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Annual value</p>
-                      <p className="font-bold text-[#244437]">{formatCurrencyRounded(annualValue, card.currency)}</p>
+                      <p className="text-[#6a8579] font-medium mb-0.5">Annual rewards</p>
+                      <p className="font-bold text-[#244437]">{formatCurrencyRounded(annualRewardsValue, card.currency)}</p>
                     </div>
                     <div className="bg-[#f4faf7] rounded-xl p-2.5">
                       <p className="text-[#6a8579] font-medium mb-0.5">Signup bonus</p>
                       <p className="font-bold text-[#244437]">
                         {card.signup_bonus_pts > 0
-                          ? `${card.signup_bonus_pts.toLocaleString()} pts (${formatCurrencyRounded(signupValue, card.currency)})`
+                          ? hasCardAlready
+                            ? `Already held (was ${formatCurrencyRounded(signupValue, card.currency)})`
+                            : `${card.signup_bonus_pts.toLocaleString()} pts (${formatCurrencyRounded(signupValueEligible, card.currency)})`
                           : 'None'}
+                      </p>
+                    </div>
+                    <div className="bg-[#f4faf7] rounded-xl p-2.5">
+                      <p className="text-[#6a8579] font-medium mb-0.5">Soft benefits</p>
+                      <p className="font-bold text-[#244437]">
+                        {softBenefitValue > 0 ? formatCurrencyRounded(softBenefitValue, card.currency) : '—'}
                       </p>
                     </div>
                     <div className="bg-[#f4faf7] rounded-xl p-2.5">
@@ -360,6 +460,19 @@ export default function CardRecommenderPage() {
                       </p>
                     </div>
                   </div>
+
+                  {softBenefits.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {softBenefits.map((benefit) => (
+                        <span
+                          key={`${card.id}-${benefit}`}
+                          className="text-xs bg-[#eef7f1] text-[#48675a] border border-[#d5e5d9] px-2 py-0.5 rounded-full"
+                        >
+                          {SOFT_BENEFIT_COPY[benefit]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* K4: Visual indicator for travel goal matching */}
                   {travelGoals.size > 0 && (
@@ -413,13 +526,13 @@ export default function CardRecommenderPage() {
         {showResults && results.length === 0 && (
           <div className="pm-card p-8 text-center">
             <p className="text-[#5f7c70] text-sm">
-              No cards match your current filters. Try broadening spend categories or unmarking owned cards.
+              No cards match your current filters. Try broadening spend categories or resetting travel goals.
             </p>
             <button
-              onClick={() => { setOwnedCards(new Set()); setShowResults(false) }}
+              onClick={() => { setTravelGoals(new Set()); setShowResults(false) }}
               className="mt-4 text-sm text-[#0f766e] hover:underline underline-offset-4"
             >
-              Clear owned cards and try again
+              Clear goals and try again
             </button>
           </div>
         )}

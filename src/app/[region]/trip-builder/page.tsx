@@ -10,6 +10,7 @@ import { REGIONS, type Region } from '@/lib/regions'
 
 type UIState = 'form' | 'loading' | 'results'
 type DateMode = 'exact' | 'flexible_month'
+type TripType = 'round_trip' | 'one_way'
 
 type BalanceRow = { id: string; program_id: string; amount: string }
 
@@ -27,6 +28,11 @@ const CABIN_OPTIONS = [
   { value: 'premium_economy', label: 'Premium Economy' },
   { value: 'business',        label: 'Business Class' },
   { value: 'first',           label: 'First Class' },
+]
+
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
 function safeUrl(url: string | null | undefined): string | null {
@@ -63,6 +69,23 @@ function getMonthRange(month: string): { start: string; end: string } | null {
   return { start: toIsoDate(first), end: toIsoDate(last) }
 }
 
+function getDefaultFlexMonth(offsetMonths = 2): string {
+  const today = new Date()
+  const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
+  d.setUTCMonth(d.getUTCMonth() + offsetMonths)
+  const year = d.getUTCFullYear()
+  const month = `${d.getUTCMonth() + 1}`.padStart(2, '0')
+  return `${year}-${month}`
+}
+
+function formatMonthYear(month: string): string {
+  if (!/^\d{4}-\d{2}$/.test(month)) return month
+  const [year, monthStr] = month.split('-')
+  const monthIdx = Number.parseInt(monthStr, 10) - 1
+  const monthLabel = MONTH_LABELS[monthIdx] ?? monthStr
+  return `${monthLabel} ${year}`
+}
+
 function getGoogleFlightsUrl(origin: string, destination: string): string {
   const query = encodeURIComponent(`flights from ${origin} to ${destination}`)
   return `https://www.google.com/travel/flights?q=${query}`
@@ -81,8 +104,9 @@ export default function TripBuilderPage() {
   const [destination, setDestination] = useState('')
   const [origin, setOrigin] = useState('')
   const [dest, setDest] = useState('')
+  const [tripType, setTripType] = useState<TripType>('round_trip')
   const [dateMode, setDateMode] = useState<DateMode>('exact')
-  const [flexMonth, setFlexMonth] = useState('')
+  const [flexMonth, setFlexMonth] = useState(getDefaultFlexMonth(2))
   const [departDate, setDepartDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
   const [travelers, setTravelers] = useState(1)
@@ -143,6 +167,7 @@ export default function TripBuilderPage() {
 
   useEffect(() => {
     if (hotelNightsManuallySet) return
+    if (tripType === 'one_way') return
     if (dateMode === 'exact') {
       const tripDays = getTripDays(departDate, returnDate)
       if (tripDays > 0) setHotelNights(Math.min(tripDays, 14))
@@ -152,7 +177,7 @@ export default function TripBuilderPage() {
     if (!range) return
     const tripDays = getTripDays(range.start, range.end)
     if (tripDays > 0) setHotelNights(Math.min(tripDays, 14))
-  }, [dateMode, departDate, returnDate, flexMonth, hotelNightsManuallySet])
+  }, [tripType, dateMode, departDate, returnDate, flexMonth, hotelNightsManuallySet])
 
   const addRow = () => setRows(p => [...p, { id: Date.now().toString(), program_id: '', amount: '' }])
   const removeRow = (id: string) => setRows(p => p.filter(r => r.id !== id))
@@ -169,13 +194,15 @@ export default function TripBuilderPage() {
 
     const monthRange = getMonthRange(flexMonth)
     const startDate = dateMode === 'exact' ? departDate : (monthRange?.start ?? '')
-    const endDate = dateMode === 'exact' ? returnDate : (monthRange?.end ?? '')
+    const endDate = dateMode === 'exact'
+      ? (tripType === 'one_way' ? departDate : returnDate)
+      : (monthRange?.end ?? '')
 
     if (!origin || !dest || !startDate || !endDate || balances.length === 0) {
       setError('Please fill in origin, destination, travel window, and at least one balance.')
       return
     }
-    if (endDate <= startDate) {
+    if (tripType === 'round_trip' && endDate <= startDate) {
       setError('Return/end date must be after departure/start date.')
       return
     }
@@ -198,6 +225,7 @@ export default function TripBuilderPage() {
           destination: dest.toUpperCase(),
           start_date: startDate,
           return_date: endDate,
+          trip_type: tripType,
           passengers: travelers,
           cabin,
           hotel_nights: hotelNights,
@@ -230,6 +258,11 @@ export default function TripBuilderPage() {
 
   const byType = (type: string) => programs.filter(p => p.type === type)
   const selectedMonthRange = getMonthRange(flexMonth)
+  const [selectedFlexYear, selectedFlexMonth] = /^\d{4}-\d{2}$/.test(flexMonth)
+    ? flexMonth.split('-')
+    : getDefaultFlexMonth(2).split('-')
+  const currentYear = new Date().getUTCFullYear()
+  const flexYearOptions = [currentYear, currentYear + 1, currentYear + 2]
   const googleFlightsUrl = origin && dest
     ? getGoogleFlightsUrl(origin.toUpperCase(), dest.toUpperCase())
     : null
@@ -299,6 +332,27 @@ export default function TripBuilderPage() {
               </div>
 
               <div>
+                <label className="pm-label block mb-1.5">Trip Type</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setTripType('round_trip')}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'round_trip' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                  >
+                    Round Trip
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTripType('one_way')
+                      setReturnDate('')
+                    }}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'one_way' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                  >
+                    One Way
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="pm-label block mb-1.5">Date Search Mode</label>
                 <div className="flex gap-2">
                   <button
@@ -323,7 +377,7 @@ export default function TripBuilderPage() {
               </div>
 
               {dateMode === 'exact' ? (
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${tripType === 'one_way' ? 'grid-cols-1' : 'grid-cols-2'}`}>
                   <div>
                     <label htmlFor="departDate" className="pm-label block mb-1.5">
                       Departure Date *
@@ -339,32 +393,49 @@ export default function TripBuilderPage() {
                       className="pm-input"
                     />
                   </div>
-                  <div>
-                    <label htmlFor="returnDate" className="pm-label block mb-1.5">
-                      Return Date *
-                    </label>
-                    <input
-                      id="returnDate"
-                      type="date"
-                      value={returnDate}
-                      min={departDate || undefined}
-                      onChange={e => setReturnDate(e.target.value)}
-                      className="pm-input"
-                    />
-                  </div>
+                  {tripType === 'round_trip' && (
+                    <div>
+                      <label htmlFor="returnDate" className="pm-label block mb-1.5">
+                        Return Date *
+                      </label>
+                      <input
+                        id="returnDate"
+                        type="date"
+                        value={returnDate}
+                        min={departDate || undefined}
+                        onChange={e => setReturnDate(e.target.value)}
+                        className="pm-input"
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
                   <label className="pm-label block mb-1.5">Flexible Month *</label>
-                  <input
-                    type="month"
-                    value={flexMonth}
-                    onChange={e => setFlexMonth(e.target.value)}
-                    className="pm-input"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={selectedFlexMonth}
+                      onChange={(e) => setFlexMonth(`${selectedFlexYear}-${e.target.value}`)}
+                      className="pm-input"
+                    >
+                      {MONTH_LABELS.map((label, idx) => {
+                        const monthValue = `${idx + 1}`.padStart(2, '0')
+                        return <option key={monthValue} value={monthValue}>{label}</option>
+                      })}
+                    </select>
+                    <select
+                      value={selectedFlexYear}
+                      onChange={(e) => setFlexMonth(`${e.target.value}-${selectedFlexMonth}`)}
+                      className="pm-input"
+                    >
+                      {flexYearOptions.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
                   {selectedMonthRange && (
                     <p className="text-xs text-[#5f7c70] mt-1">
-                      Searching {selectedMonthRange.start} through {selectedMonthRange.end}.
+                      Searching {formatMonthYear(flexMonth)} ({selectedMonthRange.start} through {selectedMonthRange.end}).
                     </p>
                   )}
                 </div>
@@ -518,6 +589,9 @@ export default function TripBuilderPage() {
             {result.ai_summary && (
               <div className="rounded-2xl border border-[#c7e7d4] bg-[#ecf9f1] p-6">
                 <p className="text-xs font-semibold text-[#157347] uppercase tracking-wider mb-2">✨ Trip Summary</p>
+                <p className="text-xs text-[#2a4b3f] font-semibold mb-2">
+                  {tripType === 'one_way' ? 'One Way' : 'Round Trip'} · {origin.toUpperCase()} → {dest.toUpperCase()}
+                </p>
                 <p className="text-[#2a4b3f] text-sm leading-relaxed mb-2">{result.ai_summary}</p>
                 {result.points_summary && (
                   <p className="text-[#157347] text-sm font-medium">{result.points_summary}</p>

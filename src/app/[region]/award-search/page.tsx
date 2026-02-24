@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useParams, useSearchParams } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
 import type { Program } from '@/types/database'
 import type { AwardNarrative, AwardSearchResponse, AwardSearchResult, CabinClass } from '@/lib/award-search/types'
+import { type Region } from '@/lib/regions'
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
@@ -103,13 +105,21 @@ function AwardResultCard({ result, topSlug }: { result: AwardSearchResult; topSl
 }
 
 export default function AwardSearchPage() {
+  const routeParams = useParams()
+  const searchParams = useSearchParams()
+  const region = ((routeParams.region as string) === 'in' ? 'in' : 'us') as Region
+  const defaultOrigin = region === 'in' ? 'DEL' : 'JFK'
+  const defaultDestination = 'LHR'
+  const originFromQuery = (searchParams.get('origin') || defaultOrigin).trim().toUpperCase().slice(0, 3)
+  const destinationFromQuery = (searchParams.get('destination') || defaultDestination).trim().toUpperCase().slice(0, 3)
+
   const { user } = useAuth()
   const reduceMotion = useReducedMotion()
   const [programs, setPrograms] = useState<ProgramOption[]>([])
   const [rows, setRows] = useState<BalanceRow[]>([{ id: '1', program_id: '', amount: '' }])
   const [params, setParams] = useState<AwardParams>({
-    origin: '',
-    destination: '',
+    origin: originFromQuery,
+    destination: destinationFromQuery,
     start_date: addDaysToIsoDate(30),
     end_date: addDaysToIsoDate(37),
     cabin: 'business',
@@ -124,14 +134,14 @@ export default function AwardSearchPage() {
   const [watchStatus, setWatchStatus] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/programs')
+    fetch(`/api/programs?region=${region.toUpperCase()}`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load programs (${res.status})`)
         return res.json() as Promise<ProgramOption[]>
       })
       .then((data) => setPrograms(data ?? []))
       .catch(() => setError('Failed to load program data. Please refresh and try again.'))
-  }, [])
+  }, [region])
 
   useEffect(() => {
     if (!user) return
@@ -326,7 +336,7 @@ export default function AwardSearchPage() {
                   maxLength={3}
                   value={params.origin}
                   onChange={(e) => setParams((p) => ({ ...p, origin: e.target.value.toUpperCase() }))}
-                  placeholder="JFK"
+                  placeholder={defaultOrigin}
                   className="pm-input font-mono uppercase"
                 />
               </div>
@@ -337,7 +347,7 @@ export default function AwardSearchPage() {
                   maxLength={3}
                   value={params.destination}
                   onChange={(e) => setParams((p) => ({ ...p, destination: e.target.value.toUpperCase() }))}
-                  placeholder="NRT"
+                  placeholder={defaultDestination}
                   className="pm-input font-mono uppercase"
                 />
               </div>

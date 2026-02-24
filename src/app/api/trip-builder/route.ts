@@ -51,7 +51,7 @@ const MAX_BODY_BYTES = 64_000
 const MAX_BALANCE_ROWS = 25
 const MAX_SEARCH_SPAN_DAYS = 45
 
-function validate(body: unknown): AwardSearchParams & { hotel_nights: number; destination_name: string } | { error: string } {
+function validate(body: unknown): AwardSearchParams & { hotel_nights: number; destination_name: string; trip_type: 'round_trip' | 'one_way' } | { error: string } {
   if (!body || typeof body !== 'object') return { error: 'Invalid request body' }
   const b = body as Record<string, unknown>
 
@@ -70,10 +70,14 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   }
 
   const start_date = typeof b.start_date === 'string' ? b.start_date : ''
-  const end_date = typeof b.return_date === 'string' ? b.return_date : ''
+  const trip_type = b.trip_type === 'one_way' ? 'one_way' : 'round_trip'
+  const providedReturnDate = typeof b.return_date === 'string' ? b.return_date : ''
+  const end_date = trip_type === 'one_way'
+    ? (providedReturnDate || start_date)
+    : providedReturnDate
   if (!DATE_RE.test(start_date)) return { error: 'start_date must be YYYY-MM-DD' }
   if (!DATE_RE.test(end_date)) return { error: 'return_date must be YYYY-MM-DD' }
-  if (end_date <= start_date) return { error: 'return_date must be after start_date' }
+  if (trip_type === 'round_trip' && end_date <= start_date) return { error: 'return_date must be after start_date' }
   const startMs = Date.parse(`${start_date}T00:00:00Z`)
   const endMs = Date.parse(`${end_date}T00:00:00Z`)
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
@@ -114,6 +118,7 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
     balances: balances as AwardSearchParams['balances'],
     hotel_nights,
     destination_name,
+    trip_type,
   }
 }
 
@@ -147,7 +152,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validated.error }, { status: 400 })
   }
 
-  const { hotel_nights, destination_name, ...awardParams } = validated
+  const { hotel_nights, destination_name, trip_type, ...awardParams } = validated
 
   try {
     const db = createServerDbClient()
@@ -198,6 +203,7 @@ export async function POST(req: NextRequest) {
 
 TRIP DETAILS:
 - Route: ${awardParams.origin} → ${awardParams.destination} (${destination_name})
+- Trip type: ${trip_type === 'one_way' ? 'One-way' : 'Round-trip'}
 - Dates: ${awardParams.start_date} to ${awardParams.end_date}
 - Cabin: ${awardParams.cabin}
 - Passengers: ${awardParams.passengers}
@@ -238,6 +244,7 @@ Rules:
 - For booking_steps urls: use ONLY the exact portal URLs from the list above, or set url to null
 - Booking steps should be numbered and actionable
 - If hotel_nights is 0, set hotel to null and omit hotel from booking_steps
+- If trip type is one-way, do not mention return leg or return booking steps
 - Consider which programs the user actually has points in
 - Keep ai_summary under 50 words`
 

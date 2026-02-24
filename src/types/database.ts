@@ -170,7 +170,14 @@ export interface ActiveBonus extends TransferBonus {
 // CARDS & EARNING RATES
 // ─────────────────────────────────────────────
 
-export type SpendCategory = 'dining' | 'groceries' | 'travel' | 'gas' | 'streaming' | 'other'
+export type SpendCategory =
+  | 'dining'
+  | 'groceries'
+  | 'travel'
+  | 'gas'
+  | 'shopping'
+  | 'streaming'
+  | 'other'
 
 export interface Card {
   id: string
