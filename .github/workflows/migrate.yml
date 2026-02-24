@@ -41,42 +41,38 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      - name: Reconcile migration history (bootstrap)
-        # One-time fix: the initial schema (001-020) was applied manually via the
-        # Supabase SQL Editor before this automation existed. The CLI has no record
-        # of them. Mark them as applied so db push only runs truly new migrations.
-        # Safe to re-run: `migration repair` is idempotent.
-        # IMPORTANT: Do NOT include 021 here — let db push apply it.
+      - name: Bootstrap migration history (one-time SQL insert)
+        # supabase migration repair rejects our 001_name format (requires timestamps).
+        # Instead, insert records directly via SQL. This marks migrations 001-020 as
+        # already applied so db push only runs truly new migrations.
+        # ON CONFLICT DO NOTHING makes this safe to re-run on every push.
         run: |
-          ALREADY_APPLIED=(
-            001_initial_schema
-            002_auth_preferences
-            003_cards_and_alerts
-            004_users_rls
-            005_card_affiliate_urls
-            006_india_programs
-            007_india_cards
-            008_affiliate_clicks
-            009_security_hardening_rls
-            010_flight_watches
-            011_fix_india_valuations
-            012_knowledge_base
-            013_vector_search_rpc
-            014_knowledge_hardening
-            015_link_health_log
-            016_creator_links
-            017_shared_trips
-            018_onboarding_email_log
-            019_transfer_bonus_automation
-            020_admin_audit_log
-          )
-          for version in "${ALREADY_APPLIED[@]}"; do
-            echo "Marking $version as applied..."
-            supabase migration repair --linked --status applied "$version"
-          done
-          echo "Bootstrap reconcile complete — 001-020 marked as applied."
-          echo "Current remote migration state:"
-          supabase migration list --linked
+          supabase db execute --linked --sql "
+            INSERT INTO supabase_migrations.schema_migrations (version) VALUES
+              ('001_initial_schema'),
+              ('002_auth_preferences'),
+              ('003_cards_and_alerts'),
+              ('004_users_rls'),
+              ('005_card_affiliate_urls'),
+              ('006_india_programs'),
+              ('007_india_cards'),
+              ('008_affiliate_clicks'),
+              ('009_security_hardening_rls'),
+              ('010_flight_watches'),
+              ('011_fix_india_valuations'),
+              ('012_knowledge_base'),
+              ('013_vector_search_rpc'),
+              ('014_knowledge_hardening'),
+              ('015_link_health_log'),
+              ('016_creator_links'),
+              ('017_shared_trips'),
+              ('018_onboarding_email_log'),
+              ('019_transfer_bonus_automation'),
+              ('020_admin_audit_log')
+            ON CONFLICT DO NOTHING;
+          "
+          echo "Bootstrap complete. Migration state:"
+          supabase db execute --linked --sql "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
