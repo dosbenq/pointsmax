@@ -11,9 +11,9 @@ export function GlassCard({ children, className }: GlassCardProps) {
       className={`
         bg-pm-surface/70
         backdrop-blur-xl
-        border border-white/[0.08]
+        border border-pm-border
         rounded-3xl
-        shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]
+        shadow-[var(--pm-shadow-card)]
         ${className ?? ''}
       `}
     >

@@ -37,6 +37,14 @@
   /* RGB channel vars — enable Tailwind opacity modifiers (bg-pm-bg/80 etc.) */
   --pm-bg-rgb: 10 15 14;
   --pm-surface-rgb: 17 27 24;
+  --pm-accent-rgb: 45 212 191;
+  --pm-accent-strong-rgb: 20 184 166;
+  /* Shadow scale */
+  --pm-shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  /* Program brand colors (external brand identities — no theme variant) */
+  --pm-program-chase: #1A56DB;
+  --pm-program-amex: #7C3AED;
+  --pm-program-united: #1C4ED8;
 }
 
 .light {
@@ -70,6 +78,9 @@
   --pm-success-border: #c7e7d4;
   --pm-bg-rgb: 243 248 243;
   --pm-surface-rgb: 255 255 255;
+  --pm-accent-rgb: 15 118 110;
+  --pm-accent-strong-rgb: 11 94 87;
+  --pm-shadow-card: 0 25px 50px -12px rgba(10, 40, 25, 0.12);
 }
 
 html {

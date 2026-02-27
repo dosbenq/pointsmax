@@ -21,9 +21,9 @@ function WalletMockup() {
       <p className="pm-label mb-4">Your Wallet</p>
       <div className="space-y-2.5">
         {[
-          { name: 'Chase Ultimate Rewards', pts: '45,000', color: '#1A56DB' },
-          { name: 'Amex Membership Rewards', pts: '30,000', color: '#7C3AED' },
-          { name: 'United MileagePlus', pts: '12,500', color: '#1C4ED8' },
+          { name: 'Chase Ultimate Rewards', pts: '45,000', color: 'var(--pm-program-chase)' },
+          { name: 'Amex Membership Rewards', pts: '30,000', color: 'var(--pm-program-amex)' },
+          { name: 'United MileagePlus', pts: '12,500', color: 'var(--pm-program-united)' },
         ].map((b) => (
           <div
             key={b.name}
@@ -304,8 +304,8 @@ export default function LandingPage() {
           className="relative min-h-[85vh] flex items-center"
           style={{
             background: `
-              radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 191, 0.15), transparent),
-              radial-gradient(ellipse 60% 40% at 80% 80%, rgba(20, 184, 166, 0.08), transparent),
+              radial-gradient(ellipse 80% 50% at 50% -20%, rgb(var(--pm-accent-rgb) / 0.15), transparent),
+              radial-gradient(ellipse 60% 40% at 80% 80%, rgb(var(--pm-accent-strong-rgb) / 0.08), transparent),
               var(--pm-bg)
             `,
           }}
