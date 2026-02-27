@@ -1,12 +1,38 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { getRegionFromPath } from '@/lib/regions'
 import { useTheme } from 'next-themes'
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun, Menu, X } from 'lucide-react'
+
+function PMLogoMark({ className }: { className?: string }) {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="14" cy="14" r="14" fill="var(--pm-accent)" />
+      <rect x="12.75" y="7" width="2.5" height="10" rx="1.25" fill="var(--pm-bg)" />
+      <path
+        d="M9 13L14 8L19 13"
+        stroke="var(--pm-bg)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <rect x="8" y="19" width="12" height="2" rx="1" fill="var(--pm-bg)" />
+    </svg>
+  )
+}
 
 export default function NavBar() {
   const { user, signInWithGoogle, signOut, loading } = useAuth()
@@ -14,212 +40,203 @@ export default function NavBar() {
   const pathname = usePathname()
   const region = getRegionFromPath(pathname)
   
-  const [toolsOpen, setToolsOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
 
+  // Track scroll for backdrop blur enhancement
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Flattened nav links (tools moved to main nav)
   const navLinks = useMemo(() => ([
     { href: `/${region}/calculator`, label: 'Calculator' },
-    { href: `/${region}/how-it-works`, label: 'How it works' },
-    { href: `/${region}/pricing`, label: 'Pricing' },
+    { href: `/${region}/award-search`, label: 'Award Search' },
+    { href: `/${region}/inspire`, label: 'Inspire' },
+    { href: `/${region}/trip-builder`, label: 'Trip Builder' },
   ]), [region])
-
-  const toolLinks = useMemo(() => ([
-    { href: `/${region}/award-search`, label: 'Award Search', desc: 'Quick route and availability scan' },
-    { href: `/${region}/inspire`, label: 'Inspire Me', desc: 'Find destinations from your wallet' },
-    { href: `/${region}/earning-calculator`, label: 'Earning Calculator', desc: 'Optimize monthly card earnings' },
-    { href: `/${region}/card-recommender`, label: 'Card Recommender', desc: 'Choose the best next card' },
-    { href: `/${region}/trip-builder`, label: 'Trip Builder', desc: 'Generate a full points plan' },
-  ]), [region])
-
-  const isToolsActive = useMemo(
-    () => toolLinks.some((item) => pathname === item.href),
-    [pathname, toolLinks],
-  )
 
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur border-b border-pm-border/90 bg-pm-bg/90">
-      <div className="pm-shell h-16 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/${region}`}
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 border border-pm-border bg-pm-surface text-pm-ink-900 hover:bg-pm-surface-soft transition-colors"
-          >
-            <span className="inline-flex w-6 h-6 rounded-full bg-pm-accent text-white items-center justify-center text-xs font-bold">P</span>
-            <span className="text-sm font-semibold tracking-wide">PointsMax</span>
-          </Link>
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+        scrolled ? 'bg-pm-bg/80 backdrop-blur-xl border-b border-pm-border' : 'bg-pm-bg/50 backdrop-blur-sm'
+      }`}
+      style={{ height: 'var(--navbar-height)' }}
+    >
+      <div className="pm-shell h-full flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link
+          href={`/${region}`}
+          className="inline-flex items-center gap-2 text-pm-ink-900 font-bold text-lg tracking-tight"
+        >
+          <PMLogoMark />
+          <span>PointsMax</span>
+        </Link>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.href
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-2 rounded-full text-sm transition-colors ${
-                    isActive
-                      ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
-                      : 'text-pm-ink-700 hover:bg-pm-surface hover:text-pm-ink-900'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            <div className="relative">
-              <button
-                onClick={() => setToolsOpen((v) => !v)}
-                className={`px-3 py-2 rounded-full text-sm transition-colors flex items-center gap-1 ${
-                  isToolsActive
-                    ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
-                    : 'text-pm-ink-700 hover:bg-pm-surface hover:text-pm-ink-900'
+        {/* Desktop Navigation */}
+        <nav className="hidden lg:flex items-center gap-1">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-pm-accent-soft text-pm-accent'
+                    : 'text-pm-ink-700 hover:text-pm-ink-900 hover:bg-pm-surface-soft'
                 }`}
               >
-                Tools
-                <span className="text-xs">▾</span>
-              </button>
+                {link.label}
+              </Link>
+            )
+          })}
+        </nav>
 
-              {toolsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-72 pm-card p-2 shadow-2xl">
-                  {toolLinks.map((tool) => (
-                    <Link
-                      key={tool.href}
-                      href={tool.href}
-                      onClick={() => setToolsOpen(false)}
-                      className={`block rounded-xl px-3 py-2.5 transition-colors ${
-                        pathname === tool.href ? 'bg-pm-accent-soft' : 'hover:bg-pm-surface-soft'
-                      }`}
-                    >
-                      <p className="text-sm font-semibold text-pm-ink-900">{tool.label}</p>
-                      <p className="text-xs text-pm-ink-500 mt-0.5">{tool.desc}</p>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </nav>
-        </div>
-
+        {/* Right side actions */}
         <div className="flex items-center gap-2">
+          {/* Theme toggle - icon only, smaller */}
           <button
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-pm-border bg-pm-surface hover:bg-pm-surface-soft transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-pm-ink-500 hover:text-pm-ink-900 hover:bg-pm-surface-soft transition-colors"
             aria-label="Toggle theme"
             type="button"
           >
             {resolvedTheme === 'dark' ? (
-              <Sun className="h-4 w-4 text-pm-ink-700" />
+              <Sun className="h-4 w-4" />
             ) : (
-              <Moon className="h-4 w-4 text-pm-ink-700" />
+              <Moon className="h-4 w-4" />
             )}
           </button>
 
+          {/* Desktop: Auth / CTA */}
+          <div className="hidden lg:flex items-center gap-2">
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-pm-border animate-pulse" />
+            ) : user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setAccountOpen((v) => !v)}
+                  className="flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-full border border-pm-border bg-pm-surface hover:bg-pm-surface-soft transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-pm-accent text-pm-bg text-xs font-bold flex items-center justify-center">
+                    {avatarLetter}
+                  </span>
+                  <span className="text-sm text-pm-ink-700 max-w-32 truncate">{user.email}</span>
+                </button>
+
+                {accountOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 pm-card p-2 shadow-2xl">
+                    <p className="px-3 py-2 text-xs text-pm-ink-500 border-b border-pm-border truncate">{user.email}</p>
+                    <Link
+                      href="/profile"
+                      onClick={() => setAccountOpen(false)}
+                      className="block px-3 py-2 text-sm rounded-lg hover:bg-pm-surface-soft text-pm-ink-900"
+                    >
+                      Profile &amp; Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setAccountOpen(false)
+                        signOut()
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-pm-danger-soft text-pm-danger"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button onClick={signInWithGoogle} className="pm-button text-sm px-5 py-2">
+                Start free
+              </button>
+            )}
+          </div>
+
+          {/* Mobile: Hamburger */}
           <button
             onClick={() => {
               setMenuOpen((v) => !v)
-              setToolsOpen(false)
               setAccountOpen(false)
             }}
-            className="md:hidden pm-button-secondary px-3 py-2"
+            className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-full text-pm-ink-700 hover:bg-pm-surface-soft transition-colors"
             aria-label="Toggle menu"
+            type="button"
           >
-            ☰
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
-
-          {loading ? (
-            <div className="w-8 h-8 rounded-full bg-pm-border animate-pulse" />
-          ) : user ? (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setAccountOpen((v) => !v)
-                  setToolsOpen(false)
-                  setMenuOpen(false)
-                }}
-                className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full border border-pm-border bg-pm-surface hover:bg-pm-surface-soft transition-colors"
-              >
-                <span className="w-7 h-7 rounded-full bg-pm-accent text-white text-xs font-bold flex items-center justify-center">
-                  {avatarLetter}
-                </span>
-                <span className="hidden sm:block text-xs text-pm-ink-700 max-w-40 truncate">{user.email}</span>
-              </button>
-
-              {accountOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 pm-card p-2 shadow-2xl">
-                  <p className="px-3 py-2 text-xs text-pm-ink-500 border-b border-pm-border truncate">{user.email}</p>
-                  <Link
-                    href="/profile"
-                    onClick={() => setAccountOpen(false)}
-                    className="block px-3 py-2 text-sm rounded-lg hover:bg-pm-surface-soft text-pm-ink-900"
-                  >
-                    Profile &amp; Settings
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setAccountOpen(false)
-                      signOut()
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-red-50 text-pm-danger"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <button onClick={signInWithGoogle} className="pm-button">
-              Start free
-            </button>
-          )}
         </div>
       </div>
 
+      {/* Mobile slide-down menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-pm-border bg-pm-bg/95">
-          <div className="pm-shell py-3 space-y-1">
+        <div className="lg:hidden border-t border-pm-border bg-pm-surface shadow-lg">
+          <div className="pm-shell py-4 space-y-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block rounded-xl px-3 py-2 text-sm ${
+                className={`block rounded-xl px-3 py-3 text-sm font-medium ${
                   pathname === link.href
-                    ? 'bg-pm-accent-soft text-pm-accent-strong font-semibold'
-                    : 'text-pm-ink-700 hover:bg-pm-surface'
+                    ? 'bg-pm-accent-soft text-pm-accent'
+                    : 'text-pm-ink-700 hover:bg-pm-surface-soft'
                 }`}
               >
                 {link.label}
               </Link>
             ))}
 
-            <p className="px-3 pt-2 text-[11px] uppercase tracking-wider text-pm-ink-500">Tools</p>
-            {toolLinks.map((tool) => (
-              <Link
-                key={tool.href}
-                href={tool.href}
-                onClick={() => setMenuOpen(false)}
-                className={`block rounded-xl px-3 py-2 ${
-                  pathname === tool.href ? 'bg-pm-accent-soft' : 'hover:bg-pm-surface'
-                }`}
-              >
-                <p className="text-sm font-medium text-pm-ink-900">{tool.label}</p>
-                <p className="text-xs text-pm-ink-500">{tool.desc}</p>
-              </Link>
-            ))}
+            {/* Mobile auth */}
+            <div className="pt-3 mt-3 border-t border-pm-border">
+              {loading ? (
+                <div className="h-10 rounded-lg bg-pm-border animate-pulse" />
+              ) : user ? (
+                <>
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-xl px-3 py-3 text-sm font-medium text-pm-ink-700 hover:bg-pm-surface-soft"
+                  >
+                    Profile & Settings
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false)
+                      signOut()
+                    }}
+                    className="w-full text-left rounded-xl px-3 py-3 text-sm font-medium text-pm-danger hover:bg-pm-danger-soft"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => {
+                    setMenuOpen(false)
+                    signInWithGoogle()
+                  }}
+                  className="w-full pm-button text-sm px-5 py-3"
+                >
+                  Start free
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {(toolsOpen || accountOpen) && (
+      {/* Backdrop for account dropdown */}
+      {accountOpen && (
         <div
           className="fixed inset-0 z-[-1]"
-          onClick={() => {
-            setToolsOpen(false)
-            setAccountOpen(false)
-          }}
+          onClick={() => setAccountOpen(false)}
         />
       )}
     </header>
