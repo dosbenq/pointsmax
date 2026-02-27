@@ -194,10 +194,11 @@ function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext
 
   const headline = best
     ? `Start with ${best.label}`
-    : 'Start with your top redemption option'
+    : 'Explore your top redemption options'
+
   const reasoning = best
     ? `AI is currently in safe mode, so this recommendation uses your pre-calculated results. Your current top option is ${best.label} at ${formatCpp(best.cpp_cents, regionCtx)} (about ${bestValue}).`
-    : 'AI is currently in safe mode, so this recommendation uses your pre-calculated results only.'
+    : 'Our AI is currently in safe mode. Based on your balances, you can find high-value redemptions by running the calculator for a specific destination.'
 
   return {
     type: 'recommendation',
@@ -207,13 +208,20 @@ function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext
     hotel: null,
     total_summary: best
       ? `Prioritize ${best.label} as your first booking path.`
-      : 'Review your top redemption rows and pick the highest-value option.',
-    steps: [
-      'Open your calculator results and confirm the top-ranked option.',
-      'Verify live award availability before transferring points.',
-      'Transfer only after confirming exact flight/hotel availability.',
-      'Book immediately after transfer to reduce availability risk.',
-    ],
+      : 'Use the calculator to find the best use for your points.',
+    steps: best
+      ? [
+        'Open your calculator results and confirm the top-ranked option.',
+        'Verify live award availability before transferring points.',
+        'Transfer only after confirming exact flight/hotel availability.',
+        'Book immediately after transfer to reduce availability risk.',
+      ]
+      : [
+        'Enter a destination in the calculator to see specific flight and hotel options.',
+        'Review the value of your points across different transfer partners.',
+        'Check for active transfer bonuses that could increase your points value.',
+        'Ask the AI advisor again once you have a specific goal in mind.',
+      ],
     tip: 'Never transfer points speculatively. Confirm availability first.',
     links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/${regionCtx.code}/calculator` }],
   }
@@ -482,7 +490,7 @@ REGION CONTEXT:
 - Express valuations as ${regionCtx.cppUnitLabel}
 - For India, prioritize Indian programs and partners first (Air India Maharaja Club, Taj InnerCircle, Accor ALL, IndiGo 6E Rewards) when available.
 
-${getBookingUrlsForPrompt(region)}
+${await getBookingUrlsForPrompt(region)}
 
 CONVERSATION RULES:
 1. If the user's first message is vague (no destination, dates, travelers, or cabin class), ask 2-3 friendly clarifying questions. Keep the message short and warm.
@@ -589,9 +597,10 @@ Set flight or hotel to null if not relevant. Include 2-4 links.`
           error: err instanceof Error ? err.message : String(err),
           latency_ms: Date.now() - startedAt,
         })
-        controller.enqueue(
-          encoder.encode(JSON.stringify({ error: 'AI assistant is temporarily unavailable. Please try again in a moment.' }))
-        )
+        
+        // Return deterministic safe-mode response on provider failure
+        const fallback = buildSafeModeResponse(topResults, regionCtx)
+        controller.enqueue(encoder.encode(JSON.stringify(fallback)))
         controller.close()
         return
       } finally {

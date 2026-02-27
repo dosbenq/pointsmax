@@ -43,15 +43,15 @@ export default async function CardsIndexPage({ params }: Props) {
               0
             return (
               <Link key={card.id} href={`/${normalized}/cards/${card.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
-                <p className="text-xs text-[#5f7c70]">{card.issuer}</p>
+                <p className="text-xs text-pm-ink-500">{card.issuer}</p>
                 <h2 className="pm-heading text-lg mt-1">{card.name}</h2>
-                <p className="text-sm text-[#4a6a5d] mt-2">
+                <p className="text-sm text-pm-ink-500 mt-2">
                   Fee: {formatCurrencyRounded(card.annual_fee_usd, card.currency)}
                 </p>
-                <p className="text-sm text-[#4a6a5d] mt-1">
+                <p className="text-sm text-pm-ink-500 mt-1">
                   Base earn: {Number(defaultRate).toFixed(2)} pts {spendUnitLabel(card.earn_unit, card.currency)}
                 </p>
-                <p className="text-sm text-[#4a6a5d] mt-1">
+                <p className="text-sm text-pm-ink-500 mt-1">
                   Program: {card.program?.name ?? 'Unknown'}
                 </p>
               </Link>

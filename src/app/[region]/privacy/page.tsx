@@ -25,7 +25,7 @@ export default function PrivacyPage() {
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">What We Collect</h2>
-            <p className="text-sm text-[#355246]">
+            <p className="text-sm text-pm-ink-700">
               We collect the information needed to run PointsMax, including account email, saved point balances,
               preferences, and product interaction analytics. Payment details are handled directly by Stripe.
             </p>
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">How We Use Data</h2>
-            <p className="text-sm text-[#355246]">
+            <p className="text-sm text-pm-ink-700">
               We use data to deliver calculator results, trip recommendations, transfer alerts, fraud/rate-limit protection,
               and product performance improvements.
             </p>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">Service Providers</h2>
-            <p className="text-sm text-[#355246]">
+            <p className="text-sm text-pm-ink-700">
               PointsMax uses Supabase for data storage/authentication, Resend for email delivery, Stripe for billing,
               and Seats.aero data when live award availability is enabled.
             </p>
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">Affiliate Disclosure</h2>
-            <p className="text-sm text-[#355246]">
+            <p className="text-sm text-pm-ink-700">
               We may earn commissions when you apply for cards through links on PointsMax. This does not change our ranking logic,
               which is based on your spending profile and projected value.
             </p>
@@ -57,8 +57,8 @@ export default function PrivacyPage() {
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">Contact</h2>
-            <p className="text-sm text-[#355246]">
-              For privacy requests, contact: <a className="text-[#0f766e] hover:underline" href="mailto:hello@pointsmax.com">hello@pointsmax.com</a>.
+            <p className="text-sm text-pm-ink-700">
+              For privacy requests, contact: <a className="text-pm-accent hover:underline" href="mailto:hello@pointsmax.com">hello@pointsmax.com</a>.
             </p>
           </section>
         </div>

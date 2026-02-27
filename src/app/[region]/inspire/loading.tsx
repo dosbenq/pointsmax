@@ -15,7 +15,7 @@ export default function InspireLoading() {
           <div className="h-5 w-32 rounded bg-pm-surface-soft" />
           <div className="flex gap-2">
             {[80, 96, 72, 88].map((w) => (
-              <div key={w} className={`h-8 w-${w / 4} rounded-full bg-pm-surface-soft`} />
+              <div key={w} className="h-8 rounded-full bg-pm-surface-soft" style={{ width: w }} />
             ))}
           </div>
         </div>

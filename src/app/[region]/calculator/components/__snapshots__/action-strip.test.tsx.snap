@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ActionStrip > matches snapshot when not visible (no-result state) 1`] = `<DocumentFragment />`;
+
+exports[`ActionStrip > matches snapshot when visible 1`] = `
+<DocumentFragment>
+  <div
+    class="pm-card bg-pm-surface-soft p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-pm-accent/20"
+  >
+    <div>
+      <h3
+        class="pm-heading text-lg font-bold text-pm-ink-900"
+      >
+        Next Steps
+      </h3>
+      <p
+        class="pm-subtle text-sm"
+      >
+        Convert these points into your next trip.
+      </p>
+    </div>
+    <div
+      class="flex flex-wrap gap-3 w-full sm:w-auto"
+    >
+      <button
+        class="pm-button flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold bg-pm-accent hover:bg-pm-accent-strong text-white rounded-xl shadow-sm transition-all"
+      >
+        Book Flight
+      </button>
+      <button
+        class="pm-button-secondary flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold border-pm-accent text-pm-accent hover:bg-pm-accent-soft rounded-xl transition-all"
+      >
+        Share Plan
+      </button>
+      <button
+        class="pm-button-secondary flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold border-pm-ink-300 text-pm-ink-700 hover:bg-pm-surface rounded-xl transition-all"
+      >
+        Alert Me
+      </button>
+    </div>
+  </div>
+</DocumentFragment>
+`;

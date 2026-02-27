@@ -82,16 +82,16 @@ export default async function CardDetailPage({ params }: Props) {
 
         <section className="grid gap-4 sm:grid-cols-3">
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Annual fee</p>
-            <p className="text-2xl font-semibold text-[#173f34] mt-1">{formatCurrencyRounded(card.annual_fee_usd, card.currency)}</p>
+            <p className="text-xs text-pm-ink-500">Annual fee</p>
+            <p className="text-2xl font-semibold text-pm-ink-900 mt-1">{formatCurrencyRounded(card.annual_fee_usd, card.currency)}</p>
           </div>
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Current point value</p>
-            <p className="text-2xl font-semibold text-[#173f34] mt-1">{card.cpp_cents.toFixed(2)}¢ / point</p>
+            <p className="text-xs text-pm-ink-500">Current point value</p>
+            <p className="text-2xl font-semibold text-pm-ink-900 mt-1">{card.cpp_cents.toFixed(2)}¢ / point</p>
           </div>
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Estimated base cashback</p>
-            <p className="text-2xl font-semibold text-[#173f34] mt-1">{cashbackPct.toFixed(2)}%</p>
+            <p className="text-xs text-pm-ink-500">Estimated base cashback</p>
+            <p className="text-2xl font-semibold text-pm-ink-900 mt-1">{cashbackPct.toFixed(2)}%</p>
           </div>
         </section>
 
@@ -103,11 +103,11 @@ export default async function CardDetailPage({ params }: Props) {
               const effectivePct = (Number(rate) * card.cpp_cents) / 100
               return (
                 <div key={category.key} className="pm-card p-4">
-                  <p className="text-sm text-[#4a6a5d]">{category.icon} {category.label}</p>
-                  <p className="text-lg font-semibold text-[#173f34] mt-1">
+                  <p className="text-sm text-pm-ink-500">{category.icon} {category.label}</p>
+                  <p className="text-lg font-semibold text-pm-ink-900 mt-1">
                     {Number(rate).toFixed(2)} pts {unitLabel}
                   </p>
-                  <p className="text-xs text-[#5f7c70] mt-1">
+                  <p className="text-xs text-pm-ink-500 mt-1">
                     Effective value: {effectivePct.toFixed(2)}%
                   </p>
                 </div>
@@ -123,7 +123,7 @@ export default async function CardDetailPage({ params }: Props) {
             {' '}Current valuation is approximately <strong>{card.cpp_cents.toFixed(2)}¢</strong> per point.
           </p>
           {card.program?.slug ? (
-            <Link href={`/${normalized}/programs/${card.program.slug}`} className="inline-block mt-3 text-sm text-[#0f766e] hover:underline">
+            <Link href={`/${normalized}/programs/${card.program.slug}`} className="inline-block mt-3 text-sm text-pm-accent hover:underline">
               View full program page →
             </Link>
           ) : null}

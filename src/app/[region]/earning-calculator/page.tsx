@@ -98,7 +98,7 @@ export default function EarningCalculatorPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <section className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
         <div className="pm-shell py-10">
           <span className="pm-pill mb-3">Card strategy tools {config.flag}</span>
           <h1 className="pm-heading text-3xl mb-2">Earning Calculator</h1>
@@ -117,7 +117,7 @@ export default function EarningCalculatorPage() {
                   {icon} {label}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7f978c] text-sm">{spendPrefix}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pm-ink-500 text-sm">{spendPrefix}</span>
                   <input
                     type="number"
                     min="0"
@@ -138,7 +138,7 @@ export default function EarningCalculatorPage() {
             <button
               onClick={toggleAll}
               disabled={loading || !!loadError}
-              className="text-sm text-[#0f766e] hover:text-[#0b5e57] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm text-pm-accent hover:text-pm-accent-strong font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {allSelected ? 'Clear all' : 'Select all'}
             </button>
@@ -146,7 +146,7 @@ export default function EarningCalculatorPage() {
           {loading ? (
             <div className="flex gap-2 flex-wrap">
               {Array.from({ length: 11 }).map((_, i) => (
-                <div key={i} className="h-8 w-40 bg-[#e8f1eb] rounded-full animate-pulse" />
+                <div key={i} className="h-8 w-40 bg-pm-surface-soft rounded-full animate-pulse" />
               ))}
             </div>
           ) : (
@@ -159,8 +159,8 @@ export default function EarningCalculatorPage() {
                     onClick={() => toggleCard(card.id)}
                     className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
                       checked
-                        ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                        : 'bg-white text-[#365649] border-[#d5e5d9] hover:border-[#99ccbe]'
+                        ? 'bg-pm-accent text-pm-bg border-pm-accent'
+                        : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                     }`}
                   >
                     {card.name}
@@ -172,21 +172,21 @@ export default function EarningCalculatorPage() {
         </div>
 
         {loadError && (
-          <div className="pm-card p-4 border border-[#f2c7c5] bg-[#fff4f3]">
-            <p className="text-sm text-[#8d2f2b]">{loadError}</p>
+          <div className="pm-card p-4 border border-pm-danger-border bg-pm-danger-soft">
+            <p className="text-sm text-pm-danger">{loadError}</p>
           </div>
         )}
 
         {!loading && results.length > 0 && (
           <div className="pm-card-soft overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#dbe9e2] flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-pm-border flex items-center justify-between">
               <h2 className="pm-heading text-base">Results</h2>
-              <p className="text-xs text-[#6a8579]">Ranked by net annual value</p>
+              <p className="text-xs text-pm-ink-500">Ranked by net annual value</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#e2ece6] text-xs text-[#6a8579] uppercase tracking-wider">
+                  <tr className="border-b border-pm-border text-xs text-pm-ink-500 uppercase tracking-wider">
                     <th className="text-left px-6 py-3 font-semibold">Card</th>
                     <th className="text-right px-4 py-3 font-semibold">Annual pts</th>
                     <th className="text-right px-4 py-3 font-semibold">Annual value</th>
@@ -198,35 +198,35 @@ export default function EarningCalculatorPage() {
                   {results.map(({ card, pointsPerYear, annualValue, netValue }, i) => (
                     <tr
                       key={card.id}
-                      className={`border-b border-[#edf4ef] last:border-0 ${i === 0 ? 'bg-[#edf9f2]' : 'hover:bg-[#f6fbf8]'} transition-colors`}
+                      className={`border-b border-pm-surface-soft last:border-0 ${i === 0 ? 'bg-pm-success-soft' : 'hover:bg-pm-surface-soft'} transition-colors`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-[#173f34]">{card.name}</span>
+                              <span className="font-medium text-pm-ink-900">{card.name}</span>
                               {i === 0 && (
-                                <span className="text-xs bg-[#def4ef] text-[#0f5f57] px-2 py-0.5 rounded-full font-medium border border-[#b8e3da]">
+                                <span className="text-xs bg-pm-accent-soft text-pm-accent-strong px-2 py-0.5 rounded-full font-medium border border-pm-accent-border">
                                   Best for your spending
                                 </span>
                               )}
                             </div>
-                            <span className="text-xs text-[#6a8579]">{card.program_name}</span>
+                            <span className="text-xs text-pm-ink-500">{card.program_name}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-right text-[#244437] tabular-nums">
+                      <td className="px-4 py-4 text-right text-pm-ink-900 tabular-nums">
                         {Math.round(pointsPerYear).toLocaleString()}
                       </td>
-                      <td className="px-4 py-4 text-right text-[#244437] tabular-nums">
+                      <td className="px-4 py-4 text-right text-pm-ink-900 tabular-nums">
                         {formatCurrencyRounded(annualValue, card.currency)}
                       </td>
-                      <td className="px-4 py-4 text-right text-[#5f7c70] tabular-nums">
+                      <td className="px-4 py-4 text-right text-pm-ink-500 tabular-nums">
                         {card.annual_fee_usd === 0
-                          ? <span className="text-[#157347]">Free</span>
+                          ? <span className="text-pm-success">Free</span>
                           : formatCurrencyRounded(card.annual_fee_usd, card.currency)}
                       </td>
-                      <td className={`px-6 py-4 text-right font-bold tabular-nums ${netValue >= 0 ? 'text-[#157347]' : 'text-[#b42318]'}`}>
+                      <td className={`px-6 py-4 text-right font-bold tabular-nums ${netValue >= 0 ? 'text-pm-success' : 'text-pm-danger'}`}>
                         {netValue >= 0 ? '+' : ''}{formatCurrencyRounded(netValue, card.currency)}
                       </td>
                     </tr>
@@ -238,9 +238,9 @@ export default function EarningCalculatorPage() {
         )}
 
         <div className="text-center py-4">
-          <p className="text-[#5f7c70] text-sm">
+          <p className="text-pm-ink-500 text-sm">
             Ready to find your next card?{' '}
-            <Link href={`/${regionCode}/card-recommender`} className="text-[#0f766e] hover:underline underline-offset-4 font-medium">
+            <Link href={`/${regionCode}/card-recommender`} className="text-pm-accent hover:underline underline-offset-4 font-medium">
               Try the Card Recommender →
             </Link>
           </p>

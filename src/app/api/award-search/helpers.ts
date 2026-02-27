@@ -178,6 +178,9 @@ export function parseNarrativeOptionsParam(raw: string | null): AwardNarrativeOp
   return options.slice(0, 8)
 }
 
+const narrativeCache = new Map<string, { narrative: AwardNarrative; expiresAt: number }>()
+const NARRATIVE_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export async function generateNarrative(
   params: AwardNarrativeParams,
   options: AwardNarrativeOption[],
@@ -185,6 +188,13 @@ export async function generateNarrative(
   if (isGeminiDisabled()) return null
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) return null
+
+  // Cache key based on simplified params and top options
+  const cacheKey = JSON.stringify({ params, options })
+  const cached = narrativeCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.narrative
+  }
 
   try {
     const resultsSummary = options.map((r) => {
@@ -228,7 +238,12 @@ Return ONLY valid JSON (no markdown) with this exact shape:
         const text = response.response.text()
         const jsonMatch = text.match(/\{[\s\S]*\}/)
         if (!jsonMatch) return null
-        return JSON.parse(jsonMatch[0]) as AwardNarrative
+        const result = JSON.parse(jsonMatch[0]) as AwardNarrative
+        narrativeCache.set(cacheKey, {
+          narrative: result,
+          expiresAt: Date.now() + NARRATIVE_CACHE_TTL_MS,
+        })
+        return result
       } catch (err) {
         markGeminiModelUnavailable(modelName, err)
         lastErr = err

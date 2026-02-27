@@ -144,6 +144,18 @@ export interface FlightWatch {
   created_at: string
 }
 
+export interface BookingUrl {
+  id: string
+  program_slug: string
+  label: string
+  url: string
+  region: 'us' | 'in' | 'global'
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 // ─────────────────────────────────────────────
 // VIEW ROWS (joined/computed from DB views)
 // ─────────────────────────────────────────────

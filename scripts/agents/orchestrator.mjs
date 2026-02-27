@@ -234,6 +234,7 @@ async function loadConfig() {
 async function writeDefaultConfig() {
   const defaultConfig = {
     default_timeout_ms: 900000,
+    default_no_output_timeout_ms: 180000,
     agents: {
       claude: {
         enabled: true,
@@ -242,7 +243,7 @@ async function writeDefaultConfig() {
       },
       gemini: {
         enabled: true,
-        shell: 'gemini -p "$(cat {{prompt_file}})"',
+        shell: 'gemini --approval-mode yolo -p "$(cat {{prompt_file}})"',
         timeout_ms: 900000,
       },
       kimi: {
@@ -380,29 +381,72 @@ async function cmdSetStatus(args) {
   console.log(`Updated ${taskId} -> ${nextStatus}`)
 }
 
-async function runShell(command, cwd, timeoutMs) {
+async function runShell(command, cwd, timeoutMs, noOutputTimeoutMs = 0) {
   return new Promise((resolve) => {
-    const child = spawn('zsh', ['-lc', command], { cwd, env: process.env })
+    const child = spawn('zsh', ['-lc', command], {
+      cwd,
+      env: process.env,
+      detached: true,
+    })
     let stdout = ''
     let stderr = ''
     let timedOut = false
+    let timeoutType = 'none'
+    let killed = false
+    let overallTimer = null
+    let noOutputTimer = null
 
-    const timer = setTimeout(() => {
+    const killChild = (type) => {
+      if (killed) return
+      killed = true
       timedOut = true
+      timeoutType = type
+      if (child.pid) {
+        try {
+          process.kill(-child.pid, 'SIGTERM')
+        } catch {
+          child.kill('SIGTERM')
+        }
+        setTimeout(() => {
+          try {
+            process.kill(-child.pid, 'SIGKILL')
+          } catch {
+            child.kill('SIGKILL')
+          }
+        }, 2000)
+        return
+      }
       child.kill('SIGTERM')
+      setTimeout(() => child.kill('SIGKILL'), 2000)
+    }
+
+    const resetNoOutputTimer = () => {
+      if (!Number.isFinite(noOutputTimeoutMs) || noOutputTimeoutMs <= 0) return
+      if (noOutputTimer) clearTimeout(noOutputTimer)
+      noOutputTimer = setTimeout(() => {
+        killChild('no_output')
+      }, noOutputTimeoutMs)
+    }
+
+    overallTimer = setTimeout(() => {
+      killChild('overall')
     }, timeoutMs)
+    resetNoOutputTimer()
 
     child.stdout.on('data', (chunk) => {
       stdout += chunk.toString()
+      resetNoOutputTimer()
     })
 
     child.stderr.on('data', (chunk) => {
       stderr += chunk.toString()
+      resetNoOutputTimer()
     })
 
     child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ code: code ?? 1, stdout, stderr, timedOut })
+      if (overallTimer) clearTimeout(overallTimer)
+      if (noOutputTimer) clearTimeout(noOutputTimer)
+      resolve({ code: code ?? 1, stdout, stderr, timedOut, timeoutType })
     })
   })
 }
@@ -455,6 +499,12 @@ async function dispatchOne(taskId, args = {}) {
   const dryRun = Boolean(args['dry-run'])
 
   const timeoutMs = Number(args.timeout_ms ?? agentCfg.timeout_ms ?? config.default_timeout_ms ?? 900000)
+  const noOutputTimeoutMs = Number(
+    args.no_output_timeout_ms ??
+      agentCfg.no_output_timeout_ms ??
+      config.default_no_output_timeout_ms ??
+      0
+  )
   const outboxOwnerDir = path.join(OUTBOX_DIR, owner)
   await ensureDir(outboxOwnerDir)
 
@@ -471,7 +521,7 @@ async function dispatchOne(taskId, args = {}) {
   await writeTask(task.file, task.meta, task.body)
 
   const startedAt = Date.now()
-  const execResult = await runShell(renderedCommand, REPO_ROOT, timeoutMs)
+  const execResult = await runShell(renderedCommand, REPO_ROOT, timeoutMs, noOutputTimeoutMs)
   const durationMs = Date.now() - startedAt
 
   const status = execResult.code === 0 && !execResult.timedOut ? 'in_review' : 'blocked'
@@ -482,6 +532,7 @@ async function dispatchOne(taskId, args = {}) {
     `- status: ${status}`,
     `- exit_code: ${execResult.code}`,
     `- timed_out: ${execResult.timedOut ? 'true' : 'false'}`,
+    `- timeout_type: ${execResult.timeoutType ?? 'none'}`,
     `- duration_ms: ${durationMs}`,
     `- ran_at: ${nowIso()}`,
     `- command: ${renderedCommand}`,
@@ -578,8 +629,8 @@ async function main() {
         '  node scripts/agents/orchestrator.mjs list [--status pending] [--owner gemini]',
         '  node scripts/agents/orchestrator.mjs show TASK-0001',
         '  node scripts/agents/orchestrator.mjs set-status TASK-0001 done',
-        '  node scripts/agents/orchestrator.mjs dispatch TASK-0001',
-        '  node scripts/agents/orchestrator.mjs dispatch-all [--owner gemini] [--status pending] [--max 2]',
+        '  node scripts/agents/orchestrator.mjs dispatch TASK-0001 [--timeout_ms 180000] [--no_output_timeout_ms 45000]',
+        '  node scripts/agents/orchestrator.mjs dispatch-all [--owner gemini] [--status pending] [--max 2] [--no_output_timeout_ms 45000]',
         '  node scripts/agents/orchestrator.mjs dispatch TASK-0001 --dry-run',
         '',
         'Environment overrides:',

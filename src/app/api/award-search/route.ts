@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerDbClient } from '@/lib/supabase'
 import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
+import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
 import { StubProvider } from '@/lib/award-search/stub-provider'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
     const client = createServerDbClient()
     const provider = createAwardProvider()
 
-    const results = await provider.search(params, client)
+    const results = sortAwardResultsByPoints(await provider.search(params, client))
 
     // Narrative generation can be skipped by client and fetched asynchronously.
     const ai_narrative = includeNarrative
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       try {
         const client = createServerDbClient()
         const fallbackProvider = new StubProvider()
-        const results = await fallbackProvider.search(params, client)
+        const results = sortAwardResultsByPoints(await fallbackProvider.search(params, client))
         const ai_narrative = includeNarrative
           ? await generateNarrative(params, pickNarrativeOptions(results))
           : null
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
           searched_at: new Date().toISOString(),
           error: 'real_availability_unavailable',
           message: ESTIMATES_ONLY_MESSAGE,
+          estimates_only: true,
         })
       } catch (fallbackErr) {
         logError('award_search_fallback_failed', {

@@ -63,54 +63,54 @@ function formatCpp(cppCents: number | null | undefined, region: Region): string 
 function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResult; topSlug?: string; region: Region }) {
   const isTopPick = result.program_slug === topSlug
   const resultClass = isTopPick
-    ? 'bg-[#e9f8f3] border-[#9ad6c9]'
+    ? 'bg-pm-accent-soft border-pm-accent-border'
     : result.is_reachable
-      ? 'bg-white border-[#d5e5d9]'
-      : 'bg-[#f2f7f3] border-[#dce9e1] opacity-80'
+      ? 'bg-pm-surface border-pm-border'
+      : 'bg-pm-surface-soft border-pm-border opacity-80'
 
   return (
     <div className={`rounded-xl border p-4 space-y-3 ${resultClass}`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: result.program_color }} />
-        <span className="text-[#173f34] font-semibold text-sm">{result.program_name}</span>
+        <span className="text-pm-ink-900 font-semibold text-sm">{result.program_name}</span>
         {isTopPick && (
-          <span className="text-xs bg-[#0f766e] text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
+          <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
         )}
         {result.has_real_availability && (
-          <span className="text-xs bg-[#ecf9f1] text-[#157347] border border-[#c7e7d4] px-2 py-0.5 rounded-full">Live</span>
+          <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full">Live</span>
         )}
         {!result.has_real_availability && (
-          <span className="text-xs bg-[#f2f7f3] text-[#607d71] border border-[#d6e5dc] px-2 py-0.5 rounded-full">Estimate</span>
+          <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Estimate</span>
         )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
-          <p className="text-[#5f7c70] uppercase tracking-wider font-semibold text-[10px]">Miles needed</p>
-          <p className="text-[#157347] font-bold mt-0.5">{result.estimated_miles.toLocaleString()}</p>
+          <p className="text-pm-ink-500 uppercase tracking-wider font-semibold text-[10px]">Miles needed</p>
+          <p className="text-pm-success font-bold mt-0.5">{result.estimated_miles.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-[#5f7c70] uppercase tracking-wider font-semibold text-[10px]">Wallet points</p>
-          <p className="text-[#244437] font-semibold mt-0.5">{result.points_needed_from_wallet.toLocaleString()}</p>
+          <p className="text-pm-ink-500 uppercase tracking-wider font-semibold text-[10px]">Wallet points</p>
+          <p className="text-pm-ink-900 font-semibold mt-0.5">{result.points_needed_from_wallet.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-[#5f7c70] uppercase tracking-wider font-semibold text-[10px]">Rate</p>
-          <p className="text-[#244437] mt-0.5">{formatCpp(result.cpp_cents, region)}</p>
+          <p className="text-pm-ink-500 uppercase tracking-wider font-semibold text-[10px]">Rate</p>
+          <p className="text-pm-ink-900 mt-0.5">{formatCpp(result.cpp_cents, region)}</p>
         </div>
       </div>
 
       {result.transfer_chain && (
-        <p className="text-xs text-[#0f766e]">{result.transfer_chain}</p>
+        <p className="text-xs text-pm-accent">{result.transfer_chain}</p>
       )}
 
       <a
         href={result.deep_link.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs bg-[#edf6f0] hover:bg-[#e2f2ea] text-[#1f4a3d] border border-[#cfe2d5] px-3 py-1.5 rounded-full transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-success-soft text-pm-ink-700 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
       >
         {result.deep_link.label}
-        <span className="text-[#5f7c70]">↗</span>
+        <span className="text-pm-ink-500">↗</span>
       </a>
     </div>
   )
@@ -338,7 +338,7 @@ export default function AwardSearchPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <section className="border-b border-pm-border bg-pm-surface-soft/50">
         <div className="pm-shell py-10">
           <span className="pm-pill mb-3">Fast flight search</span>
           <h1 className="pm-heading text-3xl mb-2">Standalone Award Search</h1>
@@ -387,11 +387,11 @@ export default function AwardSearchPage() {
                     <Button
                       variant="outline"
                       className={cn(
-                        'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                        'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                         !params.start_date && 'text-muted-foreground'
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                      <CalendarIcon className="mr-2 h-4 w-4 text-pm-ink-500" />
                       {params.start_date ? (
                         format(parseISO(params.start_date), 'PP')
                       ) : (
@@ -399,7 +399,7 @@ export default function AwardSearchPage() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                     <Calendar
                       mode="single"
                       selected={params.start_date ? parseISO(params.start_date) : undefined}
@@ -415,8 +415,8 @@ export default function AwardSearchPage() {
                       disabled={(date) => isBefore(date, startOfToday())}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
-                        day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />
                   </PopoverContent>
@@ -429,11 +429,11 @@ export default function AwardSearchPage() {
                     <Button
                       variant="outline"
                       className={cn(
-                        'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                        'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                         !params.end_date && 'text-muted-foreground'
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                      <CalendarIcon className="mr-2 h-4 w-4 text-pm-ink-500" />
                       {params.end_date ? (
                         format(parseISO(params.end_date), 'PP')
                       ) : (
@@ -441,7 +441,7 @@ export default function AwardSearchPage() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                     <Calendar
                       mode="single"
                       selected={params.end_date ? parseISO(params.end_date) : undefined}
@@ -456,8 +456,8 @@ export default function AwardSearchPage() {
                       }}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
-                        day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />
                   </PopoverContent>
@@ -551,12 +551,12 @@ export default function AwardSearchPage() {
             </button>
 
             {error && (
-              <div className="text-sm text-[#b42318] bg-[#fff2f2] rounded-xl px-4 py-3 border border-[#f9d4d4]">
+              <div className="text-sm text-pm-danger bg-pm-danger-soft rounded-xl px-4 py-3 border border-pm-danger-border">
                 <p>{error}</p>
                 <button
                   type="button"
                   onClick={submitSearch}
-                  className="mt-2 text-sm underline underline-offset-4 text-[#8a1c16]"
+                  className="mt-2 text-sm underline underline-offset-4 text-pm-danger"
                 >
                   Try again
                 </button>
@@ -576,41 +576,41 @@ export default function AwardSearchPage() {
               <>
                 <div>
                   <h2 className="pm-heading text-lg">Results</h2>
-                  <p className="text-xs text-[#5f7c70] mt-1">
+                  <p className="text-xs text-pm-ink-500 mt-1">
                     {result.params.origin} → {result.params.destination} · {CABIN_LABELS[result.params.cabin]} · {result.params.passengers} pax
                   </p>
                 </div>
 
                 {narrativeLoading && (
-                  <div className="rounded-xl p-4 space-y-2 border border-[#d7e8dd] bg-[#f7fbf8] animate-pulse">
-                    <div className="h-3 w-24 rounded bg-[#dce9e2]" />
-                    <div className="h-5 w-2/3 rounded bg-[#dce9e2]" />
-                    <div className="h-3 w-full rounded bg-[#e3eee8]" />
-                    <div className="h-3 w-5/6 rounded bg-[#e3eee8]" />
+                  <div className="rounded-xl p-4 space-y-2 border border-pm-border bg-pm-surface-soft animate-pulse">
+                    <div className="h-3 w-24 rounded bg-pm-border" />
+                    <div className="h-5 w-2/3 rounded bg-pm-border" />
+                    <div className="h-3 w-full rounded bg-pm-surface-soft" />
+                    <div className="h-3 w-5/6 rounded bg-pm-surface-soft" />
                   </div>
                 )}
 
                 {narrative && (
-                  <div className="rounded-xl p-4 space-y-2 border border-[#bfe4dc] bg-[#ecfaf7]">
-                    <p className="pm-label text-[#0f766e]">AI analysis</p>
+                  <div className="rounded-xl p-4 space-y-2 border border-pm-accent-border bg-pm-accent-soft">
+                    <p className="pm-label text-pm-accent">AI analysis</p>
                     <p className="pm-heading text-base">{narrative.headline}</p>
-                    <p className="text-sm text-[#2c4d41]">{narrative.body}</p>
+                    <p className="text-sm text-pm-ink-700">{narrative.body}</p>
                   </div>
                 )}
 
                 {estimatesOnly && (
-                  <div className="rounded-xl p-4 border border-[#f2d8ad] bg-[#fff8eb]">
-                    <p className="text-sm text-[#8a5b12]">
+                  <div className="rounded-xl p-4 border border-pm-warning-border bg-pm-warning-soft">
+                    <p className="text-sm text-pm-warning">
                       {result.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
                     </p>
                   </div>
                 )}
 
-                <div className="rounded-xl p-4 border border-[#dbe9e2] bg-white">
+                <div className="rounded-xl p-4 border border-pm-border bg-pm-surface">
                   <p className="pm-label mb-1">Deal watch</p>
                   {user ? (
                     <>
-                      <p className="text-xs text-[#5f7c70]">
+                      <p className="text-xs text-pm-ink-500">
                         Save this search as a watch to trigger email alerts when live award space appears.
                       </p>
                       <button
@@ -622,16 +622,16 @@ export default function AwardSearchPage() {
                       </button>
                     </>
                   ) : (
-                    <p className="text-xs text-[#5f7c70]">Sign in to save deal watches and receive alerts.</p>
+                    <p className="text-xs text-pm-ink-500">Sign in to save deal watches and receive alerts.</p>
                   )}
                   {watchStatus && (
-                    <p className="text-xs text-[#0f5f57] mt-2">{watchStatus}</p>
+                    <p className="text-xs text-pm-accent-strong mt-2">{watchStatus}</p>
                   )}
                 </div>
 
                 {reachable.length > 0 && (
                   <div className="space-y-3">
-                    <p className="pm-label text-[#157347]">Reachable with your wallet</p>
+                    <p className="pm-label text-pm-success">Reachable with your wallet</p>
                     {reachable.map((r, index) => (
                       <motion.div
                         key={r.program_slug}
@@ -662,11 +662,11 @@ export default function AwardSearchPage() {
                 )}
 
                 {reachable.length === 0 && unreachable.length === 0 && (
-                  <div className="rounded-xl border border-[#dbe9e2] bg-[#f8fcf9] p-4">
-                    <p className="text-sm text-[#365649] font-medium">
+                  <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-4">
+                    <p className="text-sm text-pm-ink-700 font-medium">
                       No award availability found for this route yet.
                     </p>
-                    <p className="text-xs text-[#5f7c70] mt-1">
+                    <p className="text-xs text-pm-ink-500 mt-1">
                       Try flexible dates, nearby airports, or a different cabin to expand options.
                     </p>
                   </div>

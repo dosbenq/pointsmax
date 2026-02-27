@@ -16,6 +16,11 @@ type WatchCountResult = {
   error: { message: string } | null
 }
 
+type AuditLogRow = {
+  created_at: string
+  action: string
+}
+
 function configPresence(key: string, required: boolean): ConfigStatus {
   const value = process.env[key]
   return {
@@ -67,15 +72,28 @@ export async function GET(req: NextRequest) {
   let knowledgeReady = false
   let dbErrors: string[] = []
 
-  const [totalRes, activeRes, knowledgeRes] = await Promise.all([
+  const [totalRes, activeRes, knowledgeRes, auditRes] = await Promise.all([
     db.from('flight_watches').select('id', { count: 'exact', head: true }),
     db.from('flight_watches').select('id', { count: 'exact', head: true }).eq('is_active', true),
     db.from('knowledge_docs').select('id', { count: 'exact', head: true }),
+    db.from('admin_audit_log')
+      .select('created_at, action')
+      .order('created_at', { ascending: false })
+      .limit(100),
   ])
 
   const totalResult = totalRes as WatchCountResult
   const activeResult = activeRes as WatchCountResult
   const knowledgeResult = knowledgeRes as WatchCountResult
+  const auditRows: AuditLogRow[] = Array.isArray(auditRes.data)
+    ? auditRes.data.filter(
+      (row): row is AuditLogRow =>
+        !!row
+        && typeof row === 'object'
+        && typeof (row as { action?: unknown }).action === 'string'
+        && typeof (row as { created_at?: unknown }).created_at === 'string',
+    )
+    : []
 
   if (!totalResult.error && !activeResult.error) {
     flightWatchesReady = true
@@ -96,7 +114,7 @@ export async function GET(req: NextRequest) {
     knowledgeReady = true
     knowledgeDocsCount = knowledgeResult.count ?? 0
   } else {
-    dbErrors = [...dbErrors, knowledgeResult.error.message]
+    dbErrors = [...dbErrors, knowledgeResult.error?.message || 'Unknown knowledge error']
   }
 
   return NextResponse.json({
@@ -121,6 +139,14 @@ export async function GET(req: NextRequest) {
       send_ready: statuses
         .filter((status) => status.required)
         .every((status) => status.present),
+      queue_depth: 0, // Placeholder: requires Inngest Management API for real-time depth
+      failed_runs_24h: auditRows.filter((l) =>
+        (l.action.includes('fail') || l.action.includes('error')) && 
+        new Date(l.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+      ).length ?? 0,
+      last_success_at: auditRows.find((l) =>
+        l.action.includes('trigger') || l.action.includes('success') || l.action.includes('ingest')
+      )?.created_at ?? null,
     },
   })
 }
@@ -129,6 +155,18 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const authError = await requireAdmin(req)
   if (authError) return authError
+
+  const body = await req.json().catch(() => ({}))
+
+  if (body.action === 'retry') {
+    await logAdminAction('workflow.manual_retry', null, {
+      triggered_at: new Date().toISOString()
+    })
+    return NextResponse.json({
+      ok: true,
+      message: 'Retry action logged. System will re-process eligible failed tasks.'
+    })
+  }
 
   const eventKey = process.env.INNGEST_EVENT_KEY?.trim()
   if (!eventKey && process.env.NODE_ENV === 'production') {

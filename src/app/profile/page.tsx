@@ -82,17 +82,17 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
       <div className="flex items-center justify-between mb-1">
         <h2 className="pm-heading text-base">Transfer Bonus Alerts</h2>
         {toast === 'saved' && (
-          <span className="text-xs text-[#157347] bg-[#ecf9f1] border border-[#c7e7d4] px-3 py-1 rounded-full font-medium">
+          <span className="text-xs text-pm-success bg-pm-success-soft border border-pm-success-border px-3 py-1 rounded-full font-medium">
             ✓ Saved
           </span>
         )}
         {toast === 'error' && (
-          <span className="text-xs text-[#b42318] bg-[#fff2f2] border border-[#f9d4d4] px-3 py-1 rounded-full font-medium">
+          <span className="text-xs text-pm-danger bg-pm-danger-soft border border-pm-danger-border px-3 py-1 rounded-full font-medium">
             Error — try again
           </span>
         )}
       </div>
-      <p className="text-xs text-[#6a8579] mb-5">Get emailed when a transfer bonus goes live for your programs.</p>
+      <p className="text-xs text-pm-ink-500 mb-5">Get emailed when a transfer bonus goes live for your programs.</p>
 
       <div className="space-y-4">
         <div>
@@ -120,8 +120,8 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
                   onClick={() => toggle(p.id)}
                   className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
                     checked
-                      ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                      : 'bg-white text-[#365649] border-[#d5e5d9] hover:border-[#99ccbe]'
+                      ? 'bg-pm-accent text-pm-bg border-pm-accent'
+                      : 'bg-white text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                   }`}
                 >
                   {p.name}
@@ -130,7 +130,7 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
             })}
           </div>
           {selectedIds.size === 0 && (
-            <p className="text-xs text-[#6a8579] mt-2">
+            <p className="text-xs text-pm-ink-500 mt-2">
               You&apos;re not watching any programs yet. Set at least one alert to get bonus notifications.
             </p>
           )}
@@ -276,7 +276,7 @@ export default function ProfilePage() {
       <div className="min-h-screen flex flex-col">
         <NavBar />
         <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-[#0f766e] border-t-transparent animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-pm-accent border-t-transparent animate-spin" />
         </div>
       </div>
     )
@@ -297,22 +297,22 @@ export default function ProfilePage() {
         <div className="pm-card p-6">
           <h2 className="pm-heading text-base mb-4">Account</h2>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#0f766e] text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
+            <div className="w-14 h-14 rounded-full bg-pm-accent text-pm-bg flex items-center justify-center text-2xl font-bold flex-shrink-0">
               {avatarLetter}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-[#173f34] font-medium truncate">{user.email}</p>
+              <p className="text-sm text-pm-ink-900 font-medium truncate">{user.email}</p>
               <div className="mt-1.5 flex items-center gap-2">
                 {userRecord?.tier === 'premium' ? (
-                  <span className="inline-flex items-center text-xs font-semibold bg-[#0f766e] text-white px-2.5 py-0.5 rounded-full">
+                  <span className="inline-flex items-center text-xs font-semibold bg-pm-accent text-pm-bg px-2.5 py-0.5 rounded-full">
                     Pro
                   </span>
                 ) : (
-                  <span className="inline-flex items-center text-xs font-semibold bg-[#eef5f0] text-[#4f6c60] px-2.5 py-0.5 rounded-full border border-[#d5e5d9]">
+                  <span className="inline-flex items-center text-xs font-semibold bg-pm-surface-soft text-pm-ink-500 px-2.5 py-0.5 rounded-full border border-pm-border">
                     Free
                   </span>
                 )}
-                <span className="text-xs text-[#6a8579]">
+                <span className="text-xs text-pm-ink-500">
                   {userRecord?.tier === 'premium' ? 'Pro plan active' : 'Free plan'}
                 </span>
               </div>
@@ -338,14 +338,14 @@ export default function ProfilePage() {
               )}
               <button
                 onClick={signOut}
-                className="text-sm text-[#b42318] hover:text-[#7a1e16] font-medium border border-[#f5c8c5] hover:border-[#eba8a4] px-4 py-2 rounded-xl transition-colors flex-shrink-0"
+                className="text-sm text-pm-danger hover:text-pm-danger font-medium border border-pm-danger-border hover:border-pm-danger px-4 py-2 rounded-xl transition-colors flex-shrink-0"
               >
                 Sign out
               </button>
             </div>
           </div>
           {billingError && (
-            <p className="text-xs text-[#b42318] mt-3">{billingError}</p>
+            <p className="text-xs text-pm-danger mt-3">{billingError}</p>
           )}
         </div>
 
@@ -355,10 +355,10 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="pm-heading text-base">Travel Preferences</h2>
-              <p className="text-xs text-[#6a8579] mt-0.5">Used by the AI advisor for personalized recommendations.</p>
+              <p className="text-xs text-pm-ink-500 mt-0.5">Used by the AI advisor for personalized recommendations.</p>
             </div>
             {toast && (
-              <span className="text-xs text-[#157347] bg-[#ecf9f1] border border-[#c7e7d4] px-3 py-1 rounded-full font-medium">
+              <span className="text-xs text-pm-success bg-pm-success-soft border border-pm-success-border px-3 py-1 rounded-full font-medium">
                 ✓ Saved
               </span>
             )}
@@ -400,9 +400,9 @@ export default function ProfilePage() {
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {prefForm.preferred_airlines.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 bg-[#ecf9f7] text-[#0f5f57] text-xs px-2.5 py-1 rounded-full border border-[#b8e3da]">
+                  <span key={i} className="inline-flex items-center gap-1 bg-pm-accent-soft text-pm-accent-strong text-xs px-2.5 py-1 rounded-full border border-pm-accent-border">
                     {a}
-                    <button onClick={() => removeTag('preferred_airlines', i)} className="hover:text-[#b42318] font-bold">×</button>
+                    <button onClick={() => removeTag('preferred_airlines', i)} className="hover:text-pm-danger font-bold">×</button>
                   </span>
                 ))}
               </div>
@@ -430,9 +430,9 @@ export default function ProfilePage() {
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {prefForm.avoided_airlines.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 bg-[#fff4f3] text-[#b42318] text-xs px-2.5 py-1 rounded-full border border-[#f5c8c5]">
+                  <span key={i} className="inline-flex items-center gap-1 bg-pm-danger-soft text-pm-danger text-xs px-2.5 py-1 rounded-full border border-pm-danger-border">
                     {a}
-                    <button onClick={() => removeTag('avoided_airlines', i)} className="hover:text-[#7a1e16] font-bold">×</button>
+                    <button onClick={() => removeTag('avoided_airlines', i)} className="hover:text-pm-danger font-bold">×</button>
                   </span>
                 ))}
               </div>
@@ -464,9 +464,9 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="pm-card p-6 border border-[#f6cdcb]">
-          <h2 className="pm-heading text-base text-[#8a1c16]">Delete Account</h2>
-          <p className="text-sm text-[#7c3a35] mt-2">
+        <div className="pm-card p-6 border border-pm-danger-border">
+          <h2 className="pm-heading text-base text-pm-danger">Delete Account</h2>
+          <p className="text-sm text-pm-danger mt-2">
             Permanently delete your account and associated data. This cannot be undone.
           </p>
 

@@ -1,23 +1,25 @@
 {
   "default_timeout_ms": 900000,
+  "default_no_output_timeout_ms": 180000,
   "agents": {
     "claude": {
-      "enabled": false,
+      "enabled": true,
       "shell": "claude -p \"$(cat {{prompt_file}})\"",
       "timeout_ms": 900000
     },
     "gemini": {
       "enabled": true,
-      "shell": "gemini -p \"$(cat {{prompt_file}})\"",
-      "timeout_ms": 900000
+      "shell": "gemini --approval-mode yolo -p \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 900000,
+      "no_output_timeout_ms": 180000
     },
     "kimi": {
-      "enabled": false,
+      "enabled": true,
       "shell": "kimi -p \"$(cat {{prompt_file}})\"",
       "timeout_ms": 900000
     },
     "codex": {
-      "enabled": false,
+      "enabled": true,
       "shell": "codex run \"$(cat {{prompt_file}})\"",
       "timeout_ms": 900000
     }

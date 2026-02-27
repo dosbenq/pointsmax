@@ -153,14 +153,27 @@ export function AIChat({
 
         {aiError && (
           <div className="rounded-xl border border-pm-danger/20 bg-pm-danger-soft px-4 py-3 text-sm">
-            <p className="text-pm-danger font-medium">Our AI is taking a break. Here are your raw results.</p>
-            <p className="text-pm-danger mt-1">{aiError}</p>
-            <button
-              onClick={() => onSwitchPanel(result ? 'redemptions' : 'awards', 'ai_error_fallback')}
-              className="mt-2 text-pm-danger underline underline-offset-4"
-            >
-              View non-AI results
-            </button>
+            <div className="flex items-start gap-2 text-pm-danger">
+              <span className="text-base mt-0.5">⚠️</span>
+              <div>
+                <p className="font-semibold">Points Advisor is temporarily unavailable</p>
+                <p className="mt-1 opacity-90">{aiError}</p>
+                <div className="mt-3 flex items-center gap-4">
+                  <button
+                    onClick={() => onSwitchPanel(result ? 'redemptions' : 'awards', 'ai_error_fallback')}
+                    className="font-medium underline underline-offset-4"
+                  >
+                    View non-AI results
+                  </button>
+                  <button
+                    onClick={() => onSendMessage('Retry last request')}
+                    className="text-xs bg-white/50 px-2 py-1 rounded border border-pm-danger/20 hover:bg-white transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

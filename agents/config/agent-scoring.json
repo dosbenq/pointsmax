@@ -1,0 +1,11 @@
+{
+  "weights": {
+    "correctness": 0.35,
+    "regressions": 0.2,
+    "testAdequacy": 0.2,
+    "reworkEffort": 0.1,
+    "throughput": 0.05,
+    "completionSpeed": 0.05,
+    "tokenCostEfficiency": 0.05
+  }
+}

@@ -79,10 +79,14 @@ const config: Config = {
   				'5': 'hsl(var(--chart-5))'
   			},
   			// PointsMax semantic colors (dark mode aware)
-  			'pm-bg': 'var(--pm-bg)',
-  			'pm-surface': 'var(--pm-surface)',
+  			'pm-bg': 'rgb(var(--pm-bg-rgb) / <alpha-value>)',
+  			'pm-surface': 'rgb(var(--pm-surface-rgb) / <alpha-value>)',
   			'pm-surface-soft': 'var(--pm-surface-soft)',
+  			'pm-surface-raised': 'var(--pm-surface-raised)',
   			'pm-border': 'var(--pm-border)',
+  			'pm-border-strong': 'var(--pm-border-strong)',
+  			'pm-accent-border': 'var(--pm-accent-border)',
+  			'pm-accent-glow': 'var(--pm-accent-glow)',
   			'pm-ink': {
   				900: 'var(--pm-ink-900)',
   				700: 'var(--pm-ink-700)',
@@ -94,8 +98,17 @@ const config: Config = {
   				soft: 'var(--pm-accent-soft)',
   			},
   			'pm-success': 'var(--pm-success)',
+  			'pm-success-soft': 'var(--pm-success-soft)',
+  			'pm-success-border': 'var(--pm-success-border)',
   			'pm-warning': 'var(--pm-warning)',
+  			'pm-warning-soft': 'var(--pm-warning-soft)',
+  			'pm-warning-border': 'var(--pm-warning-border)',
   			'pm-danger': 'var(--pm-danger)',
+  			'pm-danger-soft': 'var(--pm-danger-soft)',
+  			'pm-danger-border': 'var(--pm-danger-border)',
+  		},
+  		boxShadow: {
+  			'glow': 'var(--pm-shadow-glow)',
   		}
   	}
   },

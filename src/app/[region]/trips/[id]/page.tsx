@@ -61,16 +61,16 @@ export default async function SharedTripPage({ params }: Props) {
 
         <section className="grid sm:grid-cols-3 gap-4">
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Destination</p>
-            <p className="text-xl font-semibold text-[#173f34] mt-1">{destination}</p>
+            <p className="text-xs text-pm-ink-500">Destination</p>
+            <p className="text-xl font-semibold text-pm-ink-900 mt-1">{destination}</p>
           </div>
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Points used</p>
-            <p className="text-xl font-semibold text-[#173f34] mt-1">{pointsUsed.toLocaleString()}</p>
+            <p className="text-xs text-pm-ink-500">Points used</p>
+            <p className="text-xl font-semibold text-pm-ink-900 mt-1">{pointsUsed.toLocaleString()}</p>
           </div>
           <div className="pm-card p-4">
-            <p className="text-xs text-[#5f7c70]">Estimated value saved</p>
-            <p className="text-xl font-semibold text-[#173f34] mt-1">
+            <p className="text-xs text-pm-ink-500">Estimated value saved</p>
+            <p className="text-xl font-semibold text-pm-ink-900 mt-1">
               {(totalValue / 100).toLocaleString('en-US', {
                 style: 'currency',
                 currency: config.currency,

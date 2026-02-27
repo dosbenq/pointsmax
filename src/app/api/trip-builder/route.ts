@@ -13,36 +13,7 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
-
-// Known hotel award portal URLs — AI picks from these so it can't hallucinate property-specific links
-const HOTEL_BOOKING_URLS = `
-Known hotel award booking portals (use ONLY these exact URLs for hotel.booking_url):
-- World of Hyatt: https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html
-- Marriott Bonvoy: https://www.marriott.com/loyalty/redeem.mi
-- Hilton Honors: https://www.hilton.com/en/hilton-honors/points/
-- IHG One Rewards: https://www.ihg.com/onerewards/content/us/en/redeem-rewards
-- Wyndham Rewards: https://www.wyndhamhotels.com/wyndham-rewards/redeem
-- Choice Privileges: https://www.choicehotels.com/choice-privileges
-`.trim()
-
-// Known transfer and booking portal URLs — prevents hallucinated step URLs
-const BOOKING_STEP_URLS = `
-Known portal URLs (use ONLY these for booking_steps urls, or null if no exact match):
-- Chase UR transfer: https://www.ultimaterewards.com
-- Amex MR transfer: https://global.americanexpress.com/rewards/transfer
-- Capital One transfer: https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/
-- Citi ThankYou transfer: https://www.citi.com/credit-cards/thankyou-rewards
-- Bilt transfer: https://www.bilt.com/rewards/travel
-- United award booking: https://www.united.com/en/us/fly/travel/awards.html
-- Delta award booking: https://www.delta.com/us/en/skymiles/overview
-- American AAdvantage booking: https://www.aa.com/homePage.do
-- Air Canada Aeroplan booking: https://www.aircanada.com/ca/en/aco/home/aeroplan.html
-- British Airways Avios booking: https://www.britishairways.com/travel/home/public/en_us/
-- Flying Blue booking: https://www.flyingblue.com/en/spend/flights
-- Singapore KrisFlyer booking: https://www.singaporeair.com/en_UK/us/home
-- Turkish Miles&Smiles booking: https://www.turkishairlines.com/en-int/miles-and-smiles/
-- Avianca LifeMiles booking: https://www.lifemiles.com/fly/search
-`.trim()
+import { getTripBuilderPromptSections } from '@/config/booking-links'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -199,6 +170,7 @@ export async function POST(req: NextRequest) {
       `  ${b.program_id}: ${b.amount.toLocaleString()} pts`
     ).join('\n')
 
+    const promptSections = getTripBuilderPromptSections()
     const prompt = `You are an expert travel rewards advisor. Plan a trip using points/miles.
 
 TRIP DETAILS:
@@ -215,9 +187,9 @@ ${balanceSummary}
 TOP AWARD FLIGHT OPTIONS FOUND:
 ${flightSummary}
 
-${HOTEL_BOOKING_URLS}
+${promptSections.hotelBookingUrls}
 
-${BOOKING_STEP_URLS}
+${promptSections.bookingStepUrls}
 
 Return ONLY valid JSON (no markdown, no code fences) with this exact shape:
 {

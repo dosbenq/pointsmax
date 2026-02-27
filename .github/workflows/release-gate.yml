@@ -14,10 +14,15 @@ jobs:
       NEXT_PUBLIC_APP_URL: https://pointsmax.com
       CORS_ALLOWED_ORIGINS: https://pointsmax.com
       HEALTHCHECK_SECRET: release-health-secret
+      QUALITY_GATE_MODE: enforce
+      BASE_SHA: HEAD~1
+      HEAD_SHA: HEAD
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,6 +38,9 @@ jobs:
 
       - name: Preflight
         run: npm run preflight
+
+      - name: Quality policy gates
+        run: npm run quality:gates
 
       - name: Link health
         run: npm run check:links

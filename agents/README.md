@@ -14,9 +14,11 @@ This folder is the shared protocol for coordinating multiple coding LLM CLIs (Cl
 
 ```bash
 npm run agents:init
-npm run agents:create -- --owner gemini --title "Fix pricing copy" --objective "Update free/pro table" --scope "pricing page only" --criteria "copy updated;build passes" --tests "unit test for updated component;api test updated" --checks "npm run lint;npm run test -- --run"
+npm run agents:create -- --owner kimi --title "Fix pricing copy" --objective "Update free/pro table" --scope "pricing page only" --criteria "copy updated;build passes" --tests "unit test for updated component;api test updated" --checks "npm run lint;npm run test -- --run"
 npm run agents:list
-npm run agents:dispatch -- TASK-0001
+npm run agents:dispatch -- TASK-0001 --timeout_ms 180000 --no_output_timeout_ms 45000
+npm run agents:report
+npm run agents:evaluate
 ```
 
 ## Task lifecycle
@@ -24,6 +26,22 @@ npm run agents:dispatch -- TASK-0001
 `pending -> in_progress -> in_review -> done`
 
 If a dispatch command fails or times out, status moves to `blocked`.
+
+## Async queue mode (recommended)
+
+Run agents in the background, then keep coding while they work:
+
+```bash
+npm run agents:queue:start -- --owner gemini --status pending --timeout_ms 420000 --no_output_timeout_ms 180000
+npm run agents:queue:list
+npm run agents:queue:status -- JOB-2026-02-27_04-40-00-000Z
+npm run agents:queue:watch -- JOB-2026-02-27_04-40-00-000Z --interval_ms 5000
+```
+
+- `queue:start` launches `dispatch-all` in a detached background process.
+- `queue:status` returns JSON status + task counts.
+- `queue:watch` streams live status updates until the job exits.
+- Queue logs are written to `agents/runtime/logs/JOB-*.log`.
 
 ## Configure your local CLI commands
 
@@ -50,16 +68,11 @@ Example:
 AGENT_CMD_CLAUDE='claude -p "$(cat {{prompt_file}})"' npm run agents:dispatch -- TASK-0001
 ```
 
-## Gemini-only mode (current)
+## Agent routing mode
 
-If you want orchestration limited to Gemini, set non-Gemini agents to disabled in `agents/config/agents.json`:
+The orchestrator is agent-agnostic. Route tasks with `owner` metadata and keep task filenames generic.
 
-- `claude.enabled = false`
-- `kimi.enabled = false`
-- `codex.enabled = false`
-- `gemini.enabled = true`
-
-With this mode enabled, dispatching a task owned by a disabled agent will fail fast.
+If you need temporary single-agent mode, disable others in `agents/config/agents.json`.
 
 ## Recommended PM flow
 
@@ -67,6 +80,15 @@ With this mode enabled, dispatching a task owned by a disabled agent will fail f
 2. Dispatch to an owner (`agents:dispatch`).
 3. Review outbox report in `agents/outbox/<owner>/...`.
 4. Move to `done` only after local checks pass (`lint`, `test`, `build`).
+
+## Performance monitoring
+
+- `npm run agents:report` writes `agents/runtime/logs/agent-performance-latest.md`
+- Metrics include success rate, timeout rate, output rate, average duration, and a ranking score
+- Use this report weekly to compare Gemini/Claude/Kimi/Codex on real throughput and reliability
+- `npm run agents:evaluate` writes:
+  - `agents/runtime/logs/agent-eval-<date>.json` (normalized run-evaluation artifact)
+  - `agents/runtime/logs/agent-role-fit-latest.md` (capability matrix by task type)
 
 ## Task quality contract (required)
 

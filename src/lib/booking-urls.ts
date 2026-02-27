@@ -18,6 +18,8 @@
  * 4. Remove this hardcoded list
  */
 
+import { getActiveBookingUrls } from './db/booking-urls'
+
 export interface BookingUrl {
   program_slug: string
   label: string
@@ -61,9 +63,26 @@ export const BOOKING_URLS: BookingUrl[] = [
 /**
  * Get booking URLs formatted for AI prompt.
  * Filters by region and returns as formatted string.
+ * Attempts to load from DB, falls back to static map.
  */
-export function getBookingUrlsForPrompt(region: 'us' | 'in'): string {
-  const relevant = BOOKING_URLS.filter(
+export async function getBookingUrlsForPrompt(region: 'us' | 'in'): Promise<string> {
+  let urls: BookingUrl[] = BOOKING_URLS
+  
+  try {
+    const dbUrls = await getActiveBookingUrls(region)
+    if (dbUrls && dbUrls.length > 0) {
+      urls = dbUrls.map(u => ({
+        program_slug: u.program_slug,
+        label: u.label,
+        url: u.url,
+        region: u.region as 'us' | 'in' | 'global'
+      }))
+    }
+  } catch {
+    // Silent fallback to static map
+  }
+
+  const relevant = urls.filter(
     u => u.region === region || u.region === 'global'
   )
   
@@ -74,8 +93,17 @@ export function getBookingUrlsForPrompt(region: 'us' | 'in'): string {
 
 /**
  * Get a specific booking URL by program slug.
+ * Attempts to load from DB, falls back to static map.
  */
-export function getBookingUrl(programSlug: string): string | null {
+export async function getBookingUrl(programSlug: string): Promise<string | null> {
+  try {
+    const dbUrls = await getActiveBookingUrls()
+    const found = dbUrls.find(u => u.program_slug === programSlug)
+    if (found) return found.url
+  } catch {
+    // Silent fallback
+  }
+
   const found = BOOKING_URLS.find(u => u.program_slug === programSlug)
   return found?.url ?? null
 }

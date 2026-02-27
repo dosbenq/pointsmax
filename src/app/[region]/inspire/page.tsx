@@ -301,7 +301,7 @@ export default function InspirePage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <section className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
         <div className="pm-shell py-10">
           <span className="pm-pill mb-3">Reverse search {config.flag}</span>
           <h1 className="pm-heading text-3xl mb-2">Inspire Me</h1>
@@ -318,7 +318,7 @@ export default function InspirePage() {
           <div className="flex items-center justify-between">
             <h2 className="pm-heading text-lg">Where can I go?</h2>
             {loading && (
-              <span className="text-xs font-semibold text-[#0f766e] bg-[#ecf9f7] px-2 py-1 rounded-full animate-pulse">
+              <span className="text-xs font-semibold text-pm-accent bg-pm-accent-soft px-2 py-1 rounded-full animate-pulse">
                 Scanning {Math.round(progress * 100)}%
               </span>
             )}
@@ -409,10 +409,10 @@ export default function InspirePage() {
             </div>
           </div>
 
-          <div className="space-y-3 pt-2 border-t border-[#dbe9e2]">
+          <div className="space-y-3 pt-2 border-t border-pm-border">
             <div className="flex items-center justify-between">
               <h3 className="pm-label">Your Wallet</h3>
-              <button onClick={addRow} className="text-xs text-[#0f766e] hover:underline font-medium">+ Add program</button>
+              <button onClick={addRow} className="text-xs text-pm-accent hover:underline font-medium">+ Add program</button>
             </div>
             <div className="grid gap-2">
               {rows.map((row) => (
@@ -458,7 +458,7 @@ export default function InspirePage() {
           </button>
 
           {error && (
-            <div className="bg-[#fff2f2] border border-[#f9d4d4] text-[#b42318] text-sm rounded-xl px-4 py-3">
+            <div className="bg-pm-danger-soft border border-pm-danger-border text-pm-danger text-sm rounded-xl px-4 py-3">
               {error}
             </div>
           )}
@@ -469,7 +469,7 @@ export default function InspirePage() {
           {results.length > 0 && (
             <div className="flex items-center justify-between">
               <h2 className="pm-heading text-xl">Top Picks</h2>
-              <span className="text-xs text-[#5f7c70]">
+              <span className="text-xs text-pm-ink-500">
                 {results.length} destinations found
                 {failedDestinations.length > 0 ? ` · ${failedDestinations.length} failed` : ''}
               </span>
@@ -481,21 +481,21 @@ export default function InspirePage() {
               <div 
                 key={item.destination.code} 
                 className={`pm-card p-5 flex flex-col justify-between transition-all hover:shadow-md ${
-                  item.best?.is_reachable ? 'border-[#8ed3c8] bg-[#fcfefd]' : 'opacity-80 bg-white'
+                  item.best?.is_reachable ? 'border-pm-accent-border bg-pm-surface' : 'opacity-80 bg-white'
                 }`}
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-bold text-[#173f34] text-lg">{item.destination.city}</h3>
-                      <p className="text-xs text-[#5f7c70] font-mono">{item.destination.code}</p>
+                      <h3 className="font-bold text-pm-ink-900 text-lg">{item.destination.city}</h3>
+                      <p className="text-xs text-pm-ink-500 font-mono">{item.destination.code}</p>
                     </div>
                     {item.best?.is_reachable ? (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#157347] bg-[#ecf9f1] px-2 py-1 rounded-md border border-[#c7e7d4]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-pm-success bg-pm-success-soft px-2 py-1 rounded-md border border-pm-success-border">
                         Reachable
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#5f7c70] bg-[#f2f7f3] px-2 py-1 rounded-md">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-pm-ink-500 bg-pm-surface-soft px-2 py-1 rounded-md">
                         Waitlist
                       </span>
                     )}
@@ -504,24 +504,24 @@ export default function InspirePage() {
                   {item.best ? (
                     <div className="space-y-2">
                       <div className="text-sm">
-                        <p className="text-[#5f7c70] text-xs uppercase tracking-wider font-semibold">Best Path</p>
-                        <p className="font-medium text-[#173f34] mt-0.5">{item.best.program_name}</p>
-                        <p className="text-xs text-[#0f766e] truncate">{item.best.transfer_chain}</p>
+                        <p className="text-pm-ink-500 text-xs uppercase tracking-wider font-semibold">Best Path</p>
+                        <p className="font-medium text-pm-ink-900 mt-0.5">{item.best.program_name}</p>
+                        <p className="text-xs text-pm-accent truncate">{item.best.transfer_chain}</p>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#edf4ef]">
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-pm-surface-soft">
                         <div>
-                          <p className="text-[10px] text-[#5f7c70]">Miles</p>
-                          <p className="font-bold text-[#173f34]">{item.best.estimated_miles.toLocaleString()}</p>
+                          <p className="text-[10px] text-pm-ink-500">Miles</p>
+                          <p className="font-bold text-pm-ink-900">{item.best.estimated_miles.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-[#5f7c70]">Value</p>
-                          <p className="font-bold text-[#157347]">{formatCpp(item.best.cpp_cents)}</p>
+                          <p className="text-[10px] text-pm-ink-500">Value</p>
+                          <p className="font-bold text-pm-success">{formatCpp(item.best.cpp_cents)}</p>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-[#5f7c70] italic py-4">No award space found.</p>
+                    <p className="text-sm text-pm-ink-500 italic py-4">No award space found.</p>
                   )}
                 </div>
 
@@ -530,7 +530,7 @@ export default function InspirePage() {
                     href={item.best.deep_link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-4 w-full text-center text-xs font-semibold text-[#0f766e] bg-[#ecf9f7] hover:bg-[#def4ef] border border-[#b8e3da] py-2 rounded-lg transition-colors"
+                    className="mt-4 w-full text-center text-xs font-semibold text-pm-accent bg-pm-accent-soft hover:bg-pm-accent-soft border border-pm-accent-border py-2 rounded-lg transition-colors"
                   >
                     Check Availability ↗
                   </a>
@@ -540,13 +540,13 @@ export default function InspirePage() {
           </div>
 
           {results.length === 0 && !loading && (
-            <div className="text-center py-12 text-[#5f7c70]">
+            <div className="text-center py-12 text-pm-ink-500">
               <p>Ready to explore? Enter your details above and hit Inspire Me.</p>
             </div>
           )}
 
           {failedDestinations.length > 0 && (
-            <p className="text-xs text-[#8a5b12] bg-[#fff8eb] border border-[#f2d8ad] rounded-xl px-3 py-2">
+            <p className="text-xs text-pm-warning bg-pm-warning-soft border border-pm-warning-border rounded-xl px-3 py-2">
               Some destinations could not be scored this run. Try again to refresh route coverage.
             </p>
           )}

@@ -69,9 +69,9 @@ describe('GET /api/cards', () => {
     const body = await res.json()
 
     expect(res.status).toBe(500)
-    expect(body.error).toBe('Internal error')
+    expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
-      'cards_api_fetch_failed',
+      'cards_repository_fetch_failed',
       expect.objectContaining({ cards_error: 'cards failed' })
     )
   })
@@ -117,9 +117,9 @@ describe('GET /api/cards', () => {
     const body = await res.json()
 
     expect(res.status).toBe(500)
-    expect(body.error).toBe('Internal error')
+    expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
-      'cards_api_rates_fetch_failed',
+      'cards_repository_rates_fetch_failed',
       expect.objectContaining({ error: 'rates failed' })
     )
   })

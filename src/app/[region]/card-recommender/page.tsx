@@ -230,6 +230,8 @@ export default function CardRecommenderPage() {
           card_id: card.id,
           program_id: card.program_id,
           source_page: 'card-recommender',
+          rank,
+          region: regionCode,
         }),
       })
 
@@ -270,7 +272,7 @@ export default function CardRecommenderPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <section className="border-b border-pm-border bg-pm-surface-soft/50">
         <div className="pm-shell py-10">
           <span className="pm-pill mb-3">Card strategy tools {config.flag}</span>
           <h1 className="pm-heading text-3xl mb-2">Card Recommender</h1>
@@ -289,7 +291,7 @@ export default function CardRecommenderPage() {
                   {icon} {label}
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7f978c] text-sm">{spendPrefix}</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-pm-ink-500 text-sm">{spendPrefix}</span>
                   <input
                     type="number"
                     min="0"
@@ -306,7 +308,7 @@ export default function CardRecommenderPage() {
 
         <div className="pm-card p-6">
           <h2 className="pm-heading text-lg mb-1">Travel Goals</h2>
-          <p className="text-xs text-[#6a8579] mb-4">Select all that apply. We&apos;ll boost cards that best match your goals.</p>
+          <p className="text-xs text-pm-ink-500 mb-4">Select all that apply. We&apos;ll boost cards that best match your goals.</p>
           <div className="flex flex-wrap gap-2">
             {TRAVEL_GOALS.map(goal => {
               const active = travelGoals.has(goal.key)
@@ -316,8 +318,8 @@ export default function CardRecommenderPage() {
                   onClick={() => toggleGoal(goal.key)}
                   className={`text-sm px-4 py-2 rounded-full border transition-colors ${
                     active
-                      ? 'bg-[#0f766e] text-white border-[#0f766e]'
-                      : 'bg-white text-[#365649] border-[#d5e5d9] hover:border-[#99ccbe]'
+                      ? 'bg-pm-accent text-pm-bg border-pm-accent'
+                      : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                   }`}
                 >
                   {goal.label}
@@ -330,7 +332,7 @@ export default function CardRecommenderPage() {
         {!loading && (
           <div className="pm-card p-6">
             <h2 className="pm-heading text-lg mb-1">Cards You Already Have</h2>
-            <p className="text-xs text-[#6a8579] mb-4">We&apos;ll keep them visible, but remove signup bonus value from scoring.</p>
+            <p className="text-xs text-pm-ink-500 mb-4">We&apos;ll keep them visible, but remove signup bonus value from scoring.</p>
             <div className="flex flex-wrap gap-2">
               {cards.map(card => {
                 const owned = ownedCards.has(card.id)
@@ -340,8 +342,8 @@ export default function CardRecommenderPage() {
                   onClick={() => toggleOwned(card.id)}
                   className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
                     owned
-                      ? 'bg-[#e7f1ea] text-[#5f7c70] border-[#d5e5d9] line-through'
-                      : 'bg-white text-[#365649] border-[#d5e5d9] hover:border-[#99ccbe]'
+                      ? 'bg-pm-surface-soft text-pm-ink-500 border-pm-border line-through'
+                      : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                   }`}
                 >
                   {card.name}
@@ -361,12 +363,12 @@ export default function CardRecommenderPage() {
         </button>
 
         {loadError && (
-          <div className="pm-card p-4 border border-[#f2c7c5] bg-[#fff4f3]">
-            <p className="text-sm text-[#8d2f2b]">{loadError}</p>
+          <div className="pm-card p-4 border border-pm-danger-border bg-pm-danger-soft">
+            <p className="text-sm text-pm-danger">{loadError}</p>
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-2 text-sm text-[#7a1e16] underline underline-offset-4"
+              className="mt-2 text-sm text-pm-danger underline underline-offset-4"
             >
               Try again
             </button>
@@ -393,51 +395,51 @@ export default function CardRecommenderPage() {
                 animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                 transition={reduceMotion ? undefined : { duration: 0.2, delay: i * 0.05 }}
                 className={`rounded-2xl border shadow-sm overflow-hidden ${
-                  i === 0 ? 'border-[#8ed3c8] ring-1 ring-[#b8e3da] bg-[#f7fcf9]' : 'border-[#d5e5d9] bg-white'
+                  i === 0 ? 'border-pm-accent-border ring-1 ring-pm-accent-border bg-pm-surface-soft' : 'border-pm-border bg-pm-surface'
                 }`}
               >
                 <div className="px-6 py-5">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-[#8ea599]">#{i + 1}</span>
-                        <span className="font-semibold text-[#173f34]">{card.name}</span>
+                        <span className="text-xs font-bold text-pm-ink-500">#{i + 1}</span>
+                        <span className="font-semibold text-pm-ink-900">{card.name}</span>
                         {i === 0 && (
-                          <span className="text-xs bg-[#def4ef] text-[#0f5f57] px-2 py-0.5 rounded-full font-medium border border-[#b8e3da]">
+                          <span className="text-xs bg-pm-accent-soft text-pm-accent-strong px-2 py-0.5 rounded-full font-medium border border-pm-accent-border">
                             Top Pick
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#6a8579] mt-0.5">{card.issuer} · {card.program_name}</p>
+                      <p className="text-xs text-pm-ink-500 mt-0.5">{card.issuer} · {card.program_name}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-xl font-bold text-[#157347]">
+                      <p className="text-xl font-bold text-pm-success">
                         {firstYearValue >= 0 ? '+' : ''}{formatCurrencyRounded(firstYearValue, card.currency)}
                       </p>
-                      <p className="text-xs text-[#6a8579]">first-year value</p>
+                      <p className="text-xs text-pm-ink-500">first-year value</p>
                     </div>
                   </div>
 
                   <div className="mb-3">
-                    <label className="inline-flex items-center gap-2 text-xs text-[#5f7c70] cursor-pointer">
+                    <label className="inline-flex items-center gap-2 text-xs text-pm-ink-500 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={hasCardAlready}
                         onChange={() => toggleOwned(card.id)}
-                        className="h-3.5 w-3.5 rounded border-[#b7d5c8] text-[#0f766e] focus:ring-[#0f766e]"
+                        className="h-3.5 w-3.5 rounded border-pm-border text-pm-accent focus:ring-pm-accent"
                       />
                       Already have this card (exclude signup bonus)
                     </label>
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center text-xs">
-                    <div className="bg-[#f4faf7] rounded-xl p-2.5">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Annual rewards</p>
-                      <p className="font-bold text-[#244437]">{formatCurrencyRounded(annualRewardsValue, card.currency)}</p>
+                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Annual rewards</p>
+                      <p className="font-bold text-pm-ink-900">{formatCurrencyRounded(annualRewardsValue, card.currency)}</p>
                     </div>
-                    <div className="bg-[#f4faf7] rounded-xl p-2.5">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Signup bonus</p>
-                      <p className="font-bold text-[#244437]">
+                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Signup bonus</p>
+                      <p className="font-bold text-pm-ink-900">
                         {card.signup_bonus_pts > 0
                           ? hasCardAlready
                             ? `Already held (was ${formatCurrencyRounded(signupValue, card.currency)})`
@@ -445,17 +447,17 @@ export default function CardRecommenderPage() {
                           : 'None'}
                       </p>
                     </div>
-                    <div className="bg-[#f4faf7] rounded-xl p-2.5">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Soft benefits</p>
-                      <p className="font-bold text-[#244437]">
+                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Soft benefits</p>
+                      <p className="font-bold text-pm-ink-900">
                         {softBenefitValue > 0 ? formatCurrencyRounded(softBenefitValue, card.currency) : '—'}
                       </p>
                     </div>
-                    <div className="bg-[#f4faf7] rounded-xl p-2.5">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Annual fee</p>
-                      <p className="font-bold text-[#244437]">
+                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Annual fee</p>
+                      <p className="font-bold text-pm-ink-900">
                         {card.annual_fee_usd === 0
-                          ? <span className="text-[#157347]">Free</span>
+                          ? <span className="text-pm-success">Free</span>
                           : formatCurrencyRounded(card.annual_fee_usd, card.currency)}
                       </p>
                     </div>
@@ -466,7 +468,7 @@ export default function CardRecommenderPage() {
                       {softBenefits.map((benefit) => (
                         <span
                           key={`${card.id}-${benefit}`}
-                          className="text-xs bg-[#eef7f1] text-[#48675a] border border-[#d5e5d9] px-2 py-0.5 rounded-full"
+                          className="text-xs bg-pm-success-soft text-pm-ink-700 border border-pm-border px-2 py-0.5 rounded-full"
                         >
                           {SOFT_BENEFIT_COPY[benefit]}
                         </span>
@@ -480,11 +482,11 @@ export default function CardRecommenderPage() {
                       {goalCount > 0 ? (
                         // Card matches selected goals - show which ones
                         <>
-                          <span className="text-xs bg-[#ecf9f7] text-[#0f5f57] border border-[#b8e3da] px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-pm-accent-soft text-pm-accent-strong border border-pm-accent-border px-2 py-0.5 rounded-full font-medium">
                             ✓ Excellent for your travel goals
                           </span>
                           {TRAVEL_GOALS.filter(g => travelGoals.has(g.key)).map(goal => (
-                            <span key={goal.key} className="text-xs bg-[#f4faf7] text-[#5f7c70] border border-[#d5e5d9] px-2 py-0.5 rounded-full">
+                            <span key={goal.key} className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">
                               {goal.label}
                             </span>
                           ))}
@@ -498,7 +500,7 @@ export default function CardRecommenderPage() {
                     </div>
                   )}
 
-                  <div className="mt-4 pt-4 border-t border-[#e5f0e9]">
+                  <div className="mt-4 pt-4 border-t border-pm-surface-soft">
                     {safeApplyUrl(card.apply_url) ? (
                       <button
                         type="button"
@@ -525,12 +527,12 @@ export default function CardRecommenderPage() {
 
         {showResults && results.length === 0 && (
           <div className="pm-card p-8 text-center">
-            <p className="text-[#5f7c70] text-sm">
+            <p className="text-pm-ink-500 text-sm">
               No cards match your current filters. Try broadening spend categories or resetting travel goals.
             </p>
             <button
               onClick={() => { setTravelGoals(new Set()); setShowResults(false) }}
-              className="mt-4 text-sm text-[#0f766e] hover:underline underline-offset-4"
+              className="mt-4 text-sm text-pm-accent hover:underline underline-offset-4"
             >
               Clear goals and try again
             </button>
@@ -541,13 +543,13 @@ export default function CardRecommenderPage() {
           <>
             <button
               onClick={() => setShowResults(false)}
-              className="w-full text-sm text-[#5f7c70] hover:text-[#173f34] py-2 transition-colors"
+              className="w-full text-sm text-pm-ink-500 hover:text-pm-ink-900 py-2 transition-colors"
             >
               ← Adjust and re-run
             </button>
 
-            <div className="pm-card p-4 bg-[#f8fcf9] border-[#dce9e2]">
-              <p className="text-xs text-[#5f7c70] leading-relaxed">
+            <div className="pm-card p-4 bg-pm-surface-soft border-pm-border">
+              <p className="text-xs text-pm-ink-500 leading-relaxed">
                 PointsMax may earn a commission when you apply for cards through our links.
                 This doesn&apos;t affect our rankings, which are based solely on your spending profile.
               </p>

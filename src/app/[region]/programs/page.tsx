@@ -37,15 +37,15 @@ export default async function ProgramsIndexPage({ params }: Props) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {programs.map((program) => (
             <Link key={program.id} href={`/${normalized}/programs/${program.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
-              <p className="text-xs text-[#5f7c70] uppercase">{program.type.replace(/_/g, ' ')}</p>
+              <p className="text-xs text-pm-ink-500 uppercase">{program.type.replace(/_/g, ' ')}</p>
               <h2 className="pm-heading text-lg mt-1">{program.name}</h2>
-              <p className="text-sm text-[#4a6a5d] mt-2">
+              <p className="text-sm text-pm-ink-500 mt-2">
                 Valuation: {program.cpp_cents.toFixed(2)}¢ / point
               </p>
-              <p className="text-sm text-[#4a6a5d] mt-1">
+              <p className="text-sm text-pm-ink-500 mt-1">
                 Earning cards: {program.earning_cards.length}
               </p>
-              <p className="text-sm text-[#4a6a5d] mt-1">
+              <p className="text-sm text-pm-ink-500 mt-1">
                 Transfer partners: {program.transfer_out.length}
               </p>
             </Link>

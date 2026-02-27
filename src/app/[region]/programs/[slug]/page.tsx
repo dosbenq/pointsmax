@@ -77,10 +77,10 @@ export default async function ProgramDetailPage({ params }: Props) {
               <ul className="space-y-2">
                 {program.earning_cards.map((card) => (
                   <li key={card.id}>
-                    <Link href={`/${normalized}/cards/${card.slug}`} className="text-[#0f766e] hover:underline text-sm">
+                    <Link href={`/${normalized}/cards/${card.slug}`} className="text-pm-accent hover:underline text-sm">
                       {card.name}
                     </Link>
-                    <span className="text-xs text-[#5f7c70]"> · {card.issuer}</span>
+                    <span className="text-xs text-pm-ink-500"> · {card.issuer}</span>
                   </li>
                 ))}
               </ul>
@@ -90,13 +90,13 @@ export default async function ProgramDetailPage({ params }: Props) {
           <div className="pm-card-soft p-5">
             <h2 className="pm-heading text-lg mb-2">Best redemption uses</h2>
             {program.best_uses.length === 0 ? (
-              <ul className="list-disc pl-5 space-y-1 text-sm text-[#365649]">
+              <ul className="list-disc pl-5 space-y-1 text-sm text-pm-ink-700">
                 <li>Premium-cabin partner flights on high cash-fare routes</li>
                 <li>Peak-season hotels where cash rates spike</li>
                 <li>Short-haul redemptions with favorable fixed charts</li>
               </ul>
             ) : (
-              <ul className="list-disc pl-5 space-y-1 text-sm text-[#365649]">
+              <ul className="list-disc pl-5 space-y-1 text-sm text-pm-ink-700">
                 {program.best_uses.map((use) => (
                   <li key={use}>{use}</li>
                 ))}
@@ -115,7 +115,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                 {program.transfer_out.map((partner) => (
                   <li key={`${partner.to_program_id}-${partner.ratio_from}`}>
                     {program.name} →{' '}
-                    <Link href={`/${normalized}/programs/${partner.to_program_slug}`} className="text-[#0f766e] hover:underline">
+                    <Link href={`/${normalized}/programs/${partner.to_program_slug}`} className="text-pm-accent hover:underline">
                       {partner.to_program_name}
                     </Link>
                     {' '}({partner.ratio_from}:{partner.ratio_to})
@@ -133,7 +133,7 @@ export default async function ProgramDetailPage({ params }: Props) {
               <ul className="space-y-2 text-sm">
                 {program.transfer_in.map((partner) => (
                   <li key={`${partner.from_program_id}-${partner.ratio_from}`}>
-                    <Link href={`/${normalized}/programs/${partner.from_program_slug}`} className="text-[#0f766e] hover:underline">
+                    <Link href={`/${normalized}/programs/${partner.from_program_slug}`} className="text-pm-accent hover:underline">
                       {partner.from_program_name}
                     </Link>
                     {' '}→ {program.name} ({partner.ratio_from}:{partner.ratio_to})

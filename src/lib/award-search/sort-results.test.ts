@@ -33,14 +33,23 @@ describe('sortAwardResultsByPoints', () => {
     expect(sorted.map(r => r.program_slug)).toEqual(['a', 'b', 'c'])
   })
 
-  it('prefers reachable and live options on ties', () => {
+  it('prefers higher cpp on tied points', () => {
     const input = [
-      makeResult({ program_slug: 'non-reachable', points_needed_from_wallet: 50000, is_reachable: false }),
-      makeResult({ program_slug: 'live', points_needed_from_wallet: 50000, has_real_availability: true }),
-      makeResult({ program_slug: 'reachable', points_needed_from_wallet: 50000, has_real_availability: false }),
+      makeResult({ program_slug: 'low-cpp', points_needed_from_wallet: 50000, cpp_cents: 100 }),
+      makeResult({ program_slug: 'high-cpp', points_needed_from_wallet: 50000, cpp_cents: 250 }),
     ]
 
     const sorted = sortAwardResultsByPoints(input)
-    expect(sorted.map(r => r.program_slug)).toEqual(['live', 'reachable', 'non-reachable'])
+    expect(sorted.map(r => r.program_slug)).toEqual(['high-cpp', 'low-cpp'])
+  })
+
+  it('prefers live availability on ties', () => {
+    const input = [
+      makeResult({ program_slug: 'estimate', points_needed_from_wallet: 50000, cpp_cents: 200, has_real_availability: false }),
+      makeResult({ program_slug: 'live', points_needed_from_wallet: 50000, cpp_cents: 200, has_real_availability: true }),
+    ]
+
+    const sorted = sortAwardResultsByPoints(input)
+    expect(sorted.map(r => r.program_slug)).toEqual(['live', 'estimate'])
   })
 })

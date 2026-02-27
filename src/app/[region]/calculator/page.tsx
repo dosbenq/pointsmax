@@ -16,6 +16,7 @@ import Footer from '@/components/Footer'
 import { trackEvent } from '@/lib/analytics'
 import { useCalculatorState } from './hooks/use-calculator-state'
 import { BalanceInputPanel, AwardResults, AIChat } from './components'
+import { CalculatorActionStrip } from '@/features/calculator-shell'
 import { fmtCents, formatCpp } from '@/lib/formatters'
 
 // ─────────────────────────────────────────────
@@ -131,6 +132,7 @@ export default function CalculatorPage() {
   const reduceMotion = useReducedMotion()
   const { user } = useAuth()
   const { region, config, enteredBalances } = state
+  const alertRef = React.useRef<HTMLDivElement>(null)
 
   const visibleResults = useMemo(() =>
     state.result
@@ -501,17 +503,30 @@ export default function CalculatorPage() {
                   )}
                 </div>
 
-                <AlertWidget
-                  visible={state.showAlertBanner}
-                  alertEmail={state.alertEmailInput}
-                  alertLoading={state.alertBannerLoading}
-                  alertSubscribed={state.alertSubscribed}
-                  alertError={state.alertBannerError}
-                  programNames={state.alertProgramNames}
-                  onDismiss={state.dismissAlertBanner}
-                  onEmailChange={state.setAlertEmailInput}
-                  onSubscribe={state.handleAlertBannerSubscribe}
+                <CalculatorActionStrip
+                  visible={Boolean(state.result)}
+                  region={state.region}
+                  shareBusy={state.shareBusy}
+                  onBook={() => state.switchPanel('awards', 'action_strip')}
+                  onShare={state.shareTripSnapshot}
+                  onAlert={() => {
+                    alertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  }}
                 />
+
+                <div ref={alertRef}>
+                  <AlertWidget
+                    visible={state.showAlertBanner}
+                    alertEmail={state.alertEmailInput}
+                    alertLoading={state.alertBannerLoading}
+                    alertSubscribed={state.alertSubscribed}
+                    alertError={state.alertBannerError}
+                    programNames={state.alertProgramNames}
+                    onDismiss={state.dismissAlertBanner}
+                    onEmailChange={state.setAlertEmailInput}
+                    onSubscribe={state.handleAlertBannerSubscribe}
+                  />
+                </div>
               </div>
             ) : (
               <div className="pm-card-soft p-6 text-center">

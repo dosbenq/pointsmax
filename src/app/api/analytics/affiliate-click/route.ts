@@ -12,6 +12,8 @@ type Payload = {
   card_id?: unknown
   program_id?: unknown
   source_page?: unknown
+  rank?: unknown
+  region?: unknown
 }
 
 type CreatorSlugRow = { slug: string }
@@ -23,6 +25,22 @@ function normalizeSourcePage(value: unknown): string {
   const trimmed = value.trim()
   if (!trimmed) return 'unknown'
   return trimmed.slice(0, 80)
+}
+
+function normalizeRegion(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) return null
+  return trimmed.slice(0, 10)
+}
+
+function normalizeRank(value: unknown): number | null {
+  if (typeof value === 'number') return Math.floor(value)
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10)
+    return isNaN(parsed) ? null : parsed
+  }
+  return null
 }
 
 function normalizeCreatorSlug(value: string | null): string | null {
@@ -39,6 +57,8 @@ async function insertWithRetry(
     user_id: string | null
     source_page: string
     creator_slug: string | null
+    rank: number | null
+    region: string | null
   },
   maxAttempts = 3,
 ) {
@@ -80,7 +100,9 @@ export async function POST(req: NextRequest) {
 
   const cardId = typeof body.card_id === 'string' ? body.card_id.trim() : ''
   const sourcePage = normalizeSourcePage(body.source_page)
-  return trackAndReturn(req, requestId, cardId, sourcePage, false)
+  const rank = normalizeRank(body.rank)
+  const region = normalizeRegion(body.region)
+  return trackAndReturn(req, requestId, cardId, sourcePage, false, rank, region)
 }
 
 async function trackAndReturn(
@@ -89,6 +111,8 @@ async function trackAndReturn(
   cardId: string,
   sourcePage: string,
   redirect: boolean,
+  rank: number | null = null,
+  region: string | null = null,
 ) {
   if (!cardId) {
     return badRequest('card_id is required')
@@ -151,6 +175,8 @@ async function trackAndReturn(
     user_id: userId,
     source_page: sourcePage,
     creator_slug: resolvedCreatorSlug,
+    rank,
+    region,
   })
   if (!insertResult.ok) {
     logError('affiliate_click_insert_failed', {
@@ -161,6 +187,8 @@ async function trackAndReturn(
       user_id: userId,
       source_page: sourcePage,
       creator_slug: resolvedCreatorSlug,
+      rank,
+      region,
     })
     return internalError('Failed to record affiliate click')
   }
@@ -171,6 +199,8 @@ async function trackAndReturn(
     source_page: sourcePage,
     user_id: userId,
     creator_slug: resolvedCreatorSlug,
+    rank,
+    region,
   })
 
   if (redirect) {
@@ -190,5 +220,7 @@ export async function GET(req: NextRequest) {
 
   const cardId = req.nextUrl.searchParams.get('card_id')?.trim() ?? ''
   const sourcePage = normalizeSourcePage(req.nextUrl.searchParams.get('source_page'))
-  return trackAndReturn(req, requestId, cardId, sourcePage, true)
+  const rank = normalizeRank(req.nextUrl.searchParams.get('rank'))
+  const region = normalizeRegion(req.nextUrl.searchParams.get('region'))
+  return trackAndReturn(req, requestId, cardId, sourcePage, true, rank, region)
 }

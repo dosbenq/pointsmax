@@ -7,6 +7,8 @@ type ClickRow = {
   card_id: string | null
   source_page: string | null
   creator_slug: string | null
+  region: string | null
+  rank: number | null
   created_at: string
   cards: { name: string } | { name: string }[] | null
 }
@@ -20,7 +22,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await db
     .from('affiliate_clicks')
-    .select('card_id, source_page, creator_slug, created_at, cards(name)')
+    .select('card_id, source_page, creator_slug, region, rank, created_at, cards(name)')
     .gte('created_at', windowStart)
 
   if (error) {
@@ -28,7 +30,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const counts = new Map<string, { card_id: string; card_name: string; source_page: string; creator_slug: string | null; clicks: number }>()
+  const counts = new Map<string, {
+    card_id: string;
+    card_name: string;
+    source_page: string;
+    creator_slug: string | null;
+    region: string | null;
+    clicks: number
+  }>()
 
   for (const row of (data ?? []) as unknown as ClickRow[]) {
     if (!row.card_id) continue
@@ -37,7 +46,8 @@ export async function GET(req: Request) {
       : (row.cards?.name ?? 'Unknown card')
     const sourcePage = row.source_page ?? 'unknown'
     const creatorSlug = row.creator_slug ?? null
-    const key = `${row.card_id}:${sourcePage}:${creatorSlug ?? 'none'}`
+    const region = row.region ?? 'unknown'
+    const key = `${row.card_id}:${sourcePage}:${creatorSlug ?? 'none'}:${region}`
     const current = counts.get(key)
     if (current) {
       current.clicks += 1
@@ -48,6 +58,7 @@ export async function GET(req: Request) {
       card_name: cardName,
       source_page: sourcePage,
       creator_slug: creatorSlug,
+      region: row.region,
       clicks: 1,
     })
   }
