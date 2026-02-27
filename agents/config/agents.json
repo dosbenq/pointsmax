@@ -3,17 +3,17 @@
   "agents": {
     "claude": {
       "enabled": true,
-      "shell": "claude -p \"$(cat {{prompt_file}})\"",
+      "shell": "cat {{prompt_file}} | claude",
       "timeout_ms": 900000
     },
     "gemini": {
       "enabled": true,
-      "shell": "gemini -p \"$(cat {{prompt_file}})\"",
+      "shell": "cat {{prompt_file}} | gemini",
       "timeout_ms": 900000
     },
     "kimi": {
       "enabled": true,
-      "shell": "kimi -p \"$(cat {{prompt_file}})\"",
+      "shell": "cat {{prompt_file}} | kimi",
       "timeout_ms": 900000
     },
     "codex": {
