@@ -1,17 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   CircuitBreaker,
   CircuitBreakerOpenError,
 } from './circuit-breaker'
+import { withFakeTimers } from '@/test/utils/deterministic'
 
 describe('CircuitBreaker', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-  
-  afterEach(() => {
-    vi.useRealTimers()
-  })
 
   describe('basic functionality', () => {
     it('executes successful function', async () => {
@@ -101,64 +95,73 @@ describe('CircuitBreaker', () => {
 
   describe('half-open state', () => {
     it('transitions to half-open after reset timeout', async () => {
-      const breaker = new CircuitBreaker({
-        name: `test-half-open-${Date.now()}`,
-        failureThreshold: 1,
-        resetTimeoutMs: 1000,
-        halfOpenMaxCalls: 1, // Use 1 so single success closes circuit
+      await withFakeTimers(async (vi) => {
+        const breaker = new CircuitBreaker({
+          name: 'test-half-open-transition',
+          failureThreshold: 1,
+          resetTimeoutMs: 1000,
+          halfOpenMaxCalls: 1, // Use 1 so single success closes circuit
+        })
+
+        // Open the circuit
+        await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
+        expect(breaker.getState().state).toBe('OPEN')
+
+        // Advance time past reset timeout
+        vi.advanceTimersByTime(1500)
+
+        // Circuit should attempt reset (become half-open)
+        // With halfOpenMaxCalls: 1, single success should close circuit
+        await breaker.execute(async () => 'success')
+        expect(breaker.getState().state).toBe('CLOSED')
       })
-
-      // Open the circuit
-      await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
-      expect(breaker.getState().state).toBe('OPEN')
-
-      // Advance time past reset timeout
-      vi.advanceTimersByTime(1500)
-
-      // Circuit should attempt reset (become half-open)
-      // With halfOpenMaxCalls: 1, single success should close circuit
-      await breaker.execute(async () => 'success')
-      expect(breaker.getState().state).toBe('CLOSED')
     })
 
     it('returns to open if half-open call fails', async () => {
-      const breaker = new CircuitBreaker({
-        name: 'test-half-open-fail',
-        failureThreshold: 1,
-        resetTimeoutMs: 1000,
-        halfOpenMaxCalls: 2,
+      await withFakeTimers(async (vi) => {
+        const breaker = new CircuitBreaker({
+          name: 'test-half-open-fail',
+          failureThreshold: 1,
+          resetTimeoutMs: 1000,
+          halfOpenMaxCalls: 2,
+        })
+
+        // Open the circuit
+        await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
+
+        // Advance time past reset timeout
+        vi.advanceTimersByTime(1500)
+
+        // Half-open call fails
+        await expect(breaker.execute(async () => { throw new Error('fail again') })).rejects.toThrow()
+        expect(breaker.getState().state).toBe('OPEN')
       })
-
-      // Open the circuit
-      await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
-
-      // Advance time past reset timeout
-      vi.advanceTimersByTime(1500)
-
-      // Half-open call fails
-      await expect(breaker.execute(async () => { throw new Error('fail again') })).rejects.toThrow()
-      expect(breaker.getState().state).toBe('OPEN')
     })
 
     it('limits calls in half-open state', async () => {
-      const breaker = new CircuitBreaker({
-        name: 'test-half-open-limit',
-        failureThreshold: 1,
-        resetTimeoutMs: 1000,
-        halfOpenMaxCalls: 1,
+      await withFakeTimers(async (vi) => {
+        const breaker = new CircuitBreaker({
+          name: 'test-half-open-limit',
+          failureThreshold: 1,
+          resetTimeoutMs: 1000,
+          halfOpenMaxCalls: 1,
+        })
+
+        // Open the circuit by failing once
+        await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
+        expect(breaker.getState().state).toBe('OPEN')
+
+        // Advance time past reset timeout (this triggers transition to HALF_OPEN on next call)
+        vi.advanceTimersByTime(1500)
+
+        // After advancing timers, the next execute should work (circuit becomes HALF_OPEN, then CLOSED on success)
+        // Wait for the async execution
+        const result = await breaker.execute(async () => 'success')
+        expect(result).toBe('success')
+
+        // Circuit should be closed now
+        expect(breaker.getState().state).toBe('CLOSED')
       })
-
-      // Open the circuit
-      await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
-
-      // Advance time past reset timeout
-      vi.advanceTimersByTime(1500)
-
-      // First half-open call
-      await breaker.execute(async () => 'success')
-
-      // Circuit should be closed now
-      expect(breaker.getState().state).toBe('CLOSED')
     })
   })
 

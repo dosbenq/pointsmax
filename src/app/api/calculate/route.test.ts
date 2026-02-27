@@ -34,8 +34,15 @@ function makeRequestWithRawBody(body: string, opts?: { headers?: Record<string, 
 }
 
 describe('POST /api/calculate', () => {
+  // Clear result cache before each test to ensure deterministic behavior
   beforeEach(() => {
     vi.clearAllMocks()
+    const globalRef = globalThis as typeof globalThis & {
+      __pointsmaxCalculateResultCache?: Map<string, unknown>
+    }
+    if (globalRef.__pointsmaxCalculateResultCache) {
+      globalRef.__pointsmaxCalculateResultCache.clear()
+    }
   })
 
   describe('Validation', () => {
@@ -140,18 +147,19 @@ describe('POST /api/calculate', () => {
     it('accepts balances with program_id in different order (normalization)', async () => {
       vi.mocked(calculateRedemptions).mockResolvedValueOnce({ results: [], summary: null })
 
+      // Use unique program IDs not used in other tests to avoid cache conflicts
       const res = await POST(makeRequest({
         balances: [
-          { program_id: '33333333-3333-3333-3333-333333333333', amount: 15000 },
-          { program_id: '11111111-1111-1111-1111-111111111111', amount: 25000 },
+          { program_id: '99999999-9999-9999-9999-999999999999', amount: 15000 },
+          { program_id: '88888888-8888-8888-8888-888888888888', amount: 25000 },
         ],
       }))
 
       expect(res.status).toBe(200)
-      // Verify balances are passed to calculateRedemptions
+      // Verify balances are passed to calculateRedemptions (order preserved as passed)
       expect(calculateRedemptions).toHaveBeenCalledWith([
-        { program_id: '33333333-3333-3333-3333-333333333333', amount: 15000 },
-        { program_id: '11111111-1111-1111-1111-111111111111', amount: 25000 },
+        { program_id: '99999999-9999-9999-9999-999999999999', amount: 15000 },
+        { program_id: '88888888-8888-8888-8888-888888888888', amount: 25000 },
       ])
     })
 
