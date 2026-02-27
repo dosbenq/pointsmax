@@ -42,11 +42,11 @@ export interface AgentMetrics {
 
 export function classifyTaskType(title: string, body: string): AgentTaskType {
   const haystack = `${title} ${body}`.toLowerCase()
-  if (/(ui|frontend|component|layout|design|ux)/.test(haystack)) return 'ui_refactor'
-  if (/(api|backend|route|db|query|service|cache)/.test(haystack)) return 'api_backend_logic'
-  if (/(test|coverage|fixture|mock)/.test(haystack)) return 'test_authoring'
-  if (/(migration|security|rls|auth|rate limit|cors)/.test(haystack)) return 'migration_security'
-  if (/(doc|readme|governance|policy|checklist|process)/.test(haystack)) return 'doc_process'
+  if (/\b(ui|frontend|component|layout|design|ux)\b/.test(haystack)) return 'ui_refactor'
+  if (/\b(api|backend|route|db|query|service|cache)\b/.test(haystack)) return 'api_backend_logic'
+  if (/\b(test|coverage|fixture|mock)\b/.test(haystack)) return 'test_authoring'
+  if (/\b(migration|security|rls|auth|rate limit|cors)\b/.test(haystack)) return 'migration_security'
+  if (/\b(doc|readme|governance|policy|checklist|process)\b/.test(haystack)) return 'doc_process'
   return 'general'
 }
 
@@ -127,4 +127,82 @@ export function buildCapabilityMatrix(
   }
 
   return result
+}
+
+export interface AgentSummaryRow {
+  agent: string
+  runs: number
+  qualityScore: number
+  successRate: number
+  timedOutRate: number
+  medianDurationMs: number
+}
+
+export function generateRoleFitMarkdown(
+  summaryRows: AgentSummaryRow[],
+  matrix: Record<AgentTaskType, { recommendedAgent: string | null; scores: Array<{ agent: string; score: number }> }>,
+  generatedAt: string,
+): string {
+  const lines = [
+    '# Agent Role-Fit Recommendation',
+    '',
+    `Generated at: ${generatedAt}`,
+    '',
+    '## Agent Scores',
+    '',
+    '| agent | runs | quality_score | success_rate | timed_out_rate | median_duration_ms |',
+    '| --- | --- | --- | --- | --- | --- |',
+  ]
+
+  for (const row of summaryRows) {
+    lines.push(`| ${row.agent} | ${row.runs} | ${row.qualityScore} | ${Math.round(row.successRate * 100)}% | ${Math.round(row.timedOutRate * 100)}% | ${row.medianDurationMs} |`)
+  }
+
+  lines.push('', '## Capability Matrix', '', '| task_type | recommended_agent | notes |', '| --- | --- | --- |')
+  for (const [taskType, value] of Object.entries(matrix)) {
+    const scoreText = value.scores.map((row) => `${row.agent}:${row.score}`).join(', ') || 'no-data'
+    lines.push(`| ${taskType} | ${value.recommendedAgent ?? 'none'} | ${scoreText} |`)
+  }
+
+  return lines.join('\n')
+}
+
+const REQUIRED_WEIGHT_KEYS: (keyof AgentScoringWeights)[] = [
+  'correctness',
+  'regressions',
+  'testAdequacy',
+  'reworkEffort',
+  'throughput',
+  'completionSpeed',
+  'tokenCostEfficiency',
+]
+
+export function validateScoringRubric(rubric: unknown): rubric is { weights: AgentScoringWeights } {
+  if (!rubric || typeof rubric !== 'object') {
+    throw new Error('rubric must be an object')
+  }
+  const r = rubric as Record<string, unknown>
+  if (!r.weights || typeof r.weights !== 'object') {
+    throw new Error('rubric.weights must be an object')
+  }
+
+  const weights = r.weights as Record<string, unknown>
+  const missing = REQUIRED_WEIGHT_KEYS.filter((key) => !(key in weights))
+  if (missing.length > 0) {
+    throw new Error(`rubric missing required weights: ${missing.join(', ')}`)
+  }
+
+  for (const key of REQUIRED_WEIGHT_KEYS) {
+    const value = weights[key]
+    if (typeof value !== 'number' || value < 0 || value > 1) {
+      throw new Error(`rubric.weights.${key} must be a number between 0 and 1, got ${value}`)
+    }
+  }
+
+  const total = REQUIRED_WEIGHT_KEYS.reduce((sum, key) => sum + (weights[key] as number), 0)
+  if (Math.abs(total - 1) > 0.001) {
+    throw new Error(`rubric weights must sum to 1, got ${total}`)
+  }
+
+  return true
 }

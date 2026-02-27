@@ -7,24 +7,62 @@ import { buildCapabilityMatrix, classifyTaskType, computeAgentMetrics, computeQu
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const REPO_ROOT = path.resolve(__dirname, '..', '..')
-const OUTBOX_DIR = path.join(REPO_ROOT, 'agents', 'outbox')
-const TASKS_DIR = path.join(REPO_ROOT, 'agents', 'tasks')
-const LOGS_DIR = path.join(REPO_ROOT, 'agents', 'runtime', 'logs')
-const RUBRIC_PATH = path.join(REPO_ROOT, 'agents', 'config', 'agent-scoring.json')
+export const REPO_ROOT = path.resolve(__dirname, '..', '..')
+export const OUTBOX_DIR = path.join(REPO_ROOT, 'agents', 'outbox')
+export const TASKS_DIR = path.join(REPO_ROOT, 'agents', 'tasks')
+export const LOGS_DIR = path.join(REPO_ROOT, 'agents', 'runtime', 'logs')
+export const RUBRIC_PATH = path.join(REPO_ROOT, 'agents', 'config', 'agent-scoring.json')
+
+const REQUIRED_WEIGHTS = [
+  'correctness',
+  'regressions',
+  'testAdequacy',
+  'reworkEffort',
+  'throughput',
+  'completionSpeed',
+  'tokenCostEfficiency',
+]
+
+export function validateRubric(rubric) {
+  if (!rubric || typeof rubric !== 'object') {
+    throw new Error('rubric must be an object')
+  }
+  if (!rubric.weights || typeof rubric.weights !== 'object') {
+    throw new Error('rubric.weights must be an object')
+  }
+
+  const missing = REQUIRED_WEIGHTS.filter((key) => !(key in rubric.weights))
+  if (missing.length > 0) {
+    throw new Error(`rubric missing required weights: ${missing.join(', ')}`)
+  }
+
+  for (const key of REQUIRED_WEIGHTS) {
+    const value = rubric.weights[key]
+    if (typeof value !== 'number' || value < 0 || value > 1) {
+      throw new Error(`rubric.weights.${key} must be a number between 0 and 1, got ${value}`)
+    }
+  }
+
+  const total = REQUIRED_WEIGHTS.reduce((sum, key) => sum + rubric.weights[key], 0)
+  if (Math.abs(total - 1) > 0.001) {
+    throw new Error(`rubric weights must sum to 1, got ${total}`)
+  }
+
+  return true
+}
 
 function stampDate() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function parseTaskFrontmatter(content) {
+export function parseTaskFrontmatter(content) {
   const id = (content.match(/^id:\s*(TASK-\d{4})$/m) ?? [null, 'UNKNOWN'])[1]
   const title = (content.match(/^title:\s*(.*)$/m) ?? [null, ''])[1]
   const body = content.includes('---\n\n') ? content.split('---\n\n')[1] : content
   return { id, title, body }
 }
 
-function parseOutbox(content, file, agent) {
+export function parseOutbox(content, file, agent) {
   const get = (key) => (content.match(new RegExp(`^- ${key}:\\s*(.*)$`, 'm')) ?? [null, ''])[1]
   const taskId = (content.match(/^#\s+(TASK-\d{4})/m) ?? [null, 'UNKNOWN'])[1]
   const status = get('status')
@@ -69,10 +107,12 @@ function toMarkdown(summaryRows, matrix, generatedAt) {
   return lines.join('\n')
 }
 
-async function main() {
+export async function main() {
   const generatedAt = new Date().toISOString()
   const rubricRaw = await fs.readFile(RUBRIC_PATH, 'utf8')
-  const weights = JSON.parse(rubricRaw).weights
+  const rubric = JSON.parse(rubricRaw)
+  validateRubric(rubric)
+  const weights = rubric.weights
 
   const taskMap = new Map()
   const taskFiles = (await fs.readdir(TASKS_DIR)).filter((name) => /^TASK-\d{4}\.md$/.test(name))
@@ -92,7 +132,7 @@ async function main() {
     const files = (await fs.readdir(dir)).filter((name) => name.endsWith('.md')).sort()
     for (const file of files) {
       const content = await fs.readFile(path.join(dir, file), 'utf8')
-      const run = parseOutbox(content, `agents/outbox/${agent}/${file}`, agent)
+      const run = parseOutbox(content, ['agents', 'outbox', agent, file].join('/'), agent)
       const task = taskMap.get(run.taskId)
       const taskType = classifyTaskType(task?.title ?? run.taskId, task?.body ?? '')
       runs.push({ ...run, taskType })
@@ -127,7 +167,14 @@ async function main() {
   console.log(`wrote ${path.relative(REPO_ROOT, markdownPath)}`)
 }
 
-main().catch((error) => {
-  console.error(`agent evaluation failed: ${error.message}`)
-  process.exit(1)
-})
+// Only run main if this file is executed directly (not imported)
+const isMainModule = import.meta.url.startsWith('file:') &&
+  (process.argv[1] === fileURLToPath(import.meta.url) ||
+   process.argv[1]?.endsWith('evaluate.mjs'))
+
+if (isMainModule) {
+  main().catch((error) => {
+    console.error(`agent evaluation failed: ${error.message}`)
+    process.exit(1)
+  })
+}

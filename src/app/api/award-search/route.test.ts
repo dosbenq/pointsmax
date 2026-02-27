@@ -38,6 +38,15 @@ vi.mock('./helpers', async (importOriginal) => {
   }
 })
 
+// Mock rate limiting to avoid state pollution between tests
+vi.mock('@/lib/api-security', async () => {
+  return {
+    enforceJsonContentLength: vi.fn(() => null),
+    enforceRateLimit: vi.fn(async () => null),
+    getClientIp: vi.fn(() => '127.0.0.1'),
+  }
+})
+
 const { POST } = await import('./route')
 
 function makeRequest(body: unknown, opts?: { headers?: Record<string, string> }) {
@@ -103,14 +112,16 @@ describe('POST /api/award-search', () => {
     })
 
     it('rejects missing origin', async () => {
-      const { origin: _, ...bodyWithoutOrigin } = validBody
+      const bodyWithoutOrigin = { ...validBody }
+      delete (bodyWithoutOrigin as { origin?: string }).origin
       const req = makeRequest(bodyWithoutOrigin)
       const res = await POST(req)
       expect(res.status).toBe(400)
     })
 
     it('rejects missing destination', async () => {
-      const { destination: _, ...bodyWithoutDestination } = validBody
+      const bodyWithoutDestination = { ...validBody }
+      delete (bodyWithoutDestination as { destination?: string }).destination
       const req = makeRequest(bodyWithoutDestination)
       const res = await POST(req)
       expect(res.status).toBe(400)

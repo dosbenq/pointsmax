@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `gemini/frontend-polish`
-- Git commit: `acc32aa`
+- Git commit: `abb94ec`
 
 ## 1. Executive Snapshot
 
@@ -328,18 +328,17 @@
 | `src/app/[region]/trip-builder/page.tsx` | 822 |
 | `src/app/[region]/award-search/page.tsx` | 684 |
 | `src/app/api/ai/recommend/route.ts` | 616 |
-| `src/app/[region]/calculator/page.tsx` | 585 |
+| `src/app/[region]/calculator/page.tsx` | 595 |
 | `src/app/[region]/card-recommender/page.tsx` | 565 |
 | `src/app/[region]/inspire/page.tsx` | 560 |
 | `src/app/[region]/page.tsx` | 529 |
 | `src/app/profile/page.tsx` | 517 |
+| `src/lib/agent-eval.test.ts` | 504 |
 
 ## 10. Agent Task Board Snapshot
 
 - Total tasks: **18**
-- in_progress: **1**
-- in_review: **10**
-- pending: **7**
+- in_review: **18**
 
 | Task | Owner | Status | Priority | Title |
 |---|---|---|---|---|
@@ -353,14 +352,14 @@
 | `TASK-0008` | `kimi` | `in_review` | `p2` | G0-T2 Unified PR template and DoD |
 | `TASK-0009` | `kimi` | `in_review` | `p2` | G0-T3 CONTRIBUTING governance update |
 | `TASK-0010` | `kimi` | `in_review` | `p2` | G1-T1 Vertical slice scaffolding baseline |
-| `TASK-0011` | `kimi` | `in_progress` | `p2` | G1-T2 Calculator shell pilot refactor |
-| `TASK-0012` | `kimi` | `pending` | `p2` | G1-T3 Booking config extraction |
-| `TASK-0013` | `kimi` | `pending` | `p2` | G2-T1 Changed-scope test policy gates |
-| `TASK-0014` | `kimi` | `pending` | `p2` | G2-T2 Core API contract test hardening |
-| `TASK-0015` | `kimi` | `pending` | `p2` | G2-T3 Deterministic test fixture utilities |
-| `TASK-0016` | `kimi` | `pending` | `p2` | G3-T1 Quality-first scoring rubric config |
-| `TASK-0017` | `kimi` | `pending` | `p2` | G3-T2 Normalized agent evaluation artifact |
-| `TASK-0018` | `kimi` | `pending` | `p2` | G3-T3 Role-fit recommendation matrix |
+| `TASK-0011` | `kimi` | `in_review` | `p2` | G1-T2 Calculator shell pilot refactor |
+| `TASK-0012` | `kimi` | `in_review` | `p2` | G1-T3 Booking config extraction |
+| `TASK-0013` | `kimi` | `in_review` | `p2` | G2-T1 Changed-scope test policy gates |
+| `TASK-0014` | `kimi` | `in_review` | `p2` | G2-T2 Core API contract test hardening |
+| `TASK-0015` | `kimi` | `in_review` | `p2` | G2-T3 Deterministic test fixture utilities |
+| `TASK-0016` | `kimi` | `in_review` | `p2` | G3-T1 Quality-first scoring rubric config |
+| `TASK-0017` | `kimi` | `in_review` | `p2` | G3-T2 Normalized agent evaluation artifact |
+| `TASK-0018` | `kimi` | `in_review` | `p2` | G3-T3 Role-fit recommendation matrix |
 
 ## 11. PM Operational Playbook
 

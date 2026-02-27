@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
 
-function listSourceFiles() {
-  const output = execSync("rg --files src -g '*.ts' -g '*.tsx'", {
-    cwd: ROOT,
-    encoding: 'utf8',
-  })
-  return output.split('\n').map((line) => line.trim()).filter(Boolean)
+async function listSourceFiles() {
+  const results = []
+  async function walk(dir) {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const rel = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules' && entry.name !== '.next') await walk(rel)
+      } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+        results.push(path.relative(ROOT, rel))
+      }
+    }
+  }
+  await walk(path.join(ROOT, 'src'))
+  return results
 }
 
 function extractImports(content) {
@@ -38,7 +46,7 @@ function isFeatureInternalImport(spec) {
 }
 
 const errors = []
-const files = listSourceFiles()
+const files = await listSourceFiles()
 
 const featureDirs = new Set()
 for (const file of files) {

@@ -8,7 +8,7 @@
 
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useAuth } from '@/lib/auth-context'
 import NavBar from '@/components/NavBar'
@@ -16,7 +16,7 @@ import Footer from '@/components/Footer'
 import { trackEvent } from '@/lib/analytics'
 import { useCalculatorState } from './hooks/use-calculator-state'
 import { BalanceInputPanel, AwardResults, AIChat } from './components'
-import { CalculatorActionStrip } from '@/features/calculator-shell'
+import { CalculatorActionStrip, useActionStripSlice } from '@/features/calculator-shell'
 import { fmtCents, formatCpp } from '@/lib/formatters'
 
 // ─────────────────────────────────────────────
@@ -132,7 +132,19 @@ export default function CalculatorPage() {
   const reduceMotion = useReducedMotion()
   const { user } = useAuth()
   const { region, config, enteredBalances } = state
-  const alertRef = React.useRef<HTMLDivElement>(null)
+  const alertRef = useRef<HTMLDivElement>(null)
+
+  // Action strip slice integration - G1-T2 Refactor
+  const actionStripSlice = useActionStripSlice({
+    visible: Boolean(state.result),
+    region,
+    shareBusy: state.shareBusy,
+    onBook: () => state.switchPanel('awards', 'action_strip'),
+    onShare: state.shareTripSnapshot,
+    onAlert: () => {
+      alertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+  })
 
   const visibleResults = useMemo(() =>
     state.result
@@ -504,14 +516,12 @@ export default function CalculatorPage() {
                 </div>
 
                 <CalculatorActionStrip
-                  visible={Boolean(state.result)}
-                  region={state.region}
-                  shareBusy={state.shareBusy}
-                  onBook={() => state.switchPanel('awards', 'action_strip')}
-                  onShare={state.shareTripSnapshot}
-                  onAlert={() => {
-                    alertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                  }}
+                  visible={actionStripSlice.state.visible}
+                  region={actionStripSlice.state.context.region}
+                  shareBusy={actionStripSlice.state.shareBusy}
+                  onBook={actionStripSlice.actions.onBook}
+                  onShare={actionStripSlice.actions.onShare}
+                  onAlert={actionStripSlice.actions.onAlert}
                 />
 
                 <div ref={alertRef}>

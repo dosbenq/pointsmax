@@ -1,10 +1,10 @@
 export function classifyTaskType(title, body) {
   const haystack = `${title} ${body}`.toLowerCase()
-  if (/(ui|frontend|component|layout|design|ux)/.test(haystack)) return 'ui_refactor'
-  if (/(api|backend|route|db|query|service|cache)/.test(haystack)) return 'api_backend_logic'
-  if (/(test|coverage|fixture|mock)/.test(haystack)) return 'test_authoring'
-  if (/(migration|security|rls|auth|rate limit|cors)/.test(haystack)) return 'migration_security'
-  if (/(doc|readme|governance|policy|checklist|process)/.test(haystack)) return 'doc_process'
+  if (/\b(ui|frontend|component|layout|design|ux)\b/.test(haystack)) return 'ui_refactor'
+  if (/\b(api|backend|route|db|query|service|cache)\b/.test(haystack)) return 'api_backend_logic'
+  if (/\b(test|coverage|fixture|mock)\b/.test(haystack)) return 'test_authoring'
+  if (/\b(migration|security|rls|auth|rate limit|cors)\b/.test(haystack)) return 'migration_security'
+  if (/\b(doc|readme|governance|policy|checklist|process)\b/.test(haystack)) return 'doc_process'
   return 'general'
 }
 
