@@ -50,6 +50,17 @@ Example:
 AGENT_CMD_CLAUDE='claude -p "$(cat {{prompt_file}})"' npm run agents:dispatch -- TASK-0001
 ```
 
+## Gemini-only mode (current)
+
+If you want orchestration limited to Gemini, set non-Gemini agents to disabled in `agents/config/agents.json`:
+
+- `claude.enabled = false`
+- `kimi.enabled = false`
+- `codex.enabled = false`
+- `gemini.enabled = true`
+
+With this mode enabled, dispatching a task owned by a disabled agent will fail fast.
+
 ## Recommended PM flow
 
 1. Create task (`agents:create`) with strict acceptance criteria.
