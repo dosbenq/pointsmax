@@ -176,18 +176,27 @@ function renderTemplate(template, vars) {
   })
 }
 
-function buildTaskBody(input) {
-  const objective = input.objective ?? 'TBD'
-  const scope = input.scope ?? 'TBD'
-  const criteriaRaw = input.criteria ?? input.acceptance ?? 'TBD'
-  const criteria = String(criteriaRaw)
+function splitSemicolonList(value, fallback = []) {
+  if (value === undefined || value === null) return fallback
+  const parts = String(value)
     .split(';')
     .map((item) => item.trim())
     .filter(Boolean)
+  if (parts.length === 0) return fallback
+  return parts
+}
 
-  const criteriaLines = criteria.length > 0
-    ? criteria.map((c) => `- ${c}`).join('\n')
-    : '- TBD'
+function buildTaskBody(input) {
+  const objective = input.objective ?? 'TBD'
+  const scope = input.scope ?? 'TBD'
+  const criteria = splitSemicolonList(input.criteria ?? input.acceptance, ['TBD'])
+  const tests = splitSemicolonList(input.tests, ['TBD'])
+  const checks = splitSemicolonList(
+    input.checks,
+    ['npm run lint', 'npm run test -- --run']
+  )
+  const constraints = splitSemicolonList(input.constraints, ['Do not touch unrelated files.'])
+  const deliverables = splitSemicolonList(input.deliverables, ['Code changes + tests + summary in outbox'])
 
   return [
     '## Objective',
@@ -197,7 +206,19 @@ function buildTaskBody(input) {
     scope,
     '',
     '## Acceptance Criteria',
-    criteriaLines,
+    criteria.map((c) => `- ${c}`).join('\n'),
+    '',
+    '## Required Test Cases',
+    tests.map((t) => `- ${t}`).join('\n'),
+    '',
+    '## Validation Commands',
+    checks.map((c) => `- ${c}`).join('\n'),
+    '',
+    '## Deliverables',
+    deliverables.map((d) => `- ${d}`).join('\n'),
+    '',
+    '## Constraints',
+    constraints.map((c) => `- ${c}`).join('\n'),
     '',
     '## Notes',
     input.notes ?? '',
@@ -264,6 +285,14 @@ async function cmdCreate(args) {
   const title = String(args.title ?? '').trim()
   if (!title) {
     throw new Error('Missing --title')
+  }
+  const criteria = String(args.criteria ?? args.acceptance ?? '').trim()
+  if (!criteria) {
+    throw new Error('Missing --criteria (semicolon-separated)')
+  }
+  const tests = String(args.tests ?? '').trim()
+  if (!tests) {
+    throw new Error('Missing --tests (semicolon-separated)')
   }
 
   const taskId = await getNextTaskId()
@@ -398,7 +427,10 @@ async function dispatchOne(taskId, args = {}) {
 
   const promptContent = [
     `You are ${owner}. Execute this task in repo: ${REPO_ROOT}`,
-    'Follow acceptance criteria exactly. Return: summary, changed files, commands run, risks.',
+    'Follow acceptance criteria and required tests exactly.',
+    'You must add/update tests listed in the task and run validation commands.',
+    'Do not touch files outside scope unless absolutely required for passing checks.',
+    'Return this exact structure: summary, changed_files, tests_added_or_updated, commands_run_with_results, risks.',
     '',
     '--- TASK START ---',
     serializeTask(task.meta, task.body),
@@ -542,7 +574,7 @@ async function main() {
       console.log([
         'Usage:',
         '  node scripts/agents/orchestrator.mjs init',
-        '  node scripts/agents/orchestrator.mjs create --owner gemini --title "Fix X" --objective "..." --scope "..." --criteria "a;b;c"',
+        '  node scripts/agents/orchestrator.mjs create --owner gemini --title "Fix X" --objective "..." --scope "..." --criteria "a;b;c" --tests "t1;t2" [--checks "npm run lint;npm run test -- --run"]',
         '  node scripts/agents/orchestrator.mjs list [--status pending] [--owner gemini]',
         '  node scripts/agents/orchestrator.mjs show TASK-0001',
         '  node scripts/agents/orchestrator.mjs set-status TASK-0001 done',
