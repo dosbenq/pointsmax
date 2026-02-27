@@ -8,6 +8,7 @@ import PostHogProvider from '@/components/PostHogProvider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
+import { Analytics } from '@vercel/analytics/next'
 
 if (process.env.NODE_ENV === 'production') {
   assertServerEnv()
@@ -114,6 +115,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthProvider>
           </PostHogProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
