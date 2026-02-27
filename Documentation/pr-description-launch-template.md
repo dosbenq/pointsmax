@@ -73,7 +73,7 @@ Expected:
 
 ## Follow-ups (External)
 
-- Set production secrets/envs per `docs/claude-launch-checklist.md`.
+- Set production secrets/envs per `Documentation/claude-launch-checklist.md`.
 - Configure cron auth header for `/api/cron/send-bonus-alerts`.
 - Complete production QA and release gate before deploy.
 

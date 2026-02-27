@@ -26,7 +26,7 @@ npm run supabase:verify
 ```
 
 Runs:
-`/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/docs/sql/launch-migration-audit.sql`
+`/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/sql/launch-migration-audit.sql`
 
 ### 2) Apply one or more migrations
 
@@ -61,7 +61,7 @@ npm run supabase:postcheck
 ```
 
 Runs:
-`/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/docs/sql/post-deploy-smoke.sql`
+`/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/sql/post-deploy-smoke.sql`
 
 ### 5) Full launch autopilot (single command)
 

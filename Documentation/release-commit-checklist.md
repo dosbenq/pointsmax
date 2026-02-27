@@ -1,6 +1,6 @@
 # Release Commit Checklist (Claude Review)
 
-For external deployment tasks, use `docs/claude-launch-checklist.md` as the source of truth.
+For external deployment tasks, use `Documentation/claude-launch-checklist.md` as the source of truth.
 
 ## 1) Scope Verification
 

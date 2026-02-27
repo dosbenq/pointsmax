@@ -78,4 +78,4 @@ Expected: all required keys above are listed.
 vercel --prod
 ```
 
-Then run post-deploy checks from `/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/docs/launch-day-runbook.md`.
+Then run post-deploy checks from `/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/launch-day-runbook.md`.

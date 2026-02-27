@@ -8,7 +8,7 @@ Approver: [Name]
 
 All must be true before deploy:
 
-- `docs/claude-launch-checklist.md` items are complete.
+- `Documentation/claude-launch-checklist.md` items are complete.
 - GitHub `CI` and `Release Gate` workflows are green.
 - Production env/secrets are configured.
 - Cron job auth and monitoring are verified.
@@ -26,7 +26,7 @@ All must be true before deploy:
    npm run smoke:http
    npm run check:links
    ```
-3. Confirm checklist completion in `docs/claude-launch-checklist.md`.
+3. Confirm checklist completion in `Documentation/claude-launch-checklist.md`.
 4. Announce launch window in team channel.
 
 ## 2) T-30 Minutes (Production Readiness)
@@ -43,8 +43,8 @@ All must be true before deploy:
    - URL: `/api/cron/send-bonus-alerts`
    - Header: `Authorization: Bearer <CRON_SECRET>`
 4. Use detailed setup guides:
-   - Vercel envs: `docs/vercel-env-setup.md`
-   - Supabase migrations: `docs/supabase-migrations-verify.md`
+   - Vercel envs: `Documentation/vercel-env-setup.md`
+   - Supabase migrations: `Documentation/supabase-migrations-verify.md`
 
 ## 3) Deploy
 
