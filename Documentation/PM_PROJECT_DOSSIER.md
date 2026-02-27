@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `main`
-- Git commit: `6c91f0b`
+- Git commit: `e743680`
 
 ## 1. Executive Snapshot
 
