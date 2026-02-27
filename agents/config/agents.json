@@ -15,8 +15,9 @@
     },
     "kimi": {
       "enabled": true,
-      "shell": "kimi -p \"$(cat {{prompt_file}})\"",
-      "timeout_ms": 900000
+      "shell": "kimi --yolo -p \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 1200000,
+      "no_output_timeout_ms": 900000
     },
     "codex": {
       "enabled": true,

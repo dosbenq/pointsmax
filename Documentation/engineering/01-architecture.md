@@ -58,3 +58,8 @@ Cross-feature imports must use public APIs only:
 - Is logic placed in the correct slice layer?
 - Are imports using public feature APIs only?
 - Can this module be unit tested without network/DB?
+
+## See Also
+- [02 Coding Standards](./02-coding-standards.md) - TypeScript and code quality standards
+- [03 Testing Strategy](./03-testing-strategy.md) - Testing pyramid and quality gates
+- [04 PR Review Checklist](./04-pr-review-checklist.md) - PR review requirements and criteria

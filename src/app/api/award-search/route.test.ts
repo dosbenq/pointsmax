@@ -40,11 +40,19 @@ vi.mock('./helpers', async (importOriginal) => {
 
 const { POST } = await import('./route')
 
-function makeRequest(body: unknown) {
+function makeRequest(body: unknown, opts?: { headers?: Record<string, string> }) {
   return new NextRequest('https://pointsmax.com/api/award-search', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...opts?.headers },
     body: JSON.stringify(body),
+  })
+}
+
+function makeRequestWithRawBody(body: string, opts?: { headers?: Record<string, string> }) {
+  return new NextRequest('https://pointsmax.com/api/award-search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...opts?.headers },
+    body,
   })
 }
 
@@ -73,10 +81,37 @@ describe('POST /api/award-search', () => {
       const req = makeRequest({ ...validBody, origin: 'JF' })
       const res = await POST(req)
       expect(res.status).toBe(400)
+      const payload = await res.json()
+      expect(payload.error.code).toBe('BAD_REQUEST')
     })
 
     it('rejects end_date before start_date', async () => {
       const req = makeRequest({ ...validBody, start_date: '2026-03-05', end_date: '2026-03-01' })
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+      const payload = await res.json()
+      expect(payload.error.code).toBe('BAD_REQUEST')
+    })
+
+    it('rejects invalid JSON body', async () => {
+      const req = makeRequestWithRawBody('not valid json')
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+      const payload = await res.json()
+      expect(payload.error.code).toBe('BAD_REQUEST')
+      expect(payload.error.message).toContain('Invalid JSON')
+    })
+
+    it('rejects missing origin', async () => {
+      const { origin: _, ...bodyWithoutOrigin } = validBody
+      const req = makeRequest(bodyWithoutOrigin)
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects missing destination', async () => {
+      const { destination: _, ...bodyWithoutDestination } = validBody
+      const req = makeRequest(bodyWithoutDestination)
       const res = await POST(req)
       expect(res.status).toBe(400)
     })
@@ -120,6 +155,135 @@ describe('POST /api/award-search', () => {
       expect(body.estimates_only).toBe(true)
       expect(body.provider).toBe('stub')
       expect(body.error).toBe('real_availability_unavailable')
+      expect(body.message).toBeDefined()
+      expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    })
+
+    it('verifies successful response contract structure', async () => {
+      const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
+
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue(mockResults),
+      } as unknown as AwardProvider)
+
+      const req = makeRequest(validBody)
+      const res = await POST(req)
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.provider).toBe('seats_aero')
+      expect(body.params).toBeDefined()
+      expect(body.params.origin).toBe('JFK')
+      expect(body.params.destination).toBe('LHR')
+      expect(Array.isArray(body.results)).toBe(true)
+      expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    })
+  })
+
+  describe('Fallback and edge cases', () => {
+    it('returns empty results when provider returns no results', async () => {
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue([]),
+      } as unknown as AwardProvider)
+
+      const req = makeRequest(validBody)
+      const res = await POST(req)
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.results).toEqual([])
+      expect(body.provider).toBe('seats_aero')
+    })
+
+    it('returns internal error when fallback provider also fails', async () => {
+      // First, make the StubProvider fail by mocking the DB to throw
+      const { createServerDbClient } = await import('@/lib/supabase')
+      vi.mocked(createServerDbClient).mockImplementationOnce(() => {
+        throw new Error('Database error')
+      })
+
+      vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
+        throw new awardSearch.AwardProviderUnavailableError()
+      })
+
+      const req = makeRequest(validBody)
+      const res = await POST(req)
+      const body = await res.json()
+
+      expect(res.status).toBe(500)
+      expect(body.error.code).toBe('INTERNAL_ERROR')
+    })
+
+    it('handles generic errors (non-AwardProviderUnavailableError)', async () => {
+      vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
+        throw new Error('Generic provider error')
+      })
+
+      const req = makeRequest(validBody)
+      const res = await POST(req)
+      const body = await res.json()
+
+      expect(res.status).toBe(500)
+      expect(body.error.code).toBe('INTERNAL_ERROR')
+      expect(body.error.message).toContain('Search failed')
+    })
+
+    it('handles different cabin classes', async () => {
+      const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
+
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue(mockResults),
+      } as unknown as AwardProvider)
+
+      const cabins = ['economy', 'premium_economy', 'business', 'first']
+      
+      for (const cabin of cabins) {
+        vi.clearAllMocks()
+        vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+          name: 'seats_aero',
+          search: vi.fn().mockResolvedValue(mockResults),
+        } as unknown as AwardProvider)
+
+        const req = makeRequest({ ...validBody, cabin })
+        const res = await POST(req)
+        expect(res.status).toBe(200)
+      }
+    })
+
+    it('handles multiple passengers', async () => {
+      const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 150000, cpp_cents: 200 }]
+
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue(mockResults),
+      } as unknown as AwardProvider)
+
+      const req = makeRequest({ ...validBody, passengers: 3 })
+      const res = await POST(req)
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.params.passengers).toBe(3)
+    })
+
+    it('handles large date ranges', async () => {
+      const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
+
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue(mockResults),
+      } as unknown as AwardProvider)
+
+      const req = makeRequest({
+        ...validBody,
+        start_date: '2026-03-01',
+        end_date: '2026-03-31',
+      })
+      const res = await POST(req)
+      expect(res.status).toBe(200)
     })
   })
 })

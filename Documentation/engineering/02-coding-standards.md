@@ -41,3 +41,8 @@
 - Validate input sizes and schemas on all external boundaries.
 - Apply rate limits and content-length checks on heavy APIs.
 - Do not log secrets or full sensitive payloads.
+
+## See Also
+- [01 Architecture](./01-architecture.md) - Feature slice architecture and dependency rules
+- [04 PR Review Checklist](./04-pr-review-checklist.md) - Reject criteria including `any` waivers
+- [06 Release Quality Gates](./06-release-quality-gates.md) - CI checks including new `any` guard

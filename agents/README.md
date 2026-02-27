@@ -43,6 +43,23 @@ npm run agents:queue:watch -- JOB-2026-02-27_04-40-00-000Z --interval_ms 5000
 - `queue:watch` streams live status updates until the job exits.
 - Queue logs are written to `agents/runtime/logs/JOB-*.log`.
 
+## Supervisor mode (best for non-blocking parallel work)
+
+Supervisor mode is a detached daemon for agent execution. It repeatedly dispatches pending tasks, writes heartbeat snapshots, and auto-retries transient `blocked` runs caused by `no_output` timeouts.
+
+```bash
+npm run agents:supervisor:start -- --owner kimi --status pending --interval_ms 15000 --timeout_ms 1200000 --no_output_timeout_ms 900000 --max_blocked_retries 2
+npm run agents:supervisor:list
+npm run agents:supervisor:status -- SUP-2026-02-27_05-32-41-979Z
+npm run agents:supervisor:watch -- SUP-2026-02-27_05-32-41-979Z --interval_ms 5000
+npm run agents:supervisor:stop -- SUP-2026-02-27_05-32-41-979Z
+```
+
+- Supervisor jobs are stored in `agents/runtime/supervisor/`.
+- Job logs are written to `agents/runtime/logs/SUP-*.log`.
+- Dispatch cycle logs are written to `agents/runtime/logs/SUP-*.dispatch.log`.
+- Cycle events are written to `agents/runtime/logs/SUP-*.events.ndjson`.
+
 ## Configure your local CLI commands
 
 Default commands are in `agents/config/agents.json`.
@@ -105,3 +122,4 @@ This keeps agent work auditable and prevents ambiguous outcomes.
 
 - Dispatch runs sequentially (one task at a time) to avoid uncontrolled merge conflicts.
 - Use one branch/worktree per developer/agent for parallel delivery.
+- Kimi and Gemini should run in auto-approve mode (`--yolo` / `--approval-mode yolo`) for headless queue/supervisor runs.

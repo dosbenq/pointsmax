@@ -1,0 +1,119 @@
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import AdminWorkflowHealthPage from './page'
+
+// Mock fetch
+const mockFetch = vi.fn()
+global.fetch = mockFetch
+
+describe('AdminWorkflowHealthPage', () => {
+  const mockHealthData = {
+    checked_at: new Date().toISOString(),
+    configs: [
+      { key: 'GEMINI_API_KEY', required: true, present: true },
+      { key: 'RESEND_API_KEY', required: false, present: false },
+    ],
+    summary: {
+      required_present: 1,
+      required_total: 1,
+      ready: true,
+    },
+    db: {
+      flight_watches_ready: true,
+      total_watches: 10,
+      active_watches: 5,
+      knowledge_ready: true,
+      knowledge_docs_count: 100,
+      errors: [],
+    },
+    workflow: {
+      event_name: 'workflow.healthcheck',
+      endpoint: '/api/inngest',
+      send_ready: true,
+      queue_depth: 3,
+      failed_runs_24h: 2,
+      last_success_at: new Date().toISOString(),
+    },
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockHealthData),
+    })
+  })
+
+  it('renders metrics correctly after loading', async () => {
+    render(<AdminWorkflowHealthPage />)
+
+    // Check loading state
+    expect(screen.getByText('Refreshing…')).toBeInTheDocument()
+
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.queryByText('Refreshing…')).not.toBeInTheDocument()
+    })
+
+    // Verify metrics
+    expect(screen.getByText('Queue Depth')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument() // queue_depth
+
+    expect(screen.getByText('Failed (24h)')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument() // failed_runs_24h
+
+    expect(screen.getByText('Last Activity')).toBeInTheDocument()
+    // Should show the formatted date. Since it's dynamic, we check for presence.
+    expect(screen.getByText(/Last successful run/)).toBeInTheDocument()
+  })
+
+  it('handles retry action', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockHealthData),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ ok: true, message: 'Retry action logged' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockHealthData),
+      })
+
+    render(<AdminWorkflowHealthPage />)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Refreshing…')).not.toBeInTheDocument()
+    })
+
+    const retryButton = screen.getByText('Retry failed')
+    fireEvent.click(retryButton)
+
+    expect(screen.getByText('Retrying…')).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByText('Retry failed')).toBeInTheDocument()
+    })
+
+    // Verify fetch was called with retry action
+    expect(mockFetch).toHaveBeenCalledWith('/api/admin/workflow-health', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ action: 'retry' }),
+    }))
+  })
+
+  it('shows error message on fetch failure', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ error: 'Failed to load' }),
+    })
+
+    render(<AdminWorkflowHealthPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load')).toBeInTheDocument()
+    })
+  })
+})

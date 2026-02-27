@@ -1,4 +1,6 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -55,6 +57,25 @@ function mapEventIds(result: unknown): string[] {
     .filter(Boolean)
 }
 
+async function getQueueDepth(): Promise<number> {
+  const tasksDir = path.join(process.cwd(), 'agents/tasks')
+  try {
+    const entries = await fs.readdir(tasksDir)
+    const taskFiles = entries.filter((f) => f.startsWith('TASK-') && f.endsWith('.md'))
+    let pendingCount = 0
+    for (const file of taskFiles) {
+      const content = await fs.readFile(path.join(tasksDir, file), 'utf8')
+      if (content.includes('status: pending')) {
+        pendingCount += 1
+      }
+    }
+    return pendingCount
+  } catch {
+    // If directory doesn't exist or other error, return 0
+    return 0
+  }
+}
+
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
   const authError = await requireAdmin(req)
@@ -72,14 +93,17 @@ export async function GET(req: NextRequest) {
   let knowledgeReady = false
   let dbErrors: string[] = []
 
-  const [totalRes, activeRes, knowledgeRes, auditRes] = await Promise.all([
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [totalRes, activeRes, knowledgeRes, auditRes, queueDepth] = await Promise.all([
     db.from('flight_watches').select('id', { count: 'exact', head: true }),
     db.from('flight_watches').select('id', { count: 'exact', head: true }).eq('is_active', true),
     db.from('knowledge_docs').select('id', { count: 'exact', head: true }),
     db.from('admin_audit_log')
       .select('created_at, action')
       .order('created_at', { ascending: false })
-      .limit(100),
+      .limit(200),
+    getQueueDepth(),
   ])
 
   const totalResult = totalRes as WatchCountResult
@@ -139,11 +163,11 @@ export async function GET(req: NextRequest) {
       send_ready: statuses
         .filter((status) => status.required)
         .every((status) => status.present),
-      queue_depth: 0, // Placeholder: requires Inngest Management API for real-time depth
+      queue_depth: queueDepth,
       failed_runs_24h: auditRows.filter((l) =>
-        (l.action.includes('fail') || l.action.includes('error')) && 
-        new Date(l.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-      ).length ?? 0,
+        (l.action.toLowerCase().includes('fail') || l.action.toLowerCase().includes('error')) &&
+        l.created_at > last24h
+      ).length,
       last_success_at: auditRows.find((l) =>
         l.action.includes('trigger') || l.action.includes('success') || l.action.includes('ingest')
       )?.created_at ?? null,

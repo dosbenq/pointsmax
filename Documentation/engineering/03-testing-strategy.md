@@ -37,3 +37,8 @@ CI must pass:
 - Mark and isolate flaky tests immediately.
 - Fix root cause before merge when possible.
 - If temporary quarantine is required, file a tracked follow-up task.
+
+## See Also
+- [01 Architecture](./01-architecture.md) - Migration policy and parity tests
+- [04 PR Review Checklist](./04-pr-review-checklist.md) - Definition of Done for test coverage
+- [06 Release Quality Gates](./06-release-quality-gates.md) - CI test requirements and changed-scope policy

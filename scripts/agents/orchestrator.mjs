@@ -248,7 +248,7 @@ async function writeDefaultConfig() {
       },
       kimi: {
         enabled: true,
-        shell: 'kimi -p "$(cat {{prompt_file}})"',
+        shell: 'kimi --yolo -p "$(cat {{prompt_file}})"',
         timeout_ms: 900000,
       },
       codex: {

@@ -4,17 +4,17 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `gemini/frontend-polish`
-- Git commit: `2dd9e9f`
+- Git commit: `acc32aa`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **26**
 - API routes: **44**
 - Supabase migrations: **25**
-- Test files: **39**
+- Test files: **40**
 - GitHub workflows: **6**
-- Feature-slice files: **6**
-- NPM scripts: **44**
+- Feature-slice files: **7**
+- NPM scripts: **49**
 
 ## 2. Product Surface (Pages)
 
@@ -240,6 +240,11 @@
 | `agents:report` | `node scripts/agents/report.mjs --write` |
 | `agents:set-status` | `node scripts/agents/orchestrator.mjs set-status` |
 | `agents:show` | `node scripts/agents/orchestrator.mjs show` |
+| `agents:supervisor:list` | `node scripts/agents/supervisor.mjs list` |
+| `agents:supervisor:start` | `node scripts/agents/supervisor.mjs start` |
+| `agents:supervisor:status` | `node scripts/agents/supervisor.mjs status` |
+| `agents:supervisor:stop` | `node scripts/agents/supervisor.mjs stop` |
+| `agents:supervisor:watch` | `node scripts/agents/supervisor.mjs watch` |
 | `build` | `next build` |
 | `check:env` | `node scripts/check-env.mjs` |
 | `check:launch-env` | `node scripts/check-launch-env.mjs` |
@@ -276,6 +281,7 @@
 |---|
 | `src/app/[region]/calculator/components/action-strip.test.tsx` |
 | `src/app/[region]/calculator/components/ai-chat.test.tsx` |
+| `src/app/admin/workflow-health/page.test.tsx` |
 | `src/app/api/admin/affiliate-clicks/route.test.ts` |
 | `src/app/api/admin/workflow-health/route.test.ts` |
 | `src/app/api/ai/recommend/route.test.ts` |
@@ -331,10 +337,9 @@
 ## 10. Agent Task Board Snapshot
 
 - Total tasks: **18**
-- blocked: **3**
 - in_progress: **1**
-- in_review: **5**
-- pending: **9**
+- in_review: **10**
+- pending: **7**
 
 | Task | Owner | Status | Priority | Title |
 |---|---|---|---|---|
@@ -343,12 +348,12 @@
 | `TASK-0003` | `gemini` | `in_review` | `p2` | Award search sort + latency optimization |
 | `TASK-0004` | `gemini` | `in_review` | `p2` | AI advisor resilience and deterministic fallback |
 | `TASK-0005` | `gemini` | `in_review` | `p2` | Affiliate analytics hardening |
-| `TASK-0006` | `gemini` | `blocked` | `p2` | Workflow health dashboard v2 metrics |
-| `TASK-0007` | `kimi` | `blocked` | `p2` | G0-T1 Engineering constitution docs |
-| `TASK-0008` | `kimi` | `blocked` | `p2` | G0-T2 Unified PR template and DoD |
-| `TASK-0009` | `kimi` | `in_progress` | `p2` | G0-T3 CONTRIBUTING governance update |
-| `TASK-0010` | `kimi` | `pending` | `p2` | G1-T1 Vertical slice scaffolding baseline |
-| `TASK-0011` | `kimi` | `pending` | `p2` | G1-T2 Calculator shell pilot refactor |
+| `TASK-0006` | `gemini` | `in_review` | `p2` | Workflow health dashboard v2 metrics |
+| `TASK-0007` | `kimi` | `in_review` | `p2` | G0-T1 Engineering constitution docs |
+| `TASK-0008` | `kimi` | `in_review` | `p2` | G0-T2 Unified PR template and DoD |
+| `TASK-0009` | `kimi` | `in_review` | `p2` | G0-T3 CONTRIBUTING governance update |
+| `TASK-0010` | `kimi` | `in_review` | `p2` | G1-T1 Vertical slice scaffolding baseline |
+| `TASK-0011` | `kimi` | `in_progress` | `p2` | G1-T2 Calculator shell pilot refactor |
 | `TASK-0012` | `kimi` | `pending` | `p2` | G1-T3 Booking config extraction |
 | `TASK-0013` | `kimi` | `pending` | `p2` | G2-T1 Changed-scope test policy gates |
 | `TASK-0014` | `kimi` | `pending` | `p2` | G2-T2 Core API contract test hardening |
