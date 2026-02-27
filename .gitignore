@@ -21,3 +21,9 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Agent orchestration runtime artifacts
+agents/outbox/**
+!agents/outbox/.gitkeep
+agents/runtime/**
+!agents/runtime/.gitkeep

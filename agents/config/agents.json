@@ -1,0 +1,25 @@
+{
+  "default_timeout_ms": 900000,
+  "agents": {
+    "claude": {
+      "enabled": true,
+      "shell": "claude -p \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 900000
+    },
+    "gemini": {
+      "enabled": true,
+      "shell": "gemini -p \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 900000
+    },
+    "kimi": {
+      "enabled": true,
+      "shell": "kimi -p \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 900000
+    },
+    "codex": {
+      "enabled": true,
+      "shell": "codex run \"$(cat {{prompt_file}})\"",
+      "timeout_ms": 900000
+    }
+  }
+}
