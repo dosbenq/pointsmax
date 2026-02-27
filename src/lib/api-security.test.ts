@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { NextRequest } from 'next/server'
 import {
   enforceJsonContentLength,

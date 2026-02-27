@@ -24,10 +24,6 @@ interface HealthChecks {
   }
 }
 
-function hasValue(value: string | undefined): boolean {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
 function getMemoryUsageMB(): number {
   if (typeof process.memoryUsage === 'function') {
     return Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
@@ -62,7 +58,6 @@ function determineOverallStatus(checks: HealthChecks): { status: HealthStatus; o
 
 export async function GET(req: NextRequest) {
   const startedAt = Date.now()
-  const requestId = req.headers.get('x-request-id') ?? crypto.randomUUID()
 
   // Check authorization for detailed health info
   const healthSecret = process.env.HEALTHCHECK_SECRET?.trim()

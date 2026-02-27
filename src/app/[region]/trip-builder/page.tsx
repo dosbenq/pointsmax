@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import { format, parseISO, isValid, isBefore, startOfToday } from 'date-fns'
+import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
@@ -11,7 +11,7 @@ import { REGIONS, type Region } from '@/lib/regions'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type UIState = 'form' | 'loading' | 'results'
@@ -289,7 +289,7 @@ export default function TripBuilderPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <div className="border-b border-[#d7e8dd] bg-[rgba(236,246,240,0.52)]">
+      <div className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
         <div className="pm-shell py-10">
           <span className="pm-pill mb-3">Trip planning {config.flag}</span>
           <h1 className="pm-heading text-3xl mb-2">Trip Builder</h1>
@@ -354,7 +354,7 @@ export default function TripBuilderPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setTripType('round_trip')}
-                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'round_trip' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'round_trip' ? 'bg-pm-accent-soft border-pm-accent-border text-pm-accent-strong' : ''}`}
                   >
                     Round Trip
                   </button>
@@ -363,7 +363,7 @@ export default function TripBuilderPage() {
                       setTripType('one_way')
                       setReturnDate('')
                     }}
-                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'one_way' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${tripType === 'one_way' ? 'bg-pm-accent-soft border-pm-accent-border text-pm-accent-strong' : ''}`}
                   >
                     One Way
                   </button>
@@ -378,7 +378,7 @@ export default function TripBuilderPage() {
                       setDateMode('exact')
                       setHotelNightsManuallySet(false)
                     }}
-                    className={`pm-button-secondary px-3 py-1.5 text-xs ${dateMode === 'exact' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${dateMode === 'exact' ? 'bg-pm-accent-soft border-pm-accent-border text-pm-accent-strong' : ''}`}
                   >
                     Exact dates
                   </button>
@@ -387,7 +387,7 @@ export default function TripBuilderPage() {
                       setDateMode('flexible_month')
                       setHotelNightsManuallySet(false)
                     }}
-                    className={`pm-button-secondary px-3 py-1.5 text-xs ${dateMode === 'flexible_month' ? 'bg-[#ecf9f7] border-[#8ecfc0] text-[#0f5f57]' : ''}`}
+                    className={`pm-button-secondary px-3 py-1.5 text-xs ${dateMode === 'flexible_month' ? 'bg-pm-accent-soft border-pm-accent-border text-pm-accent-strong' : ''}`}
                   >
                     I&apos;m flexible (full month)
                   </button>
@@ -404,11 +404,11 @@ export default function TripBuilderPage() {
                         <Button
                           variant="outline"
                           className={cn(
-                            'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                            'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                             !departDate && 'text-muted-foreground'
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                          <CalendarIcon className="mr-2 h-4 w-4 text-pm-ink-500" />
                           {departDate ? (
                             format(parseISO(departDate), 'PPP')
                           ) : (
@@ -416,7 +416,7 @@ export default function TripBuilderPage() {
                           )}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-white" align="start">
+                      <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                         <Calendar
                           mode="single"
                           selected={departDate ? parseISO(departDate) : undefined}
@@ -430,8 +430,8 @@ export default function TripBuilderPage() {
                           disabled={(date) => isBefore(date, startOfToday())}
                           initialFocus
                           classNames={{
-                            day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
-                            day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                            day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                            day_today: 'bg-pm-accent-soft text-pm-accent',
                           }}
                         />
                       </PopoverContent>
@@ -447,11 +447,11 @@ export default function TripBuilderPage() {
                           <Button
                             variant="outline"
                             className={cn(
-                              'w-full justify-start text-left font-normal pm-input bg-white hover:bg-[#f8faf9]',
+                              'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                               !returnDate && 'text-muted-foreground'
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-[#7f978c]" />
+                            <CalendarIcon className="mr-2 h-4 w-4 text-pm-ink-500" />
                             {returnDate ? (
                               format(parseISO(returnDate), 'PPP')
                             ) : (
@@ -459,7 +459,7 @@ export default function TripBuilderPage() {
                             )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 bg-white" align="start">
+                        <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                           <Calendar
                             mode="single"
                             selected={returnDate ? parseISO(returnDate) : undefined}
@@ -474,8 +474,8 @@ export default function TripBuilderPage() {
                             }}
                             initialFocus
                             classNames={{
-                              day_selected: 'bg-[#0f766e] text-white hover:bg-[#0d5f58]',
-                              day_today: 'bg-[#ecf9f7] text-[#0f766e]',
+                              day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                              day_today: 'bg-pm-accent-soft text-pm-accent',
                             }}
                           />
                         </PopoverContent>
@@ -508,7 +508,7 @@ export default function TripBuilderPage() {
                     </select>
                   </div>
                   {selectedMonthRange && (
-                    <p className="text-xs text-[#5f7c70] mt-1">
+                    <p className="text-xs text-pm-ink-500 mt-1">
                       Searching {formatMonthYear(flexMonth)} ({selectedMonthRange.start} through {selectedMonthRange.end}).
                     </p>
                   )}
@@ -563,7 +563,7 @@ export default function TripBuilderPage() {
                   {hotelNightsManuallySet && (
                     <button
                       onClick={() => setHotelNightsManuallySet(false)}
-                      className="text-xs text-[#0f766e] hover:text-[#0b5e57] mt-1"
+                      className="text-xs text-pm-accent hover:text-pm-accent-strong mt-1"
                     >
                       Reset to auto-calculate from dates
                     </button>
@@ -578,7 +578,7 @@ export default function TripBuilderPage() {
                 <div>
                   <h2 className="pm-heading">Your Points Balances</h2>
                   {!user && (
-                    <p className="text-xs text-[#6a8579] mt-0.5">Sign in to auto-load your saved balances</p>
+                    <p className="text-xs text-pm-ink-500 mt-0.5">Sign in to auto-load your saved balances</p>
                   )}
                 </div>
                 <button
@@ -621,7 +621,7 @@ export default function TripBuilderPage() {
                       {rows.length > 1 && (
                         <button
                           onClick={() => removeRow(row.id)}
-                          className="text-[#90a79b] hover:text-[#b42318] transition-colors text-lg leading-none"
+                          className="text-pm-ink-500 hover:text-pm-danger transition-colors text-lg leading-none"
                         >
                           ×
                         </button>
@@ -633,7 +633,7 @@ export default function TripBuilderPage() {
             </div>
 
             {error && (
-              <div className="bg-[#fff2f2] border border-[#f9d4d4] text-[#b42318] text-sm rounded-xl px-4 py-3">
+              <div className="bg-pm-danger-soft border border-pm-danger-border text-pm-danger text-sm rounded-xl px-4 py-3">
                 {error}
               </div>
             )}
@@ -650,8 +650,8 @@ export default function TripBuilderPage() {
         {/* ── LOADING STATE ──────────────────────────────────── */}
         {uiState === 'loading' && (
           <div className="flex flex-col items-center justify-center py-24 space-y-6">
-            <div className="w-12 h-12 rounded-full border-4 border-[#0f766e] border-t-transparent animate-spin" />
-            <p className="text-[#5f7c70] text-sm font-medium animate-pulse">{loadingMsg}</p>
+            <div className="w-12 h-12 rounded-full border-4 border-pm-accent border-t-transparent animate-spin" />
+            <p className="text-pm-ink-500 text-sm font-medium animate-pulse">{loadingMsg}</p>
           </div>
         )}
 
@@ -661,14 +661,14 @@ export default function TripBuilderPage() {
 
             {/* AI Summary */}
             {result.ai_summary && (
-              <div className="rounded-2xl border border-[#c7e7d4] bg-[#ecf9f1] p-6">
-                <p className="text-xs font-semibold text-[#157347] uppercase tracking-wider mb-2">✨ Trip Summary</p>
-                <p className="text-xs text-[#2a4b3f] font-semibold mb-2">
+              <div className="rounded-2xl border border-pm-success-border bg-pm-success-soft p-6">
+                <p className="text-xs font-semibold text-pm-success uppercase tracking-wider mb-2">✨ Trip Summary</p>
+                <p className="text-xs text-pm-ink-700 font-semibold mb-2">
                   {tripType === 'one_way' ? 'One Way' : 'Round Trip'} · {origin.toUpperCase()} → {dest.toUpperCase()}
                 </p>
-                <p className="text-[#2a4b3f] text-sm leading-relaxed mb-2">{result.ai_summary}</p>
+                <p className="text-pm-ink-700 text-sm leading-relaxed mb-2">{result.ai_summary}</p>
                 {result.points_summary && (
-                  <p className="text-[#157347] text-sm font-medium">{result.points_summary}</p>
+                  <p className="text-pm-success text-sm font-medium">{result.points_summary}</p>
                 )}
               </div>
             )}
@@ -676,34 +676,34 @@ export default function TripBuilderPage() {
             {/* Flight Options */}
             {result.top_flights.length > 0 && (
               <div className="pm-card-soft overflow-hidden">
-                <div className="px-6 py-4 border-b border-[#dbe9e2]">
+                <div className="px-6 py-4 border-b border-pm-border">
                   <h2 className="pm-heading">✈️ Flight Options</h2>
-                  <p className="text-xs text-[#6a8579] mt-0.5">Top award programs for your route</p>
+                  <p className="text-xs text-pm-ink-500 mt-0.5">Top award programs for your route</p>
                   {googleFlightsUrl && (
                     <a
                       href={googleFlightsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-[#0f766e] hover:text-[#0b5e57] mt-2 inline-flex"
+                      className="text-xs text-pm-accent hover:text-pm-accent-strong mt-2 inline-flex"
                     >
                       Compare cash fares on Google Flights ↗
                     </a>
                   )}
                 </div>
-                <div className="divide-y divide-[#edf4ef]">
+                <div className="divide-y divide-pm-surface-soft">
                   {result.top_flights.map((flight, i) => (
                     <div key={i} className="px-6 py-4 flex items-start gap-4">
-                      <span className="text-sm font-bold text-[#90a79b] w-5 flex-shrink-0 mt-0.5">#{i + 1}</span>
+                      <span className="text-sm font-bold text-pm-ink-500 w-5 flex-shrink-0 mt-0.5">#{i + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-[#173f34] text-sm">{flight.program_name}</span>
+                          <span className="font-medium text-pm-ink-900 text-sm">{flight.program_name}</span>
                           {flight.is_reachable ? (
-                            <span className="text-xs bg-[#ecf9f1] text-[#157347] border border-[#c7e7d4] px-2 py-0.5 rounded-full font-medium">Reachable</span>
+                            <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full font-medium">Reachable</span>
                           ) : (
-                            <span className="text-xs bg-[#eef5f0] text-[#5f7c70] border border-[#d5e5d9] px-2 py-0.5 rounded-full">Need more points</span>
+                            <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Need more points</span>
                           )}
                         </div>
-                        <p className="text-xs text-[#5f7c70] mt-0.5">
+                        <p className="text-xs text-pm-ink-500 mt-0.5">
                           ~{flight.estimated_miles.toLocaleString()} miles
                           {' · '}
                           ~{flight.points_needed_from_wallet.toLocaleString()} points from wallet
@@ -714,7 +714,7 @@ export default function TripBuilderPage() {
                         href={flight.deep_link_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-[#0f766e] hover:text-[#0b5e57] font-medium whitespace-nowrap flex-shrink-0 border border-[#b8e3da] hover:border-[#8ecfc0] px-3 py-1.5 rounded-full transition-colors bg-[#ecf9f7]"
+                        className="text-xs text-pm-accent hover:text-pm-accent-strong font-medium whitespace-nowrap flex-shrink-0 border border-pm-accent-border hover:border-pm-accent-border px-3 py-1.5 rounded-full transition-colors bg-pm-accent-soft"
                       >
                         {flight.deep_link_label} ↗
                       </a>
@@ -727,45 +727,45 @@ export default function TripBuilderPage() {
             {/* Hotel Plan */}
             {result.hotel && (
               <div className="pm-card-soft overflow-hidden">
-                <div className="px-6 py-4 border-b border-[#dbe9e2]">
+                <div className="px-6 py-4 border-b border-pm-border">
                   <h2 className="pm-heading">🏨 Hotel Plan</h2>
                 </div>
                 <div className="px-6 py-5 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="pm-heading">{result.hotel.property_name}</p>
-                      <p className="text-xs text-[#6a8579]">{result.hotel.chain} · {result.hotel.loyalty_program}</p>
+                      <p className="text-xs text-pm-ink-500">{result.hotel.chain} · {result.hotel.loyalty_program}</p>
                     </div>
                     {safeUrl(result.hotel.booking_url) && (
                       <a
                         href={safeUrl(result.hotel.booking_url)!}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-[#0f766e] hover:text-[#0b5e57] font-medium border border-[#b8e3da] hover:border-[#8ecfc0] px-3 py-1.5 rounded-full transition-colors flex-shrink-0 bg-[#ecf9f7]"
+                        className="text-xs text-pm-accent hover:text-pm-accent-strong font-medium border border-pm-accent-border hover:border-pm-accent-border px-3 py-1.5 rounded-full transition-colors flex-shrink-0 bg-pm-accent-soft"
                       >
                         Book ↗
                       </a>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-[#f4faf7] rounded-xl p-3">
-                      <p className="text-[#6a8579] font-medium mb-0.5">Per night</p>
-                      <p className="font-bold text-[#244437]">{result.hotel.approx_points_per_night.toLocaleString()} pts</p>
+                    <div className="bg-pm-surface-soft rounded-xl p-3">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Per night</p>
+                      <p className="font-bold text-pm-ink-900">{result.hotel.approx_points_per_night.toLocaleString()} pts</p>
                     </div>
                     {hotelNights > 0 && (
-                      <div className="bg-[#f4faf7] rounded-xl p-3">
-                        <p className="text-[#6a8579] font-medium mb-0.5">Total ({hotelNights} nights)</p>
-                        <p className="font-bold text-[#244437]">{(result.hotel.approx_points_per_night * hotelNights).toLocaleString()} pts</p>
+                      <div className="bg-pm-surface-soft rounded-xl p-3">
+                        <p className="text-pm-ink-500 font-medium mb-0.5">Total ({hotelNights} nights)</p>
+                        <p className="font-bold text-pm-ink-900">{(result.hotel.approx_points_per_night * hotelNights).toLocaleString()} pts</p>
                       </div>
                     )}
                   </div>
                   {result.hotel.transfer_suggestion && (
-                    <p className="text-xs text-[#0f5f57] bg-[#ecf9f7] border border-[#b8e3da] rounded-xl px-3 py-2">
+                    <p className="text-xs text-pm-accent-strong bg-pm-accent-soft border border-pm-accent-border rounded-xl px-3 py-2">
                       💡 {result.hotel.transfer_suggestion}
                     </p>
                   )}
                   {result.hotel.notes && (
-                    <p className="text-xs text-[#5f7c70]">{result.hotel.notes}</p>
+                    <p className="text-xs text-pm-ink-500">{result.hotel.notes}</p>
                   )}
                 </div>
               </div>
@@ -774,25 +774,25 @@ export default function TripBuilderPage() {
             {/* Booking Steps */}
             {result.booking_steps.length > 0 && (
               <div className="pm-card-soft overflow-hidden">
-                <div className="px-6 py-4 border-b border-[#dbe9e2]">
+                <div className="px-6 py-4 border-b border-pm-border">
                   <h2 className="pm-heading">📋 How to Book</h2>
-                  <p className="text-xs text-[#6a8579] mt-0.5">Step-by-step guide</p>
+                  <p className="text-xs text-pm-ink-500 mt-0.5">Step-by-step guide</p>
                 </div>
                 <div className="px-6 py-5 space-y-4">
                   {result.booking_steps.map((step, i) => (
                     <div key={i} className="flex gap-4">
-                      <div className="w-7 h-7 rounded-full bg-[#0f766e] text-white text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
+                      <div className="w-7 h-7 rounded-full bg-pm-accent text-white text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
                         {step.step ?? i + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-[#173f34]">{step.action}</p>
-                        <p className="text-xs text-[#5f7c70] mt-0.5 leading-relaxed">{step.detail}</p>
+                        <p className="text-sm font-semibold text-pm-ink-900">{step.action}</p>
+                        <p className="text-xs text-pm-ink-500 mt-0.5 leading-relaxed">{step.detail}</p>
                         {safeUrl(step.url) && (
                           <a
                             href={safeUrl(step.url)!}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-[#0f766e] hover:text-[#0b5e57] mt-1 inline-flex items-center gap-1"
+                            className="text-xs text-pm-accent hover:text-pm-accent-strong mt-1 inline-flex items-center gap-1"
                           >
                             Go to site ↗
                           </a>
@@ -806,7 +806,7 @@ export default function TripBuilderPage() {
 
             <button
               onClick={reset}
-              className="w-full text-sm text-[#5f7c70] hover:text-[#173f34] border border-[#d5e5d9] hover:border-[#99ccbe] py-3 rounded-2xl transition-colors bg-white"
+              className="w-full text-sm text-pm-ink-500 hover:text-pm-ink-900 border border-pm-border hover:border-pm-accent-border py-3 rounded-2xl transition-colors bg-pm-surface"
             >
               ← Build a new trip
             </button>

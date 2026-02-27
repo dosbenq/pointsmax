@@ -9,7 +9,7 @@ interface PricingActionsProps {
   region?: string
 }
 
-export default function PricingActions({ region: _region = 'us' }: PricingActionsProps) {
+export default function PricingActions({ region = 'us' }: PricingActionsProps) {
   const { loading, user, userRecord, signInWithGoogle } = useAuth()
   const searchParams = useSearchParams()
   const [busy, setBusy] = useState<'checkout' | 'portal' | null>(null)
@@ -28,14 +28,14 @@ export default function PricingActions({ region: _region = 'us' }: PricingAction
     setError(null)
 
     if (!user) {
-      trackEvent('pricing_signin_for_checkout_clicked', { source: 'pricing_page' })
+      trackEvent('pricing_signin_for_checkout_clicked', { source: 'pricing_page', region })
       await signInWithGoogle()
       return
     }
 
     try {
       setBusy('checkout')
-      trackEvent('upgrade_clicked', { source: 'pricing_page' })
+      trackEvent('upgrade_clicked', { source: 'pricing_page', region })
       const res = await fetch('/api/stripe/checkout', { method: 'POST' })
       const payload = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
 
@@ -43,7 +43,7 @@ export default function PricingActions({ region: _region = 'us' }: PricingAction
         throw new Error(payload.error ?? 'Unable to start checkout.')
       }
 
-      trackEvent('pricing_checkout_redirected', { source: 'pricing_page' })
+      trackEvent('pricing_checkout_redirected', { source: 'pricing_page', region })
       window.location.assign(payload.url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to start checkout.')
@@ -63,7 +63,7 @@ export default function PricingActions({ region: _region = 'us' }: PricingAction
         throw new Error(payload.error ?? 'Unable to open billing portal.')
       }
 
-      trackEvent('pricing_billing_portal_opened', { source: 'pricing_page' })
+      trackEvent('pricing_billing_portal_opened', { source: 'pricing_page', region })
       window.location.assign(payload.url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to open billing portal.')

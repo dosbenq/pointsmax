@@ -18,6 +18,8 @@ type UserRecord = {
   tier: SubscriptionTier
 }
 
+type BrowserSupabaseClient = ReturnType<typeof createBrowserClient>
+
 type AuthContextValue = {
   user: User | null
   userRecord: UserRecord | null
@@ -45,15 +47,15 @@ function createClient() {
   
   if (!url || !key) {
     console.warn('Supabase client not initialized: missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
-    return null as any // Return null that will be caught by checks
+    return null
   }
   
   return createBrowserClient(url, key)
 }
 
-let browserSupabaseClient: ReturnType<typeof createClient> | null = null
+let browserSupabaseClient: BrowserSupabaseClient | null = null
 
-function getBrowserSupabaseClient() {
+function getBrowserSupabaseClient(): BrowserSupabaseClient | null {
   if (!browserSupabaseClient) {
     browserSupabaseClient = createClient()
   }
@@ -61,18 +63,17 @@ function getBrowserSupabaseClient() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [userRecord, setUserRecord] = useState<UserRecord | null>(null)
-  const [preferences, setPreferences] = useState<Preferences | null>(null)
-  const [loading, setLoading] = useState(true)
-
   const supabase = getBrowserSupabaseClient()
   
   // Guard: if Supabase is not configured, skip auth and render children
   const isSupabaseConfigured = supabase !== null
+  const [user, setUser] = useState<User | null>(null)
+  const [userRecord, setUserRecord] = useState<UserRecord | null>(null)
+  const [preferences, setPreferences] = useState<Preferences | null>(null)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
 
   const loadUserData = useCallback(async (authUser: User) => {
-    if (!isSupabaseConfigured) return
+    if (!supabase) return
     
     // Load preferences via API (respects RLS via session cookie)
     const prefsRes = await fetch('/api/user/preferences')
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('auth_id', authUser.id)
       .single()
     setUserRecord(data)
-  }, [supabase, isSupabaseConfigured])
+  }, [supabase])
 
   const refreshPreferences = useCallback(async () => {
     const res = await fetch('/api/user/preferences')
@@ -100,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setLoading(false)
       return
     }
     

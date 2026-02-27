@@ -3,7 +3,7 @@
  * Prevents cascading failures when external services are down
  */
 
-import { logError, logInfo, logWarn } from './logger'
+import { logError, logInfo } from './logger'
 
 type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN'
 

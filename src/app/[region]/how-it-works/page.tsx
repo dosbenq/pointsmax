@@ -144,7 +144,7 @@ export default function HowItWorksPage() {
       })
       .catch(() => setPrograms([]))
       .finally(() => setProgramsLoading(false))
-  }, [region])
+  }, [region, validRegion])
 
   // Guard against invalid regions — after all hooks
   if (!validRegion) {
@@ -162,7 +162,6 @@ export default function HowItWorksPage() {
     )
   }
 
-  const config = REGIONS[region]
   const valueGap = VALUE_GAP_DATA[region]
   const steps = getSteps(region)
   const faq = getFAQ(region)
