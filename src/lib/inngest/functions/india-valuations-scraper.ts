@@ -2,6 +2,7 @@ import { inngest } from '@/lib/inngest/client'
 import { createAdminClient } from '@/lib/supabase'
 import { logInfo, logError } from '@/lib/logger'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { logAiMetric } from '@/lib/telemetry'
 
 const GENAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
@@ -54,33 +55,11 @@ async function fetchPageContent(url: string): Promise<string> {
 }
 
 async function extractValuationsWithGemini(html: string): Promise<ScrapedValuation[]> {
+  const startedAt = Date.now()
   const model = GENAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
   
   const prompt = `Extract credit card reward point valuations from this HTML content.
-
-Focus on these Indian credit card programs:
-- HDFC Millennia / Infinia / Regalia (HDFC points)
-- Axis EDGE / Atlas / Magnus (Axis points)  
-- Amex Membership Rewards India
-- Air India Maharaja Club miles
-- IndiGo 6E Rewards points
-- Taj InnerCircle points
-
-For each program, find:
-1. The explicit or calculable rupee value per point (e.g., "₹0.50 per point" or "5 points per ₹150 spent = ₹3.33 per point")
-2. A short quote from the text that supports this valuation
-
-Return ONLY a JSON array in this exact format:
-[
-  {
-    "program_name": "HDFC Millennia",
-    "cpp_inr": 0.50,
-    "source_quote": "Points are worth 50 paise each for statement credit"
-  }
-]
-
-If no numeric valuation is clearly stated, omit that program. Return [] if no clear valuations found.
-
+...
 HTML content to analyze:
 ${html.slice(0, 150000)}`
 
@@ -91,21 +70,50 @@ ${html.slice(0, 150000)}`
     // Extract JSON from response
     const jsonMatch = text.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
+      logAiMetric({
+        operation: 'india_scraper_extract',
+        model: 'gemini-1.5-flash',
+        latency_ms: Date.now() - startedAt,
+        is_fallback: false,
+        success: true,
+      })
       return []
     }
     
     const parsed = JSON.parse(jsonMatch[0])
     if (!Array.isArray(parsed)) {
+      logAiMetric({
+        operation: 'india_scraper_extract',
+        model: 'gemini-1.5-flash',
+        latency_ms: Date.now() - startedAt,
+        is_fallback: false,
+        success: true,
+      })
       return []
     }
     
+    logAiMetric({
+      operation: 'india_scraper_extract',
+      model: 'gemini-1.5-flash',
+      latency_ms: Date.now() - startedAt,
+      is_fallback: false,
+      success: true,
+    })
+
     return parsed.filter((v): v is ScrapedValuation => 
       typeof v.program_name === 'string' &&
       typeof v.cpp_inr === 'number' &&
       typeof v.source_quote === 'string'
     )
   } catch (error) {
-    logError('india_scraper_gemini_failed', { error: String(error) })
+    logAiMetric({
+      operation: 'india_scraper_extract',
+      model: 'gemini-1.5-flash',
+      latency_ms: Date.now() - startedAt,
+      is_fallback: false,
+      success: false,
+      error: String(error),
+    })
     return []
   }
 }

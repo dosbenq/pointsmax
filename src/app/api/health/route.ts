@@ -4,6 +4,7 @@ import { withTimeout, getActiveQueryCount } from '@/lib/db-timeout'
 import { getFeatureStatus } from '@/lib/env-validation'
 import { geminiCircuitBreaker, seatsAeroCircuitBreaker } from '@/lib/circuit-breaker'
 import { applyApiSecurityHeaders } from '@/lib/security-headers'
+import { getMetricsSummary } from '@/lib/telemetry'
 
 type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'
 
@@ -22,6 +23,7 @@ interface HealthChecks {
     memory_usage_mb: number
     uptime_seconds: number
   }
+  telemetry: ReturnType<typeof getMetricsSummary>
 }
 
 function getMemoryUsageMB(): number {
@@ -50,6 +52,11 @@ function determineOverallStatus(checks: HealthChecks): { status: HealthStatus; o
     cb => cb.state === 'OPEN'
   )
   if (hasOpenCircuit) {
+    return { status: 'degraded', ok: true }
+  }
+
+  // Degraded if high error rate in AI or queue (arbitrary threshold for demonstration)
+  if (checks.telemetry.errors > 50) {
     return { status: 'degraded', ok: true }
   }
 
@@ -116,11 +123,15 @@ export async function GET(req: NextRequest) {
     uptime_seconds: getUptimeSeconds(),
   }
 
+  // Get AI and queue telemetry
+  const telemetry = getMetricsSummary()
+
   const checks: HealthChecks = {
     database: databaseCheck,
     features,
     circuit_breakers: circuitBreakers,
     system,
+    telemetry,
   }
 
   const { status, ok } = determineOverallStatus(checks)

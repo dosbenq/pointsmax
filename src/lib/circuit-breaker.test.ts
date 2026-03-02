@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CircuitBreaker,
   CircuitBreakerOpenError,
+  withTimeout,
 } from './circuit-breaker'
 import { withFakeTimers } from '@/test/utils/deterministic'
 
@@ -229,6 +230,63 @@ describe('CircuitBreaker', () => {
     })
   })
 
+  describe('withFallback', () => {
+    it('returns function result when circuit is closed', async () => {
+      const breaker = new CircuitBreaker({
+        name: 'test-wf-closed',
+        failureThreshold: 3,
+        resetTimeoutMs: 1000,
+        halfOpenMaxCalls: 2,
+      })
+
+      const result = await breaker.withFallback(async () => 'ok', async () => 'fallback')
+      expect(result).toBe('ok')
+    })
+
+    it('returns fallback when circuit is OPEN', async () => {
+      const breaker = new CircuitBreaker({
+        name: 'test-wf-open',
+        failureThreshold: 1,
+        resetTimeoutMs: 10_000,
+        halfOpenMaxCalls: 1,
+      })
+
+      // Open the circuit
+      await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
+      expect(breaker.getState().state).toBe('OPEN')
+
+      const result = await breaker.withFallback(async () => 'ok', async () => 'fallback')
+      expect(result).toBe('fallback')
+    })
+
+    it('propagates non-circuit errors without triggering fallback', async () => {
+      const breaker = new CircuitBreaker({
+        name: 'test-wf-domain-err',
+        failureThreshold: 5,
+        resetTimeoutMs: 1000,
+        halfOpenMaxCalls: 2,
+      })
+
+      await expect(
+        breaker.withFallback(async () => { throw new Error('domain error') }, async () => 'fallback')
+      ).rejects.toThrow('domain error')
+    })
+
+    it('supports sync fallback factory', async () => {
+      const breaker = new CircuitBreaker({
+        name: 'test-wf-sync-fallback',
+        failureThreshold: 1,
+        resetTimeoutMs: 10_000,
+        halfOpenMaxCalls: 1,
+      })
+
+      await expect(breaker.execute(async () => { throw new Error('fail') })).rejects.toThrow()
+
+      const result = await breaker.withFallback(async () => 'ok', () => 'sync-fallback')
+      expect(result).toBe('sync-fallback')
+    })
+  })
+
   describe('error handling', () => {
     it('preserves original error type', async () => {
       const breaker = new CircuitBreaker({
@@ -261,6 +319,42 @@ describe('CircuitBreaker', () => {
       await expect(
         breaker.execute(async () => { throw 'string error' })
       ).rejects.toThrow('string error')
+    })
+  })
+})
+
+describe('withTimeout', () => {
+  it('resolves when the wrapped promise settles before timeout', async () => {
+    const result = await withTimeout(Promise.resolve('done'), 5000, 'test-op')
+    expect(result).toBe('done')
+  })
+
+  it('propagates rejection from the wrapped promise', async () => {
+    await expect(
+      withTimeout(Promise.reject(new Error('upstream')), 5000, 'test-op')
+    ).rejects.toThrow('upstream')
+  })
+
+  it('rejects with descriptive timeout error when promise is too slow', async () => {
+    await withFakeTimers(async (vi) => {
+      const neverResolves = new Promise<string>((resolve) => {
+        setTimeout(() => resolve('late'), 5000)
+      })
+      const raced = withTimeout(neverResolves, 1000, 'slow-model')
+      vi.advanceTimersByTime(1500)
+      await expect(raced).rejects.toThrow('slow-model')
+      await expect(raced).rejects.toThrow('1000ms')
+    })
+  })
+
+  it('includes label in timeout error message', async () => {
+    await withFakeTimers(async (vi) => {
+      const pending = new Promise<string>((resolve) => {
+        setTimeout(() => resolve('x'), 9999)
+      })
+      const raced = withTimeout(pending, 500, 'gemini.gemini-2.5-flash')
+      vi.advanceTimersByTime(600)
+      await expect(raced).rejects.toThrow('gemini.gemini-2.5-flash')
     })
   })
 })

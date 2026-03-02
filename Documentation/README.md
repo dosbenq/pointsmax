@@ -24,6 +24,20 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Supabase automation notes: `Documentation/supabase-automation.md`
 - Automation control plane: `Documentation/automation-control-plane.md`
 
+## Research and Strategy
+- Research workspace index: `Documentation/research/README.md`
+- Research charter and key questions: `Documentation/research/00-research-charter.md`
+- Market evidence log: `Documentation/research/01-evidence-log.md`
+- User JTBD and pain points: `Documentation/research/02-user-jtbd.md`
+- Gap and opportunity map: `Documentation/research/03-gap-opportunity-map.md`
+- Hypothesis and experiment tracker: `Documentation/research/04-hypothesis-experiment-tracker.md`
+- Feature prioritization (RICE): `Documentation/research/05-feature-prioritization-rice.md`
+- Decision log: `Documentation/research/06-decision-log.md`
+- Agent research scorecard: `Documentation/research/07-agent-research-scorecard.md`
+- Kimi strategy synthesis and execution mapping: `Documentation/research/08-kimi-report-synthesis.md`
+- Claude strategy review and corrected plan: `Documentation/research/09-claude-strategy-review.md`
+- Connected Wallet epic and delivery scope: `Documentation/research/10-connected-wallet-epic.md`
+
 ## SQL Utilities
 - Migration audit query: `Documentation/sql/launch-migration-audit.sql`
 - Post-deploy smoke query: `Documentation/sql/post-deploy-smoke.sql`

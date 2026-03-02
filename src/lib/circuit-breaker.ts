@@ -188,6 +188,22 @@ export class CircuitBreaker {
     const metrics = this.getMetrics()
     this.transitionTo('CLOSED', metrics)
   }
+
+  /**
+   * Execute with automatic fallback when circuit is OPEN.
+   * Unlike execute(), this does NOT re-throw CircuitBreakerOpenError —
+   * it calls fallbackFn() instead, enabling graceful degradation.
+   */
+  async withFallback<T>(fn: () => Promise<T>, fallbackFn: () => T | Promise<T>): Promise<T> {
+    try {
+      return await this.execute(fn)
+    } catch (err) {
+      if (err instanceof CircuitBreakerOpenError) {
+        return await fallbackFn()
+      }
+      throw err
+    }
+  }
 }
 
 export class CircuitBreakerOpenError extends Error {
@@ -195,6 +211,34 @@ export class CircuitBreakerOpenError extends Error {
     super(message)
     this.name = 'CircuitBreakerOpenError'
   }
+}
+
+/**
+ * Wraps a promise with a hard timeout.
+ * Rejects with a descriptive error if the promise does not settle within `ms`.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`AI inference timeout: ${label} exceeded ${ms}ms`)),
+      ms,
+    )
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>
+}
+
+/**
+ * Returns the AI inference timeout in ms.
+ * Reads AI_INFERENCE_TIMEOUT_MS env var; defaults to 25 seconds.
+ */
+export function getAiInferenceTimeoutMs(): number {
+  const raw = process.env.AI_INFERENCE_TIMEOUT_MS
+  if (raw) {
+    const parsed = parseInt(raw, 10)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return 25_000
 }
 
 // Pre-configured circuit breakers for external services

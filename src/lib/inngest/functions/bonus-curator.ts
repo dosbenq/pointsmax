@@ -2,6 +2,8 @@ import { inngest } from "../client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createAdminClient } from "@/lib/supabase";
 import { getGeminiModelCandidatesForApiKey } from "@/lib/gemini-models";
+import { generateIdempotencyKey, withIdempotency } from "@/lib/idempotency";
+import { INNGEST_RETRY_CONFIG } from "@/lib/queue-durability";
 
 type ExtractedBonus = {
   from_program_name: string
@@ -88,9 +90,14 @@ async function fetchBonusNewsText(): Promise<string> {
 /**
  * The Bonus Curator Agent
  * Runs daily to find and ingest new transfer bonuses from the web.
+ *
+ * Reliability config:
+ *  - retries: 5  (financial preset — bonus data must eventually land)
+ *  - Each DB insert is wrapped with withIdempotency so a retried run
+ *    does not double-insert the same bonus.
  */
 export const bonusCurator = inngest.createFunction(
-  { id: "bonus-curator", name: "Agent: Bonus Curator" },
+  { id: "bonus-curator", name: "Agent: Bonus Curator", ...INNGEST_RETRY_CONFIG.financial },
   { cron: "0 10 * * *" }, // Run daily at 10:00 UTC
   async ({ step }) => {
     // 1. Fetch content from a reliable points news source
@@ -171,24 +178,43 @@ export const bonusCurator = inngest.createFunction(
         });
 
         if (partner) {
-          // Check if this specific bonus already exists
-          const { data: existing } = await db
-            .from("transfer_bonuses")
-            .select("id")
-            .eq("transfer_partner_id", partner.id)
-            .eq("bonus_pct", bonus.bonus_pct)
-            .eq("end_date", bonus.end_date)
-            .maybeSingle();
+          // Idempotency key: stable per (partner, bonus_pct, end_date) tuple so
+          // retried runs or duplicate invocations never double-insert.
+          const idempotencyKey = generateIdempotencyKey(
+            'bonus-insert',
+            partner.id,
+            String(bonus.bonus_pct),
+            bonus.end_date,
+          );
 
-          if (!existing) {
-            await db.from("transfer_bonuses").insert({
-              transfer_partner_id: partner.id,
-              bonus_pct: bonus.bonus_pct,
-              start_date: bonus.start_date,
-              end_date: bonus.end_date,
-              is_verified: false, // Mark for human review
-              notes: "Automatically discovered by Bonus Curator Agent"
-            });
+          const { data: outcome, idempotent } = await withIdempotency<'inserted' | 'already_exists'>(
+            idempotencyKey,
+            async () => {
+              // Guard against concurrent race: re-check DB before inserting
+              const { data: existing } = await db
+                .from("transfer_bonuses")
+                .select("id")
+                .eq("transfer_partner_id", partner.id)
+                .eq("bonus_pct", bonus.bonus_pct)
+                .eq("end_date", bonus.end_date)
+                .maybeSingle();
+
+              if (!existing) {
+                await db.from("transfer_bonuses").insert({
+                  transfer_partner_id: partner.id,
+                  bonus_pct: bonus.bonus_pct,
+                  start_date: bonus.start_date,
+                  end_date: bonus.end_date,
+                  is_verified: false, // Mark for human review
+                  notes: "Automatically discovered by Bonus Curator Agent"
+                });
+                return 'inserted';
+              }
+              return 'already_exists';
+            },
+          );
+
+          if (!idempotent && outcome === 'inserted') {
             added++;
           } else {
             skipped++;

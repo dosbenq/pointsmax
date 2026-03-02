@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createAdminClient } from '@/lib/supabase'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { chunkText, parseYouTubeVideoId } from '@/lib/knowledge/youtube'
+import { logAiMetric } from '@/lib/telemetry'
 
 /**
  * The YouTube Learner Agent
@@ -63,8 +64,10 @@ export const youtubeLearner = inngest.createFunction(
       // We ask Gemini to break the video into "Knowledge Chunks" that are self-contained.
       const chunks = await step.run(`process-concepts-${videoId}`, async () => {
         const models = await getGeminiModelCandidatesForApiKey(apiKey)
+        const startedAt = Date.now()
 
-        for (const modelName of models) {
+        for (let i = 0; i < models.length; i++) {
+          const modelName = models[i]
           try {
             const model = genAI.getGenerativeModel({ model: modelName })
             const prompt = `
@@ -83,12 +86,30 @@ ${fullText.slice(0, 30000)}
               const cleaned = parsed
                 .map((item) => (typeof item === 'string' ? item.replace(/\s+/g, ' ').trim() : ''))
                 .filter(Boolean)
-              if (cleaned.length > 0) return cleaned
+              if (cleaned.length > 0) {
+                logAiMetric({
+                  operation: 'youtube_learner_concepts',
+                  model: modelName,
+                  latency_ms: Date.now() - startedAt,
+                  is_fallback: i > 0,
+                  success: true,
+                })
+                return cleaned
+              }
             }
           } catch (err) {
             markGeminiModelUnavailable(modelName, err)
           }
         }
+
+        logAiMetric({
+          operation: 'youtube_learner_concepts',
+          model: 'all_failed',
+          latency_ms: Date.now() - startedAt,
+          is_fallback: false,
+          success: false,
+          error: 'All models failed to generate valid JSON concepts',
+        })
 
         // Deterministic fallback if generation fails: chunk transcript directly.
         return chunkText(fullText, 1000).slice(0, 12)

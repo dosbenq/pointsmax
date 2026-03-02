@@ -4,7 +4,7 @@
   "agents": {
     "claude": {
       "enabled": true,
-      "shell": "claude -p \"$(cat {{prompt_file}})\"",
+      "shell": "claude -p --permission-mode bypassPermissions --model sonnet \"$(cat {{prompt_file}})\"",
       "timeout_ms": 900000
     },
     "gemini": {

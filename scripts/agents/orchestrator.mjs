@@ -238,7 +238,7 @@ async function writeDefaultConfig() {
     agents: {
       claude: {
         enabled: true,
-        shell: 'claude -p "$(cat {{prompt_file}})"',
+        shell: 'claude -p --permission-mode bypassPermissions --model sonnet "$(cat {{prompt_file}})"',
         timeout_ms: 900000,
       },
       gemini: {
@@ -386,8 +386,9 @@ async function runShell(command, cwd, timeoutMs, noOutputTimeoutMs = 0) {
     const child = spawn('zsh', ['-lc', command], {
       cwd,
       env: process.env,
-      detached: true,
     })
+    // Headless agent CLIs can wait indefinitely for stdin. Close immediately.
+    if (child.stdin) child.stdin.end()
     let stdout = ''
     let stderr = ''
     let timedOut = false
@@ -449,6 +450,41 @@ async function runShell(command, cwd, timeoutMs, noOutputTimeoutMs = 0) {
       resolve({ code: code ?? 1, stdout, stderr, timedOut, timeoutType })
     })
   })
+}
+
+async function checkOwnerPreflight(owner) {
+  if (owner !== 'claude') {
+    return { ok: true }
+  }
+
+  // Allow token/API-key auth even when first-party OAuth login is unavailable
+  // in headless shells.
+  if (process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    return { ok: true }
+  }
+
+  // Preflight should be tolerant. Claude status checks can be slow on some machines.
+  const auth = await runShell('claude auth status', REPO_ROOT, 30000, 0)
+
+  let parsed = null
+  try {
+    parsed = JSON.parse(auth.stdout || '{}')
+  } catch {
+    return {
+      ok: false,
+      message: `Claude preflight failed: could not parse auth status JSON (exit=${auth.code}). stdout=${auth.stdout.trim() || 'n/a'} stderr=${auth.stderr.trim() || 'n/a'}`,
+    }
+  }
+
+  if (!parsed.loggedIn) {
+    return {
+      ok: false,
+      message:
+        "Claude preflight failed: CLI is not logged in for this shell. Run 'claude auth login' and retry dispatch.",
+    }
+  }
+
+  return { ok: true }
 }
 
 async function dispatchOne(taskId, args = {}) {
@@ -521,7 +557,16 @@ async function dispatchOne(taskId, args = {}) {
   await writeTask(task.file, task.meta, task.body)
 
   const startedAt = Date.now()
-  const execResult = await runShell(renderedCommand, REPO_ROOT, timeoutMs, noOutputTimeoutMs)
+  const preflight = await checkOwnerPreflight(owner)
+  const execResult = preflight.ok
+    ? await runShell(renderedCommand, REPO_ROOT, timeoutMs, noOutputTimeoutMs)
+    : {
+        code: 1,
+        stdout: '',
+        stderr: preflight.message,
+        timedOut: false,
+        timeoutType: 'none',
+      }
   const durationMs = Date.now() - startedAt
 
   const status = execResult.code === 0 && !execResult.timedOut ? 'in_review' : 'blocked'

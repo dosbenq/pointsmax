@@ -65,6 +65,27 @@ describe('GET /api/health', () => {
     expect(body.checks).toHaveProperty('features')
     expect(body.checks).toHaveProperty('circuit_breakers')
     expect(body.checks).toHaveProperty('system')
+    expect(body.checks).toHaveProperty('telemetry')
+
+    process.env.NODE_ENV = originalEnv
+  })
+
+  it('returns telemetry metrics', async () => {
+    const originalEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'development'
+
+    const req = new NextRequest('https://pointsmax.com/api/health')
+    const res = await GET(req)
+    const body = await res.json()
+
+    if (body.checks) {
+      expect(body.checks).toHaveProperty('telemetry')
+      expect(body.checks.telemetry).toHaveProperty('ai')
+      expect(body.checks.telemetry).toHaveProperty('queue')
+      expect(body.checks.telemetry).toHaveProperty('errors')
+      expect(body.checks.telemetry.ai).toHaveProperty('avg_latency_ms')
+      expect(body.checks.telemetry.queue).toHaveProperty('avg_processing_time_ms')
+    }
 
     process.env.NODE_ENV = originalEnv
   })

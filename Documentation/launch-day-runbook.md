@@ -115,7 +115,25 @@ Rollback steps:
 3. Post incident summary in team channel.
 4. Open hotfix issue with logs and timestamped evidence.
 
-## 8) Launch Complete
+## 8) AI & Data Pipeline Diagnostics
+
+After launch, monitor the health of AI and background tasks:
+
+1. **AI Latency & Fallbacks**:
+   - Check `/api/health` (authorized) for `telemetry.ai.avg_latency_ms`.
+   - Normal range: 2,000ms - 8,000ms.
+   - If `avg_latency_ms > 15,000ms`, investigate Gemini quota or region latency.
+   - Check logs for `ai_recommend_model_fallback_used` to see if primary models are failing.
+
+2. **Background Queues (Inngest)**:
+   - Check `/api/health` (authorized) for `telemetry.queue.avg_processing_time_ms`.
+   - Monitor `inngest_function_failed` logs for recurring task failures.
+   - Use Inngest Cloud Dashboard to verify queue depth and backlog if `avg_processing_time_ms` spikes.
+
+3. **Error Rates**:
+   - Monitor `telemetry.errors` in health check. A sudden spike indicates downstream API changes (e.g., Seats.aero or Gemini API updates).
+
+## 9) Launch Complete
 
 1. Confirm stable for 60 minutes post-deploy.
 2. Announce launch completion with:

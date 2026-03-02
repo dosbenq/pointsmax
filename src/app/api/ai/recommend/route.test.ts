@@ -365,7 +365,121 @@ describe('POST /api/ai/recommend safe mode', () => {
         expect(payload.links.length).toBeGreaterThan(0)
         expect(payload.links[0]).toHaveProperty('label')
         expect(payload.links[0]).toHaveProperty('url')
+        expect(payload.metadata).toBeDefined()
+        expect(payload.metadata).toHaveProperty('freshness')
+        expect(payload.metadata).toHaveProperty('source')
+        expect(payload.metadata).toHaveProperty('confidence')
       })
+    })
+  })
+})
+
+describe('POST /api/ai/recommend degraded mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns complete safe-mode envelope when AI provider is unavailable', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'Best use for my points?',
+        balances: [{ name: 'Chase UR', amount: 50000 }],
+        topResults: [{ label: 'Transfer to Hyatt', total_value_cents: 150000, cpp_cents: 3.0 }],
+      })
+
+      const res = await POST(req)
+      expect(res.status).toBe(200)
+      const payload = JSON.parse(await res.text())
+
+      expect(payload.type).toBe('recommendation')
+      expect(typeof payload.headline).toBe('string')
+      expect(typeof payload.reasoning).toBe('string')
+      expect(Array.isArray(payload.steps)).toBe(true)
+      expect(payload.steps.length).toBeGreaterThan(0)
+      expect(typeof payload.tip).toBe('string')
+      expect(Array.isArray(payload.links)).toBe(true)
+      expect(payload.metadata.source).toContain('Safe Mode')
+      expect(payload.metadata.confidence).toBe('medium')
+    })
+  })
+
+  it('safe-mode headline references top result label when topResults provided', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'What should I book?',
+        balances: [{ name: 'Amex MR', amount: 80000 }],
+        topResults: [
+          { label: 'Fly Business on Air France', total_value_cents: 320000, cpp_cents: 4.0 },
+        ],
+      })
+
+      const res = await POST(req)
+      const payload = JSON.parse(await res.text())
+      expect(payload.headline).toContain('Air France')
+      expect(payload.reasoning).toContain('Air France')
+    })
+  })
+
+  it('safe-mode response includes working calculator link', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'Help',
+        balances: [{ name: 'Chase UR', amount: 60000 }],
+      })
+
+      const res = await POST(req)
+      const payload = JSON.parse(await res.text())
+      const calcLink = payload.links.find((l: { url: string }) => l.url.includes('/calculator'))
+      expect(calcLink).toBeDefined()
+      expect(typeof calcLink.label).toBe('string')
+    })
+  })
+
+  it('response Content-Type is text/plain in degraded mode', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'Any tips?',
+        balances: [{ name: 'Citi TY', amount: 40000 }],
+      })
+
+      const res = await POST(req)
+      expect(res.headers.get('content-type')).toContain('text/plain')
+    })
+  })
+
+  it('safe-mode with no topResults returns generic explore headline', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'Show me options',
+        balances: [{ name: 'Test Program', amount: 100 }],
+        topResults: [],
+      })
+
+      const res = await POST(req)
+      const payload = JSON.parse(await res.text())
+      expect(payload.headline).toBe('Explore your top redemption options')
+      expect(payload.reasoning).toContain('safe mode')
+    })
+  })
+
+  it('safe-mode steps instruct to verify availability before transfer', async () => {
+    await withSafeMode(async () => {
+      const req = makeRequest({
+        history: [],
+        message: 'What should I do?',
+        balances: [{ name: 'Chase UR', amount: 75000 }],
+        topResults: [{ label: 'United Business', total_value_cents: 200000, cpp_cents: 2.7 }],
+      })
+
+      const res = await POST(req)
+      const payload = JSON.parse(await res.text())
+      const stepsText = payload.steps.join(' ').toLowerCase()
+      expect(stepsText).toMatch(/availab/)
     })
   })
 })

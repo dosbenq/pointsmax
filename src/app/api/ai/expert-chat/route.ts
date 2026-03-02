@@ -4,6 +4,9 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { logError } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase'
+import { generateAiCacheKey, getCachedAiResponse, setCachedAiResponse } from '@/lib/ai-cache'
+
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 type KnowledgeChunk = {
   id: string
@@ -20,6 +23,12 @@ const MAX_MESSAGE_CHARS = 1_500
 function sanitizeMessage(value: unknown): string {
   if (typeof value !== 'string') return ''
   return value.trim()
+}
+
+function getRequestScope(req: NextRequest): string {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ua = req.headers.get('user-agent') ?? 'unknown'
+  return `${ip}|${ua}`
 }
 
 async function fetchKnowledgeChunks(queryVector: number[], rawMessage: string): Promise<KnowledgeChunk[]> {
@@ -92,6 +101,8 @@ export async function POST(req: NextRequest) {
   })
   if (rateError) return rateError
 
+  const idempotencyKey = req.headers.get('Idempotency-Key')
+
   let body: unknown
   try {
     body = await req.json()
@@ -103,6 +114,39 @@ export async function POST(req: NextRequest) {
   if (!message) return NextResponse.json({ error: 'Message required' }, { status: 400 })
   if (message.length > MAX_MESSAGE_CHARS) {
     return NextResponse.json({ error: `message too long (max ${MAX_MESSAGE_CHARS})` }, { status: 400 })
+  }
+  const requestScope = getRequestScope(req)
+
+  // Idempotency-Key deduplication: explicit per-call deduplication via header.
+  // Cache is additionally scoped by message+request fingerprint to prevent
+  // cross-request replay from identical Idempotency-Key reuse.
+  if (idempotencyKey) {
+    const idemCacheKey = generateAiCacheKey('expert-chat-idem', {
+      idempotencyKey,
+      message,
+      requestScope,
+    })
+    const cached = getCachedAiResponse<Record<string, unknown>>(idemCacheKey)
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'X-PointsMax-Cache': 'HIT',
+          'X-Idempotent-Replayed': 'true',
+        },
+      })
+    }
+  }
+
+  // Content-based cache: when no Idempotency-Key, deduplicate identical messages.
+  // Returns HIT without X-Idempotent-Replayed (transparent caching, not explicit dedup).
+  if (!idempotencyKey) {
+    const contentCacheKey = generateAiCacheKey('expert-chat', { message, requestScope })
+    const contentCached = getCachedAiResponse<Record<string, unknown>>(contentCacheKey)
+    if (contentCached) {
+      return NextResponse.json(contentCached, {
+        headers: { 'X-PointsMax-Cache': 'HIT' },
+      })
+    }
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()
@@ -149,7 +193,7 @@ User question: ${message}
       return NextResponse.json({ error: 'AI model unavailable. Please retry shortly.' }, { status: 503 })
     }
 
-    return NextResponse.json({
+    const responseBody = {
       reply,
       sources: chunks.map((c) => ({
         id: c.id,
@@ -158,6 +202,23 @@ User question: ${message}
         title: c.title ?? null,
         similarity: typeof c.similarity === 'number' ? c.similarity : null,
       })),
+    }
+
+    // Store in the appropriate cache
+    if (idempotencyKey) {
+      const idemCacheKey = generateAiCacheKey('expert-chat-idem', {
+        idempotencyKey,
+        message,
+        requestScope,
+      })
+      setCachedAiResponse(idemCacheKey, responseBody, IDEMPOTENCY_TTL_MS)
+    } else {
+      const contentCacheKey = generateAiCacheKey('expert-chat', { message, requestScope })
+      setCachedAiResponse(contentCacheKey, responseBody)
+    }
+
+    return NextResponse.json(responseBody, {
+      headers: { 'X-PointsMax-Cache': 'MISS' },
     })
   } catch (error) {
     logError('expert_chat_failed', {

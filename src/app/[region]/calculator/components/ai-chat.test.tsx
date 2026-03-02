@@ -84,6 +84,41 @@ describe('AIChat Component', () => {
     expect(screen.getByText('Book now ↗')).toBeInTheDocument()
   })
 
+  it('renders recommendation metadata when provided', () => {
+    const chatMessages: ChatMsg[] = [
+      {
+        role: 'ai',
+        payload: {
+          type: 'recommendation',
+          headline: 'Hotel in Maui',
+          reasoning: 'Grand Wailea value',
+          flight: null,
+          hotel: {
+            name: 'Grand Wailea',
+            chain: 'Hilton',
+            points_per_night: '95,000',
+            transfer_chain: 'Amex -> Hilton',
+            notes: 'Standard room',
+          },
+          total_summary: '475k points total',
+          steps: ['Step 1'],
+          tip: 'Book 5th night free',
+          links: [],
+          metadata: {
+            freshness: '2026-02-28T23:39:05Z',
+            source: 'PointsMax API',
+            confidence: 'high',
+          },
+        },
+      },
+    ]
+    render(<AIChat {...defaultProps} chatMessages={chatMessages} />)
+    
+    expect(screen.getByText(/Source: PointsMax API/)).toBeInTheDocument()
+    expect(screen.getByText(/Trust: high/)).toBeInTheDocument()
+    expect(screen.getByText(/Updated/)).toBeInTheDocument()
+  })
+
   it('displays actionable fallback message when aiError is present', () => {
     const aiError = 'Rate limit exceeded'
     render(<AIChat {...defaultProps} aiError={aiError} />)

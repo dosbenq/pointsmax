@@ -17,6 +17,7 @@ npm run agents:init
 npm run agents:create -- --owner kimi --title "Fix pricing copy" --objective "Update free/pro table" --scope "pricing page only" --criteria "copy updated;build passes" --tests "unit test for updated component;api test updated" --checks "npm run lint;npm run test -- --run"
 npm run agents:list
 npm run agents:dispatch -- TASK-0001 --timeout_ms 180000 --no_output_timeout_ms 45000
+npm run agents:dispatch:claude
 npm run agents:report
 npm run agents:evaluate
 ```
@@ -33,6 +34,7 @@ Run agents in the background, then keep coding while they work:
 
 ```bash
 npm run agents:queue:start -- --owner gemini --status pending --timeout_ms 420000 --no_output_timeout_ms 180000
+npm run agents:queue:start -- --owner claude --status pending --timeout_ms 420000 --no_output_timeout_ms 180000
 npm run agents:queue:list
 npm run agents:queue:status -- JOB-2026-02-27_04-40-00-000Z
 npm run agents:queue:watch -- JOB-2026-02-27_04-40-00-000Z --interval_ms 5000
@@ -82,8 +84,12 @@ Each command supports template variables:
 Example:
 
 ```bash
-AGENT_CMD_CLAUDE='claude -p "$(cat {{prompt_file}})"' npm run agents:dispatch -- TASK-0001
+AGENT_CMD_CLAUDE='claude -p --permission-mode bypassPermissions --model sonnet "$(cat {{prompt_file}})"' npm run agents:dispatch -- TASK-0001
 ```
+
+Claude auth must exist in the same shell context used by dispatch.
+If missing, orchestrator preflight marks the task `blocked` with an explicit login error.
+Preflight also accepts token/API-key auth via `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`.
 
 ## Agent routing mode
 

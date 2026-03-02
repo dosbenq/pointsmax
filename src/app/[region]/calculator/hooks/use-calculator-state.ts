@@ -82,6 +82,11 @@ export type AIRec = {
   steps: string[]
   tip: string
   links: AILink[]
+  metadata?: {
+    freshness: string
+    source: string
+    confidence?: 'low' | 'medium' | 'high'
+  }
 }
 
 export type AIClarify = {

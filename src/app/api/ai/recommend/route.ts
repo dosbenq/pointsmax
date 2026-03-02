@@ -2,10 +2,23 @@ import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { createServerDbClient } from '@/lib/supabase'
-import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
+import { getRequestId, logError, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { type Region } from '@/lib/regions'
 import { getBookingUrlsForPrompt } from '@/lib/booking-urls'
+import { logAiMetric } from '@/lib/telemetry'
+import {
+  generateAiCacheKey,
+  getCachedAiResponse,
+  setCachedAiResponse,
+  logAiCacheMetric,
+} from '@/lib/ai-cache'
+import {
+  geminiCircuitBreaker,
+  CircuitBreakerOpenError,
+  withTimeout,
+  getAiInferenceTimeoutMs,
+} from '@/lib/circuit-breaker'
 
 type Balance = { name: string; amount: number; program_id?: string }
 type TopResult = {
@@ -62,12 +75,18 @@ type AiSafeModeResponse = {
   steps: string[]
   tip: string
   links: Array<{ label: string; url: string }>
+  metadata: {
+    freshness: string
+    source: string
+    confidence: 'medium'
+  }
 }
 
 
 const MAX_BODY_BYTES = 64_000
 const MAX_MESSAGE_CHARS = 2_000
 const MAX_HISTORY_ITEMS = 24
+const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes for recommendations
 
 function getSafeAppUrl(): string {
   const fallback = 'https://pointsmax.com'
@@ -224,6 +243,11 @@ function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext
       ],
     tip: 'Never transfer points speculatively. Confirm availability first.',
     links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/${regionCtx.code}/calculator` }],
+    metadata: {
+      freshness: new Date().toISOString(),
+      source: 'PointsMax Safe Mode (Deterministic Fallback)',
+      confidence: 'medium',
+    },
   }
 }
 
@@ -326,15 +350,43 @@ export async function POST(req: NextRequest) {
   try {
     payload = await req.json()
   } catch {
-    return new Response('Invalid JSON', { status: 400 })
+    return new Response('Invalid JSON', {
+      status: 400,
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
   }
 
-  if (!isRecord(payload)) return new Response('Invalid payload', { status: 400 })
+  if (!isRecord(payload)) {
+    return new Response('Invalid payload', {
+      status: 400,
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
+  }
 
   const message = typeof payload.message === 'string' ? payload.message : ''
-  if (!message.trim()) return new Response('Message is required', { status: 400 })
+  if (!message.trim()) {
+    return new Response('Message is required', {
+      status: 400,
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
+  }
   if (message.length > MAX_MESSAGE_CHARS) {
-    return new Response(`message too long (max ${MAX_MESSAGE_CHARS} chars)`, { status: 400 })
+    return new Response(`message too long (max ${MAX_MESSAGE_CHARS} chars)`, {
+      status: 400,
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
   }
 
   const region: Region = normalizeRegion(payload.region)
@@ -349,15 +401,57 @@ export async function POST(req: NextRequest) {
       message: 'Add your point balances above to get personalized advice.',
       questions: ['Enter your points balance and select a program, then ask me for recommendations!'],
     }), {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
     })
   }
 
   const history = Array.isArray(payload.history) ? payload.history : []
   if (history.length > MAX_HISTORY_ITEMS) {
-    return new Response(`history too long (max ${MAX_HISTORY_ITEMS} entries)`, { status: 400 })
+    return new Response(`history too long (max ${MAX_HISTORY_ITEMS} entries)`, {
+      status: 400,
+      headers: {
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
+    })
   }
   const preferences = isRecord(payload.preferences) ? payload.preferences : null
+
+  // ── Cache Layer ──────────────────────────────────────────────────
+  const cacheKey = generateAiCacheKey('recommend', {
+    message,
+    history,
+    balances,
+    topResults,
+    preferences,
+    region,
+  })
+
+  const cached = getCachedAiResponse<string>(cacheKey)
+  if (cached) {
+    logAiCacheMetric('hit', 'recommend', requestId)
+    const encoder = new TextEncoder()
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(cached))
+          controller.close()
+        },
+      }),
+      {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-PointsMax-Cache': 'HIT',
+          'X-AI-Latency-Ms': String(Date.now() - startedAt),
+        },
+      },
+    )
+  }
+  logAiCacheMetric('miss', 'recommend', requestId)
 
   const apiKey = process.env.GEMINI_API_KEY
   const geminiDisabled = isGeminiDisabled()
@@ -372,7 +466,11 @@ export async function POST(req: NextRequest) {
       latency_ms: Date.now() - startedAt,
     })
     return new Response(JSON.stringify(buildSafeModeResponse(topResults, regionCtx)), {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-PointsMax-Cache': 'MISS',
+        'X-AI-Latency-Ms': String(Date.now() - startedAt),
+      },
     })
   }
 
@@ -533,7 +631,12 @@ When recommending:
   "tip": "Insider tip about award space, booking windows, or hidden value",
   "links": [
     { "label": "Button label (max 4 words)", "url": "exact URL from the list above" }
-  ]
+  ],
+  "metadata": {
+    "freshness": "ISO 8601 timestamp (current time: ${new Date().toISOString()})",
+    "source": "Briefly state data sources (e.g. PointsMax DB + Gemini grounding)",
+    "confidence": "low | medium | high"
+  }
 }
 Set flight or hotel to null if not relevant. Include 2-4 links.`
 
@@ -544,61 +647,90 @@ Set flight or hotel to null if not relevant. Include 2-4 links.`
   const readable = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()
+      let fullResponse = ''
       try {
-        let lastErr: unknown = null
+        await geminiCircuitBreaker.execute(async () => {
+          let lastErr: unknown = null
 
-        for (let i = 0; i < modelCandidates.length; i++) {
-          const modelName = modelCandidates[i]
-          let streamedAnyChunk = false
+          for (let i = 0; i < modelCandidates.length; i++) {
+            const modelName = modelCandidates[i]
+            let streamedAnyChunk = false
 
-          try {
-            const model = genAI.getGenerativeModel({
-              model: modelName,
-              systemInstruction: systemPrompt,
-            })
-            const chat = model.startChat({
-              history: history as Content[],
-            })
-
-            logInfo('ai_recommend_stream_start', { requestId, model: modelName })
-            const result = await chat.sendMessageStream(message)
-            for await (const chunk of result.stream) {
-              const text = chunk.text()
-              if (!text) continue
-              streamedAnyChunk = true
-              controller.enqueue(encoder.encode(text))
-            }
-
-            if (i > 0) {
-              logWarn('ai_recommend_model_fallback_used', {
-                requestId,
-                selected_model: modelName,
+            try {
+              const model = genAI.getGenerativeModel({
+                model: modelName,
+                systemInstruction: systemPrompt,
               })
-            }
+              const chat = model.startChat({
+                history: history as Content[],
+              })
 
-            logInfo('ai_recommend_stream_complete', {
-              requestId,
-              model: modelName,
-              latency_ms: Date.now() - startedAt,
-            })
-            controller.close()
-            return
-          } catch (err) {
-            markGeminiModelUnavailable(modelName, err)
-            lastErr = err
-            if (streamedAnyChunk) break
+              const result = await withTimeout(
+                chat.sendMessageStream(message),
+                getAiInferenceTimeoutMs(),
+                modelName,
+              )
+              for await (const chunk of result.stream) {
+                const text = chunk.text()
+                if (!text) continue
+                streamedAnyChunk = true
+                fullResponse += text
+                controller.enqueue(encoder.encode(text))
+              }
+
+              if (i > 0) {
+                logWarn('ai_recommend_model_fallback_used', {
+                  requestId,
+                  selected_model: modelName,
+                })
+              }
+
+              logAiMetric({
+                operation: 'recommend',
+                model: modelName,
+                latency_ms: Date.now() - startedAt,
+                is_fallback: i > 0,
+                success: true,
+                requestId,
+              })
+
+              // Cache the full successful response
+              if (fullResponse) {
+                setCachedAiResponse(cacheKey, fullResponse, CACHE_TTL_MS)
+              }
+
+              return
+            } catch (err) {
+              markGeminiModelUnavailable(modelName, err)
+              lastErr = err
+              if (streamedAnyChunk) throw err
+            }
           }
+
+          throw lastErr instanceof Error ? lastErr : new Error('All Gemini model candidates failed')
+        })
+
+        controller.close()
+        return
+      } catch (err) {
+        if (err instanceof CircuitBreakerOpenError) {
+          logWarn('ai_recommend_circuit_open', {
+            requestId,
+            latency_ms: Date.now() - startedAt,
+          })
+        } else {
+          logAiMetric({
+            operation: 'recommend',
+            model: 'all_candidates',
+            latency_ms: Date.now() - startedAt,
+            is_fallback: false,
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+            requestId,
+          })
         }
 
-        throw lastErr instanceof Error ? lastErr : new Error('All Gemini model candidates failed')
-      } catch (err) {
-        logError('ai_recommend_stream_error', {
-          requestId,
-          error: err instanceof Error ? err.message : String(err),
-          latency_ms: Date.now() - startedAt,
-        })
-        
-        // Return deterministic safe-mode response on provider failure
+        // Return deterministic safe-mode response on provider failure or open circuit
         const fallback = buildSafeModeResponse(topResults, regionCtx)
         controller.enqueue(encoder.encode(JSON.stringify(fallback)))
         controller.close()
@@ -610,6 +742,10 @@ Set flight or hotel to null if not relevant. Include 2-4 links.`
   })
 
   return new Response(readable, {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-PointsMax-Cache': 'MISS',
+      'X-AI-Latency-Ms': String(Date.now() - startedAt),
+    },
   })
 }

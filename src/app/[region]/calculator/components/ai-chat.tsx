@@ -209,6 +209,13 @@ interface RecommendationCardProps {
 }
 
 function RecommendationCard({ rec }: RecommendationCardProps) {
+  const freshnessLabel = (() => {
+    if (!rec.metadata?.freshness) return null
+    const dt = new Date(rec.metadata.freshness)
+    if (Number.isNaN(dt.getTime())) return null
+    return `${dt.toISOString().slice(11, 16)} UTC`
+  })()
+
   return (
     <div className="pm-card p-4 sm:p-5 space-y-4">
       <div className="space-y-1.5">
@@ -320,6 +327,19 @@ function RecommendationCard({ rec }: RecommendationCardProps) {
               {link.label} ↗
             </a>
           ))}
+        </div>
+      )}
+
+      {rec.metadata && (
+        <div className="pt-3 mt-1 border-t border-pm-border/40 flex items-center justify-between text-[10px] text-pm-ink-400 uppercase tracking-tighter">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-pm-success/60 animate-pulse" />
+            <span>Updated {freshnessLabel ?? 'Unknown'}</span>
+          </div>
+          <div className="flex gap-2">
+            <span>Source: {rec.metadata.source}</span>
+            {rec.metadata.confidence && <span>• Trust: {rec.metadata.confidence}</span>}
+          </div>
         </div>
       )}
     </div>
