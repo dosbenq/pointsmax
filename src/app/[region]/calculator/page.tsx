@@ -162,17 +162,17 @@ export default function CalculatorPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-pm-bg/50">
-        <div className="pm-shell py-10 sm:py-12 text-center">
-          <span className="pm-pill mb-3">Clear path from points to booking {config.flag}</span>
-          <h1 className="pm-heading text-3xl sm:text-4xl mb-2">Points Calculator</h1>
-          <p className="pm-subtle max-w-2xl mx-auto">
-            Start with your wallet, then follow one decision flow: value snapshot, top redemption path, and booking actions.
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Points calculator {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find your best redemption</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            Enter your balances, set a travel goal, and get a ranked list of redemption options with booking steps.
           </p>
         </div>
       </section>
 
-      <main className="pm-shell py-7 sm:py-9 space-y-6 flex-1">
+      <main className="pm-shell py-8 sm:py-10 space-y-6 flex-1">
         {/* Progress Steps */}
         <div className="pm-card p-2 sm:p-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

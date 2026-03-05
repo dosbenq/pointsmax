@@ -25,29 +25,40 @@ export default async function ProgramsIndexPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      <main className="flex-1 pm-shell py-12 space-y-6">
-        <div>
-          <span className="pm-pill">Program directory {config.flag}</span>
-          <h1 className="pm-heading text-3xl mt-3">Loyalty programs in {config.label}</h1>
-          <p className="pm-subtle mt-2">
-            Current valuation snapshots, transfer edges, and connected earning cards.
+
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Program directory {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Loyalty programs in {config.label}</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            Valuation snapshots, transfer partners, and earning cards — {programs.length} programs tracked.
           </p>
         </div>
+      </section>
 
+      <main className="flex-1 pm-shell py-8 space-y-6">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {programs.map((program) => (
-            <Link key={program.id} href={`/${normalized}/programs/${program.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
-              <p className="text-xs text-pm-ink-500 uppercase">{program.type.replace(/_/g, ' ')}</p>
-              <h2 className="pm-heading text-lg mt-1">{program.name}</h2>
-              <p className="text-sm text-pm-ink-500 mt-2">
-                Valuation: {program.cpp_cents.toFixed(2)}¢ / point
-              </p>
-              <p className="text-sm text-pm-ink-500 mt-1">
-                Earning cards: {program.earning_cards.length}
-              </p>
-              <p className="text-sm text-pm-ink-500 mt-1">
-                Transfer partners: {program.transfer_out.length}
-              </p>
+            <Link
+              key={program.id}
+              href={`/${normalized}/programs/${program.slug}`}
+              className="pm-card p-5 group flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-pm-ink-500">
+                  {program.type.replace(/_/g, ' ')}
+                </span>
+                <span className="text-xs font-mono font-bold text-pm-accent bg-pm-accent-soft px-2 py-0.5 rounded-full">
+                  {program.cpp_cents.toFixed(2)}¢/pt
+                </span>
+              </div>
+              <h2 className="pm-heading text-lg leading-snug group-hover:text-pm-accent transition-colors">
+                {program.name}
+              </h2>
+              <div className="flex items-center gap-4 text-xs text-pm-ink-500 mt-auto pt-2 border-t border-pm-border">
+                <span>{program.earning_cards.length} cards</span>
+                <span>{program.transfer_out.length} partners</span>
+              </div>
             </Link>
           ))}
         </div>

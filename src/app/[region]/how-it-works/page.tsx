@@ -179,7 +179,7 @@ export default function HowItWorksPage() {
       <NavBar />
 
       {/* Hero Section - The AHA Moment */}
-      <section className="border-b border-pm-border bg-pm-bg/50 py-16 sm:py-20">
+      <section className="pm-page-header pb-16 sm:pb-20">
         <div className="pm-shell">
           <div className="max-w-4xl mx-auto text-center">
             <span className="pm-pill mb-6">The value gap no one talks about</span>

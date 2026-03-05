@@ -301,13 +301,12 @@ export default function InspirePage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Reverse search {config.flag}</span>
-          <h1 className="pm-heading text-3xl mb-2">Inspire Me</h1>
-          <p className="pm-subtle max-w-2xl">
-            Start with your wallet and travel window. We scan {selectedDestinations.length} popular destinations 
-            to find the best places your points can take you right now.
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Inspire {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Where can your points take you?</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            We scan {selectedDestinations.length} popular destinations to find the best places your points can reach right now.
           </p>
         </div>
       </section>

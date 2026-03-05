@@ -289,13 +289,13 @@ export default function TripBuilderPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <div className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Trip planning {config.flag}</span>
-          <h1 className="pm-heading text-3xl mb-2">Trip Builder</h1>
-          <p className="pm-subtle">Get a full AI-powered redemption plan — flights, hotel, and step-by-step booking guide.</p>
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Trip planning {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Build your trip plan</h1>
+          <p className="pm-subtle max-w-xl text-base">Get a full AI-powered redemption plan — flights, hotel, and step-by-step booking guide.</p>
         </div>
-      </div>
+      </section>
 
       <main className="pm-shell py-8 w-full flex-1">
 

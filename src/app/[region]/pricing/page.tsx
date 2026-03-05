@@ -92,17 +92,17 @@ export default async function PricingPage({ params }: Props) {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <main className="flex-1 pm-shell py-14 sm:py-16">
-        <div className="text-center mb-14">
-          <span className="pm-pill mb-4">Transparent pricing {config.flag}</span>
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-4">
-            Simple, honest pricing
-          </h1>
+      <section className="pm-page-header text-center">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Pricing {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-4">Simple, honest pricing</h1>
           <p className="pm-subtle text-lg max-w-xl mx-auto">
             Free includes calculator, AI advisor, Trip Builder, and card tools. Pro adds live availability and alerts.
           </p>
         </div>
+      </section>
 
+      <main className="flex-1 pm-shell py-10 sm:py-12">
         <div className="grid sm:grid-cols-2 gap-6 mb-20 max-w-2xl mx-auto">
           <div className="pm-card p-8">
             <div className="mb-6">

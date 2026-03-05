@@ -338,12 +338,12 @@ export default function AwardSearchPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-pm-surface-soft/50">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Fast flight search</span>
-          <h1 className="pm-heading text-3xl mb-2">Standalone Award Search</h1>
-          <p className="pm-subtle">
-            Quick check mode for power users. Search availability and transfer paths without running the full calculator.
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Award search</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find award availability</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            Search availability and compare transfer paths across programs — without running the full calculator.
           </p>
         </div>
       </section>

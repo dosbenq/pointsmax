@@ -272,11 +272,11 @@ export default function CardRecommenderPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-pm-surface-soft/50">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Card strategy tools {config.flag}</span>
-          <h1 className="pm-heading text-3xl mb-2">Card Recommender</h1>
-          <p className="pm-subtle">Find your next card based on how you spend and where you want to go.</p>
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Card strategy {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find your next card</h1>
+          <p className="pm-subtle max-w-xl text-base">Tell us how you spend and where you want to go — we'll rank the best cards for your wallet.</p>
         </div>
       </section>
 
