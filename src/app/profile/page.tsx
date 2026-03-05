@@ -121,7 +121,7 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
                   className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
                     checked
                       ? 'bg-pm-accent text-pm-bg border-pm-accent'
-                      : 'bg-white text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
+                      : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                   }`}
                 >
                   {p.name}
@@ -288,11 +288,14 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <main className="flex-1 pm-shell max-w-3xl py-12 w-full space-y-6">
-        <div>
-          <h1 className="pm-heading text-3xl tracking-tight">Profile &amp; Settings</h1>
-          <p className="pm-subtle text-sm mt-1">Manage your account and travel preferences.</p>
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Profile &amp; Settings</h1>
+          <p className="pm-subtle text-base">Manage your account and travel preferences.</p>
         </div>
+      </section>
+
+      <main className="flex-1 pm-shell max-w-3xl py-8 w-full space-y-6">
 
         <div className="pm-card p-6">
           <h2 className="pm-heading text-base mb-4">Account</h2>
@@ -489,7 +492,7 @@ export default function ProfilePage() {
                   onChange={(event) => setDeleteConfirm(event.target.value)}
                   placeholder="Type DELETE"
                 />
-                {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+                {deleteError && <p className="text-sm text-pm-danger">{deleteError}</p>}
               </div>
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setDeleteConfirm(''); setDeleteError(null) }}>

@@ -439,7 +439,7 @@ export default function InspirePage() {
                   <button
                     onClick={() => removeRow(row.id)}
                     disabled={rows.length <= 1}
-                    className="text-gray-400 hover:text-red-500 px-2 text-lg leading-none"
+                    className="text-pm-ink-500 hover:text-pm-danger px-2 text-lg leading-none"
                   >
                     ×
                   </button>
@@ -480,7 +480,7 @@ export default function InspirePage() {
               <div 
                 key={item.destination.code} 
                 className={`pm-card p-5 flex flex-col justify-between transition-all hover:shadow-md ${
-                  item.best?.is_reachable ? 'border-pm-accent-border bg-pm-surface' : 'opacity-80 bg-white'
+                  item.best?.is_reachable ? 'border-pm-accent-border bg-pm-surface' : 'opacity-60 bg-pm-surface-soft'
                 }`}
               >
                 <div className="space-y-3">

@@ -74,7 +74,7 @@ function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResul
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: result.program_color }} />
         <span className="text-pm-ink-900 font-semibold text-sm">{result.program_name}</span>
         {isTopPick && (
-          <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
+          <span className="text-xs bg-pm-accent text-pm-bg px-2 py-0.5 rounded-full font-semibold">Top pick</span>
         )}
         {result.has_real_availability && (
           <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full">Live</span>
@@ -415,7 +415,7 @@ export default function AwardSearchPage() {
                       disabled={(date) => isBefore(date, startOfToday())}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                         day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />
@@ -456,7 +456,7 @@ export default function AwardSearchPage() {
                       }}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                         day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />

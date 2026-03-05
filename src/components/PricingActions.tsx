@@ -75,13 +75,13 @@ export default function PricingActions({ region = 'us' }: PricingActionsProps) {
   return (
     <div className="space-y-3">
       {checkoutStatus === 'success' && (
-        <p className="text-xs text-pm-success bg-pm-success/10 border border-pm-success/30 rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-success bg-pm-success-soft border border-pm-success-border rounded-lg px-3 py-2">
           Payment received. Your Pro access will be enabled shortly.
         </p>
       )}
 
       {checkoutStatus === 'cancelled' && (
-        <p className="text-xs text-pm-warning bg-pm-warning/10 border border-pm-warning/30 rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-warning bg-pm-warning-soft border border-pm-warning-border rounded-lg px-3 py-2">
           Checkout canceled. You can resume anytime.
         </p>
       )}
@@ -115,7 +115,7 @@ export default function PricingActions({ region = 'us' }: PricingActionsProps) {
       )}
 
       {error && (
-        <p className="text-xs text-pm-danger bg-red-50 border border-pm-danger/20 rounded-lg px-3 py-2">
+        <p className="text-xs text-pm-danger bg-pm-danger-soft border border-pm-danger-border rounded-lg px-3 py-2">
           {error}
         </p>
       )}

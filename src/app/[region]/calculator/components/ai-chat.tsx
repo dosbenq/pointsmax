@@ -99,7 +99,7 @@ export function AIChat({
           <div key={i}>
             {msg.role === 'user' ? (
               <div className="flex justify-end">
-                <div className="bg-pm-accent text-white text-sm px-4 py-2.5 rounded-2xl rounded-br-sm max-w-xs shadow-sm">
+                <div className="bg-pm-accent text-pm-bg text-sm px-4 py-2.5 rounded-2xl rounded-br-sm max-w-xs shadow-sm">
                   {msg.text}
                 </div>
               </div>
@@ -152,7 +152,7 @@ export function AIChat({
         )}
 
         {aiError && (
-          <div className="rounded-xl border border-pm-danger/20 bg-pm-danger-soft px-4 py-3 text-sm">
+          <div className="rounded-xl border border-pm-danger-border bg-pm-danger-soft px-4 py-3 text-sm">
             <div className="flex items-start gap-2 text-pm-danger">
               <span className="text-base mt-0.5">⚠️</span>
               <div>
@@ -167,7 +167,7 @@ export function AIChat({
                   </button>
                   <button
                     onClick={() => onSendMessage('Retry last request')}
-                    className="text-xs bg-white/50 px-2 py-1 rounded border border-pm-danger/20 hover:bg-white transition-colors"
+                    className="text-xs bg-pm-surface-soft px-2 py-1 rounded border border-pm-danger-border hover:bg-pm-surface transition-colors"
                   >
                     Retry
                   </button>
@@ -287,7 +287,7 @@ function RecommendationCard({ rec }: RecommendationCardProps) {
       )}
 
       {rec.total_summary && (
-        <div className="rounded-xl px-4 py-3 border border-pm-success/30 bg-pm-success/10">
+        <div className="rounded-xl px-4 py-3 border border-pm-success-border bg-pm-success-soft">
           <p className="text-xs text-pm-success font-semibold uppercase tracking-wider">Total</p>
           <p className="text-pm-success text-sm font-semibold mt-1">{rec.total_summary}</p>
         </div>
@@ -331,7 +331,7 @@ function RecommendationCard({ rec }: RecommendationCardProps) {
       )}
 
       {rec.metadata && (
-        <div className="pt-3 mt-1 border-t border-pm-border/40 flex items-center justify-between text-[10px] text-pm-ink-400 uppercase tracking-tighter">
+        <div className="pt-3 mt-1 border-t border-pm-border flex items-center justify-between text-[10px] text-pm-ink-500 uppercase tracking-tighter">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-pm-success/60 animate-pulse" />
             <span>Updated {freshnessLabel ?? 'Unknown'}</span>

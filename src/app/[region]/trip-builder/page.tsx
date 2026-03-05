@@ -430,7 +430,7 @@ export default function TripBuilderPage() {
                           disabled={(date) => isBefore(date, startOfToday())}
                           initialFocus
                           classNames={{
-                            day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                            day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                             day_today: 'bg-pm-accent-soft text-pm-accent',
                           }}
                         />
@@ -474,7 +474,7 @@ export default function TripBuilderPage() {
                             }}
                             initialFocus
                             classNames={{
-                              day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                              day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                               day_today: 'bg-pm-accent-soft text-pm-accent',
                             }}
                           />
@@ -595,7 +595,7 @@ export default function TripBuilderPage() {
                     <div key={row.id} className="flex items-center gap-3">
                       <span
                         className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-1"
-                        style={{ backgroundColor: sel?.color_hex ?? '#E2E8F0' }}
+                        style={{ backgroundColor: sel?.color_hex ?? 'var(--pm-surface-soft)' }}
                       />
                       <select
                         value={row.program_id}
@@ -781,7 +781,7 @@ export default function TripBuilderPage() {
                 <div className="px-6 py-5 space-y-4">
                   {result.booking_steps.map((step, i) => (
                     <div key={i} className="flex gap-4">
-                      <div className="w-7 h-7 rounded-full bg-pm-accent text-white text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
+                      <div className="w-7 h-7 rounded-full bg-pm-accent text-pm-bg text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">
                         {step.step ?? i + 1}
                       </div>
                       <div className="flex-1">

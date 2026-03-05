@@ -181,7 +181,7 @@ export default function CalculatorPage() {
                 key={step.label}
                 className={`rounded-xl px-3 py-2.5 border text-sm ${
                   step.done
-                    ? 'bg-pm-success/10 border-pm-success/30 text-pm-success'
+                    ? 'bg-pm-success-soft border-pm-success-border text-pm-success'
                     : 'bg-pm-surface-soft border-pm-border text-pm-ink-500'
                 }`}
               >
@@ -278,7 +278,7 @@ export default function CalculatorPage() {
                       <label className="pm-label block mb-1.5">Airlines to Avoid</label>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         {state.prefForm.avoided_airlines.map((a, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 bg-pm-danger-soft text-pm-danger text-xs px-2.5 py-1 rounded-full border border-pm-danger/20">
+                          <span key={i} className="inline-flex items-center gap-1 bg-pm-danger-soft text-pm-danger text-xs px-2.5 py-1 rounded-full border border-pm-danger-border">
                             {a}
                             <button onClick={() => state.removeTag('avoided_airlines', i)} className="hover:text-pm-danger font-bold">×</button>
                           </span>
@@ -402,7 +402,7 @@ export default function CalculatorPage() {
                   disabled={tab.disabled}
                   className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                     state.activePanel === tab.key
-                      ? 'bg-pm-accent text-white'
+                      ? 'bg-pm-accent text-pm-bg'
                       : 'bg-pm-surface-soft text-pm-ink-700 hover:bg-pm-accent-soft/50'
                   } ${tab.disabled ? 'opacity-50 cursor-not-allowed hover:bg-pm-surface-soft' : ''}`}
                 >
@@ -422,12 +422,12 @@ export default function CalculatorPage() {
                     <p className="text-3xl font-extrabold text-pm-ink-900 mt-2 tabular-nums">{fmtCents(state.result.total_cash_value_cents, config.currencySymbol)}</p>
                     <p className="text-xs text-pm-ink-500 mt-1">If redeemed for cash</p>
                   </div>
-                  <div className="rounded-2xl border border-pm-success/30 bg-pm-success/10 p-5">
+                  <div className="rounded-2xl border border-pm-success-border bg-pm-success-soft p-5">
                     <p className="text-xs font-semibold uppercase tracking-widest text-pm-accent">Best Value</p>
                     <p className="text-3xl font-extrabold text-pm-accent-strong mt-2 tabular-nums">{fmtCents(state.result.total_optimal_value_cents, config.currencySymbol)}</p>
                     <p className="text-xs text-pm-accent-strong mt-1">Optimal redemption path</p>
                   </div>
-                  <div className="rounded-2xl border border-pm-success/30 bg-pm-success/10 p-5 sm:col-span-2 lg:col-span-1">
+                  <div className="rounded-2xl border border-pm-success-border bg-pm-success-soft p-5 sm:col-span-2 lg:col-span-1">
                     <p className="text-xs font-semibold uppercase tracking-widest text-pm-success">Extra Value</p>
                     <p className="text-3xl font-extrabold text-pm-success mt-2 tabular-nums">{fmtCents(state.result.value_left_on_table_cents, config.currencySymbol)}</p>
                     <p className="text-xs text-pm-success mt-1">vs. simple cash back</p>
@@ -457,7 +457,7 @@ export default function CalculatorPage() {
                     </div>
                   )}
                   {state.shareError && (
-                    <div className="px-5 sm:px-6 py-2 border-b border-pm-danger/20 text-xs text-pm-danger bg-pm-danger-soft">
+                    <div className="px-5 sm:px-6 py-2 border-b border-pm-danger-border text-xs text-pm-danger bg-pm-danger-soft">
                       {state.shareError}
                     </div>
                   )}
@@ -469,14 +469,14 @@ export default function CalculatorPage() {
                         initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? undefined : { duration: 0.2, delay: i * 0.05 }}
-                        className={`px-5 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 transition-colors ${r.is_best ? 'bg-pm-success/10' : 'hover:bg-pm-surface-soft'}`}
+                        className={`px-5 sm:px-6 py-4 flex items-center gap-3 sm:gap-4 transition-colors ${r.is_best ? 'bg-pm-success-soft' : 'hover:bg-pm-surface-soft'}`}
                       >
                         <span className="text-xs text-pm-ink-500 font-mono w-4 flex-shrink-0 text-center">{i + 1}</span>
                         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: r.from_program.color_hex }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            {r.is_best && <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Best</span>}
-                            {r.active_bonus_pct && <span className="text-xs bg-pm-success/10 text-pm-success px-2 py-0.5 rounded-full border border-pm-success/30 font-semibold">+{r.active_bonus_pct}% bonus</span>}
+                            {r.is_best && <span className="text-xs bg-pm-accent text-pm-bg px-2 py-0.5 rounded-full font-semibold">Best</span>}
+                            {r.active_bonus_pct && <span className="text-xs bg-pm-success-soft text-pm-success px-2 py-0.5 rounded-full border border-pm-success-border font-semibold">+{r.active_bonus_pct}% bonus</span>}
                             <span className="text-sm font-medium text-pm-ink-900">{r.label}</span>
                           </div>
                           <p className="text-xs text-pm-ink-500 mt-0.5">
