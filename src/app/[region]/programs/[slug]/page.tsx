@@ -59,14 +59,16 @@ export default async function ProgramDetailPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      <main className="flex-1 pm-shell py-12 space-y-8">
-        <div>
-          <span className="pm-pill">Program guide {config.flag}</span>
-          <h1 className="pm-heading text-3xl mt-3">{program.name}</h1>
-          <p className="pm-subtle mt-2">
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Program guide {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">{program.name}</h1>
+          <p className="pm-subtle max-w-xl text-base">
             Current valuation: <strong>{program.cpp_cents.toFixed(2)}¢</strong> per point
           </p>
         </div>
+      </section>
+      <main className="flex-1 pm-shell py-8 space-y-8">
 
         <section className="grid md:grid-cols-2 gap-4">
           <div className="pm-card-soft p-5">

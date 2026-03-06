@@ -50,14 +50,16 @@ export default async function SharedTripPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      <main className="flex-1 pm-shell py-12 space-y-6">
-        <div>
-          <span className="pm-pill">Shared trip {config.flag}</span>
-          <h1 className="pm-heading text-3xl mt-3">Points strategy snapshot</h1>
-          <p className="pm-subtle mt-2">
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Shared trip {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Points strategy snapshot</h1>
+          <p className="pm-subtle max-w-xl text-base">
             Shared from PointsMax on {new Date(trip.created_at).toLocaleDateString()}.
           </p>
         </div>
+      </section>
+      <main className="flex-1 pm-shell py-8 space-y-6">
 
         <section className="grid sm:grid-cols-3 gap-4">
           <div className="pm-card p-4">

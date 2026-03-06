@@ -71,14 +71,16 @@ export default async function CardDetailPage({ params }: Props) {
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
-      <main className="flex-1 pm-shell py-12 space-y-8">
-        <div>
-          <span className="pm-pill">Card review {config.flag}</span>
-          <h1 className="pm-heading text-3xl mt-3">{card.name}</h1>
-          <p className="pm-subtle mt-2">
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Card review {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">{card.name}</h1>
+          <p className="pm-subtle max-w-xl text-base">
             Issuer: {card.issuer} · Program: {card.program?.name ?? 'Unknown'}
           </p>
         </div>
+      </section>
+      <main className="flex-1 pm-shell py-8 space-y-8">
 
         <section className="grid gap-4 sm:grid-cols-3">
           <div className="pm-card p-4">
