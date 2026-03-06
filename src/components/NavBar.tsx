@@ -143,7 +143,7 @@ export default function NavBar() {
                   <div className="absolute right-0 top-full mt-2 w-56 pm-card p-2 shadow-2xl">
                     <p className="px-3 py-2 text-xs text-pm-ink-500 border-b border-pm-border truncate">{user.email}</p>
                     <Link
-                      href={`/profile?region=${region}`}
+                      href={`/${region}/profile`}
                       onClick={() => setAccountOpen(false)}
                       className="block px-3 py-2 text-sm rounded-lg hover:bg-pm-surface-soft text-pm-ink-900"
                     >
@@ -209,7 +209,7 @@ export default function NavBar() {
               ) : user ? (
                 <>
                   <Link
-                    href={`/profile?region=${region}`}
+                    href={`/${region}/profile`}
                     onClick={() => setMenuOpen(false)}
                     className="block rounded-xl px-3 py-3 text-sm font-medium text-pm-ink-700 hover:bg-pm-surface-soft"
                   >

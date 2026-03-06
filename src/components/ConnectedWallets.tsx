@@ -282,8 +282,8 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
       <div className={`pm-card p-6 ${className}`} data-testid="connected-wallets-loading">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="pm-heading text-base">Connected Wallets</h2>
-            <p className="text-xs text-pm-ink-500 mt-0.5">Manage your linked loyalty accounts.</p>
+            <h2 className="pm-heading text-base">Wallet Sources</h2>
+            <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources.</p>
           </div>
           <div className="w-8 h-8 rounded-full border-2 border-pm-accent border-t-transparent animate-spin" />
         </div>
@@ -302,8 +302,8 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
       <div className={`pm-card p-6 ${className}`} data-testid="connected-wallets-error">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="pm-heading text-base">Connected Wallets</h2>
-            <p className="text-xs text-pm-ink-500 mt-0.5">Manage your linked loyalty accounts.</p>
+            <h2 className="pm-heading text-base">Wallet Sources</h2>
+            <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources.</p>
           </div>
         </div>
         <div className="text-center py-6">
@@ -335,14 +335,14 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
     return (
       <div className={`pm-card p-6 ${className}`} data-testid="connected-wallets-empty">
         <div className="mb-4">
-          <h2 className="pm-heading text-base">Connected Wallets</h2>
-          <p className="text-xs text-pm-ink-500 mt-0.5">Manage your linked loyalty accounts.</p>
+          <h2 className="pm-heading text-base">Wallet Sources</h2>
+          <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources.</p>
         </div>
         <div className="text-center py-6 border border-dashed border-pm-border rounded-xl">
           <div className="text-3xl mb-2">👛</div>
-          <p className="text-sm text-pm-ink-700 mb-1">No wallets connected yet</p>
+          <p className="text-sm text-pm-ink-700 mb-1">No balance sources added yet</p>
           <p className="text-xs text-pm-ink-500 mb-4 max-w-sm mx-auto">
-            Connect your loyalty program accounts to automatically sync your point balances.
+            Import balances from CSV or enter them manually. Live account linking is still in beta.
           </p>
           <div className="flex gap-2 justify-center">
             <button
@@ -350,7 +350,7 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
               className="pm-button text-xs px-4 py-2"
               data-testid="connect-wallet-btn"
             >
-              Connect Wallet
+              Add Balances
             </button>
             {onManualEntry && (
               <button
@@ -371,11 +371,11 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
   const { accounts, balances } = viewState
   return (
     <div className={`pm-card p-6 ${className}`} data-testid="connected-wallets-connected">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="pm-heading text-base">Connected Wallets</h2>
-          <p className="text-xs text-pm-ink-500 mt-0.5">Manage your linked loyalty accounts.</p>
-        </div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+          <h2 className="pm-heading text-base">Wallet Sources</h2>
+          <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources.</p>
+          </div>
         <div className="flex gap-2">
           {onManualEntry && (
             <button
@@ -391,7 +391,7 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
             className="pm-button text-xs px-3 py-1.5"
             data-testid="connect-wallet-btn"
           >
-            + Add
+            Add Balances
           </button>
         </div>
       </div>

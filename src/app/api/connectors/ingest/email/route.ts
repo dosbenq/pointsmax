@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     // Default status check response
     return NextResponse.json({
       status: createIngestStatus('pending', {
-        customMessage: 'Email statement import is coming soon! Use CSV import for now.',
+        customMessage: 'Email statement import is not live yet. Join the waitlist and use CSV import for now.',
       }),
       feature: FEATURE_ROADMAP,
       alternative: {
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
         customMessage: 'Email ingestion is in beta. Processing capabilities are limited.',
       })
     : createIngestStatus('pending', {
-        customMessage: 'Email statement import is planned for a future release.',
+        customMessage: 'Email statement import is currently waitlist-only. CSV import is available today.',
       })
 
   const response: Record<string, unknown> = {

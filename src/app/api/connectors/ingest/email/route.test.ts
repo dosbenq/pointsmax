@@ -80,7 +80,7 @@ describe('POST /api/connectors/ingest/email', () => {
 
     expect(res.status).toBe(200)
     expect(body.status.status).toBe('pending')
-    expect(body.status.message).toContain('coming soon')
+    expect(body.status.message).toContain('not live yet')
     expect(body.feature.status).toBe('planned')
     expect(body.feature.estimatedRelease).toBeDefined()
     expect(body.alternative.method).toBe('csv_import')
@@ -172,6 +172,7 @@ describe('GET /api/connectors/ingest/email', () => {
     expect(body.status.status).toBe('pending')
     expect(body.feature.status).toBe('planned')
     expect(body.guide).toBeUndefined()
+    expect(body.status.message).toContain('waitlist-only')
   })
 
   it('returns guide when guide=true parameter is provided', async () => {
