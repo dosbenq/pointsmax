@@ -1,80 +1,95 @@
 export default function TripBuilderLoading() {
   return (
-    <div className="pm-shell py-10 animate-pulse">
-      {/* Heading */}
-      <div className="mb-8 space-y-2">
-        <div className="h-8 w-56 rounded-xl bg-pm-border" />
-        <div className="h-5 w-80 rounded-lg bg-pm-surface-soft" />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        {/* Wizard panel */}
-        <div className="pm-card p-6 space-y-6">
-          {/* Step indicator */}
-          <div className="flex items-center gap-3">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-pm-surface-soft" />
-                {s < 3 && <div className="h-px w-10 bg-pm-border" />}
-              </div>
+    <div className="min-h-screen bg-pm-bg animate-pulse">
+      {/* NavBar */}
+      <div className="fixed inset-x-0 top-0 z-50 h-16 border-b border-pm-border bg-pm-surface/80">
+        <div className="pm-shell flex h-full items-center justify-between">
+          <div className="h-5 w-28 rounded-full bg-pm-surface-soft" />
+          <div className="hidden md:flex items-center gap-6">
+            {[80, 96, 64, 72].map((w) => (
+              <div key={w} className="h-3.5 rounded-full bg-pm-surface-soft" style={{ width: w }} />
             ))}
           </div>
+          <div className="h-9 w-24 rounded-full bg-pm-surface-soft" />
+        </div>
+      </div>
 
-          {/* Route inputs */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <div className="h-4 w-16 rounded bg-pm-surface-soft" />
-              <div className="h-12 rounded-xl bg-pm-surface-soft" />
-            </div>
-            <div className="space-y-1.5">
-              <div className="h-4 w-12 rounded bg-pm-surface-soft" />
-              <div className="h-12 rounded-xl bg-pm-surface-soft" />
-            </div>
-          </div>
+      <main className="pm-shell py-10 pt-24">
+        {/* Heading */}
+        <div className="mb-8 space-y-2">
+          <div className="h-8 w-56 rounded-xl bg-pm-border" />
+          <div className="h-5 w-80 rounded-lg bg-pm-surface-soft" />
+        </div>
 
-          {/* Date inputs */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <div className="h-4 w-24 rounded bg-pm-surface-soft" />
-              <div className="h-12 rounded-xl bg-pm-surface-soft" />
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          {/* Wizard panel */}
+          <div className="pm-card p-6 space-y-6">
+            {/* Step indicator */}
+            <div className="flex items-center gap-3">
+              {[1, 2, 3].map((s) => (
+                <div key={s} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-pm-surface-soft" />
+                  {s < 3 && <div className="h-px w-10 bg-pm-border" />}
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <div className="h-4 w-24 rounded bg-pm-surface-soft" />
-              <div className="h-12 rounded-xl bg-pm-surface-soft" />
-            </div>
-          </div>
 
-          {/* Cabin + traveler row */}
-          <div className="grid grid-cols-3 gap-4">
-            {[3, 3, 2].map((w, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="h-4 rounded bg-pm-surface-soft" style={{ width: `${w * 28}px` }} />
+            {/* Route inputs */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="h-4 w-16 rounded bg-pm-surface-soft" />
                 <div className="h-12 rounded-xl bg-pm-surface-soft" />
               </div>
+              <div className="space-y-1.5">
+                <div className="h-4 w-12 rounded bg-pm-surface-soft" />
+                <div className="h-12 rounded-xl bg-pm-surface-soft" />
+              </div>
+            </div>
+
+            {/* Date inputs */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <div className="h-4 w-24 rounded bg-pm-surface-soft" />
+                <div className="h-12 rounded-xl bg-pm-surface-soft" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-4 w-24 rounded bg-pm-surface-soft" />
+                <div className="h-12 rounded-xl bg-pm-surface-soft" />
+              </div>
+            </div>
+
+            {/* Cabin + traveler row */}
+            <div className="grid grid-cols-3 gap-4">
+              {[3, 3, 2].map((w, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-4 rounded bg-pm-surface-soft" style={{ width: `${w * 28}px` }} />
+                  <div className="h-12 rounded-xl bg-pm-surface-soft" />
+                </div>
+              ))}
+            </div>
+
+            {/* CTA button */}
+            <div className="h-12 w-40 rounded-full bg-pm-surface-soft" />
+          </div>
+
+          {/* Summary panel */}
+          <div className="pm-card p-6 space-y-4 h-fit">
+            <div className="h-5 w-32 rounded bg-pm-surface-soft" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex justify-between items-center">
+                <div className="h-4 w-24 rounded bg-pm-surface-soft" />
+                <div className="h-4 w-16 rounded bg-pm-surface-soft" />
+              </div>
             ))}
-          </div>
-
-          {/* CTA button */}
-          <div className="h-12 w-40 rounded-full bg-pm-surface-soft" />
-        </div>
-
-        {/* Summary panel */}
-        <div className="pm-card p-6 space-y-4 h-fit">
-          <div className="h-5 w-32 rounded bg-pm-surface-soft" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex justify-between items-center">
-              <div className="h-4 w-24 rounded bg-pm-surface-soft" />
-              <div className="h-4 w-16 rounded bg-pm-surface-soft" />
-            </div>
-          ))}
-          <div className="border-t border-pm-border pt-4">
-            <div className="flex justify-between">
-              <div className="h-5 w-16 rounded bg-pm-surface-soft" />
-              <div className="h-5 w-20 rounded bg-pm-surface-soft" />
+            <div className="border-t border-pm-border pt-4">
+              <div className="flex justify-between">
+                <div className="h-5 w-16 rounded bg-pm-surface-soft" />
+                <div className="h-5 w-20 rounded bg-pm-surface-soft" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

@@ -301,13 +301,12 @@ export default function InspirePage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Reverse search {config.flag}</span>
-          <h1 className="pm-heading text-3xl mb-2">Inspire Me</h1>
-          <p className="pm-subtle max-w-2xl">
-            Start with your wallet and travel window. We scan {selectedDestinations.length} popular destinations 
-            to find the best places your points can take you right now.
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Inspire {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Where can your points take you?</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            We scan {selectedDestinations.length} popular destinations to find the best places your points can reach right now.
           </p>
         </div>
       </section>
@@ -440,7 +439,7 @@ export default function InspirePage() {
                   <button
                     onClick={() => removeRow(row.id)}
                     disabled={rows.length <= 1}
-                    className="text-gray-400 hover:text-red-500 px-2 text-lg leading-none"
+                    className="text-pm-ink-500 hover:text-pm-danger px-2 text-lg leading-none"
                   >
                     ×
                   </button>
@@ -481,7 +480,7 @@ export default function InspirePage() {
               <div 
                 key={item.destination.code} 
                 className={`pm-card p-5 flex flex-col justify-between transition-all hover:shadow-md ${
-                  item.best?.is_reachable ? 'border-pm-accent-border bg-pm-surface' : 'opacity-80 bg-white'
+                  item.best?.is_reachable ? 'border-pm-accent-border bg-pm-surface' : 'opacity-60 bg-pm-surface-soft'
                 }`}
               >
                 <div className="space-y-3">

@@ -93,7 +93,7 @@ export function AwardResults({
                 <Button
                   variant="outline"
                   className={cn(
-                    'w-full justify-start text-left font-normal pm-input bg-white hover:bg-pm-surface-soft',
+                    'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                     !awardParams.start_date && 'text-muted-foreground'
                   )}
                 >
@@ -101,7 +101,7 @@ export function AwardResults({
                   {awardParams.start_date ? format(parseISO(awardParams.start_date), 'PP') : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-white" align="start">
+              <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                 <Calendar
                   mode="single"
                   selected={awardParams.start_date ? parseISO(awardParams.start_date) : undefined}
@@ -135,7 +135,7 @@ export function AwardResults({
                 <Button
                   variant="outline"
                   className={cn(
-                    'w-full justify-start text-left font-normal pm-input bg-white hover:bg-pm-surface-soft',
+                    'w-full justify-start text-left font-normal pm-input bg-pm-surface hover:bg-pm-surface-soft',
                     !awardParams.end_date && 'text-muted-foreground'
                   )}
                 >
@@ -143,7 +143,7 @@ export function AwardResults({
                   {awardParams.end_date ? format(parseISO(awardParams.end_date), 'PP') : <span>Pick date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-white" align="start">
+              <PopoverContent className="w-auto p-0 bg-pm-surface" align="start">
                 <Calendar
                   mode="single"
                   selected={awardParams.end_date ? parseISO(awardParams.end_date) : undefined}
@@ -196,10 +196,10 @@ export function AwardResults({
         </div>
 
         {awardError && (
-          <p className="text-sm text-pm-danger bg-red-50 rounded-xl px-4 py-2 border border-pm-danger/20">{awardError}</p>
+          <p className="text-sm text-pm-danger bg-pm-danger-soft rounded-xl px-4 py-2 border border-pm-danger-border">{awardError}</p>
         )}
         {estimatesOnly && (
-          <p className="text-sm text-pm-warning bg-pm-warning/10 rounded-xl px-4 py-2 border border-pm-warning/30">
+          <p className="text-sm text-pm-warning bg-pm-warning-soft rounded-xl px-4 py-2 border border-pm-warning-border">
             {awardResult?.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
           </p>
         )}
@@ -241,7 +241,7 @@ export function AwardResults({
                 </div>
               )}
               {narrative.warnings?.length > 0 && (
-                <div className="bg-pm-warning/10 border border-pm-warning/30 rounded-lg px-3 py-2 space-y-1">
+                <div className="bg-pm-warning-soft border border-pm-warning-border rounded-lg px-3 py-2 space-y-1">
                   {narrative.warnings.map((w, i) => (
                     <p key={i} className="text-pm-warning text-xs flex gap-2">
                       <span>⚠️</span>{w}
@@ -304,10 +304,10 @@ function AwardResultCard({ result: r, topSlug, muted = false, region }: AwardRes
         <span className="text-pm-ink-900 font-semibold text-sm">{r.program_name}</span>
 
         {isTopPick && !muted && (
-          <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
+          <span className="text-xs bg-pm-accent text-pm-bg px-2 py-0.5 rounded-full font-semibold">Top pick</span>
         )}
         {r.has_real_availability && (
-          <span className="text-xs bg-pm-success/10 text-pm-success border border-pm-success/30 px-2 py-0.5 rounded-full">Live</span>
+          <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full">Live</span>
         )}
         {!r.has_real_availability && (
           <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Estimate</span>

@@ -3,7 +3,7 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
-import { badRequest, internalError } from '@/lib/error-utils'
+import { badRequest } from '@/lib/error-utils'
 
 const MAX_BODY_BYTES = 8_000
 const CREATOR_REF_COOKIE = 'pm_creator_ref'
@@ -19,6 +19,19 @@ type Payload = {
 type CreatorSlugRow = { slug: string }
 type CardRow = { id: string; apply_url: string | null }
 type UserIdRow = { id: string }
+
+function getSafeRedirectUrl(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
 
 function normalizeSourcePage(value: unknown): string {
   if (typeof value !== 'string') return 'unknown'
@@ -147,9 +160,9 @@ async function trackAndReturn(
     return badRequest('Unknown card_id')
   }
 
-  const redirectUrl = typeof card.apply_url === 'string' ? card.apply_url.trim() : ''
+  const redirectUrl = getSafeRedirectUrl(card.apply_url)
   if (!redirectUrl) {
-    return badRequest('No apply_url configured for card')
+    return badRequest('No valid apply_url configured for card')
   }
 
   let userId: string | null = null
@@ -190,7 +203,14 @@ async function trackAndReturn(
       rank,
       region,
     })
-    return internalError('Failed to record affiliate click')
+    if (redirect) {
+      return NextResponse.redirect(redirectUrl)
+    }
+    return NextResponse.json({
+      ok: true,
+      tracked: false,
+      redirect_url: redirectUrl,
+    })
   }
 
   logInfo('affiliate_click_tracked', {
@@ -206,7 +226,7 @@ async function trackAndReturn(
   if (redirect) {
     return NextResponse.redirect(redirectUrl)
   }
-  return NextResponse.json({ ok: true, redirect_url: redirectUrl })
+  return NextResponse.json({ ok: true, tracked: true, redirect_url: redirectUrl })
 }
 
 export async function GET(req: NextRequest) {

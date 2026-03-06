@@ -89,6 +89,26 @@ describe('withIdempotency', () => {
     expect(entry?.status).toBe('completed')
     expect(entry?.data).toBe('stored-data')
   })
+
+  it('deduplicates concurrent duplicate calls and reuses the in-flight promise', async () => {
+    let resolveFn: ((value: string) => void) | null = null
+    const fn = vi.fn().mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveFn = resolve
+        }),
+    )
+
+    const firstCall = withIdempotency('key-concurrent', fn)
+    const secondCall = withIdempotency('key-concurrent', fn)
+
+    expect(fn).toHaveBeenCalledTimes(1)
+
+    resolveFn?.('shared-result')
+
+    await expect(firstCall).resolves.toEqual({ data: 'shared-result', idempotent: false })
+    await expect(secondCall).resolves.toEqual({ data: 'shared-result', idempotent: true })
+  })
 })
 
 describe('clearExpiredIdempotencyKeys', () => {

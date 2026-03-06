@@ -16,15 +16,27 @@ import { ArrowRight } from 'lucide-react'
 // ─── Inline UI mockups ────────────────────────────────────────────────────────
 
 function WalletMockup() {
+  const params = useParams()
+  const region = (params.region as Region) || 'us'
+  const isIndia = region === 'in'
+  
+  const balances = isIndia
+    ? [
+        { name: 'HDFC Millennia Rewards', pts: '2,50,000', color: '#004C8F' },
+        { name: 'Axis EDGE Rewards', pts: '1,50,000', color: '#5C258D' },
+        { name: 'Air India Maharaja Club', pts: '75,000', color: '#B71C1C' },
+      ]
+    : [
+        { name: 'Chase Ultimate Rewards', pts: '45,000', color: 'var(--pm-program-chase)' },
+        { name: 'Amex Membership Rewards', pts: '30,000', color: 'var(--pm-program-amex)' },
+        { name: 'United MileagePlus', pts: '12,500', color: 'var(--pm-program-united)' },
+      ]
+  
   return (
     <div className="pm-card p-6 select-none">
       <p className="pm-label mb-4">Your Wallet</p>
       <div className="space-y-2.5">
-        {[
-          { name: 'Chase Ultimate Rewards', pts: '45,000', color: 'var(--pm-program-chase)' },
-          { name: 'Amex Membership Rewards', pts: '30,000', color: 'var(--pm-program-amex)' },
-          { name: 'United MileagePlus', pts: '12,500', color: 'var(--pm-program-united)' },
-        ].map((b) => (
+        {balances.map((b) => (
           <div
             key={b.name}
             className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-pm-surface-soft"
@@ -51,14 +63,18 @@ function WalletMockup() {
 }
 
 function RouteMockup() {
+  const params = useParams()
+  const region = (params.region as Region) || 'us'
+  const origin = region === 'in' 
+    ? { label: 'From', code: 'DEL', city: 'Delhi' }
+    : { label: 'From', code: 'JFK', city: 'New York' }
+  const destination = { label: 'To', code: 'LHR', city: 'London' }
+  
   return (
     <div className="pm-card p-6 select-none">
       <p className="pm-label mb-4">Travel Goal</p>
       <div className="grid grid-cols-2 gap-3 mb-3">
-        {[
-          { label: 'From', code: 'JFK', city: 'New York' },
-          { label: 'To', code: 'NRT', city: 'Tokyo' },
-        ].map((loc) => (
+        {[origin, destination].map((loc) => (
           <div key={loc.label} className="bg-pm-surface-soft rounded-xl p-4">
             <p className="text-xs text-pm-ink-500 mb-1">{loc.label}</p>
             <p className="text-3xl font-bold font-mono tracking-tight text-pm-ink-900">{loc.code}</p>
@@ -83,39 +99,74 @@ function RouteMockup() {
 }
 
 function ResultsMockup() {
+  const params = useParams()
+  const region = (params.region as Region) || 'us'
+  const isIndia = region === 'in'
+  
+  const results = isIndia 
+    ? [
+        {
+          rank: 1,
+          airline: 'Air India Business',
+          cpp: '100 paise/pt',
+          pts: '85,000 pts',
+          via: 'HDFC → Air India',
+          hi: true,
+        },
+        {
+          rank: 2,
+          airline: 'Singapore Airlines',
+          cpp: '85 paise/pt',
+          pts: '90,000 pts',
+          via: 'Axis EDGE → KrisFlyer',
+          hi: false,
+        },
+        {
+          rank: 3,
+          airline: 'Taj Hotels',
+          cpp: '80 paise/pt',
+          pts: '50,000 pts',
+          via: 'HDFC → Taj InnerCircle',
+          hi: false,
+        },
+      ]
+    : [
+        {
+          rank: 1,
+          airline: 'ANA Business',
+          cpp: '4.2¢/pt',
+          pts: '85,000 pts',
+          via: 'Chase UR → ANA',
+          hi: true,
+        },
+        {
+          rank: 2,
+          airline: 'JAL Business',
+          cpp: '3.8¢/pt',
+          pts: '90,000 pts',
+          via: 'Amex MR → JAL',
+          hi: false,
+        },
+        {
+          rank: 3,
+          airline: 'United Polaris',
+          cpp: '3.1¢/pt',
+          pts: '88,000 pts',
+          via: 'United MP direct',
+          hi: false,
+        },
+      ]
+  
+  const routeLabel = isIndia ? 'DEL → LHR · Biz' : 'JFK → LHR · Biz'
+  
   return (
     <div className="pm-card p-6 select-none">
       <div className="flex items-center justify-between mb-4">
         <p className="pm-label">Best Redemptions</p>
-        <span className="text-xs text-pm-accent font-medium">JFK → NRT · Biz</span>
+        <span className="text-xs text-pm-accent font-medium">{routeLabel}</span>
       </div>
       <div className="space-y-2.5">
-        {[
-          {
-            rank: 1,
-            airline: 'ANA Business',
-            cpp: '4.2¢/pt',
-            pts: '85,000 pts',
-            via: 'Chase UR → ANA',
-            hi: true,
-          },
-          {
-            rank: 2,
-            airline: 'JAL Business',
-            cpp: '3.8¢/pt',
-            pts: '90,000 pts',
-            via: 'Amex MR → JAL',
-            hi: false,
-          },
-          {
-            rank: 3,
-            airline: 'United Polaris',
-            cpp: '3.1¢/pt',
-            pts: '88,000 pts',
-            via: 'United MP direct',
-            hi: false,
-          },
-        ].map((r) => (
+        {results.map((r) => (
           <div
             key={r.rank}
             className={`flex items-center justify-between p-3 rounded-xl ${
@@ -192,15 +243,15 @@ const HERO_COPY: Record<Region, {
     highlight: 'money',
     suffix: 'on the table.',
     subhead:
-      'PointsMax finds the redemption that gets you 3–5× more value than cash back — across all your Chase, Amex, and airline points.',
+      'PointsMax calculates the real value of your points and shows you the highest-value redemption — before you transfer.',
     trustSignal: 'Free · No signup required · Takes 30 seconds',
   },
   in: {
-    headline: 'Your points are',
+    headline: 'Your credit card points are',
     highlight: 'worth more',
     suffix: 'than you think.',
     subhead:
-      'PointsMax calculates the real value and shows you the highest-value redemption across all your programs.',
+      'PointsMax calculates the real value of your points and shows you the highest-value redemption — before you transfer.',
     trustSignal: 'Free · No signup required · Takes 30 seconds',
   },
 }

@@ -199,6 +199,30 @@ body {
   .pm-subtle {
     color: var(--pm-ink-500);
   }
+
+  /* Tool page header — handles navbar offset + subtle accent glow */
+  .pm-page-header {
+    padding-top: calc(var(--navbar-height) + 2.5rem);
+    padding-bottom: 2.5rem;
+    background: radial-gradient(
+      ellipse 100% 80% at 50% -20%,
+      rgb(var(--pm-accent-rgb) / 0.07),
+      transparent 70%
+    );
+  }
+
+  /* Glass panel — for calculator widget and modal overlays */
+  .pm-glass {
+    background: rgba(17, 27, 24, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--pm-border);
+    border-radius: 24px;
+    box-shadow: var(--pm-shadow-card);
+  }
+
+  .light .pm-glass {
+    background: rgba(255, 255, 255, 0.7);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

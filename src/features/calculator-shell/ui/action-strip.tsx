@@ -28,7 +28,7 @@ export function CalculatorActionStrip({
   )
 
   return (
-    <div className="pm-card bg-pm-surface-soft p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-pm-accent/20">
+    <div className="pm-card bg-pm-surface-soft p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-2 border-pm-accent-border">
       <div>
         <h3 className="pm-heading text-lg font-bold text-pm-ink-900">Next Steps</h3>
         <p className="pm-subtle text-sm">Convert these points into your next trip.</p>
@@ -36,7 +36,7 @@ export function CalculatorActionStrip({
       <div className="flex flex-wrap gap-3 w-full sm:w-auto">
         <button
           onClick={handlers.onBook}
-          className="pm-button flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold bg-pm-accent hover:bg-pm-accent-strong text-white rounded-xl shadow-sm transition-all"
+          className="pm-button flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold bg-pm-accent hover:bg-pm-accent-strong text-pm-bg rounded-xl shadow-sm transition-all"
         >
           Book Flight
         </button>
@@ -49,7 +49,7 @@ export function CalculatorActionStrip({
         </button>
         <button
           onClick={handlers.onAlert}
-          className="pm-button-secondary flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold border-pm-ink-300 text-pm-ink-700 hover:bg-pm-surface rounded-xl transition-all"
+          className="pm-button-secondary flex-1 sm:flex-initial px-6 py-2.5 text-sm font-bold text-pm-ink-700 hover:bg-pm-surface rounded-xl transition-all"
         >
           Alert Me
         </button>

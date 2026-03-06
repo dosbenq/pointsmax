@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
+import { ConnectedWallets } from '@/components/ConnectedWallets'
+import type { Region } from '@/lib/regions'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,24 +28,43 @@ type Preferences = {
   avoided_airlines: string[]
 }
 
-type Program = { id: string; name: string; type: string }
+type Program = { id: string; name: string; type: string; geography?: string | null }
+
+// Region detection helper - reads from localStorage (set by regional pages)
+function getStoredRegion(): Region | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const searchRegion = new URLSearchParams(window.location.search).get('region')
+    if (searchRegion === 'us' || searchRegion === 'in') return searchRegion
+    const stored = localStorage.getItem('pm_region')
+    if (stored === 'us' || stored === 'in') return stored
+  } catch {
+    // localStorage or URL access failed
+  }
+  return null
+}
 
 // Alert Subscriptions Card
-function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
+function AlertSubscriptionsCard({ userEmail, region }: { userEmail: string; region: Region }) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [email, setEmail] = useState(userEmail)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<'saved' | 'error' | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/programs')
+    setLoading(true)
+    // Region-scoped program fetch - ensures US and India programs are not mixed
+    fetch(`/api/programs?region=${encodeURIComponent(region.toUpperCase())}`)
       .then(r => r.json())
       .then((data: Program[]) => {
         const transferable = data.filter((p: Program) => p.type === 'transferable_points')
         setPrograms(transferable)
       })
-  }, [])
+      .catch(() => setPrograms([]))
+      .finally(() => setLoading(false))
+  }, [region])
 
   const toggle = (id: string) => {
     setSelectedIds(prev => {
@@ -108,11 +129,19 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
         </div>
 
         <div>
-          <label className="pm-label block mb-2">
-            Programs to Watch
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="pm-label">
+              Programs to Watch
+            </label>
+            <span className="text-xs text-pm-ink-500">
+              {region === 'in' ? '🇮🇳 India' : '🇺🇸 US'} programs
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {programs.map(p => {
+            {loading && (
+              <span className="text-xs text-pm-ink-500">Loading programs…</span>
+            )}
+            {!loading && programs.map(p => {
               const checked = selectedIds.has(p.id)
               return (
                 <button
@@ -121,7 +150,7 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
                   className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${
                     checked
                       ? 'bg-pm-accent text-pm-bg border-pm-accent'
-                      : 'bg-white text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
+                      : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
                   }`}
                 >
                   {p.name}
@@ -129,7 +158,12 @@ function AlertSubscriptionsCard({ userEmail }: { userEmail: string }) {
               )
             })}
           </div>
-          {selectedIds.size === 0 && (
+          {!loading && programs.length === 0 && (
+            <p className="text-xs text-pm-ink-500 mt-2">
+              No transferable programs available for your region.
+            </p>
+          )}
+          {!loading && selectedIds.size === 0 && programs.length > 0 && (
             <p className="text-xs text-pm-ink-500 mt-2">
               You&apos;re not watching any programs yet. Set at least one alert to get bonus notifications.
             </p>
@@ -166,6 +200,21 @@ export default function ProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  
+  // Region state - prefers explicit query parameter, then falls back to persisted selection.
+  const [region, setRegion] = useState<Region>('us')
+  
+  useEffect(() => {
+    const detected = getStoredRegion()
+    if (detected) {
+      setRegion(detected)
+      try {
+        window.localStorage.setItem('pm_region', detected)
+      } catch {
+        // Ignore localStorage failures.
+      }
+    }
+  }, [])
 
   // Auth guard
   useEffect(() => {
@@ -288,11 +337,14 @@ export default function ProfilePage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <main className="flex-1 pm-shell max-w-3xl py-12 w-full space-y-6">
-        <div>
-          <h1 className="pm-heading text-3xl tracking-tight">Profile &amp; Settings</h1>
-          <p className="pm-subtle text-sm mt-1">Manage your account and travel preferences.</p>
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Profile &amp; Settings</h1>
+          <p className="pm-subtle text-base">Manage your account and travel preferences.</p>
         </div>
+      </section>
+
+      <main className="flex-1 pm-shell max-w-3xl py-8 w-full space-y-6">
 
         <div className="pm-card p-6">
           <h2 className="pm-heading text-base mb-4">Account</h2>
@@ -349,7 +401,9 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <AlertSubscriptionsCard userEmail={user.email ?? ''} />
+        <AlertSubscriptionsCard userEmail={user.email ?? ''} region={region} />
+
+        <ConnectedWallets onManualEntry={() => router.push(`/${region}/calculator`)} />
 
         <div className="pm-card p-6">
           <div className="flex items-center justify-between mb-5">
@@ -489,7 +543,7 @@ export default function ProfilePage() {
                   onChange={(event) => setDeleteConfirm(event.target.value)}
                   placeholder="Type DELETE"
                 />
-                {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+                {deleteError && <p className="text-sm text-pm-danger">{deleteError}</p>}
               </div>
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setDeleteConfirm(''); setDeleteError(null) }}>

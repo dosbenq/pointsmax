@@ -15,13 +15,15 @@ export default function PrivacyPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <main className="pm-shell py-10 sm:py-12 w-full flex-1">
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Legal</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Privacy Policy</h1>
+          <p className="pm-subtle max-w-xl text-base">Last updated: {LAST_UPDATED}</p>
+        </div>
+      </section>
+      <main className="pm-shell py-8 w-full flex-1">
         <div className="max-w-3xl mx-auto space-y-8">
-          <header className="space-y-2">
-            <span className="pm-pill">Legal</span>
-            <h1 className="pm-heading text-3xl sm:text-4xl">Privacy Policy</h1>
-            <p className="pm-subtle text-sm">Last updated: {LAST_UPDATED}</p>
-          </header>
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">What We Collect</h2>

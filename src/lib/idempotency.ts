@@ -9,6 +9,7 @@ export type IdempotencyEntry<T> = {
   error?: string
   createdAt: number
   expiresAt: number
+  promise?: Promise<T>
 }
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
@@ -58,20 +59,35 @@ export async function withIdempotency<T>(
     logInfo('idempotency_key_hit', { key })
     return { data: existing.data as T, idempotent: true }
   }
-
-  // Mark pending so concurrent duplicate calls can detect an in-flight operation
-  store.set(key, { status: 'pending', createdAt: now, expiresAt: now + ttl })
-
-  try {
-    const data = await fn()
-    store.set(key, { status: 'completed', data, createdAt: now, expiresAt: now + ttl })
-    logInfo('idempotency_key_set', { key })
-    return { data, idempotent: false }
-  } catch (err) {
-    // Remove the pending entry so the operation is retryable
-    store.delete(key)
-    throw err
+  if (existing && existing.expiresAt > now && existing.status === 'pending' && existing.promise) {
+    logInfo('idempotency_key_hit', { key, status: 'pending' })
+    const data = (await existing.promise) as T
+    return { data, idempotent: true }
   }
+
+  const pendingPromise = (async () => {
+    try {
+      const data = await fn()
+      store.set(key, { status: 'completed', data, createdAt: now, expiresAt: now + ttl })
+      logInfo('idempotency_key_set', { key })
+      return data
+    } catch (err) {
+      // Remove the pending entry so the operation is retryable
+      store.delete(key)
+      throw err
+    }
+  })()
+
+  // Mark pending so concurrent duplicate calls reuse the same in-flight promise.
+  store.set(key, {
+    status: 'pending',
+    createdAt: now,
+    expiresAt: now + ttl,
+    promise: pendingPromise,
+  })
+
+  const data = await pendingPromise
+  return { data, idempotent: false }
 }
 
 /**

@@ -74,7 +74,7 @@ function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResul
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: result.program_color }} />
         <span className="text-pm-ink-900 font-semibold text-sm">{result.program_name}</span>
         {isTopPick && (
-          <span className="text-xs bg-pm-accent text-white px-2 py-0.5 rounded-full font-semibold">Top pick</span>
+          <span className="text-xs bg-pm-accent text-pm-bg px-2 py-0.5 rounded-full font-semibold">Top pick</span>
         )}
         {result.has_real_availability && (
           <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full">Live</span>
@@ -338,12 +338,12 @@ export default function AwardSearchPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-pm-surface-soft/50">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Fast flight search</span>
-          <h1 className="pm-heading text-3xl mb-2">Standalone Award Search</h1>
-          <p className="pm-subtle">
-            Quick check mode for power users. Search availability and transfer paths without running the full calculator.
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Award search</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find award availability</h1>
+          <p className="pm-subtle max-w-xl text-base">
+            Search availability and compare transfer paths across programs — without running the full calculator.
           </p>
         </div>
       </section>
@@ -415,7 +415,7 @@ export default function AwardSearchPage() {
                       disabled={(date) => isBefore(date, startOfToday())}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                         day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />
@@ -456,7 +456,7 @@ export default function AwardSearchPage() {
                       }}
                       initialFocus
                       classNames={{
-                        day_selected: 'bg-pm-accent text-white hover:bg-pm-accent-strong',
+                        day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
                         day_today: 'bg-pm-accent-soft text-pm-accent',
                       }}
                     />

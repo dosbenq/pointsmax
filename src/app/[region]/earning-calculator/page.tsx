@@ -98,11 +98,11 @@ export default function EarningCalculatorPage() {
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
-      <section className="border-b border-pm-border bg-[rgba(236,246,240,0.52)]">
-        <div className="pm-shell py-10">
-          <span className="pm-pill mb-3">Card strategy tools {config.flag}</span>
-          <h1 className="pm-heading text-3xl mb-2">Earning Calculator</h1>
-          <p className="pm-subtle">Enter your monthly spend to see which cards earn the most points for you.</p>
+      <section className="pm-page-header">
+        <div className="pm-shell">
+          <span className="pm-pill mb-4 inline-block">Card strategy {config.flag}</span>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Maximize your earning</h1>
+          <p className="pm-subtle max-w-xl text-base">Enter your monthly spend to see which cards earn the most points for your categories.</p>
         </div>
       </section>
 

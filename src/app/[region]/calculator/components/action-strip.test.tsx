@@ -61,13 +61,25 @@ describe('ActionStrip', () => {
     expect(shareButton).toBeDisabled()
   })
 
-  it('matches snapshot when not visible (no-result state)', () => {
-    const { asFragment } = render(<ActionStrip {...defaultProps} visible={false} />)
-    expect(asFragment()).toMatchSnapshot()
+  it('renders nothing when not visible (no-result state)', () => {
+    const { container } = render(<ActionStrip {...defaultProps} visible={false} />)
+    // Component should return null when not visible
+    expect(container.firstChild).toBeNull()
   })
 
-  it('matches snapshot when visible', () => {
-    const { asFragment } = render(<ActionStrip {...defaultProps} />)
-    expect(asFragment()).toMatchSnapshot()
+  it('renders action buttons with correct styling when visible', () => {
+    const { container } = render(<ActionStrip {...defaultProps} />)
+    const wrapper = container.firstChild as HTMLElement | null
+    // Verify container exists with expected styling
+    expect(wrapper).not.toBeNull()
+    expect(wrapper).toHaveClass('pm-card')
+    expect(wrapper).toHaveClass('border-pm-accent-border')
+    // Verify all action buttons are present
+    expect(screen.getByText('Book Flight')).toBeInTheDocument()
+    expect(screen.getByText('Share Plan')).toBeInTheDocument()
+    expect(screen.getByText('Alert Me')).toBeInTheDocument()
+    // Verify button styling
+    expect(screen.getByText('Book Flight')).toHaveClass('text-pm-bg')
+    expect(screen.getByText('Alert Me')).toHaveClass('text-pm-ink-700')
   })
 })

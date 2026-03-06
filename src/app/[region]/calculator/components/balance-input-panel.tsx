@@ -42,7 +42,7 @@ export function BalanceInputPanel({
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
           {saveToast && (
-            <span className="pm-pill text-pm-success border-pm-success/30 bg-pm-success/10">
+            <span className="pm-pill text-pm-success border-pm-success-border bg-pm-success-soft">
               ✓ Balances saved
             </span>
           )}
@@ -65,8 +65,8 @@ export function BalanceInputPanel({
           return (
             <div key={row.id} className="flex items-center gap-2.5 sm:gap-3">
               <span
-                className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-1 ring-white"
-                style={{ backgroundColor: selected?.color_hex ?? '#c7d9ce' }}
+                className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-1 ring-pm-bg"
+                style={{ backgroundColor: selected?.color_hex ?? 'var(--pm-surface-soft)' }}
               />
               <select
                 value={row.program_id}
@@ -96,7 +96,7 @@ export function BalanceInputPanel({
               {rows.length > 1 && (
                 <button
                   onClick={() => onRemoveRow(row.id)}
-                  className="w-8 h-8 rounded-lg text-pm-ink-500 hover:text-pm-danger hover:bg-red-50 transition-colors text-lg leading-none flex-shrink-0"
+                  className="w-8 h-8 rounded-lg text-pm-ink-500 hover:text-pm-danger hover:bg-pm-danger-soft transition-colors text-lg leading-none flex-shrink-0"
                   aria-label="Remove program"
                 >
                   ×
@@ -108,7 +108,7 @@ export function BalanceInputPanel({
       </div>
 
       {calcError && (
-        <div className="mx-5 sm:mx-6 mb-4 text-sm text-pm-danger bg-red-50 rounded-xl px-4 py-2 border border-pm-danger/20">
+        <div className="mx-5 sm:mx-6 mb-4 text-sm text-pm-danger bg-pm-danger-soft rounded-xl px-4 py-2 border border-pm-danger-border">
           {calcError}
         </div>
       )}
