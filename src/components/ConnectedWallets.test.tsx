@@ -24,8 +24,8 @@ describe('ConnectedWallets', () => {
       render(<ConnectedWallets />)
       
       expect(screen.getByTestId('connected-wallets-loading')).toBeInTheDocument()
-      expect(screen.getByText('Connected Wallets')).toBeInTheDocument()
-      expect(screen.getByText('Manage your linked loyalty accounts.')).toBeInTheDocument()
+      expect(screen.getByText('Wallet Sources')).toBeInTheDocument()
+      expect(screen.getByText('Manage imported and synced balance sources.')).toBeInTheDocument()
     })
 
     it('shows loading animation while fetching accounts', () => {
@@ -51,8 +51,8 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-empty')).toBeInTheDocument()
       })
       
-      expect(screen.getByText('No wallets connected yet')).toBeInTheDocument()
-      expect(screen.getByText('Connect your loyalty program accounts to automatically sync your point balances.')).toBeInTheDocument()
+      expect(screen.getByText('No balance sources added yet')).toBeInTheDocument()
+      expect(screen.getByText('Import balances from CSV or enter them manually. Live account linking is still in beta.')).toBeInTheDocument()
     })
 
     it('shows connect wallet button in empty state', async () => {
@@ -67,7 +67,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connect-wallet-btn')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Connect Wallet')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Balances')
     })
 
     it('shows manual entry button in empty state when onManualEntry provided', async () => {
@@ -350,7 +350,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-connected')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('+ Add')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Balances')
     })
 
     it('shows manual entry button in connected state when onManualEntry provided', async () => {

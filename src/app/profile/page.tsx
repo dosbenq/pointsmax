@@ -182,7 +182,7 @@ function AlertSubscriptionsCard({ userEmail, region }: { userEmail: string; regi
   )
 }
 
-export default function ProfilePage() {
+export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }) {
   const { user, userRecord, loading, signOut, refreshPreferences } = useAuth()
   const router = useRouter()
 
@@ -202,9 +202,18 @@ export default function ProfilePage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   
   // Region state - prefers explicit query parameter, then falls back to persisted selection.
-  const [region, setRegion] = useState<Region>('us')
+  const [region, setRegion] = useState<Region>(initialRegion ?? 'us')
   
   useEffect(() => {
+    if (initialRegion) {
+      try {
+        window.localStorage.setItem('pm_region', initialRegion)
+      } catch {
+        // Ignore localStorage failures.
+      }
+      setRegion(initialRegion)
+      return
+    }
     const detected = getStoredRegion()
     if (detected) {
       setRegion(detected)
@@ -214,7 +223,7 @@ export default function ProfilePage() {
         // Ignore localStorage failures.
       }
     }
-  }, [])
+  }, [initialRegion])
 
   // Auth guard
   useEffect(() => {
@@ -567,4 +576,8 @@ export default function ProfilePage() {
       <Footer />
     </div>
   )
+}
+
+export default function ProfilePage() {
+  return <ProfilePageContent />
 }
