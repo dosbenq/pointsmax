@@ -51,9 +51,18 @@ export default function NavBar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('pm_region', region)
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [region])
+
   // Flattened nav links (tools moved to main nav)
   const navLinks = useMemo(() => ([
     { href: `/${region}/calculator`, label: 'Calculator' },
+    { href: `/${region}/earning-calculator`, label: 'Earning Calculator' },
     { href: `/${region}/award-search`, label: 'Award Search' },
     { href: `/${region}/inspire`, label: 'Inspire' },
     { href: `/${region}/trip-builder`, label: 'Trip Builder' },
@@ -134,7 +143,7 @@ export default function NavBar() {
                   <div className="absolute right-0 top-full mt-2 w-56 pm-card p-2 shadow-2xl">
                     <p className="px-3 py-2 text-xs text-pm-ink-500 border-b border-pm-border truncate">{user.email}</p>
                     <Link
-                      href="/profile"
+                      href={`/profile?region=${region}`}
                       onClick={() => setAccountOpen(false)}
                       className="block px-3 py-2 text-sm rounded-lg hover:bg-pm-surface-soft text-pm-ink-900"
                     >
@@ -200,7 +209,7 @@ export default function NavBar() {
               ) : user ? (
                 <>
                   <Link
-                    href="/profile"
+                    href={`/profile?region=${region}`}
                     onClick={() => setMenuOpen(false)}
                     className="block rounded-xl px-3 py-3 text-sm font-medium text-pm-ink-700 hover:bg-pm-surface-soft"
                   >
