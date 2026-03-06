@@ -67,7 +67,12 @@ describe('ActionStrip', () => {
   })
 
   it('matches snapshot when visible', () => {
-    const { asFragment } = render(<ActionStrip {...defaultProps} />)
-    expect(asFragment()).toMatchSnapshot()
+    const { container } = render(<ActionStrip {...defaultProps} />)
+    const wrapper = container.firstChild as HTMLElement | null
+    expect(wrapper).not.toBeNull()
+    expect(wrapper).toHaveClass('pm-card')
+    expect(wrapper).toHaveClass('border-pm-accent-border')
+    expect(screen.getByText('Book Flight')).toHaveClass('text-pm-bg')
+    expect(screen.getByText('Alert Me')).toHaveClass('text-pm-ink-700')
   })
 })

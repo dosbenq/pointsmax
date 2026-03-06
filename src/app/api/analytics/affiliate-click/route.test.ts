@@ -114,6 +114,7 @@ describe('POST /api/analytics/affiliate-click', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.ok).toBe(true)
+    expect(body.tracked).toBe(true)
 
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -123,5 +124,55 @@ describe('POST /api/analytics/affiliate-click', () => {
         region: 'us',
       })
     )
+  })
+
+  it('returns redirect_url even when tracking insert fails', async () => {
+    const insertMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } })
+    const dbClient = {
+      from: vi.fn((table) => {
+        if (table === 'cards') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'card-123', apply_url: 'https://bank.com/apply' },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }
+        }
+        if (table === 'affiliate_clicks') {
+          return {
+            insert: insertMock,
+          }
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+            }),
+          }),
+        }
+      }),
+    }
+    createAdminClientMock.mockReturnValue(dbClient)
+
+    const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
+      method: 'POST',
+      body: JSON.stringify({
+        card_id: 'card-123',
+        source_page: 'recommender',
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+    expect(body.tracked).toBe(false)
+    expect(body.redirect_url).toBe('https://bank.com/apply')
   })
 })
