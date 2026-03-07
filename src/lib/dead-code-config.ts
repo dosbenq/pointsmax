@@ -33,8 +33,8 @@ export const CODE_REVIEW_QUEUE = {
     {
       file: 'src/lib/cpp-fallback.ts',
       description: 'Legacy India CPP normalization (rupees to paise)',
-      removeAfter: '2026-04-01',
-      condition: 'When all India valuations use paise consistently',
+      removeAfter: '2026-03-07',
+      condition: 'Resolved by migration 033_normalize_india_cpp_units.sql',
     },
   ],
 

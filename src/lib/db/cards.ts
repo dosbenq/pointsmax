@@ -62,15 +62,6 @@ export function normalizeGeography(value: string | null): Geography {
 }
 
 /**
- * Normalize CPP cents for India cards (handles paise vs cents conversion)
- * Backward compatibility: old India seeds used rupees-per-point, while the app expects minor units.
- */
-export function normalizeCardCppCents(cppCents: number, currency: 'USD' | 'INR'): number {
-  if (currency === 'INR' && cppCents <= 5) return cppCents * 100
-  return cppCents
-}
-
-/**
  * Fetch all active cards with earning rates and valuations for a geography
  */
 export async function getActiveCards(geography: Geography): Promise<CardWithRates[]> {
@@ -148,8 +139,6 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
     const val = valuationByProgram.get(card.program_id)
     const currency = card.currency === 'INR' ? 'INR' : 'USD'
     const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-    const normalizedCppCents = normalizeCardCppCents(resolvedCppCents, currency)
-
     const cardRates = ratesByCard.get(card.id) ?? { ...defaultRates }
     if (!Number.isFinite(cardRates.shopping) || cardRates.shopping <= 0) {
       cardRates.shopping = cardRates.other
@@ -166,7 +155,7 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
       image_url: typeof card.image_url === 'string' ? card.image_url : null,
       program_name: val?.program_name ?? 'Unknown',
       program_slug: val?.program_slug ?? '',
-      cpp_cents: normalizedCppCents,
+      cpp_cents: resolvedCppCents,
       earning_rates: cardRates,
     }
   })
@@ -210,8 +199,6 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
 
   const currency = card.currency === 'INR' ? 'INR' : 'USD'
   const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-  const normalizedCppCents = normalizeCardCppCents(resolvedCppCents, currency)
-
   const cardRates: Record<SpendCategory, number> = { ...defaultRates }
   for (const rate of rates) {
     const category = rate.category as SpendCategory
@@ -234,7 +221,7 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
     image_url: typeof card.image_url === 'string' ? card.image_url : null,
     program_name: val?.program_name ?? 'Unknown',
     program_slug: val?.program_slug ?? '',
-    cpp_cents: normalizedCppCents,
+    cpp_cents: resolvedCppCents,
     earning_rates: cardRates,
   }
 }
