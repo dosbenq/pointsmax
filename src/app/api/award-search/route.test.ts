@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import * as awardSearch from '@/lib/award-search'
 import type { AwardProvider } from '@/lib/award-search'
+import { createServerDbClient } from '@/lib/supabase'
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-anon-key'
@@ -91,6 +92,15 @@ function makeValidBody() {
 describe('POST /api/award-search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(createServerDbClient).mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      then: vi.fn().mockImplementation((onFulfilled: (value: unknown) => unknown) => {
+        return Promise.resolve({ data: [] }).then(onFulfilled)
+      }),
+    } as never)
   })
 
   describe('Validation', () => {
@@ -219,6 +229,31 @@ describe('POST /api/award-search', () => {
       expect(body.params.destination).toBe('LHR')
       expect(Array.isArray(body.results)).toBe(true)
       expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    })
+
+    it('includes a Delta warning when a Delta balance is in the wallet', async () => {
+      vi.mocked(createServerDbClient).mockReturnValue({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            in: vi.fn(async () => ({
+              data: [{ id: validBalance.program_id, slug: 'delta' }],
+            })),
+          })),
+        })),
+      } as never)
+
+      vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
+        name: 'seats_aero',
+        search: vi.fn().mockResolvedValue([]),
+      } as unknown as AwardProvider)
+
+      const res = await POST(makeRequest(makeValidBody()))
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.warnings).toContain(
+        'Delta SkyMiles uses dynamic pricing, so PointsMax does not show static Delta estimates. Check delta.com directly for live pricing.',
+      )
     })
   })
 

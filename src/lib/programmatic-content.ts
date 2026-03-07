@@ -2,6 +2,7 @@ import { createServerDbClient } from '@/lib/supabase'
 import { yearlyPointsFromSpend } from '@/lib/card-tools'
 import type { Region } from '@/lib/regions'
 import type { SpendCategory } from '@/types/database'
+import { resolveCppCents } from '@/lib/cpp-fallback'
 import { unstable_cache } from 'next/cache'
 
 type ProgramRow = {
@@ -37,6 +38,10 @@ type EarningRateRow = {
 type ValuationRow = {
   program_id: string
   cpp_cents: number
+}
+
+export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
+  return resolveCppCents(cppCents, programType)
 }
 
 export type ProgrammaticCard = CardRow & {
@@ -153,7 +158,10 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
     ...card,
     slug: slugByCardId.get(card.id) ?? slugifyCardName(card.name),
     program: programById.get(card.program_id) ?? null,
-    cpp_cents: valuationByProgramId.get(card.program_id) ?? 1,
+    cpp_cents: resolveProgrammaticCppCents(
+      valuationByProgramId.get(card.program_id),
+      programById.get(card.program_id)?.type,
+    ),
     earning_rates: ratesByCardId.get(card.id) ?? [],
   }))
 }
@@ -259,7 +267,10 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
       slug: program.slug,
       type: program.type,
       geography: program.geography,
-      cpp_cents: valuationByProgramId.get(program.id) ?? 1,
+      cpp_cents: resolveProgrammaticCppCents(
+        valuationByProgramId.get(program.id),
+        program.type,
+      ),
       earning_cards: cardsByProgramId.get(program.id) ?? [],
       transfer_out: transferOut,
       transfer_in: transferIn,

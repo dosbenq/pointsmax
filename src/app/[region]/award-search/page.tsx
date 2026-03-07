@@ -299,6 +299,7 @@ export default function AwardSearchPage() {
   const unreachable = useMemo(() => result?.results.filter((r) => !r.is_reachable) ?? [], [result])
   const topSlug = narrative?.top_pick_slug ?? result?.ai_narrative?.top_pick_slug
   const estimatesOnly = result?.error === 'real_availability_unavailable'
+  const searchWarnings = result?.warnings ?? []
 
   const saveWatch = async () => {
     if (!result || !user) return
@@ -668,6 +669,16 @@ export default function AwardSearchPage() {
                     <p className="text-sm text-pm-warning">
                       {result.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
                     </p>
+                  </div>
+                )}
+
+                {searchWarnings.length > 0 && (
+                  <div className="space-y-2">
+                    {searchWarnings.map((warning) => (
+                      <div key={warning} className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                        <p className="text-sm text-sky-900">{warning}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
 

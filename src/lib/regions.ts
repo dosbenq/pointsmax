@@ -26,6 +26,7 @@ export const REGIONS: Record<Region, RegionConfig> = {
       groceries: '600',
       travel: '1500',
       gas: '150',
+      shopping: '500',
       streaming: '100',
       other: '2000',
     },

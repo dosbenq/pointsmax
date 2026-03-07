@@ -390,6 +390,7 @@ const AWARD_CHARTS: Record<string, RegionRates> = {
   },
 }
 
+// Delta uses dynamic pricing, so static chart estimates are intentionally unavailable.
 const DYNAMIC_AWARD_PROGRAMS = new Set(['delta'])
 
 // ── Public API ────────────────────────────────────────────────

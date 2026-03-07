@@ -62,6 +62,7 @@ export interface AwardSearchResponse {
   params: AwardSearchParams
   results: AwardSearchResult[]
   ai_narrative: AwardNarrative | null
+  warnings?: string[]
   searched_at: string
   error?: 'real_availability_unavailable'
   message?: string
