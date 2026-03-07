@@ -6,6 +6,7 @@ import { getRequestId, logError, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { type Region } from '@/lib/regions'
 import { getBookingUrlsForPrompt } from '@/lib/booking-urls'
+import { getSafeAppOrigin } from '@/lib/app-origin'
 import { logAiMetric } from '@/lib/telemetry'
 import {
   generateAiCacheKey,
@@ -87,18 +88,6 @@ const MAX_BODY_BYTES = 64_000
 const MAX_MESSAGE_CHARS = 2_000
 const MAX_HISTORY_ITEMS = 24
 const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes for recommendations
-
-function getSafeAppUrl(): string {
-  const fallback = 'https://pointsmax.com'
-  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
-  try {
-    const parsed = new URL(raw)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
-    return parsed.origin
-  } catch {
-    return fallback
-  }
-}
 
 function normalizeRegion(value: unknown): RegionCode {
   return value === 'in' ? 'in' : 'us'
@@ -205,7 +194,11 @@ async function fetchProgramContext(
   return [...selected.values()]
 }
 
-function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext): AiSafeModeResponse {
+function buildSafeModeResponse(
+  topResults: TopResult[],
+  regionCtx: RegionContext,
+  appOrigin: string,
+): AiSafeModeResponse {
   const best = topResults[0]
   const bestValue = best
     ? formatMinorCurrency(best.total_value_cents, regionCtx)
@@ -242,7 +235,7 @@ function buildSafeModeResponse(topResults: TopResult[], regionCtx: RegionContext
         'Ask the AI advisor again once you have a specific goal in mind.',
       ],
     tip: 'Never transfer points speculatively. Confirm availability first.',
-    links: [{ label: 'Open calculator', url: `${getSafeAppUrl()}/${regionCtx.code}/calculator` }],
+    links: [{ label: 'Open calculator', url: `${appOrigin}/${regionCtx.code}/calculator` }],
     metadata: {
       freshness: new Date().toISOString(),
       source: 'PointsMax Safe Mode (Deterministic Fallback)',
@@ -328,6 +321,7 @@ function toTopResults(value: unknown): TopResult[] {
 // Streams back a JSON string the client accumulates then parses
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
+  const appOrigin = getSafeAppOrigin(req.nextUrl.origin)
   const startedAt = Date.now()
 
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
@@ -465,7 +459,7 @@ export async function POST(req: NextRequest) {
       reason: geminiDisabled ? 'gemini_disabled' : 'missing_api_key',
       latency_ms: Date.now() - startedAt,
     })
-    return new Response(JSON.stringify(buildSafeModeResponse(topResults, regionCtx)), {
+    return new Response(JSON.stringify(buildSafeModeResponse(topResults, regionCtx, appOrigin)), {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'X-PointsMax-Cache': 'MISS',
@@ -731,7 +725,7 @@ Set flight or hotel to null if not relevant. Include 2-4 links.`
         }
 
         // Return deterministic safe-mode response on provider failure or open circuit
-        const fallback = buildSafeModeResponse(topResults, regionCtx)
+        const fallback = buildSafeModeResponse(topResults, regionCtx, appOrigin)
         controller.enqueue(encoder.encode(JSON.stringify(fallback)))
         controller.close()
         return

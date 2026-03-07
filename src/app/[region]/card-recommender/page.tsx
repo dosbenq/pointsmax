@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -10,6 +11,7 @@ import {
   formatCurrencyRounded,
   getCategoriesForRegion,
   spendInputPrefix,
+  yearlyPointsFromSpend,
 } from '@/lib/card-tools'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
@@ -42,9 +44,11 @@ function safeApplyUrl(url: string | null | undefined): string | null {
 
 export default function CardRecommenderPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const regionCode = (params.region as Region) || 'us'
   const config = REGIONS[regionCode]
   const reduceMotion = useReducedMotion()
+  const initialView = searchParams.get('view') === 'earnings' ? 'earnings' : 'strategy'
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -57,7 +61,8 @@ export default function CardRecommenderPage() {
   const [targetPointsGoal, setTargetPointsGoal] = useState('')
   const [walletBalances, setWalletBalances] = useState<WalletBalanceSummary[]>([])
   const [walletLoaded, setWalletLoaded] = useState(false)
-  const [showResults, setShowResults] = useState(false)
+  const [showResults, setShowResults] = useState(initialView === 'earnings')
+  const [activeView, setActiveView] = useState<'strategy' | 'earnings'>(initialView)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
   const categories = getCategoriesForRegion(regionCode)
 
@@ -65,6 +70,15 @@ export default function CardRecommenderPage() {
   useEffect(() => {
     setSpend(config.defaultSpend as SpendInputs)
   }, [config.defaultSpend])
+
+  useEffect(() => {
+    const nextView = searchParams.get('view') === 'earnings' ? 'earnings' : 'strategy'
+    setActiveView(nextView)
+    if (nextView === 'earnings') {
+      setMode('long_term_value')
+      setShowResults(true)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetch(`/api/cards?geography=${encodeURIComponent(regionCode.toUpperCase())}`)
@@ -156,6 +170,27 @@ export default function CardRecommenderPage() {
   })
   const visibleResults = results.filter(result => result.status !== 'ineligible')
   const blockedResults = results.filter(result => result.status === 'ineligible')
+  const spendOnlyResults = useMemo(() => {
+    return cards
+      .map(card => {
+        const pointsPerYear = categories.reduce((sum, { key }) => {
+          const monthly = Number.parseFloat((spend[key] ?? '0').replace(/,/g, '')) || 0
+          const multiplier = key === 'shopping'
+            ? (card.earning_rates.shopping ?? card.earning_rates.other ?? 1)
+            : (card.earning_rates[key] ?? card.earning_rates.other ?? 1)
+          return sum + yearlyPointsFromSpend({
+            monthlySpend: monthly,
+            earnMultiplier: multiplier,
+            earnUnit: card.earn_unit,
+          })
+        }, 0)
+        const annualValue = (pointsPerYear * card.cpp_cents) / 100
+        const netValue = annualValue - card.annual_fee_usd
+        return { card, pointsPerYear, annualValue, netValue }
+      })
+      .sort((a, b) => b.netValue - a.netValue)
+      .slice(0, 5)
+  }, [cards, categories, spend])
 
   const handleApplyClick = async (
     card: CardWithRates,
@@ -221,16 +256,95 @@ export default function CardRecommenderPage() {
 
       <section className="pm-page-header">
         <div className="pm-shell">
-          <span className="pm-pill mb-4 inline-block">Card strategy {config.flag}</span>
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find your next card</h1>
-          <p className="pm-subtle max-w-xl text-base">Tell us how you spend and where you want to go — we&apos;ll rank the best cards for your wallet.</p>
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div>
+              <span className="inline-flex rounded-full border border-[#9fc6ff]/18 bg-[#5ac7d4]/10 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d6e4f7]/82">
+                Card strategy {config.flag}
+              </span>
+              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4f8ff] sm:text-[4.5rem]">
+                Decide what card should come next.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#dce8f8]/86">
+                The recommender now scores cards with wallet context, travel goals, annual-fee tolerance, and issuer-rule signals instead of generic category math.
+              </p>
+            </div>
+
+            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4f8ff]">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c6d9f4]/78">Strategy snapshot</p>
+              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+                <p className="text-lg font-semibold leading-8 tracking-[-0.03em]">
+                  {mode === 'next_best_card' ? 'Best next card' : 'Best long-term value'} · {travelGoals.size} goal{travelGoals.size === 1 ? '' : 's'}
+                </p>
+                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Tracked balances</span>
+                    <span className="font-semibold">{trackedPrograms.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Owned cards excluded</span>
+                    <span className="font-semibold">{ownedCards.size}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">24-month recent opens</span>
+                    <span className="font-semibold">{recentOpenAccounts24m || '0'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <main className="pm-shell py-8 w-full space-y-6 flex-1">
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+        <div className="pm-card p-5">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveView('strategy')}
+              className={`flex-1 min-w-[220px] rounded-[24px] border px-4 py-4 text-left transition-colors ${
+                activeView === 'strategy'
+                  ? 'border-pm-accent-border bg-pm-accent-soft'
+                  : 'border-pm-border bg-pm-surface-soft hover:border-pm-accent-border'
+              }`}
+            >
+              <p className="text-sm font-semibold text-pm-ink-900">Next card decision</p>
+              <p className="mt-1 text-xs leading-6 text-pm-ink-700">
+                Choose the best next card using wallet context, goals, and issuer rules.
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveView('earnings')
+                setMode('long_term_value')
+                setShowResults(true)
+              }}
+              className={`flex-1 min-w-[220px] rounded-[24px] border px-4 py-4 text-left transition-colors ${
+                activeView === 'earnings'
+                  ? 'border-pm-accent-border bg-pm-accent-soft'
+                  : 'border-pm-border bg-pm-surface-soft hover:border-pm-accent-border'
+              }`}
+            >
+              <p className="text-sm font-semibold text-pm-ink-900">Pure earnings view</p>
+              <p className="mt-1 text-xs leading-6 text-pm-ink-700">
+                Rank cards only by your current spending pattern and net annual value.
+              </p>
+            </button>
+          </div>
+        </div>
 
         <div className="pm-card-soft p-6">
-          <h2 className="pm-heading text-lg mb-4">Monthly Spending ({config.id.toUpperCase()})</h2>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <p className="pm-section-title mb-2">Spend profile</p>
+              <h2 className="pm-heading text-lg">Monthly spending ({config.id.toUpperCase()})</h2>
+            </div>
+            <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
+              Intake
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {categories.map(({ key, label, icon }) => (
               <div key={key}>
@@ -254,7 +368,8 @@ export default function CardRecommenderPage() {
         </div>
 
         <div className="pm-card p-6">
-          <h2 className="pm-heading text-lg mb-1">Travel Goals</h2>
+          <p className="pm-section-title mb-2">Intent</p>
+          <h2 className="pm-heading text-lg mb-1">Travel goals</h2>
           <p className="text-xs text-pm-ink-500 mb-4">Select all that apply. We&apos;ll boost cards that best match your goals.</p>
           <div className="flex flex-wrap gap-2">
             {TRAVEL_GOALS.map(goal => {
@@ -278,7 +393,8 @@ export default function CardRecommenderPage() {
 
         <div className="pm-card p-6 space-y-5">
           <div>
-            <h2 className="pm-heading text-lg mb-1">Recommendation Strategy</h2>
+            <p className="pm-section-title mb-2">Scoring model</p>
+            <h2 className="pm-heading text-lg mb-1">Recommendation strategy</h2>
             <p className="text-xs text-pm-ink-500 mb-3">Pick the decision mode first. V2 uses a different scoring model for “best next card” versus long-term keeper value.</p>
             <div className="flex flex-wrap gap-2">
               {[
@@ -389,7 +505,8 @@ export default function CardRecommenderPage() {
 
         {!loading && (
           <div className="pm-card p-6">
-            <h2 className="pm-heading text-lg mb-1">Cards You Already Have</h2>
+            <p className="pm-section-title mb-2">Portfolio</p>
+            <h2 className="pm-heading text-lg mb-1">Cards you already have</h2>
             <p className="text-xs text-pm-ink-500 mb-4">Use this to stop V2 from recommending a card you already hold. Those cards will move into the “not recommended right now” section.</p>
             <div className="flex flex-wrap gap-2">
               {cards.map(card => {
@@ -411,25 +528,121 @@ export default function CardRecommenderPage() {
             </div>
           </div>
         )}
+          </div>
 
-        <button
-          onClick={() => setShowResults(true)}
-          disabled={loading || !!loadError}
-          className="pm-button w-full"
-        >
-          Run Recommender V2 →
-        </button>
+          <aside className="lg:col-span-4">
+            <div className="pm-card sticky top-[calc(var(--navbar-height)+1.5rem)] p-6">
+              <p className="pm-section-title mb-3">How to use this page</p>
+              <div className="space-y-4">
+                {[
+                  ['Describe spend', 'Keep the spending profile directional, not perfect.'],
+                  ['Set intent and constraints', 'Goals, annual-fee posture, and recent applications shape the shortlist.'],
+                  ['Run one recommendation pass', 'The page should surface one best next move before the alternatives.'],
+                ].map(([title, body]) => (
+                  <div key={title} className="rounded-[22px] bg-pm-surface-soft p-4">
+                    <p className="text-sm font-semibold text-pm-ink-900">{title}</p>
+                    <p className="mt-1 text-xs leading-6 text-pm-ink-700">{body}</p>
+                  </div>
+                ))}
+              </div>
 
-        {loadError && (
-          <div className="pm-card p-4 border border-pm-danger-border bg-pm-danger-soft">
-            <p className="text-sm text-pm-danger">{loadError}</p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-2 text-sm text-pm-danger underline underline-offset-4"
-            >
-              Try again
-            </button>
+              <div className="mt-5 rounded-[22px] border border-pm-border bg-pm-premium-soft px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pm-ink-500">Current inputs</p>
+                <div className="mt-3 space-y-2 text-sm text-pm-ink-700">
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Goals selected</span>
+                    <span className="font-semibold">{travelGoals.size}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Wallet balances</span>
+                    <span className="font-semibold">{trackedPrograms.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Fee posture</span>
+                    <span className="font-semibold capitalize">{annualFeeTolerance}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowResults(true)}
+                disabled={loading || !!loadError}
+                className="pm-button mt-5 w-full"
+              >
+                {activeView === 'earnings' ? 'Refresh spend ranking' : 'Run recommender'}
+              </button>
+
+              <Link
+                href={`/${regionCode}/card-recommender?view=earnings`}
+                className="mt-3 inline-flex text-sm font-medium text-pm-accent hover:underline underline-offset-4"
+              >
+                Open spend-only earnings view
+              </Link>
+
+              {loadError && (
+                <div className="mt-4 rounded-[22px] border border-pm-danger-border bg-pm-danger-soft p-4">
+                  <p className="text-sm text-pm-danger">{loadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-sm text-pm-danger underline underline-offset-4"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+
+        {activeView === 'earnings' && spendOnlyResults.length > 0 && (
+          <div className="pm-card-soft overflow-hidden" id="earnings-view">
+            <div className="flex items-center justify-between gap-3 border-b border-pm-border px-6 py-4">
+              <div>
+                <h2 className="pm-heading text-lg">Spend-only leaderboard</h2>
+                <p className="text-xs text-pm-ink-500">
+                  This replaces the old earning calculator. It ranks cards using only your spend mix and annual fee impact.
+                </p>
+              </div>
+              <Link
+                href={`/${regionCode}/card-recommender`}
+                className="text-sm font-medium text-pm-accent hover:underline underline-offset-4"
+              >
+                Back to full strategy
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-pm-border text-xs uppercase tracking-[0.16em] text-pm-ink-500">
+                    <th className="px-6 py-3 text-left font-semibold">Card</th>
+                    <th className="px-4 py-3 text-right font-semibold">Annual points</th>
+                    <th className="px-4 py-3 text-right font-semibold">Annual value</th>
+                    <th className="px-6 py-3 text-right font-semibold">Net value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {spendOnlyResults.map(({ card, pointsPerYear, annualValue, netValue }, index) => (
+                    <tr key={card.id} className={`border-b border-pm-border/70 last:border-0 ${index === 0 ? 'bg-pm-surface-soft' : ''}`}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-pm-ink-500">#{index + 1}</span>
+                          <div>
+                            <p className="font-semibold text-pm-ink-900">{card.name}</p>
+                            <p className="text-xs text-pm-ink-500">{card.program_name}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right tabular-nums text-pm-ink-900">{Math.round(pointsPerYear).toLocaleString()}</td>
+                      <td className="px-4 py-4 text-right tabular-nums text-pm-ink-900">{formatCurrencyRounded(annualValue, card.currency)}</td>
+                      <td className={`px-6 py-4 text-right tabular-nums font-semibold ${netValue >= 0 ? 'text-pm-success' : 'text-pm-danger'}`}>
+                        {netValue >= 0 ? '+' : ''}{formatCurrencyRounded(netValue, card.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

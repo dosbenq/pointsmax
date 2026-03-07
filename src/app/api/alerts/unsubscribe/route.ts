@@ -6,18 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { verifyUnsubscribeToken } from '@/lib/alerts-token'
-
-function getSafeAppUrl(): string {
-  const fallback = 'https://pointsmax.com'
-  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
-  try {
-    const parsed = new URL(raw)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
-    return parsed.origin
-  } catch {
-    return fallback
-  }
-}
+import { getSafeAppOrigin } from '@/lib/app-origin'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
@@ -43,7 +32,7 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const homeUrl = new URL('/', getSafeAppUrl()).toString()
+  const homeUrl = new URL('/', getSafeAppOrigin(req.nextUrl.origin)).toString()
 
   return new NextResponse(
     `<!DOCTYPE html>

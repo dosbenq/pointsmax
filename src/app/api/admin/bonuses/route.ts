@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { createAdminClient } from '@/lib/supabase'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
@@ -17,21 +18,6 @@ type PartnerRow = {
 type BonusRow = {
   transfer_partner_id: string
   [key: string]: unknown
-}
-
-function getSafeAppUrl(): string {
-  const fallback =
-    process.env.NODE_ENV === 'production'
-      ? 'https://pointsmax.com'
-      : 'http://localhost:3000'
-  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
-  try {
-    const parsed = new URL(raw)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
-    return parsed.origin
-  } catch {
-    return fallback
-  }
 }
 
 export async function GET(req: Request) {
@@ -123,7 +109,7 @@ export async function POST(request: Request) {
   const today = new Date().toISOString().split('T')[0]
   if (start_date === today) {
     const secret = process.env.CRON_SECRET
-    const appUrl = getSafeAppUrl()
+    const appUrl = getConfiguredAppOrigin()
     if (secret) {
       fetch(`${appUrl}/api/cron/send-bonus-alerts`, {
         headers: { Authorization: `Bearer ${secret}` },

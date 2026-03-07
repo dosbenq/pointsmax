@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { createServerDbClient } from '@/lib/supabase'
 import { slugifyCardName } from '@/lib/programmatic-content'
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
+const BASE_URL = getConfiguredAppOrigin()
 
 const REGIONS = ['us', 'in'] as const
 
@@ -33,15 +34,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     '',
     'calculator',
-    'award-search',
-    'inspire',
-    'trip-builder',
     'card-recommender',
-    'earning-calculator',
     'how-it-works',
     'pricing',
-    'cards',
-    'programs',
   ]
 
   const items: MetadataRoute.Sitemap = [

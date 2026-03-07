@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import NavBar from '@/components/NavBar'
@@ -202,6 +203,33 @@ export default function TripBuilderPage() {
   const updateRow = (id: string, field: 'program_id' | 'amount', value: string) =>
     setRows(p => p.map(r => r.id === id ? { ...r, [field]: value } : r))
 
+  const activeBalanceCount = useMemo(
+    () => rows.filter((row) => row.program_id && parsePointsAmount(row.amount) > 0).length,
+    [rows],
+  )
+
+  const trackedPointsTotal = useMemo(
+    () =>
+      rows.reduce((total, row) => {
+        const amount = parsePointsAmount(row.amount)
+        return Number.isFinite(amount) && amount > 0 ? total + amount : total
+      }, 0),
+    [rows],
+  )
+
+  const searchWindowLabel = useMemo(() => {
+    if (dateMode === 'flexible_month') {
+      return `Flexible across ${formatMonthYear(flexMonth)}`
+    }
+    if (tripType === 'one_way') {
+      return departDate || 'Choose a departure date'
+    }
+    if (departDate && returnDate) {
+      return `${departDate} → ${returnDate}`
+    }
+    return 'Choose travel dates'
+  }, [dateMode, flexMonth, tripType, departDate, returnDate])
+
   const buildPlan = async () => {
     setError(null)
 
@@ -291,9 +319,48 @@ export default function TripBuilderPage() {
 
       <section className="pm-page-header">
         <div className="pm-shell">
-          <span className="pm-pill mb-4 inline-block">Trip planning {config.flag}</span>
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Build your trip plan</h1>
-          <p className="pm-subtle max-w-xl text-base">Get a full AI-powered redemption plan — flights, hotel, and step-by-step booking guide.</p>
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div>
+              <span className="inline-flex rounded-full border border-[#9fc6ff]/18 bg-[#5ac7d4]/10 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d6e4f7]/82">
+                Planner subflow {config.flag}
+              </span>
+              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4f8ff] sm:text-[4.5rem]">
+                Build the booking path, not just the idea.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#dce8f8]/86">
+                Use this once Planner has already narrowed the opportunity. Trip Builder turns a route and wallet into a concrete booking sequence.
+              </p>
+              <Link
+                href={`/${region}/calculator`}
+                className="mt-5 inline-flex items-center text-sm font-semibold text-[#eefcff]/92 underline underline-offset-4"
+              >
+                Back to Planner
+              </Link>
+            </div>
+
+            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4f8ff]">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c6d9f4]/78">Draft summary</p>
+              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+                <p className="text-lg font-semibold leading-8 tracking-[-0.03em]">
+                  {origin || 'Origin'} → {dest || 'Destination'} · {tripType === 'one_way' ? 'One way' : 'Round trip'}
+                </p>
+                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Search window</span>
+                    <span className="font-semibold text-right">{searchWindowLabel}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Wallet balances</span>
+                    <span className="font-semibold">{activeBalanceCount || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Tracked points</span>
+                    <span className="font-semibold">{trackedPointsTotal > 0 ? trackedPointsTotal.toLocaleString() : '—'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -301,11 +368,20 @@ export default function TripBuilderPage() {
 
         {/* ── FORM STATE ─────────────────────────────────────── */}
         {uiState === 'form' && (
-          <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-8">
 
             {/* Destination & IATA */}
             <div className="pm-card-soft p-6 space-y-4">
-              <h2 className="pm-heading">Trip Details</h2>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="pm-section-title mb-2">Trip brief</p>
+                  <h2 className="pm-heading">Define the route and travel window</h2>
+                </div>
+                <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
+                  Step 1
+                </div>
+              </div>
 
               <div>
                 <label className="pm-label block mb-1.5">
@@ -576,7 +652,8 @@ export default function TripBuilderPage() {
             <div className="pm-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="pm-heading">Your Points Balances</h2>
+                  <p className="pm-section-title mb-2">Wallet</p>
+                  <h2 className="pm-heading">Balances you want this plan to use</h2>
                   {!user && (
                     <p className="text-xs text-pm-ink-500 mt-0.5">Sign in to auto-load your saved balances</p>
                   )}
@@ -638,12 +715,68 @@ export default function TripBuilderPage() {
               </div>
             )}
 
-            <button
-              onClick={buildPlan}
-              className="pm-button w-full py-4 rounded-2xl"
-            >
-              Build My Trip Plan ✈️
-            </button>
+            <div className="rounded-[22px] border border-pm-border bg-pm-surface-soft px-5 py-4">
+              <p className="text-sm font-semibold text-pm-ink-900">When this page works best</p>
+              <p className="mt-1 text-sm leading-7 text-pm-ink-700">
+                Use Trip Builder once Planner has already told you the trip is worth pursuing. It should turn a destination idea into a booking sequence, not just show a list of options.
+              </p>
+            </div>
+            </div>
+
+            <aside className="lg:col-span-4">
+              <div className="pm-card sticky top-[calc(var(--navbar-height)+1.5rem)] p-6">
+                <p className="pm-section-title mb-3">Before you build</p>
+                <div className="space-y-4">
+                  {[
+                    ['Return from Planner', 'Use Planner for the broad ranking. Use this page for the exact trip build-out.'],
+                    ['Flight shortlist', 'Top reachable award programs ranked for your route.'],
+                    ['Hotel path', 'A suggested loyalty plan for the stay portion of the trip.'],
+                    ['Booking sequence', 'Step-by-step actions so the next move is obvious.'],
+                  ].map(([title, body]) => (
+                    <div key={title} className="rounded-[22px] bg-pm-surface-soft p-4">
+                      <p className="text-sm font-semibold text-pm-ink-900">{title}</p>
+                      <p className="mt-1 text-xs leading-6 text-pm-ink-700">{body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-[22px] border border-pm-border bg-pm-premium-soft px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pm-ink-500">Trip readiness</p>
+                  <div className="mt-3 space-y-2 text-sm text-pm-ink-700">
+                    <div className="flex items-center justify-between gap-4">
+                      <span>Search window</span>
+                      <span className="font-semibold text-right">{searchWindowLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span>Active balances</span>
+                      <span className="font-semibold">{activeBalanceCount}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span>Tracked points</span>
+                      <span className="font-semibold">{trackedPointsTotal > 0 ? trackedPointsTotal.toLocaleString() : '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={buildPlan}
+                  className="pm-button mt-5 w-full py-3"
+                >
+                  Build trip plan
+                </button>
+
+                <Link
+                  href={`/${region}/calculator`}
+                  className="mt-3 inline-flex text-sm font-medium text-pm-accent hover:underline underline-offset-4"
+                >
+                  Open Planner instead
+                </Link>
+
+                <p className="mt-3 text-xs leading-6 text-pm-ink-500">
+                  If the dates or balances are weak, the output should make that obvious instead of pretending certainty.
+                </p>
+              </div>
+            </aside>
           </div>
         )}
 

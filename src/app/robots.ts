@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
+const BASE_URL = getConfiguredAppOrigin()
 
 export default function robots(): MetadataRoute.Robots {
   return {

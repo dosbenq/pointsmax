@@ -9,7 +9,9 @@
 'use client'
 
 import React, { useMemo, useRef } from 'react'
+import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
+import { ArrowRight, Compass, PlaneTakeoff, WandSparkles } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -158,35 +160,138 @@ export default function CalculatorPage() {
     [state.result]
   )
 
+  const plannerStages = [
+    {
+      key: 'redemptions' as const,
+      eyebrow: 'Stage 1',
+      title: 'Rank the best use of your wallet',
+      body: 'Value the balances you already have and surface one best move before the alternatives.',
+      icon: Compass,
+      cta: enteredBalances.length > 0 ? 'Run ranking' : 'Add balances first',
+      action: () => {
+        state.switchPanel('redemptions', 'planner_stage_cards')
+        if (!state.result && enteredBalances.length > 0) state.calculate()
+      },
+      disabled: enteredBalances.length === 0,
+    },
+    {
+      key: 'awards' as const,
+      eyebrow: 'Stage 2',
+      title: 'Verify a real route',
+      body: 'Check reachability, transfer paths, and route-specific award options before you commit.',
+      icon: PlaneTakeoff,
+      cta: 'Open route verification',
+      action: () => state.switchPanel('awards', 'planner_stage_cards'),
+      disabled: false,
+    },
+    {
+      key: 'advisor' as const,
+      eyebrow: 'Stage 3',
+      title: 'Turn it into a booking plan',
+      body: 'Use the AI advisor once you have a candidate path and want the next step-by-step move.',
+      icon: WandSparkles,
+      cta: state.result ? 'Open booking plan' : 'Run ranking first',
+      action: () => state.switchPanel('advisor', 'planner_stage_cards'),
+      disabled: !state.result,
+    },
+  ]
+
   return (
     <div className="min-h-screen flex flex-col">
       <NavBar />
 
       <section className="pm-page-header">
         <div className="pm-shell">
-          <span className="pm-pill mb-4 inline-block">Points calculator {config.flag}</span>
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find your best redemption</h1>
-          <p className="pm-subtle max-w-xl text-base">
-            Enter your balances, set a travel goal, and get a ranked list of redemption options with booking steps.
-          </p>
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div>
+              <span className="inline-flex rounded-full border border-[#b6e2f0]/20 bg-[#7ce8dc]/12 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#e2f7fa]/88">
+                Planner {config.flag}
+              </span>
+              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4fbff] sm:text-[4.5rem]">
+                Start with your wallet. End with a clear move.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#d8eef4]/88">
+                Planner is the flagship flow for using points well: rank the best move, verify the route, and turn the winner into a booking plan before you transfer anything.
+              </p>
+            </div>
+
+            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4fbff]">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c7edf4]/82">Decision snapshot</p>
+              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#10243a]/42">Featured planner move</p>
+                <p className="mt-3 text-lg font-semibold leading-8 tracking-[-0.03em]">
+                  {bestOverall
+                    ? bestOverall.label
+                    : 'Add your balances and the calculator will surface one featured move before the rest of the results.'}
+                </p>
+                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Projected value</span>
+                    <span className="font-semibold">
+                      {bestOverall ? fmtCents(bestOverall.total_value_cents, config.currency) : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Value per point</span>
+                    <span className="font-semibold">
+                      {bestOverall ? formatCpp(bestOverall.cpp_cents, region) : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">What this does</span>
+                    <span className="font-semibold text-right">
+                      {bestOverall ? 'Ranks transfer and redemption paths' : 'Surfaces the best move first'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <main className="pm-shell py-8 sm:py-10 space-y-6 flex-1">
+        <div className="grid gap-4 lg:grid-cols-3">
+          {plannerStages.map((stage) => (
+            <button
+              key={stage.key}
+              type="button"
+              onClick={stage.action}
+              disabled={stage.disabled}
+              className={`pm-card p-5 text-left transition-all ${stage.disabled ? 'opacity-60' : 'hover:-translate-y-[1px]'}`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="pm-section-title mb-2">{stage.eyebrow}</p>
+                  <h2 className="pm-heading text-lg">{stage.title}</h2>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-pm-premium-soft text-pm-ink-900">
+                  <stage.icon className="h-5 w-5" />
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-7 text-pm-ink-700">{stage.body}</p>
+              <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-pm-ink-900">
+                {stage.cta}
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </button>
+          ))}
+        </div>
+
         {/* Progress Steps */}
-        <div className="pm-card p-2 sm:p-3">
+        <div className="pm-card p-3 sm:p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {state.steps.map((step, idx) => (
               <div
                 key={step.label}
-                className={`rounded-xl px-3 py-2.5 border text-sm ${
+                className={`rounded-[20px] px-4 py-3 border text-sm ${
                   step.done
-                    ? 'bg-pm-success-soft border-pm-success-border text-pm-success'
-                    : 'bg-pm-surface-soft border-pm-border text-pm-ink-500'
+                    ? 'border-[#10243a]/8 bg-[#0f2747] text-[#f4f8ff]'
+                    : 'bg-pm-surface border-pm-border text-pm-ink-500'
                 }`}
               >
-                <p className="text-[10px] uppercase tracking-wider font-semibold">Step {idx + 1}</p>
-                <p className="mt-0.5 font-semibold">{step.label}</p>
+                <p className={`text-[10px] uppercase tracking-[0.22em] font-semibold ${step.done ? 'text-[#bfd0e8]/78' : ''}`}>Step {idx + 1}</p>
+                <p className="mt-1 font-semibold">{step.label}</p>
               </div>
             ))}
           </div>
@@ -310,10 +415,23 @@ export default function CalculatorPage() {
           <aside className="lg:col-span-4">
             <div className="lg:sticky lg:top-24 space-y-4">
               <div className="pm-card-soft p-5">
-                <p className="pm-label mb-2">Decision Snapshot</p>
-                <h2 className="pm-heading text-lg">What to do next</h2>
+                <p className="pm-label mb-2">Run this page when</p>
+                <h2 className="pm-heading text-lg">You want one ranked answer before doing anything irreversible.</h2>
 
                 <div className="mt-4 space-y-3">
+                  {[
+                    ['Add balances', 'Only include points you would actually use for this decision.'],
+                    ['Set your route', 'Use Award Flights only if you want the route logic to shape the ranking.'],
+                    ['Run value ranking', 'The page should surface one best move first, then the alternatives.'],
+                  ].map(([title, body]) => (
+                    <div key={title} className="rounded-xl border border-pm-border bg-pm-surface px-3.5 py-3">
+                      <p className="text-sm font-semibold text-pm-ink-900">{title}</p>
+                      <p className="mt-1 text-xs leading-6 text-pm-ink-700">{body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
                   <div className="rounded-xl border border-pm-border bg-pm-surface px-3.5 py-3">
                     <p className="text-xs text-pm-ink-500">Tracked programs</p>
                     <p className="text-xl font-bold text-pm-ink-900 mt-0.5">{enteredBalances.length}</p>
@@ -337,7 +455,7 @@ export default function CalculatorPage() {
                   disabled={state.loading || enteredBalances.length === 0}
                   className="pm-button w-full mt-4"
                 >
-                  {state.loading ? 'Calculating…' : '3. Find Best Redemptions'}
+                  {state.loading ? 'Calculating…' : 'Run calculator'}
                 </button>
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -345,21 +463,30 @@ export default function CalculatorPage() {
                     onClick={() => state.switchPanel('awards', 'sticky_quick_actions')}
                     className="pm-button-secondary px-2 py-2 text-xs"
                   >
-                    Find award flights
+                    Verify route
                   </button>
                   <button
                     onClick={() => state.switchPanel('advisor', 'sticky_quick_actions')}
                     className="pm-button-secondary px-2 py-2 text-xs"
                   >
-                    Ask AI advisor
+                    Booking plan
                   </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Link href={`/${region}/award-search`} className="pm-button-secondary px-2 py-2 text-center text-xs">
+                    Standalone search
+                  </Link>
+                  <Link href={`/${region}/trip-builder`} className="pm-button-secondary px-2 py-2 text-center text-xs">
+                    Trip Builder
+                  </Link>
                 </div>
 
                 {state.result && (
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button onClick={() => state.switchPanel('redemptions', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">Redemptions</button>
-                    <button onClick={() => state.switchPanel('awards', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">Award Flights</button>
-                    <button onClick={() => state.switchPanel('advisor', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">AI Advisor</button>
+                    <button onClick={() => state.switchPanel('redemptions', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">Value</button>
+                    <button onClick={() => state.switchPanel('awards', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">Route</button>
+                    <button onClick={() => state.switchPanel('advisor', 'sticky_shortcuts')} className="pm-button-secondary px-2 py-2 text-xs">Plan</button>
                   </div>
                 )}
               </div>
@@ -379,7 +506,7 @@ export default function CalculatorPage() {
                     }}
                     className="pm-button-secondary w-full mt-3 text-sm"
                   >
-                    4. Build booking plan
+                    Build booking plan
                   </button>
                 </div>
               )}
@@ -392,9 +519,9 @@ export default function CalculatorPage() {
           <div className="pm-card p-2">
             <div className="flex flex-wrap gap-2">
               {[
-                { key: 'redemptions', label: 'Best Redemptions', disabled: false },
-                { key: 'awards', label: 'Award Flights', disabled: false },
-                { key: 'advisor', label: 'AI Advisor', disabled: false },
+                { key: 'redemptions', label: '1. Value', disabled: false },
+                { key: 'awards', label: '2. Verify Route', disabled: false },
+                { key: 'advisor', label: '3. Booking Plan', disabled: false },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -437,8 +564,8 @@ export default function CalculatorPage() {
                 <div className="pm-card-soft overflow-hidden">
                   <div className="px-5 sm:px-6 py-4 border-b border-pm-border flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="pm-heading text-base">Top Redemption Options</h2>
-                      <p className="pm-subtle text-xs mt-0.5">Ranked by total value</p>
+                      <h2 className="pm-heading text-base">Planner output</h2>
+                      <p className="pm-subtle text-xs mt-0.5">Ranked by total value so the best move appears first</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="pm-pill">{state.result.results.length} total</span>

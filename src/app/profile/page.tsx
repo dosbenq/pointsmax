@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -183,8 +184,9 @@ function AlertSubscriptionsCard({ userEmail, region }: { userEmail: string; regi
 }
 
 export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }) {
-  const { user, userRecord, loading, signOut, refreshPreferences } = useAuth()
+  const { user, userRecord, loading, signInWithGoogle, signOut, refreshPreferences } = useAuth()
   const router = useRouter()
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false)
 
   const [prefForm, setPrefForm] = useState<Preferences>({
     home_airport: '',
@@ -225,14 +227,16 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
     }
   }, [initialRegion])
 
-  // Auth guard
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/')
+    if (!loading) {
+      setLoadingTimedOut(false)
+      return
     }
-  }, [loading, user, router])
+    const timeout = window.setTimeout(() => setLoadingTimedOut(true), 4000)
+    return () => window.clearTimeout(timeout)
+  }, [loading])
 
-  // Load preferences
+  // Auth guard
   useEffect(() => {
     if (!user) return
     fetch('/api/user/preferences')
@@ -246,6 +250,9 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
             avoided_airlines: preferences.avoided_airlines ?? [],
           })
         }
+      })
+      .catch(() => {
+        // Keep wallet page usable even if preferences fail to load.
       })
   }, [user])
 
@@ -330,12 +337,79 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
   }
 
   if (loading || !user) {
+    if (loading) {
+      if (loadingTimedOut) {
+        return (
+          <div className="min-h-screen flex flex-col">
+            <NavBar />
+            <section className="pm-page-header">
+              <div className="pm-shell">
+                <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Wallet</h1>
+                <p className="pm-subtle text-base">Manage balances, alerts, connected accounts, and preferences.</p>
+              </div>
+            </section>
+            <main className="flex-1 pm-shell max-w-3xl py-8 w-full">
+              <div className="pm-card-soft p-8 text-center">
+                <p className="pm-section-title mb-3">Still loading</p>
+                <h2 className="pm-heading text-2xl">Wallet is taking longer than expected.</h2>
+                <p className="mt-4 text-sm leading-7 text-pm-ink-700">
+                  This usually means auth or preferences are slow to respond. You can retry, sign in again, or continue to Planner.
+                </p>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <button onClick={() => window.location.reload()} className="pm-button" type="button">
+                    Retry wallet
+                  </button>
+                  <button onClick={() => void signInWithGoogle()} className="pm-button-secondary" type="button">
+                    Sign in with Google
+                  </button>
+                  <Link href={`/${region}/calculator`} className="pm-button-secondary">
+                    Go to Planner
+                  </Link>
+                </div>
+              </div>
+            </main>
+            <Footer />
+          </div>
+        )
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          <NavBar />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-pm-accent border-t-transparent animate-spin" />
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen flex flex-col">
         <NavBar />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-pm-accent border-t-transparent animate-spin" />
-        </div>
+        <section className="pm-page-header">
+          <div className="pm-shell">
+            <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Wallet</h1>
+            <p className="pm-subtle text-base">Manage balances, alerts, connected accounts, and preferences.</p>
+          </div>
+        </section>
+        <main className="flex-1 pm-shell max-w-3xl py-8 w-full">
+          <div className="pm-card-soft p-8 text-center">
+            <p className="pm-section-title mb-3">Sign in required</p>
+            <h2 className="pm-heading text-2xl">Your wallet only works when it knows who you are.</h2>
+            <p className="mt-4 text-sm leading-7 text-pm-ink-700">
+              Sign in to manage balances, connected accounts, alerts, and travel preferences. If you just want to explore the product first, use Planner or Card Strategy.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button onClick={() => void signInWithGoogle()} className="pm-button" type="button">
+                Sign in with Google
+              </button>
+              <Link href={`/${region}/calculator`} className="pm-button-secondary">
+                Go to Planner
+              </Link>
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     )
   }
@@ -348,12 +422,35 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
 
       <section className="pm-page-header">
         <div className="pm-shell">
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Profile &amp; Settings</h1>
-          <p className="pm-subtle text-base">Manage your account and travel preferences.</p>
+          <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Wallet</h1>
+          <p className="pm-subtle text-base">Manage balances, connected accounts, alerts, billing, and travel preferences.</p>
         </div>
       </section>
 
       <main className="flex-1 pm-shell max-w-3xl py-8 w-full space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="pm-card p-5">
+            <p className="pm-section-title mb-2">Plan</p>
+            <p className="text-2xl font-semibold tracking-[-0.04em] text-pm-ink-900">{userRecord?.tier === 'premium' ? 'Pro' : 'Free'}</p>
+            <p className="mt-2 text-sm leading-7 text-pm-ink-700">
+              {userRecord?.tier === 'premium' ? 'Your premium features are active.' : 'Upgrade when you want billing-backed premium features.'}
+            </p>
+          </div>
+          <div className="pm-card p-5">
+            <p className="pm-section-title mb-2">Region</p>
+            <p className="text-2xl font-semibold tracking-[-0.04em] text-pm-ink-900">{region === 'in' ? 'India' : 'US'}</p>
+            <p className="mt-2 text-sm leading-7 text-pm-ink-700">
+              Wallet alerts and supported programs are scoped to the region you are currently using.
+            </p>
+          </div>
+          <div className="pm-card p-5">
+            <p className="pm-section-title mb-2">What lives here</p>
+            <p className="text-2xl font-semibold tracking-[-0.04em] text-pm-ink-900">Balances + alerts</p>
+            <p className="mt-2 text-sm leading-7 text-pm-ink-700">
+              Keep this page current so Planner and Card Strategy can make better decisions for you.
+            </p>
+          </div>
+        </div>
 
         <div className="pm-card p-6">
           <h2 className="pm-heading text-base mb-4">Account</h2>
@@ -410,15 +507,34 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
           )}
         </div>
 
-        <AlertSubscriptionsCard userEmail={user.email ?? ''} region={region} />
+        <section className="space-y-3">
+          <div>
+            <p className="pm-section-title mb-2">Wallet sources</p>
+            <h2 className="pm-heading text-lg mb-1">Balances and connected accounts</h2>
+            <p className="text-xs text-pm-ink-500">
+              Keep your sources current here. Planner and Card Strategy should use this as the source of truth for what you actually have.
+            </p>
+          </div>
+          <ConnectedWallets onManualEntry={() => router.push(`/${region}/calculator`)} />
+        </section>
 
-        <ConnectedWallets onManualEntry={() => router.push(`/${region}/calculator`)} />
+        <section className="space-y-3">
+          <div>
+            <p className="pm-section-title mb-2">Alerts</p>
+            <h2 className="pm-heading text-lg mb-1">Transfer bonus watches</h2>
+            <p className="text-xs text-pm-ink-500">
+              Pick the transferable programs you care about so Wallet can notify you when timing matters.
+            </p>
+          </div>
+          <AlertSubscriptionsCard userEmail={user.email ?? ''} region={region} />
+        </section>
 
         <div className="pm-card p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="pm-heading text-base">Travel Preferences</h2>
-              <p className="text-xs text-pm-ink-500 mt-0.5">Used by the AI advisor for personalized recommendations.</p>
+              <p className="pm-section-title mb-2">Preferences</p>
+              <h2 className="pm-heading text-base">Travel preferences</h2>
+              <p className="text-xs text-pm-ink-500 mt-0.5">Used by Planner and the AI booking flow for better recommendations.</p>
             </div>
             {toast && (
               <span className="text-xs text-pm-success bg-pm-success-soft border border-pm-success-border px-3 py-1 rounded-full font-medium">

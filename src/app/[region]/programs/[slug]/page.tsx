@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getProgramBySlug, listProgramsForRegion } from '@/lib/programmatic-content'
 import { REGIONS, type Region } from '@/lib/regions'
 import { generateProgramJsonLd } from '@/lib/seo'
@@ -49,11 +50,12 @@ export default async function ProgramDetailPage({ params }: Props) {
   const config = REGIONS[normalized]
   const program = await getProgramBySlug(normalized, slug)
   if (!program) notFound()
+  const appOrigin = getConfiguredAppOrigin()
 
   const jsonLd = generateProgramJsonLd({
     name: program.name,
     description: `${program.name} valuation and transfer partner guide on PointsMax.`,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://pointsmax.com'}/${normalized}/programs/${program.slug}`,
+    url: `${appOrigin}/${normalized}/programs/${program.slug}`,
   })
 
   return (

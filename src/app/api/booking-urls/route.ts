@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getActiveBookingUrls } from '@/lib/db/booking-urls'
 import { logError } from '@/lib/logger'
+import { isValidBookingUrl } from '@/lib/booking-urls'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -8,7 +9,8 @@ export async function GET(request: Request) {
 
   try {
     const urls = await getActiveBookingUrls(region)
-    return NextResponse.json(urls)
+    const validUrls = urls.filter(u => isValidBookingUrl(u.url))
+    return NextResponse.json(validUrls)
   } catch (error) {
     logError('api_booking_urls_get_failed', { 
       message: error instanceof Error ? error.message : 'Unknown error',

@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { inngest } from '../client'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { createAdminClient } from '@/lib/supabase'
 
 type UserRow = {
@@ -16,7 +17,7 @@ type EmailLogRow = {
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 function appUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://pointsmax.com'
+  return getConfiguredAppOrigin()
 }
 
 function daysSince(iso: string): number {

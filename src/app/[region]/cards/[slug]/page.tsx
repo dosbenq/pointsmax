@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import {
   estimateEffectiveCashbackPct,
   getCardBySlug,
@@ -59,10 +60,11 @@ export default async function CardDetailPage({ params }: Props) {
   const config = REGIONS[normalized]
   const unitLabel = spendUnitLabel(card.earn_unit, card.currency)
   const cashbackPct = estimateEffectiveCashbackPct(card)
+  const appOrigin = getConfiguredAppOrigin()
   const jsonLd = generateCardJsonLd({
     name: card.name,
     description: `${card.name} from ${card.issuer} with reward earn rates and point value estimates.`,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://pointsmax.com'}/${normalized}/cards/${card.slug}`,
+    url: `${appOrigin}/${normalized}/cards/${card.slug}`,
     issuer: card.issuer,
     annualFeeAmount: card.annual_fee_usd,
     annualFeeCurrency: card.currency,
