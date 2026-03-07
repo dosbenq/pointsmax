@@ -8,12 +8,13 @@ import PostHogProvider from '@/components/PostHogProvider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 
 if (process.env.NODE_ENV === 'production') {
   assertServerEnv()
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pointsmax.com'
+const BASE_URL = getConfiguredAppOrigin()
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -105,7 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)}
         />
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <PostHogProvider>
             <AuthProvider>
               <MonitoringBoot />

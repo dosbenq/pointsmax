@@ -70,6 +70,9 @@ const { calculateRedemptions } = await import('./calculate')
 afterEach(() => {
   mockErrors = {}
   simulateProgramsGeographyMissing = false
+  mockData.transfer_partners = [
+    { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+  ]
 })
 
 describe('calculateRedemptions', () => {
@@ -84,6 +87,7 @@ describe('calculateRedemptions', () => {
     expect(result.results.length).toBe(3)
     expect(result.results[0].label).toBe('Transfer to World of Hyatt')
     expect(result.results[0].is_best).toBe(true)
+    expect(result.results[0].cpp_cents).toBeCloseTo(1.8, 5)
   })
 
   it('falls back to legacy programs select when geography column is missing', async () => {
@@ -100,5 +104,19 @@ describe('calculateRedemptions', () => {
     const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
 
     await expect(calculateRedemptions(balances)).rejects.toThrow('Failed to load valuations')
+  })
+
+  it('shows effective cpp for lossy transfer ratios', async () => {
+    mockData.transfer_partners = [
+      { id: 'tp-lossy', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 5, ratio_to: 4, transfer_time_max_hrs: 0, is_instant: true },
+    ]
+    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
+    const result = await calculateRedemptions(balances)
+    const transferResult = result.results.find((row) => row.label === 'Transfer to World of Hyatt')
+
+    expect(transferResult).toBeDefined()
+    expect(transferResult?.points_out).toBe(8000)
+    expect(transferResult?.cpp_cents).toBeCloseTo(1.44, 5)
+    expect(result.results[0].label).toBe('Chase Travel Portal')
   })
 })

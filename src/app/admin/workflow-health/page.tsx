@@ -11,6 +11,16 @@ type ConfigStatus = {
 type HealthPayload = {
   checked_at: string
   configs: ConfigStatus[]
+  auth_branding: {
+    configured: boolean
+    using_supabase_domain: boolean
+    message: string
+  }
+  knowledge_channel: {
+    configured: boolean
+    url: string | null
+    label: string | null
+  }
   summary: {
     required_present: number
     required_total: number
@@ -123,11 +133,16 @@ export default function AdminWorkflowHealthPage() {
     setError('')
     setIngestResult(null)
     try {
+      const configuredChannelUrl = health?.knowledge_channel.url
+      if (!configuredChannelUrl) {
+        throw new Error('No default YouTube knowledge channel is configured.')
+      }
+
       const res = await fetch('/api/admin/knowledge/ingest-channel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          channel_url: 'https://www.youtube.com/@GreatIndianMiles',
+          channel_url: configuredChannelUrl,
           max_videos: 15,
         }),
       })
@@ -148,8 +163,18 @@ export default function AdminWorkflowHealthPage() {
     loadHealth()
   }, [])
 
-  const requiredConfigs = health?.configs.filter((c) => c.required) ?? []
-  const optionalConfigs = health?.configs.filter((c) => !c.required) ?? []
+  const requiredConfigs = (health?.configs ?? []).filter((c) => c.required)
+  const optionalConfigs = (health?.configs ?? []).filter((c) => !c.required)
+  const authBranding = health?.auth_branding ?? {
+    configured: false,
+    using_supabase_domain: false,
+    message: 'Auth branding status unavailable.',
+  }
+  const knowledgeChannel = health?.knowledge_channel ?? {
+    configured: false,
+    url: null,
+    label: null,
+  }
 
   return (
     <div className="p-8 max-w-4xl space-y-6">
@@ -184,10 +209,10 @@ export default function AdminWorkflowHealthPage() {
           </button>
           <button
             onClick={runKnowledgeIngest}
-            disabled={runningKnowledgeIngest || loading}
+            disabled={runningKnowledgeIngest || loading || !knowledgeChannel.configured}
             className="text-xs bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-full px-4 py-1.5"
           >
-            {runningKnowledgeIngest ? 'Queuing…' : 'Ingest GreatIndianMiles'}
+            {runningKnowledgeIngest ? 'Queuing…' : `Ingest ${knowledgeChannel.label ?? 'channel'}`}
           </button>
         </div>
       </div>
@@ -230,6 +255,15 @@ export default function AdminWorkflowHealthPage() {
           <p className="text-xs text-slate-400 uppercase tracking-wider">Required configs</p>
           <p className="text-2xl font-semibold text-slate-900 mt-1">
             {loading ? '—' : `${health?.summary.required_present ?? 0}/${health?.summary.required_total ?? 0}`}
+          </p>
+        </div>
+        <div className={`border rounded-xl p-4 ${authBranding.using_supabase_domain ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+          <p className="text-xs uppercase tracking-wider text-slate-500">OAuth branding</p>
+          <p className={`text-sm font-semibold mt-2 ${authBranding.using_supabase_domain ? 'text-amber-800' : 'text-emerald-800'}`}>
+            {loading ? '—' : (authBranding.using_supabase_domain ? 'Supabase domain visible' : 'Custom branded domain')}
+          </p>
+          <p className={`text-xs mt-1 ${authBranding.using_supabase_domain ? 'text-amber-700' : 'text-emerald-700'}`}>
+            {loading ? 'Checking auth domain…' : authBranding.message}
           </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4">
@@ -319,8 +353,15 @@ export default function AdminWorkflowHealthPage() {
       <div className="bg-white border border-slate-200 rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-slate-900">Knowledge ingest</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Queues `knowledge.ingest_youtube` for the GreatIndianMiles channel.
+          {knowledgeChannel.configured
+            ? `Queues \`knowledge.ingest_youtube\` for ${knowledgeChannel.label ?? knowledgeChannel.url}.`
+            : 'No default YouTube knowledge channel is configured yet.'}
         </p>
+        {knowledgeChannel.configured ? (
+          <p className="text-xs text-slate-400 mt-2">
+            Source: {knowledgeChannel.url}
+          </p>
+        ) : null}
         {ingestResult ? (
           <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <p className="text-sm font-medium text-emerald-800">

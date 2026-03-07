@@ -28,11 +28,16 @@ export type AwardNarrativeOption = Pick<
   | 'is_reachable'
 >
 
+function currentUtcDateString(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 function validateRouteParams(input: Record<string, unknown>): AwardNarrativeParams | { error: string } {
   const origin = typeof input.origin === 'string' ? input.origin.toUpperCase().trim() : ''
   const destination = typeof input.destination === 'string' ? input.destination.toUpperCase().trim() : ''
   if (!IATA_RE.test(origin)) return { error: 'origin must be a 3-letter IATA airport code' }
   if (!IATA_RE.test(destination)) return { error: 'destination must be a 3-letter IATA airport code' }
+  if (origin === destination) return { error: 'origin and destination must be different airports' }
 
   const cabin = input.cabin as string
   if (!CABIN_VALUES.includes(cabin as typeof CABIN_VALUES[number])) {
@@ -48,6 +53,7 @@ function validateRouteParams(input: Record<string, unknown>): AwardNarrativePara
   const end_date = typeof input.end_date === 'string' ? input.end_date : ''
   if (!DATE_RE.test(start_date)) return { error: 'start_date must be YYYY-MM-DD' }
   if (!DATE_RE.test(end_date)) return { error: 'end_date must be YYYY-MM-DD' }
+  if (start_date < currentUtcDateString()) return { error: 'start_date must be today or later' }
   if (end_date < start_date) return { error: 'end_date must be on or after start_date' }
   const startMs = Date.parse(`${start_date}T00:00:00Z`)
   const endMs = Date.parse(`${end_date}T00:00:00Z`)

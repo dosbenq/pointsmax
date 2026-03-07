@@ -297,7 +297,9 @@ export async function calculateRedemptions(
       }
 
       const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type)
-      const totalValue = Math.floor(pointsOut) * toCppCents
+      const flooredPointsOut = Math.floor(pointsOut)
+      const totalValue = flooredPointsOut * toCppCents
+      const effectiveCppCents = balance.amount > 0 ? totalValue / balance.amount : 0
 
       options.push({
         label: `Transfer to ${toProgram.name}`,
@@ -305,8 +307,8 @@ export async function calculateRedemptions(
         from_program: fromProgram,
         to_program: toProgram,
         points_in: balance.amount,
-        points_out: Math.floor(pointsOut),
-        cpp_cents: toCppCents,
+        points_out: flooredPointsOut,
+        cpp_cents: effectiveCppCents,
         total_value_cents: totalValue,
         active_bonus_pct: bonusPct > 0 ? bonusPct : undefined,
         is_instant: partner.is_instant,

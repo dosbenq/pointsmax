@@ -53,6 +53,27 @@ function buildAuditPersistence(): AuditPersistence {
   }
 }
 
+// Enrich with freshness field for client convenience
+function enrichAccount(account: ConnectedAccountResponse): ConnectedAccountResponse & { freshness: string, hours_since_sync: number | null } {
+  const lastSyncedAt = account.last_synced_at
+  const lastSynced = typeof lastSyncedAt === 'string' ? new Date(lastSyncedAt) : null
+  const now = new Date()
+  const hoursSinceSync = lastSynced && !isNaN(lastSynced.getTime()) 
+    ? (now.getTime() - lastSynced.getTime()) / (1000 * 60 * 60) 
+    : null
+  
+  let freshness: 'fresh' | 'stale' | 'never' = 'never'
+  if (hoursSinceSync !== null) {
+    freshness = (hoursSinceSync * 60 * 60 * 1000) < SYNC_POLICY.staleThresholdMs ? 'fresh' : 'stale'
+  }
+
+  return {
+    ...account,
+    freshness,
+    hours_since_sync: hoursSinceSync,
+  }
+}
+
 // ─────────────────────────────────────────────
 // GET /api/connectors — List connected accounts
 // ─────────────────────────────────────────────
@@ -90,28 +111,9 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch connected accounts' }, { status: 500 })
   }
 
-  // Enrich with freshness field for client convenience
-  const enrichedAccounts = (accounts ?? []).map((account) => {
-    const lastSyncedAt = account.last_synced_at
-    const lastSynced = typeof lastSyncedAt === 'string' ? new Date(lastSyncedAt) : null
-    const now = new Date()
-    const hoursSinceSync = lastSynced && !isNaN(lastSynced.getTime()) 
-      ? (now.getTime() - lastSynced.getTime()) / (1000 * 60 * 60) 
-      : null
-    
-    let freshness: 'fresh' | 'stale' | 'never' = 'never'
-    if (hoursSinceSync !== null) {
-      freshness = (hoursSinceSync * 60 * 60 * 1000) < SYNC_POLICY.staleThresholdMs ? 'fresh' : 'stale'
-    }
-
-    return {
-      ...account,
-      freshness,
-      hours_since_sync: hoursSinceSync,
-    }
+  return NextResponse.json({ 
+    accounts: (accounts as unknown as ConnectedAccountResponse[] ?? []).map(enrichAccount) 
   })
-
-  return NextResponse.json({ accounts: enrichedAccounts as ConnectedAccountResponse[] })
 }
 
 // ─────────────────────────────────────────────
@@ -237,7 +239,7 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json(
-    { account: account as ConnectedAccountResponse },
+    { account: enrichAccount(account as unknown as ConnectedAccountResponse) },
     { status: 201 }
   )
 }

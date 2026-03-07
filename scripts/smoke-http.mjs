@@ -8,13 +8,18 @@ const START_TIMEOUT_MS = 90_000
 const ROUTES = [
   '/',
   '/calculator',
+  '/us/calculator',
   '/award-search',
   '/inspire',
   '/card-recommender',
+  '/us/card-recommender',
   '/earning-calculator',
   '/trip-builder',
   '/pricing',
   '/how-it-works',
+  '/profile',
+  '/us/profile',
+  '/in/profile',
   '/robots.txt',
   '/sitemap.xml',
 ]
@@ -43,11 +48,28 @@ async function verifyRoutes() {
     if (res.status !== 200) {
       throw new Error(`Expected 200 for ${route}, got ${res.status}`)
     }
+    const text = await res.text()
     if (route === '/') {
-      const text = await res.text()
       if (!text.includes('PointsMax')) {
         throw new Error('Homepage did not include expected "PointsMax" marker')
       }
+    }
+    if (route === '/us/calculator' && !text.includes('Planner')) {
+      throw new Error('/us/calculator did not render Planner content')
+    }
+    if (route === '/us/card-recommender' && !text.includes('Card strategy')) {
+      throw new Error('/us/card-recommender did not render Card Strategy content')
+    }
+    if (route === '/profile' || route === '/us/profile' || route === '/in/profile') {
+      if (!text.includes('Wallet')) {
+        throw new Error(`${route} did not render Wallet content`)
+      }
+    }
+    if (route === '/inspire' && !res.url.endsWith('/calculator')) {
+      throw new Error(`/inspire should resolve to calculator, got ${res.url}`)
+    }
+    if (route === '/earning-calculator' && !res.url.includes('/card-recommender?view=earnings')) {
+      throw new Error(`/earning-calculator should resolve to card-recommender earnings view, got ${res.url}`)
     }
   }
 }

@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
+import { getConfiguredKnowledgeChannelUrl, getKnowledgeChannelLabel } from '@/lib/knowledge/channel-ingest'
 import { createAdminClient } from '@/lib/supabase'
 import { inngest } from '@/lib/inngest/client'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
@@ -11,6 +12,18 @@ type ConfigStatus = {
   key: string
   required: boolean
   present: boolean
+}
+
+type AuthBrandingStatus = {
+  configured: boolean
+  using_supabase_domain: boolean
+  message: string
+}
+
+type KnowledgeChannelStatus = {
+  configured: boolean
+  url: string | null
+  label: string | null
 }
 
 type WatchCountResult = {
@@ -43,7 +56,48 @@ function getConfigStatuses(): ConfigStatus[] {
     configPresence('RESEND_API_KEY', false),
     configPresence('RESEND_FROM_EMAIL', false),
     configPresence('CRON_SECRET', false),
+    configPresence('YOUTUBE_KNOWLEDGE_CHANNEL_URL', false),
+    configPresence('YOUTUBE_KNOWLEDGE_CHANNEL_LABEL', false),
   ]
+}
+
+function getAuthBrandingStatus(): AuthBrandingStatus {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  if (!rawUrl) {
+    return {
+      configured: false,
+      using_supabase_domain: false,
+      message: 'NEXT_PUBLIC_SUPABASE_URL is not configured.',
+    }
+  }
+
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase()
+    const usingSupabaseDomain = hostname.endsWith('.supabase.co')
+
+    return {
+      configured: true,
+      using_supabase_domain: usingSupabaseDomain,
+      message: usingSupabaseDomain
+        ? 'Google OAuth will show a Supabase-hosted domain until Supabase Auth runs behind a custom PointsMax domain.'
+        : 'OAuth branding is using a custom auth/app domain.',
+    }
+  } catch {
+    return {
+      configured: false,
+      using_supabase_domain: false,
+      message: 'NEXT_PUBLIC_SUPABASE_URL is invalid.',
+    }
+  }
+}
+
+function getKnowledgeChannelStatus(): KnowledgeChannelStatus {
+  const url = getConfiguredKnowledgeChannelUrl()
+  return {
+    configured: Boolean(url),
+    url,
+    label: getKnowledgeChannelLabel(url),
+  }
 }
 
 function mapEventIds(result: unknown): string[] {
@@ -83,6 +137,8 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient()
   const statuses = getConfigStatuses()
+  const authBranding = getAuthBrandingStatus()
+  const knowledgeChannel = getKnowledgeChannelStatus()
   const required = statuses.filter((status) => status.required)
   const requiredPresent = required.filter((status) => status.present).length
 
@@ -144,6 +200,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     checked_at: new Date().toISOString(),
     configs: statuses,
+    auth_branding: authBranding,
+    knowledge_channel: knowledgeChannel,
     summary: {
       required_present: requiredPresent,
       required_total: required.length,

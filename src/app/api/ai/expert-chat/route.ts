@@ -2,9 +2,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
-import { logError } from '@/lib/logger'
+import { logError, getRequestId } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase'
-import { generateAiCacheKey, getCachedAiResponse, setCachedAiResponse } from '@/lib/ai-cache'
+import { REGIONS, type Region } from '@/lib/regions'
+import {
+  generateAiCacheKey,
+  getCachedAiResponse,
+  setCachedAiResponse,
+  logAiCacheMetric,
+} from '@/lib/ai-cache'
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -23,6 +29,10 @@ const MAX_MESSAGE_CHARS = 1_500
 function sanitizeMessage(value: unknown): string {
   if (typeof value !== 'string') return ''
   return value.trim()
+}
+
+function normalizeRegion(value: unknown): Region {
+  return value === 'us' ? 'us' : 'in'
 }
 
 function getRequestScope(req: NextRequest): string {
@@ -91,6 +101,7 @@ function buildContext(chunks: KnowledgeChunk[]): string {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req)
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
   if (sizeError) return sizeError
 
@@ -111,6 +122,7 @@ export async function POST(req: NextRequest) {
   }
 
   const message = sanitizeMessage((body as { message?: unknown })?.message)
+  const region = normalizeRegion((body as { region?: unknown })?.region)
   if (!message) return NextResponse.json({ error: 'Message required' }, { status: 400 })
   if (message.length > MAX_MESSAGE_CHARS) {
     return NextResponse.json({ error: `message too long (max ${MAX_MESSAGE_CHARS})` }, { status: 400 })
@@ -124,10 +136,12 @@ export async function POST(req: NextRequest) {
     const idemCacheKey = generateAiCacheKey('expert-chat-idem', {
       idempotencyKey,
       message,
+      region,
       requestScope,
     })
     const cached = getCachedAiResponse<Record<string, unknown>>(idemCacheKey)
     if (cached) {
+      logAiCacheMetric('hit', 'expert-chat-idem', requestId)
       return NextResponse.json(cached, {
         headers: {
           'X-PointsMax-Cache': 'HIT',
@@ -135,18 +149,21 @@ export async function POST(req: NextRequest) {
         },
       })
     }
+    logAiCacheMetric('miss', 'expert-chat-idem', requestId)
   }
 
   // Content-based cache: when no Idempotency-Key, deduplicate identical messages.
   // Returns HIT without X-Idempotent-Replayed (transparent caching, not explicit dedup).
   if (!idempotencyKey) {
-    const contentCacheKey = generateAiCacheKey('expert-chat', { message, requestScope })
+    const contentCacheKey = generateAiCacheKey('expert-chat', { message, region })
     const contentCached = getCachedAiResponse<Record<string, unknown>>(contentCacheKey)
     if (contentCached) {
+      logAiCacheMetric('hit', 'expert-chat', requestId)
       return NextResponse.json(contentCached, {
         headers: { 'X-PointsMax-Cache': 'HIT' },
       })
     }
+    logAiCacheMetric('miss', 'expert-chat', requestId)
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()
@@ -163,8 +180,8 @@ export async function POST(req: NextRequest) {
 
     const modelNames = await getGeminiModelCandidatesForApiKey(apiKey)
     const prompt = `
-You are the PointsMax India Credit Card & Loyalty Expert.
-You specialize in Indian cards, transfer partners, and redemption strategy.
+You are the PointsMax ${REGIONS[region].label} Credit Card & Loyalty Expert.
+${REGIONS[region].expertAgentPrompt}
 
 Rules:
 - Prefer the supplied context first.
@@ -209,11 +226,12 @@ User question: ${message}
       const idemCacheKey = generateAiCacheKey('expert-chat-idem', {
         idempotencyKey,
         message,
+        region,
         requestScope,
       })
       setCachedAiResponse(idemCacheKey, responseBody, IDEMPOTENCY_TTL_MS)
     } else {
-      const contentCacheKey = generateAiCacheKey('expert-chat', { message, requestScope })
+      const contentCacheKey = generateAiCacheKey('expert-chat', { message, region })
       setCachedAiResponse(contentCacheKey, responseBody)
     }
 

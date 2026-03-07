@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import {
   estimateEffectiveCashbackPct,
   getCardBySlug,
@@ -59,10 +61,11 @@ export default async function CardDetailPage({ params }: Props) {
   const config = REGIONS[normalized]
   const unitLabel = spendUnitLabel(card.earn_unit, card.currency)
   const cashbackPct = estimateEffectiveCashbackPct(card)
+  const appOrigin = getConfiguredAppOrigin()
   const jsonLd = generateCardJsonLd({
     name: card.name,
     description: `${card.name} from ${card.issuer} with reward earn rates and point value estimates.`,
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://pointsmax.com'}/${normalized}/cards/${card.slug}`,
+    url: `${appOrigin}/${normalized}/cards/${card.slug}`,
     issuer: card.issuer,
     annualFeeAmount: card.annual_fee_usd,
     annualFeeCurrency: card.currency,
@@ -81,6 +84,21 @@ export default async function CardDetailPage({ params }: Props) {
         </div>
       </section>
       <main className="flex-1 pm-shell py-8 space-y-8">
+        <section className="pm-card-soft p-6">
+          <div className="mx-auto max-w-[540px] overflow-hidden rounded-[26px] border border-pm-border bg-white/85 shadow-[0_18px_48px_rgba(11,28,54,0.12)]">
+            {card.image_url ? (
+              <Image
+                src={card.image_url}
+                alt={`${card.name} card art`}
+                width={1080}
+                height={680}
+                className="h-auto w-full"
+              />
+            ) : (
+              <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3]" />
+            )}
+          </div>
+        </section>
 
         <section className="grid gap-4 sm:grid-cols-3">
           <div className="pm-card p-4">

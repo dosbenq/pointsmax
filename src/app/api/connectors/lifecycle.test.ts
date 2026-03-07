@@ -18,10 +18,6 @@ import { DELETE as deleteAccount } from './[id]/route'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase'
 
-// ─────────────────────────────────────────────
-// Shared Mocks
-// ─────────────────────────────────────────────
-
 vi.mock('@/lib/supabase-server')
 vi.mock('@/lib/supabase')
 vi.mock('@/lib/logger', () => ({
@@ -34,13 +30,13 @@ vi.mock('@/lib/connectors/token-vault', () => ({
 }))
 vi.mock('@/lib/connectors/sync-orchestrator', () => ({
   runAccountSync: vi.fn().mockImplementation(async (_adapter, context, persistence) => {
-    const result = { balances: { 'p1': 100 }, cursor: null }
+    const result = { balances: { p1: 100 }, cursor: null }
     await persistence.markSyncing(context.account.id)
     await persistence.markSuccess(context.account.id, result)
     return { status: 'ok', result }
   }),
   isAccountStale: vi.fn().mockReturnValue(true),
-  SYNC_POLICY: { staleThresholdMs: 3600000 }
+  SYNC_POLICY: { staleThresholdMs: 3600000 },
 }))
 vi.mock('@/lib/connectors/adapters', () => ({
   ensureConnectorRegistryInitialized: vi.fn(),
@@ -76,7 +72,7 @@ describe('Connected Wallet Lifecycle', () => {
             maybeSingle: vi.fn().mockImplementation(() => {
               const found = db[table]?.find(row => row[col] === val && row[col2] === val2)
               return { data: found || null }
-            })
+            }),
           })),
           single: vi.fn().mockImplementation(() => {
             if (table === 'users') return { data: mockUserRow }
@@ -85,22 +81,26 @@ describe('Connected Wallet Lifecycle', () => {
           }),
           order: vi.fn().mockImplementation(() => ({
             data: db[table]?.filter(row => row[col] === val) || [],
-            error: null
+            error: null,
           })),
           maybeSingle: vi.fn().mockImplementation(() => {
-             const found = db[table]?.find(row => row[col] === val)
-             return { data: found || null }
-          })
+            const found = db[table]?.find(row => row[col] === val)
+            return { data: found || null }
+          }),
         })),
       })),
       insert: vi.fn((row: DbRow) => ({
         select: vi.fn().mockReturnValue({
           single: vi.fn().mockImplementation(() => {
-            const newRow = { ...row, id: 'acc-' + Math.random().toString(36).substr(2, 9), created_at: new Date().toISOString() }
+            const newRow = {
+              ...row,
+              id: 'acc-' + Math.random().toString(36).substr(2, 9),
+              created_at: new Date().toISOString(),
+            }
             db[table].push(newRow)
             return { data: newRow, error: null }
-          })
-        })
+          }),
+        }),
       })),
       update: vi.fn((updates: DbRow) => ({
         eq: vi.fn((col: string, val: unknown) => ({
@@ -113,17 +113,17 @@ describe('Connected Wallet Lifecycle', () => {
             const idx = db[table].findIndex(row => row[col] === val)
             if (idx !== -1) db[table][idx] = { ...db[table][idx], ...updates }
             return resolve({ error: null })
-          }
-        }))
+          },
+        })),
       })),
       delete: vi.fn(() => ({
         eq: vi.fn((col: string, val: unknown) => ({
           eq: vi.fn((col2: string, val2: unknown) => {
             db[table] = db[table].filter(row => !(row[col] === val && row[col2] === val2))
             return Promise.resolve({ error: null })
-          })
-        }))
-      }))
+          }),
+        })),
+      })),
     })),
   }
 
@@ -141,15 +141,14 @@ describe('Connected Wallet Lifecycle', () => {
   })
 
   it('performs a full account lifecycle correctly', async () => {
-    // 1. CREATE
     const createReq = new NextRequest('http://localhost/api/connectors', {
       method: 'POST',
       body: JSON.stringify({
         provider: 'amex',
         display_name: 'Amex Lifecycle',
         token_vault_ref: 'vault-ref-123',
-        scopes: ['read', 'write']
-      })
+        scopes: ['read', 'write'],
+      }),
     })
     const createRes = await createAccount(createReq)
     expect(createRes.status).toBe(201)
@@ -157,7 +156,6 @@ describe('Connected Wallet Lifecycle', () => {
     expect(account.id).toBeDefined()
     expect(account.sync_status).toBe('pending')
 
-    // 2. LIST
     const listRes = await listAccounts()
     expect(listRes.status).toBe(200)
     const { accounts } = await listRes.json()
@@ -165,32 +163,29 @@ describe('Connected Wallet Lifecycle', () => {
     expect(accounts[0].id).toBe(account.id)
     expect(accounts[0].freshness).toBe('never')
 
-    // 3. SYNC
     const syncReq = new NextRequest('http://localhost/api/connectors/sync', {
       method: 'POST',
-      body: JSON.stringify({ account_id: account.id })
+      body: JSON.stringify({ account_id: account.id }),
     })
     const syncRes = await syncAccount(syncReq)
     expect(syncRes.status).toBe(200)
     const syncResult = await syncRes.json()
     expect(syncResult.status).toBe('ok')
-    
-    // Verify sync updated the record (in our mock DB)
     expect(db.connected_accounts[0].sync_status).toBe('ok')
     expect(db.connected_accounts[0].last_synced_at).toBeDefined()
 
-    // 4. DISCONNECT
     const discReq = new NextRequest('http://localhost/api/connectors/disconnect', {
       method: 'POST',
-      body: JSON.stringify({ account_id: account.id })
+      body: JSON.stringify({ account_id: account.id }),
     })
     const discRes = await disconnectAccount(discReq)
     expect(discRes.status).toBe(200)
     expect(db.connected_accounts[0].status).toBe('revoked')
     expect(db.connected_accounts[0].token_vault_ref).toBe('REVOKED')
 
-    // 5. DELETE
-    const delRes = await deleteAccount(new NextRequest('http://localhost'), { params: Promise.resolve({ id: account.id }) })
+    const delRes = await deleteAccount(new NextRequest('http://localhost'), {
+      params: Promise.resolve({ id: account.id }),
+    })
     expect(delRes.status).toBe(204)
     expect(db.connected_accounts).toHaveLength(0)
   })

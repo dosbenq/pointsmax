@@ -14,6 +14,7 @@ describe('AIChat Component', () => {
     aiLoading: false,
     aiStatus: '',
     aiError: null,
+    blockedReason: null,
     canUseAdvisor: true,
     hasCalculatorResult: true,
     result: null,
@@ -21,6 +22,7 @@ describe('AIChat Component', () => {
     chatEndRef: { current: null } as React.RefObject<HTMLDivElement | null>,
     onChatInputChange: vi.fn(),
     onSendMessage: vi.fn(),
+    onRetryLastMessage: vi.fn(),
     onClearChat: vi.fn(),
     onSwitchPanel: vi.fn(),
   }
@@ -136,5 +138,19 @@ describe('AIChat Component', () => {
   it('shows loading state with status message', () => {
     render(<AIChat {...defaultProps} aiLoading={true} aiStatus="Analyzing..." />)
     expect(screen.getByText('Analyzing...')).toBeInTheDocument()
+  })
+
+  it('shows guest limit message and disables send when blocked', () => {
+    render(<AIChat {...defaultProps} blockedReason="Sign in to continue." canUseAdvisor={false} chatInput="hello" />)
+    expect(screen.getByText('Guest advisor limit reached')).toBeInTheDocument()
+    expect(screen.getByText('Sign in to continue.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('retries the last actual request when retry is clicked', () => {
+    render(<AIChat {...defaultProps} aiError="temporary" />)
+    fireEvent.click(screen.getByText('Retry'))
+    expect(defaultProps.onRetryLastMessage).toHaveBeenCalled()
+    expect(defaultProps.onSendMessage).not.toHaveBeenCalled()
   })
 })

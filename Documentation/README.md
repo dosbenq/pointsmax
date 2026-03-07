@@ -23,6 +23,7 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Vercel environment setup: `Documentation/vercel-env-setup.md`
 - Supabase migrations verification: `Documentation/supabase-migrations-verify.md`
 - Supabase automation notes: `Documentation/supabase-automation.md`
+- OAuth branding setup: `Documentation/oauth-branding-setup.md`
 - Automation control plane: `Documentation/automation-control-plane.md`
 
 ## Research and Strategy
@@ -44,6 +45,7 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Card Recommender V2 PRD: `Documentation/card-recommender-v2-prd.md`
 - Card Recommender V2 decision engine spec: `Documentation/card-recommender-v2-decision-engine-spec.md`
 - Card Recommender V2 delivery plan: `Documentation/card-recommender-v2-delivery-plan.md`
+- UI reset brief: `Documentation/ui-reset-brief.md`
 
 ## SQL Utilities
 - Migration audit query: `Documentation/sql/launch-migration-audit.sql`

@@ -69,7 +69,40 @@ export function rankResults<T extends RankableResult>(results: T[]): T[] {
 /**
  * Calculate total optimal and cash values from results
  */
-export function calculateTotals(results: Array<{ total_value_cents: number; category: string }>): {
+type TotalsRow = {
+  total_value_cents: number
+  category: string
+  is_best?: boolean
+  program_id?: string
+  from_program_id?: string
+}
+
+function groupKey(row: TotalsRow, index: number): string {
+  return row.from_program_id ?? row.program_id ?? `row-${index}`
+}
+
+function sumBestPerGroup(results: TotalsRow[]): number {
+  if (results.length === 0) return 0
+
+  const flagged = results.filter((row) => row.is_best)
+  if (flagged.length > 0) {
+    return flagged.reduce((sum, row) => sum + (Number.isFinite(row.total_value_cents) ? row.total_value_cents : 0), 0)
+  }
+
+  const bestByGroup = new Map<string, number>()
+  results.forEach((row, index) => {
+    const key = groupKey(row, index)
+    const value = Number.isFinite(row.total_value_cents) ? row.total_value_cents : 0
+    const current = bestByGroup.get(key) ?? Number.NEGATIVE_INFINITY
+    if (value > current) {
+      bestByGroup.set(key, value)
+    }
+  })
+
+  return [...bestByGroup.values()].reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+}
+
+export function calculateTotals(results: TotalsRow[]): {
   totalOptimalCents: number
   totalCashCents: number
 } {
@@ -77,13 +110,13 @@ export function calculateTotals(results: Array<{ total_value_cents: number; cate
     return { totalOptimalCents: 0, totalCashCents: 0 }
   }
   
-  const totalOptimalCents = results
-    .filter(r => r.category !== 'statement_credit' && r.category !== 'cashback')
-    .reduce((sum, r) => sum + (r.total_value_cents || 0), 0)
-  
-  const totalCashCents = results
-    .filter(r => r.category === 'statement_credit' || r.category === 'cashback')
-    .reduce((sum, r) => sum + (r.total_value_cents || 0), 0)
+  const totalOptimalCents = sumBestPerGroup(
+    results.filter(r => r.category !== 'statement_credit' && r.category !== 'cashback')
+  )
+
+  const totalCashCents = sumBestPerGroup(
+    results.filter(r => r.category === 'statement_credit' || r.category === 'cashback')
+  )
   
   return { totalOptimalCents, totalCashCents }
 }

@@ -82,10 +82,10 @@ vi.mock('@/lib/api-security', () => ({
   enforceRateLimit: vi.fn().mockResolvedValue(null),
 }))
 
-function makeRequest(url: string, body: unknown) {
+function makeRequest(url: string, body: unknown, headers?: Record<string, string>) {
   return new NextRequest(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   })
 }
@@ -134,6 +134,25 @@ describe('AI Cache Integration', () => {
       
       const res2 = await expertChatRoute.POST(makeRequest('https://pointsmax.com/api/ai/expert-chat', payload2))
       expect(res2.headers.get('X-PointsMax-Cache')).toBe('MISS')
+    })
+
+    it('shares content cache across different user agents for the same region and question', async () => {
+      const payload = { message: 'How do I redeem HDFC Infinia points?', region: 'in' }
+
+      const req1 = makeRequest('https://pointsmax.com/api/ai/expert-chat', payload, {
+        'user-agent': 'Chrome',
+        'x-forwarded-for': '1.1.1.1',
+      })
+      const req2 = makeRequest('https://pointsmax.com/api/ai/expert-chat', payload, {
+        'user-agent': 'Safari',
+        'x-forwarded-for': '2.2.2.2',
+      })
+
+      const res1 = await expertChatRoute.POST(req1)
+      const res2 = await expertChatRoute.POST(req2)
+
+      expect(res1.headers.get('X-PointsMax-Cache')).toBe('MISS')
+      expect(res2.headers.get('X-PointsMax-Cache')).toBe('HIT')
     })
   })
 

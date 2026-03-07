@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -298,6 +299,7 @@ export default function AwardSearchPage() {
   const unreachable = useMemo(() => result?.results.filter((r) => !r.is_reachable) ?? [], [result])
   const topSlug = narrative?.top_pick_slug ?? result?.ai_narrative?.top_pick_slug
   const estimatesOnly = result?.error === 'real_availability_unavailable'
+  const searchWarnings = result?.warnings ?? []
 
   const saveWatch = async () => {
     if (!result || !user) return
@@ -340,18 +342,66 @@ export default function AwardSearchPage() {
 
       <section className="pm-page-header">
         <div className="pm-shell">
-          <span className="pm-pill mb-4 inline-block">Award search</span>
-          <h1 className="pm-heading text-4xl sm:text-5xl mb-3">Find award availability</h1>
-          <p className="pm-subtle max-w-xl text-base">
-            Search availability and compare transfer paths across programs — without running the full calculator.
-          </p>
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
+            <div>
+              <span className="inline-flex rounded-full border border-[#9fc6ff]/18 bg-[#5ac7d4]/10 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d6e4f7]/82">
+                Planner subflow
+              </span>
+              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4f8ff] sm:text-[4.5rem]">
+                Search award space with a better decision frame.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-[#dce8f8]/86">
+                Use this when you already know the route. Planner remains the main decision surface; Award Search is the direct verification tool.
+              </p>
+              <Link
+                href={`/${region}/calculator`}
+                className="mt-5 inline-flex items-center text-sm font-semibold text-[#eefcff]/92 underline underline-offset-4"
+              >
+                Back to Planner
+              </Link>
+            </div>
+
+            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4f8ff]">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c6d9f4]/78">Search snapshot</p>
+              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+                <p className="text-lg font-semibold leading-8 tracking-[-0.03em]">
+                  {params.origin || defaultOrigin} → {params.destination || defaultDestination}
+                </p>
+                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Cabin</span>
+                    <span className="font-semibold">{CABIN_LABELS[params.cabin]}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Date range</span>
+                    <span className="font-semibold text-right">{params.start_date} → {params.end_date}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[#10243a]/54">Wallet balances</span>
+                    <span className="font-semibold">{rows.filter((row) => row.program_id && parsePointsAmount(row.amount) > 0).length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       <main className="pm-shell py-8 w-full flex-1 space-y-6">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
           <div className="pm-card-soft p-6 space-y-5">
-            <h2 className="pm-heading text-lg">Search inputs</h2>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="pm-section-title mb-2">Inputs</p>
+                <h2 className="pm-heading text-lg">Define the route and balances</h2>
+                <p className="mt-2 text-sm leading-7 text-pm-ink-700">
+                  This page works best when you already know the route you want to verify and just need the reachable programs, transfer path, and booking links.
+                </p>
+              </div>
+              <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
+                Search
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -564,18 +614,34 @@ export default function AwardSearchPage() {
             )}
           </div>
 
-          <div className="pm-card p-6 space-y-4">
+          <div className="pm-card p-6 space-y-4 lg:sticky lg:top-[calc(var(--navbar-height)+1.5rem)] lg:self-start">
             {!result ? (
               <>
-                <h2 className="pm-heading text-lg">Results</h2>
+                <p className="pm-section-title mb-1">Results</p>
+                <h2 className="pm-heading text-lg">Live market view</h2>
                 <p className="pm-subtle text-sm">
-                  Run a search to see reachable programs, transfer paths, and booking links.
+                  Run a search to see reachable programs, transfer paths, and booking links ranked for this route.
                 </p>
+                <div className="rounded-[22px] bg-pm-surface-soft p-4">
+                  <p className="text-sm font-semibold text-pm-ink-900">What appears here</p>
+                  <ul className="mt-2 space-y-1.5 text-xs leading-6 text-pm-ink-700">
+                    <li>• Reachable programs first</li>
+                    <li>• Points needed from your wallet</li>
+                    <li>• Transfer path and live/estimated status</li>
+                  </ul>
+                </div>
+                <Link
+                  href={`/${region}/calculator`}
+                  className="inline-flex text-sm font-medium text-pm-accent hover:underline underline-offset-4"
+                >
+                  Open full Planner
+                </Link>
               </>
             ) : (
               <>
                 <div>
-                  <h2 className="pm-heading text-lg">Results</h2>
+                  <p className="pm-section-title mb-1">Results</p>
+                  <h2 className="pm-heading text-lg">Ranked award options</h2>
                   <p className="text-xs text-pm-ink-500 mt-1">
                     {result.params.origin} → {result.params.destination} · {CABIN_LABELS[result.params.cabin]} · {result.params.passengers} pax
                   </p>
@@ -603,6 +669,16 @@ export default function AwardSearchPage() {
                     <p className="text-sm text-pm-warning">
                       {result.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
                     </p>
+                  </div>
+                )}
+
+                {searchWarnings.length > 0 && (
+                  <div className="space-y-2">
+                    {searchWarnings.map((warning) => (
+                      <div key={warning} className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                        <p className="text-sm text-sky-900">{warning}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
 

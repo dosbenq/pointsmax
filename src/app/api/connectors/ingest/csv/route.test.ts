@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mockInsert = vi.fn()
@@ -18,15 +18,14 @@ vi.mock('@/lib/logger', () => ({
   logWarn: vi.fn(),
 }))
 
-const { POST, GET } = await import('./route')
+const { POST, GET, __testing } = await import('./route')
 
 function createFormRequest(formData: FormData, userId = 'test-user'): NextRequest {
   mockGetUser.mockResolvedValue({ data: { user: { id: userId } } })
-  
-  return new NextRequest('http://localhost/api/connectors/ingest/csv', {
-    method: 'POST',
-    body: formData,
-  })
+
+  return {
+    formData: async () => formData,
+  } as NextRequest
 }
 
 function createGetRequest(url: string, userId = 'test-user'): NextRequest {
@@ -34,24 +33,21 @@ function createGetRequest(url: string, userId = 'test-user'): NextRequest {
   return new NextRequest(url)
 }
 
-describe.skip('POST /api/connectors/ingest/csv', () => {
+describe('POST /api/connectors/ingest/csv', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __testing.resetIngestJobs()
+    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
     mockInsert.mockResolvedValue({ error: null })
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('requires authentication', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     
     const formData = new FormData()
-    const req = new NextRequest('http://localhost/api/connectors/ingest/csv', {
-      method: 'POST',
-      body: formData,
-    })
+    const req = {
+      formData: async () => formData,
+    } as NextRequest
 
     const res = await POST(req)
     const body = await res.json()
@@ -251,9 +247,12 @@ Chase,100000
   })
 })
 
-describe.skip('GET /api/connectors/ingest/csv', () => {
+describe('GET /api/connectors/ingest/csv', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __testing.resetIngestJobs()
+    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
+    mockInsert.mockResolvedValue({ error: null })
   })
 
   it('requires authentication', async () => {
@@ -356,9 +355,11 @@ describe.skip('GET /api/connectors/ingest/csv', () => {
   })
 })
 
-describe.skip('CSV Ingestion edge cases', () => {
+describe('CSV Ingestion edge cases', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    __testing.resetIngestJobs()
+    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
     mockInsert.mockResolvedValue({ error: null })
   })
 

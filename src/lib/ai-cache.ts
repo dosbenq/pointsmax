@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { logInfo } from './logger'
+import * as logger from './logger'
 
 export type AiCacheEntry<T> = {
   data: T
@@ -16,7 +16,7 @@ export type AiCacheStats = {
   newestEntry?: number
 }
 
-const DEFAULT_TTL_MS = 30 * 60 * 1000 // 30 minutes
+export const DEFAULT_AI_CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
 
 // Versioned cache keys for safe invalidation
 // Bump this to invalidate all existing caches (e.g., when AI prompt/format changes)
@@ -130,7 +130,7 @@ export function getCachedAiResponse<T>(key: string): T | null {
   return null
 }
 
-export function setCachedAiResponse<T>(key: string, data: T, ttlMs: number = DEFAULT_TTL_MS): void {
+export function setCachedAiResponse<T>(key: string, data: T, ttlMs: number = DEFAULT_AI_CACHE_TTL_MS): void {
   const store = getAiCacheStore()
   store.set(key, {
     data,
@@ -158,15 +158,20 @@ export function setCachedAiResponse<T>(key: string, data: T, ttlMs: number = DEF
   }
 }
 
+/**
+ * Logs a cache hit/miss metric for monitoring.
+ */
 export function logAiCacheMetric(event: 'hit' | 'miss', namespace: string, requestId?: string) {
   const stats = getAiCacheStats()
-  logInfo(`ai_cache_${event}`, { 
+  const hitRate = stats.hitCount + stats.missCount > 0 
+    ? stats.hitCount / (stats.hitCount + stats.missCount) 
+    : 0
+
+  logger.logInfo?.(`ai_cache_${event}`, {
     namespace, 
     requestId, 
     version: getCacheVersion(),
-    hitRate: stats.hitCount + stats.missCount > 0 
-      ? stats.hitCount / (stats.hitCount + stats.missCount) 
-      : 0,
+    hitRate: Number(hitRate.toFixed(4)),
     cacheSize: stats.totalEntries,
   })
 }

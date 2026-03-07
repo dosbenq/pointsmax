@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { getSafeAppOrigin as getSharedSafeAppOrigin } from '@/lib/app-origin'
 
 const STRIPE_API_BASE = 'https://api.stripe.com/v1'
 
@@ -10,25 +11,8 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object'
 }
 
-function toSafeOrigin(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  try {
-    const parsed = new URL(raw)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
-    return parsed.origin
-  } catch {
-    return null
-  }
-}
-
 export function getSafeAppOrigin(requestUrl?: string): string {
-  const fromEnv = toSafeOrigin(process.env.NEXT_PUBLIC_APP_URL)
-  if (fromEnv) return fromEnv
-
-  const fromRequest = toSafeOrigin(requestUrl)
-  if (fromRequest) return fromRequest
-
-  return 'http://localhost:3000'
+  return getSharedSafeAppOrigin(requestUrl)
 }
 
 export function getStripeSecretKey(): string | null {
@@ -181,4 +165,3 @@ export function verifyStripeWebhookSignature(params: {
 
   return signatures.some((candidate) => timingSafeHexEqual(candidate, expected))
 }
-

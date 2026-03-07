@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
+import { getSafeAppOrigin } from '@/lib/app-origin'
 import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRequestId, logError, logInfo } from '@/lib/logger'
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const appOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000'
+  const appOrigin = getSafeAppOrigin(req.nextUrl.origin)
   const url = `${appOrigin}/${region}/trips/${id}`
   logInfo('trip_shared_created', { requestId, id, region, created_by: createdBy })
   return NextResponse.json({ ok: true, id, url })

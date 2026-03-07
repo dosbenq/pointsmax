@@ -10,13 +10,13 @@ vi.mock('@/lib/inngest/client', () => ({
 
 const resolveChannelIdMock = vi.fn()
 const fetchLatestVideoUrlsMock = vi.fn()
-const getDefaultKnowledgeChannelUrlMock = vi.fn()
+const getConfiguredKnowledgeChannelUrlMock = vi.fn()
 const getDefaultKnowledgeMaxVideosMock = vi.fn()
 
 vi.mock('@/lib/knowledge/channel-ingest', () => ({
   resolveChannelId: resolveChannelIdMock,
   fetchLatestVideoUrls: fetchLatestVideoUrlsMock,
-  getDefaultKnowledgeChannelUrl: getDefaultKnowledgeChannelUrlMock,
+  getConfiguredKnowledgeChannelUrl: getConfiguredKnowledgeChannelUrlMock,
   getDefaultKnowledgeMaxVideos: getDefaultKnowledgeMaxVideosMock,
 }))
 
@@ -39,7 +39,7 @@ describe('GET /api/cron/ingest-youtube-knowledge', () => {
     process.env.INNGEST_EVENT_KEY = 'event-key'
     process.env.NODE_ENV = 'test'
 
-    getDefaultKnowledgeChannelUrlMock.mockReturnValue('https://www.youtube.com/@GreatIndianMiles')
+    getConfiguredKnowledgeChannelUrlMock.mockReturnValue('https://www.youtube.com/@GreatIndianMiles')
     getDefaultKnowledgeMaxVideosMock.mockReturnValue(15)
     resolveChannelIdMock.mockResolvedValue('UCabc123abc123abc123ab')
     fetchLatestVideoUrlsMock.mockResolvedValue([
@@ -60,6 +60,16 @@ describe('GET /api/cron/ingest-youtube-knowledge', () => {
     const body = await res.json()
     expect(res.status).toBe(503)
     expect(body.error).toContain('GEMINI_API_KEY')
+  })
+
+  it('returns 503 when no knowledge channel is configured', async () => {
+    getConfiguredKnowledgeChannelUrlMock.mockReturnValue(null)
+
+    const res = await GET(makeRequest({ authHeader: 'Bearer cron-secret' }))
+    const body = await res.json()
+
+    expect(res.status).toBe(503)
+    expect(body.error).toContain('YOUTUBE_KNOWLEDGE_CHANNEL_URL')
   })
 
   it('enqueues ingestion when authorized and configured', async () => {

@@ -8,100 +8,29 @@ import {
   getSoftBenefits,
   SOFT_BENEFIT_COPY,
   type SoftBenefitType,
-  type IssuerRuleTag,
 } from './metadata'
+import type {
+  TravelGoalKey,
+  RecommendationMode,
+  AnnualFeeTolerance,
+  RecommendationStatus,
+  ConfidenceLevel,
+  WalletBalanceInput,
+  ScoringInputs,
+  RecommendationScoreBreakdown,
+  RecommendationConfidence,
+  RecommendationExplanation,
+  EligibilityAssessment,
+  CardRecommendation,
+} from './types'
 
+// Re-export for backward compatibility
 export { SOFT_BENEFIT_COPY, type SoftBenefitType }
+export type { TravelGoalKey, RecommendationMode, AnnualFeeTolerance, RecommendationStatus, ConfidenceLevel }
+export type { WalletBalanceInput, ScoringInputs, RecommendationScoreBreakdown, RecommendationConfidence }
+export type { RecommendationExplanation, EligibilityAssessment, CardRecommendation }
 
-export const TRAVEL_GOALS = [
-  { key: 'domestic', label: 'Domestic economy' },
-  { key: 'intl_econ', label: 'International economy' },
-  { key: 'intl_biz', label: 'International business class' },
-  { key: 'hotels', label: 'Hotel nights' },
-  { key: 'flex', label: 'Transferable points flexibility' },
-] as const
-
-export type TravelGoalKey = (typeof TRAVEL_GOALS)[number]['key']
-export type RecommendationMode = 'next_best_card' | 'long_term_value'
-export type AnnualFeeTolerance = 'low' | 'medium' | 'high'
-export type RecommendationStatus = 'eligible' | 'ineligible' | 'unknown'
-export type ConfidenceLevel = 'high' | 'medium' | 'low'
-
-export interface WalletBalanceInput {
-  program_id: string
-  balance: number
-  source?: 'manual' | 'connector'
-  as_of?: string | null
-  confidence?: ConfidenceLevel
-  is_stale?: boolean
-}
-
-export interface ScoringInputs {
-  spend: Partial<Record<SpendCategory, string>>
-  travelGoals: Set<string>
-  ownedCards: Set<string>
-  regionCode: Region
-  programGoalMap: Record<string, string[]>
-  mode: RecommendationMode
-  annualFeeTolerance: AnnualFeeTolerance
-  recentOpenAccounts24m?: number | null
-  walletBalances?: WalletBalanceInput[]
-  targetPointsGoal?: number | null
-}
-
-export interface RecommendationScoreBreakdown {
-  annualRewardsValue: number
-  signupBonusValue: number
-  softBenefitValue: number
-  goalAlignmentBonus: number
-  walletSynergyBonus: number
-  feePenalty: number
-  complexityPenalty: number
-  totalScore: number
-}
-
-export interface RecommendationConfidence {
-  level: ConfidenceLevel
-  score: number
-  reasons: string[]
-}
-
-export interface RecommendationExplanation {
-  whyThisCard: string[]
-  whyNow: string[]
-  assumptions: string[]
-  warnings: string[]
-}
-
-export interface EligibilityAssessment {
-  status: RecommendationStatus
-  reasons: string[]
-  warnings: string[]
-  appliedRules: IssuerRuleTag[]
-}
-
-export interface CardRecommendation {
-  card: CardWithRates
-  rank: number
-  status: RecommendationStatus
-  eligibility: EligibilityAssessment
-  confidence: RecommendationConfidence
-  explanation: RecommendationExplanation
-  breakdown: RecommendationScoreBreakdown
-  pointsPerYear: number
-  annualRewardsValue: number
-  signupValue: number
-  signupValueEligible: number
-  softBenefitValue: number
-  softBenefits: SoftBenefitType[]
-  ongoingValue: number
-  firstYearValue: number
-  goalCount: number
-  goalMatchStrength: number
-  hasCardAlready: boolean
-  walletBalance: number
-  estimatedMonthsToGoal: number | null
-}
+// Note: TRAVEL_GOALS is exported from types.ts
 
 const REGION_BASE_BONUS: Record<'US' | 'IN', number> = {
   US: 180,
@@ -154,6 +83,9 @@ function getFeePenalty(card: CardWithRates, tolerance: AnnualFeeTolerance): numb
   return fee * 0.75 + lowToleranceSurcharge
 }
 
+/**
+ * Calculate how many travel goals a card matches
+ */
 export function goalMatchScore(
   card: CardWithRates,
   goals: Set<string>,
@@ -219,6 +151,9 @@ function getTopSpendCategory(
   return best && best.monthlySpend > 0 ? best : null
 }
 
+/**
+ * Calculate yearly points earned from spend across all categories
+ */
 export function calculateYearlyPoints(
   card: CardWithRates,
   spend: Partial<Record<SpendCategory, string>>,
@@ -240,6 +175,9 @@ export function calculateYearlyPoints(
   }, 0)
 }
 
+/**
+ * Assess card eligibility based on issuer rules and user profile
+ */
 export function assessEligibility(card: CardWithRates, inputs: ScoringInputs): EligibilityAssessment {
   const reasons: string[] = []
   const warnings: string[] = []
@@ -448,6 +386,9 @@ function compareRecommendations(a: CardRecommendation, b: CardRecommendation): n
   return a.card.id.localeCompare(b.card.id)
 }
 
+/**
+ * Score a single card based on inputs
+ */
 export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecommendation {
   const categories = getCategoriesForRegion(inputs.regionCode)
   const pointsPerYear = calculateYearlyPoints(card, inputs.spend, categories)
@@ -522,6 +463,9 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
   }
 }
 
+/**
+ * Score and rank all cards based on inputs
+ */
 export function scoreAndRankCards(cards: CardWithRates[], inputs: ScoringInputs): CardRecommendation[] {
   return cards
     .map((card) => scoreCard(card, inputs))

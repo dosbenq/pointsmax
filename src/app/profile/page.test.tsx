@@ -1,5 +1,15 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+const mockAuthState = {
+  user: { email: 'test@example.com', id: 'user-123' },
+  userRecord: { id: 'user-123', email: 'test@example.com', tier: 'free' },
+  preferences: null,
+  loading: false,
+  signInWithGoogle: vi.fn(),
+  signOut: vi.fn(),
+  refreshPreferences: vi.fn(),
+}
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -10,15 +20,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock auth context
 vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({
-    user: { email: 'test@example.com', id: 'user-123' },
-    userRecord: { id: 'user-123', email: 'test@example.com', tier: 'free' },
-    preferences: null,
-    loading: false,
-    signInWithGoogle: vi.fn(),
-    signOut: vi.fn(),
-    refreshPreferences: vi.fn(),
-  }),
+  useAuth: () => mockAuthState,
 }))
 
 // Mock UI components
@@ -67,6 +69,15 @@ describe('Profile Page - Region-aware Alert Program Scoping', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    vi.useRealTimers()
+    mockAuthState.user = { email: 'test@example.com', id: 'user-123' }
+    mockAuthState.userRecord = { id: 'user-123', email: 'test@example.com', tier: 'free' }
+    mockAuthState.preferences = null
+    mockAuthState.loading = false
+    mockAuthState.signInWithGoogle = vi.fn()
+    mockAuthState.signOut = vi.fn()
+    mockAuthState.refreshPreferences = vi.fn()
+
     fetchMock = vi.fn()
     global.fetch = fetchMock
     
@@ -197,6 +208,35 @@ describe('Profile Page - Region-aware Alert Program Scoping', () => {
       await waitFor(() => {
         expect(screen.getByText('🇮🇳 India programs')).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('authentication states', () => {
+    it('shows a sign-in state instead of redirecting when no user is present', async () => {
+      mockAuthState.user = null
+      mockAuthState.userRecord = null
+
+      render(<ProfilePage />)
+
+      expect(screen.getByText('Sign in required')).toBeInTheDocument()
+      expect(screen.getByText('Your wallet only works when it knows who you are.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    })
+
+    it('shows a recovery state when wallet loading takes too long', async () => {
+      vi.useFakeTimers()
+      mockAuthState.loading = true
+      mockAuthState.user = null
+      mockAuthState.userRecord = null
+
+      render(<ProfilePage />)
+
+      await act(async () => {
+        vi.advanceTimersByTime(4500)
+      })
+
+      expect(screen.getByText('Still loading')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Retry wallet' })).toBeInTheDocument()
     })
   })
 

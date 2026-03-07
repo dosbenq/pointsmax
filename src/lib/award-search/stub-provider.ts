@@ -15,6 +15,11 @@ import type {
 } from './types'
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
+import {
+  buildReachablePaths,
+  buildTransferChain,
+  calculatePointsNeededFromWallet,
+} from './reachable-wallet'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { sortAwardResultsByPoints } from './sort-results'
 
@@ -59,75 +64,17 @@ export class StubProvider implements AwardProvider {
     const valuationByProgramId = new Map<string, ValuationRow>(
       ((valuations as ValuationRow[]) ?? []).map(v => [v.program_id, v]),
     )
-    const balanceMap = new Map<string, number>(
-      balances.map(b => [b.program_id, b.amount]),
-    )
-
     const region = detectRouteRegion(origin, destination)
-
-    // ── Track best reachable path per destination airline slug ──
-    // key: airline slug
-    // value: best available miles + metadata about the source
-    interface ReachablePath {
-      availableMiles: number          // miles available after transfer
-      sourceProgram: ProgramRow
-      balance: number
-      ratioFrom: number
-      ratioTo: number
-      isInstant: boolean
-      transferTimeMaxHrs: number
-      directHold: boolean             // user holds airline miles directly
-    }
-
-    const bestPathBySlug = new Map<string, ReachablePath>()
-
-    // 1. Direct airline miles held by the user
-    for (const balance of balances) {
-      const prog = programMap.get(balance.program_id)
-      if (!prog || prog.type !== 'airline_miles') continue
-      const existing = bestPathBySlug.get(prog.slug)
-      if (!existing || balance.amount > existing.availableMiles) {
-        bestPathBySlug.set(prog.slug, {
-          availableMiles: balance.amount,
-          sourceProgram: prog,
-          balance: balance.amount,
-          ratioFrom: 1,
-          ratioTo: 1,
-          isInstant: true,
-          transferTimeMaxHrs: 0,
-          directHold: true,
-        })
-      }
-    }
-
-    // 2. Transferable points → airline miles
-    for (const tp of ((transferPartners as TransferPartnerRow[]) ?? [])) {
-      const toProgram = programMap.get(tp.to_program_id)
-      if (!toProgram || toProgram.type !== 'airline_miles') continue
-
-      const balance = balanceMap.get(tp.from_program_id) ?? 0
-      const milesAfterTransfer = Math.floor(balance * (tp.ratio_to / tp.ratio_from))
-
-      const existing = bestPathBySlug.get(toProgram.slug)
-      if (!existing || milesAfterTransfer > existing.availableMiles) {
-        const sourceProgram = programMap.get(tp.from_program_id)!
-        bestPathBySlug.set(toProgram.slug, {
-          availableMiles: milesAfterTransfer,
-          sourceProgram,
-          balance,
-          ratioFrom: tp.ratio_from,
-          ratioTo: tp.ratio_to,
-          isInstant: tp.is_instant,
-          transferTimeMaxHrs: tp.transfer_time_max_hrs,
-          directHold: false,
-        })
-      }
-    }
+    const reachablePaths = buildReachablePaths(
+      balances,
+      programMap,
+      (transferPartners as TransferPartnerRow[]) ?? [],
+    )
 
     // ── Build results ────────────────────────────────────────
     const results: AwardSearchResult[] = []
 
-    for (const [slug, path] of bestPathBySlug) {
+    for (const [slug, path] of reachablePaths) {
       const estimatedMiles = getEstimatedMiles(slug, region, cabin, passengers)
       if (estimatedMiles == null) continue
 
@@ -141,21 +88,9 @@ export class StubProvider implements AwardProvider {
       const estimatedCashValueCents = estimatedMiles * cppCents
 
       // How many source program points are needed to get estimatedMiles
-      const pointsNeededFromWallet = path.directHold
-        ? estimatedMiles
-        : Math.ceil(estimatedMiles * (path.ratioFrom / path.ratioTo))
+      const pointsNeededFromWallet = calculatePointsNeededFromWallet(path, estimatedMiles)
 
       const isReachable = path.availableMiles >= estimatedMiles
-
-      // Transfer chain string
-      let transferChain: string | null = null
-      if (!path.directHold) {
-        const ratio =
-          path.ratioFrom === path.ratioTo
-            ? '1:1'
-            : `${path.ratioFrom}:${path.ratioTo}`
-        transferChain = `${path.sourceProgram.name} → ${airlineProgram.name} (${ratio})`
-      }
 
       results.push({
         program_slug: slug,
@@ -164,8 +99,8 @@ export class StubProvider implements AwardProvider {
         estimated_miles: estimatedMiles,
         estimated_cash_value_cents: estimatedCashValueCents,
         cpp_cents: cppCents,
-        transfer_chain: transferChain,
-        transfer_is_instant: path.isInstant,
+        transfer_chain: buildTransferChain(path, airlineProgram),
+        transfer_is_instant: path.transferIsInstant,
         points_needed_from_wallet: pointsNeededFromWallet,
         availability: null,
         deep_link: buildDeepLink(slug, params),

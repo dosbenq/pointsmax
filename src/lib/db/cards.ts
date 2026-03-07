@@ -15,6 +15,7 @@ interface CardRow {
   id: string
   name: string
   issuer: string
+  image_url?: unknown
   annual_fee_usd: number
   signup_bonus_pts: number
   signup_bonus_spend: number
@@ -47,7 +48,7 @@ const defaultRates: Record<SpendCategory, number> = {
   groceries: 1,
   travel: 1,
   gas: 1,
-  shopping: NaN,
+  shopping: 1,
   streaming: 1,
   other: 1,
 }
@@ -58,15 +59,6 @@ const defaultRates: Record<SpendCategory, number> = {
 export function normalizeGeography(value: string | null): Geography {
   if (!value) return 'US'
   return value.toUpperCase() === 'IN' ? 'IN' : 'US'
-}
-
-/**
- * Normalize CPP cents for India cards (handles paise vs cents conversion)
- * Backward compatibility: old India seeds used rupees-per-point, while the app expects minor units.
- */
-export function normalizeCardCppCents(cppCents: number, currency: 'USD' | 'INR'): number {
-  if (currency === 'INR' && cppCents <= 5) return cppCents * 100
-  return cppCents
 }
 
 /**
@@ -147,8 +139,6 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
     const val = valuationByProgram.get(card.program_id)
     const currency = card.currency === 'INR' ? 'INR' : 'USD'
     const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-    const normalizedCppCents = normalizeCardCppCents(resolvedCppCents, currency)
-
     const cardRates = ratesByCard.get(card.id) ?? { ...defaultRates }
     if (!Number.isFinite(cardRates.shopping) || cardRates.shopping <= 0) {
       cardRates.shopping = cardRates.other
@@ -162,9 +152,10 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
         : (currency === 'INR' ? '100_inr' : '1_dollar'),
       geography: card.geography === 'IN' ? 'IN' : 'US',
       apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
+      image_url: typeof card.image_url === 'string' ? card.image_url : null,
       program_name: val?.program_name ?? 'Unknown',
       program_slug: val?.program_slug ?? '',
-      cpp_cents: normalizedCppCents,
+      cpp_cents: resolvedCppCents,
       earning_rates: cardRates,
     }
   })
@@ -208,8 +199,6 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
 
   const currency = card.currency === 'INR' ? 'INR' : 'USD'
   const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-  const normalizedCppCents = normalizeCardCppCents(resolvedCppCents, currency)
-
   const cardRates: Record<SpendCategory, number> = { ...defaultRates }
   for (const rate of rates) {
     const category = rate.category as SpendCategory
@@ -229,9 +218,10 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
       : (currency === 'INR' ? '100_inr' : '1_dollar'),
     geography,
     apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
+    image_url: typeof card.image_url === 'string' ? card.image_url : null,
     program_name: val?.program_name ?? 'Unknown',
     program_slug: val?.program_slug ?? '',
-    cpp_cents: normalizedCppCents,
+    cpp_cents: resolvedCppCents,
     earning_rates: cardRates,
   }
 }

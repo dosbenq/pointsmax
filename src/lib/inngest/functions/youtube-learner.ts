@@ -136,7 +136,7 @@ ${fullText.slice(0, 30000)}
             metadata: {
               ingested_at: new Date().toISOString(),
               type: 'youtube_transcript',
-              channel: channel ?? '@GreatIndianMiles',
+              channel: channel ?? 'unknown-channel',
             },
           }, {
             onConflict: 'source_id,content_hash',
@@ -150,7 +150,7 @@ ${fullText.slice(0, 30000)}
 
     return {
       message: 'Ingestion complete',
-      channel: channel ?? '@GreatIndianMiles',
+      channel: channel ?? 'unknown-channel',
       processed: uniqueUrls.length,
       results,
     }

@@ -189,7 +189,7 @@ describe('GET /api/cards', () => {
     )
   })
 
-  it('normalizes india valuation units from rupees to paise when needed', async () => {
+  it('returns india valuation units exactly as stored in the database', async () => {
     createPublicClientMock.mockReturnValue(
       makeDbClient({
         cards: {
@@ -216,7 +216,7 @@ describe('GET /api/cards', () => {
           data: [
             {
               program_id: 'program-in-1',
-              cpp_cents: '1.20',
+              cpp_cents: 120,
               program_name: 'India Program',
               program_slug: 'india-program',
               program_type: 'transferable_points',
@@ -246,7 +246,7 @@ describe('GET /api/cards', () => {
     )
   })
 
-  it('keeps already-normalized india valuation units unchanged', async () => {
+  it('keeps normalized india valuation units unchanged', async () => {
     createPublicClientMock.mockReturnValue(
       makeDbClient({
         cards: {

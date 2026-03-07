@@ -16,6 +16,11 @@ import type {
 } from './types'
 import { detectRouteRegion, getEstimatedMiles } from './award-charts'
 import { buildDeepLink } from './deep-links'
+import {
+  buildReachablePaths,
+  buildTransferChain,
+  calculatePointsNeededFromWallet,
+} from './reachable-wallet'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { sortAwardResultsByPoints } from './sort-results'
 
@@ -162,10 +167,6 @@ export class SeatsAeroProvider implements AwardProvider {
     const valuationByProgramId = new Map<string, ValuationRow>(
       ((valuations as ValuationRow[]) ?? []).map(v => [v.program_id, v]),
     )
-    const balanceMap = new Map<string, number>(
-      balances.map(b => [b.program_id, b.amount]),
-    )
-
     const region = detectRouteRegion(origin, destination)
 
     // ── Parse availability from Seats.aero ───────────────────
@@ -200,73 +201,23 @@ export class SeatsAeroProvider implements AwardProvider {
       }
     }
 
-    // ── Build best reachable path per airline slug ────────────
-    interface ReachablePath {
-      availableMiles: number
-      sourceProgram: ProgramRow
-      balance: number
-      ratioFrom: number
-      ratioTo: number
-      isInstant: boolean
-      transferTimeMaxHrs: number
-      directHold: boolean
-    }
-
-    const bestPathBySlug = new Map<string, ReachablePath>()
-
-    // Direct airline miles
-    for (const balance of balances) {
-      const prog = programMap.get(balance.program_id)
-      if (!prog || prog.type !== 'airline_miles') continue
-      const existing = bestPathBySlug.get(prog.slug)
-      if (!existing || balance.amount > existing.availableMiles) {
-        bestPathBySlug.set(prog.slug, {
-          availableMiles: balance.amount,
-          sourceProgram: prog,
-          balance: balance.amount,
-          ratioFrom: 1, ratioTo: 1,
-          isInstant: true,
-          transferTimeMaxHrs: 0,
-          directHold: true,
-        })
-      }
-    }
-
-    // Transfer partner paths
-    for (const tp of ((transferPartners as TransferPartnerRow[]) ?? [])) {
-      const toProgram = programMap.get(tp.to_program_id)
-      if (!toProgram || toProgram.type !== 'airline_miles') continue
-
-      const balance = balanceMap.get(tp.from_program_id) ?? 0
-      const milesAfterTransfer = Math.floor(balance * (tp.ratio_to / tp.ratio_from))
-
-      const existing = bestPathBySlug.get(toProgram.slug)
-      if (!existing || milesAfterTransfer > existing.availableMiles) {
-        const sourceProgram = programMap.get(tp.from_program_id)!
-        bestPathBySlug.set(toProgram.slug, {
-          availableMiles: milesAfterTransfer,
-          sourceProgram,
-          balance,
-          ratioFrom: tp.ratio_from,
-          ratioTo: tp.ratio_to,
-          isInstant: tp.is_instant,
-          transferTimeMaxHrs: tp.transfer_time_max_hrs,
-          directHold: false,
-        })
-      }
-    }
+    const reachablePaths = buildReachablePaths(
+      balances,
+      programMap,
+      (transferPartners as TransferPartnerRow[]) ?? [],
+    )
 
     // ── Build results ────────────────────────────────────────
     const results: AwardSearchResult[] = []
 
     // Include all slugs that either have real availability or have a path
-    const allSlugs = new Set([...availBySlug.keys(), ...bestPathBySlug.keys()])
+    const allSlugs = new Set([...availBySlug.keys(), ...reachablePaths.keys()])
 
     for (const slug of allSlugs) {
       const airlineProgram = slugToProgram.get(slug)
       if (!airlineProgram) continue
 
-      const path = bestPathBySlug.get(slug)
+      const path = reachablePaths.get(slug)
       const avail = availBySlug.get(slug)
 
       // Use real mileage if available, else fall back to chart estimate
@@ -281,23 +232,12 @@ export class SeatsAeroProvider implements AwardProvider {
       const estimatedCashValueCents = estimatedMiles * cppCents
 
       const pointsNeededFromWallet = path
-        ? (path.directHold
-            ? estimatedMiles
-            : Math.ceil(estimatedMiles * (path.ratioFrom / path.ratioTo)))
+        ? calculatePointsNeededFromWallet(path, estimatedMiles)
         : estimatedMiles
 
       const isReachable = path
         ? path.availableMiles >= estimatedMiles
         : false
-
-      let transferChain: string | null = null
-      if (path && !path.directHold) {
-        const ratio =
-          path.ratioFrom === path.ratioTo
-            ? '1:1'
-            : `${path.ratioFrom}:${path.ratioTo}`
-        transferChain = `${path.sourceProgram.name} → ${airlineProgram.name} (${ratio})`
-      }
 
       results.push({
         program_slug: slug,
@@ -306,8 +246,8 @@ export class SeatsAeroProvider implements AwardProvider {
         estimated_miles: estimatedMiles,
         estimated_cash_value_cents: estimatedCashValueCents,
         cpp_cents: cppCents,
-        transfer_chain: transferChain,
-        transfer_is_instant: path?.isInstant ?? true,
+        transfer_chain: path ? buildTransferChain(path, airlineProgram) : null,
+        transfer_is_instant: path?.transferIsInstant ?? true,
         points_needed_from_wallet: pointsNeededFromWallet,
         availability: avail
           ? { date: avail.date, available: true, source: 'seats_aero' }

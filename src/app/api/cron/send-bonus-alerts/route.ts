@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
+import { getSafeAppOrigin } from '@/lib/app-origin'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
 type BonusRow = {
@@ -60,21 +61,9 @@ function isAuthorized(req: NextRequest): boolean {
 
 function buildUnsubscribeLink(email: string): string {
   const token = createUnsubscribeToken(email)
-  const base = getSafeAppUrl()
+  const base = getSafeAppOrigin()
   if (!token) return `${base}/profile`
   return `${base}/api/alerts/unsubscribe?token=${token}`
-}
-
-function getSafeAppUrl(): string {
-  const fallback = 'https://pointsmax.com'
-  const raw = process.env.NEXT_PUBLIC_APP_URL ?? fallback
-  try {
-    const parsed = new URL(raw)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return fallback
-    return parsed.origin
-  } catch {
-    return fallback
-  }
 }
 
 function buildEmailHtml(opts: {
@@ -154,7 +143,7 @@ export async function GET(req: NextRequest) {
 
   const resendKey = process.env.RESEND_API_KEY
   const fromEmail = process.env.RESEND_FROM_EMAIL
-  const appUrl = getSafeAppUrl()
+  const appUrl = getSafeAppOrigin(req.nextUrl.origin)
 
   if (!resendKey || !fromEmail) {
     logError('cron_bonus_alerts_missing_env', {

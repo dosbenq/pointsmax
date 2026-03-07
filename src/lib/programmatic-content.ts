@@ -2,6 +2,7 @@ import { createServerDbClient } from '@/lib/supabase'
 import { yearlyPointsFromSpend } from '@/lib/card-tools'
 import type { Region } from '@/lib/regions'
 import type { SpendCategory } from '@/types/database'
+import { resolveCppCents } from '@/lib/cpp-fallback'
 import { unstable_cache } from 'next/cache'
 
 type ProgramRow = {
@@ -16,6 +17,7 @@ type CardRow = {
   id: string
   name: string
   issuer: string
+  image_url: string | null
   annual_fee_usd: number
   currency: string
   earn_unit: string
@@ -38,6 +40,10 @@ type ValuationRow = {
   cpp_cents: number
 }
 
+export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
+  return resolveCppCents(cppCents, programType)
+}
+
 export type ProgrammaticCard = CardRow & {
   slug: string
   program: ProgramRow | null
@@ -58,6 +64,30 @@ export function slugifyCardName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function buildCardSlug(card: Pick<CardRow, 'id' | 'name' | 'issuer'>, used = new Set<string>()): string {
+  const base = slugifyCardName(card.name)
+  if (!used.has(base)) {
+    used.add(base)
+    return base
+  }
+
+  const issuerSlug = `${base}-${slugifyCardName(card.issuer)}`
+  if (!used.has(issuerSlug)) {
+    used.add(issuerSlug)
+    return issuerSlug
+  }
+
+  const idSuffix = card.id.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(-6)
+  const withId = `${issuerSlug}-${idSuffix}`
+  used.add(withId)
+  return withId
+}
+
+export function buildCardSlugById(cards: Array<Pick<CardRow, 'id' | 'name' | 'issuer'>>): Map<string, string> {
+  const used = new Set<string>()
+  return new Map(cards.map((card) => [card.id, buildCardSlug(card, used)]))
 }
 
 function geographyForRegion(region: Region): 'US' | 'IN' {
@@ -94,7 +124,7 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
 
   const { data: cards, error: cardsErr } = await db
     .from('cards')
-    .select('id, name, issuer, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order')
+    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order')
     .eq('is_active', true)
     .eq('geography', geography)
     .order('display_order', { ascending: true })
@@ -122,11 +152,16 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
   const programById = new Map(((programs ?? []) as ProgramRow[]).map((program) => [program.id, program]))
   const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
 
+  const slugByCardId = buildCardSlugById(cardRows)
+
   return cardRows.map((card) => ({
     ...card,
-    slug: slugifyCardName(card.name),
+    slug: slugByCardId.get(card.id) ?? slugifyCardName(card.name),
     program: programById.get(card.program_id) ?? null,
-    cpp_cents: valuationByProgramId.get(card.program_id) ?? 1,
+    cpp_cents: resolveProgrammaticCppCents(
+      valuationByProgramId.get(card.program_id),
+      programById.get(card.program_id)?.type,
+    ),
     earning_rates: ratesByCardId.get(card.id) ?? [],
   }))
 }
@@ -179,12 +214,14 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
 
   const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
   const cardsByProgramId = new Map<string, Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>>()
-  for (const card of (cards ?? []) as Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null }>) {
+  const cardRows = (cards ?? []) as Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null; image_url?: string | null }>
+  const slugByCardId = buildCardSlugById(cardRows as CardRow[])
+  for (const card of cardRows) {
     const list = cardsByProgramId.get(card.program_id) ?? []
     list.push({
       id: card.id,
       name: card.name,
-      slug: slugifyCardName(card.name),
+      slug: slugByCardId.get(card.id) ?? slugifyCardName(card.name),
       issuer: card.issuer,
       apply_url: card.apply_url,
     })
@@ -230,7 +267,10 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
       slug: program.slug,
       type: program.type,
       geography: program.geography,
-      cpp_cents: valuationByProgramId.get(program.id) ?? 1,
+      cpp_cents: resolveProgrammaticCppCents(
+        valuationByProgramId.get(program.id),
+        program.type,
+      ),
       earning_cards: cardsByProgramId.get(program.id) ?? [],
       transfer_out: transferOut,
       transfer_in: transferIn,

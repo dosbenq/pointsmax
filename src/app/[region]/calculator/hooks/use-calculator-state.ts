@@ -11,6 +11,7 @@ import { useParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
+import { extractJsonObject } from './ai-response'
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -232,6 +233,7 @@ export function useCalculatorState() {
   const [aiStatus, setAiStatus] = useState('')
   const [aiError, setAiError] = useState<string | null>(null)
   const [messageCount, setMessageCount] = useState(0)
+  const [advisorBlockedReason, setAdvisorBlockedReason] = useState<string | null>(null)
 
   // Award search state
   const [awardParams, setAwardParams] = useState<AwardParams>({
@@ -248,6 +250,7 @@ export function useCalculatorState() {
   const resultsRef = useRef<HTMLDivElement>(null)
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const milestoneFired = useRef<Set<string>>(new Set())
+  const lastAdvisorMessage = useRef<string | null>(null)
 
   // ── Derived state ───────────────────────────────────────────
   const byType = useCallback((type: string) => programs.filter(p => p.type === type), [programs])
@@ -276,7 +279,7 @@ export function useCalculatorState() {
   )
   
   const hasCalculatorResult = Boolean(result)
-  const canUseAdvisor = true
+  const canUseAdvisor = Boolean(user) || messageCount < ANON_MESSAGE_LIMIT
   
   const hasBookingPlan = useMemo(() => 
     chatMessages.some((m) => m.role === 'ai' && m.payload.type === 'recommendation') || 
@@ -388,6 +391,12 @@ export function useCalculatorState() {
         })))
       })
   }, [user, region])
+
+  useEffect(() => {
+    if (user || messageCount < ANON_MESSAGE_LIMIT) {
+      setAdvisorBlockedReason(null)
+    }
+  }, [user, messageCount])
 
   // Sync preferences form
   useEffect(() => {
@@ -681,12 +690,25 @@ export function useCalculatorState() {
     }
   }, [result, awardParams.destination, region])
 
-  const sendMessage = useCallback(async (text?: string) => {
+  const sendMessage = useCallback(async (
+    text?: string,
+    options?: { bypassAnonLimit?: boolean; countTowardsLimit?: boolean },
+  ) => {
     const msg = (text ?? chatInput).trim()
     if (!msg || aiLoading) return
 
-    if (!user && messageCount >= ANON_MESSAGE_LIMIT) return
+    if (!user && messageCount >= ANON_MESSAGE_LIMIT && !options?.bypassAnonLimit) {
+      const blockedMessage = `You’ve used ${ANON_MESSAGE_LIMIT} guest messages. Sign in to keep using the advisor and save your plan.`
+      setAdvisorBlockedReason(blockedMessage)
+      setAiError(null)
+      trackEvent('calculator_ai_anon_limit_reached', {
+        limit: ANON_MESSAGE_LIMIT,
+        region,
+      })
+      return
+    }
     setActivePanel('advisor')
+    setAdvisorBlockedReason(null)
     trackEvent('calculator_ai_message_sent', {
       message_index: messageCount + 1,
       signed_in: Boolean(user),
@@ -696,7 +718,6 @@ export function useCalculatorState() {
 
     setChatInput('')
     setAiError(null)
-    setMessageCount(c => c + 1)
 
     const userMsg: ChatMsg = { role: 'user', text: msg }
     setChatMessages(prev => [...prev, userMsg])
@@ -724,7 +745,11 @@ export function useCalculatorState() {
       return
     }
 
+    lastAdvisorMessage.current = msg
     setAiLoading(true)
+    if (options?.countTowardsLimit !== false) {
+      setMessageCount(c => c + 1)
+    }
     setAiStatus(AI_STATUSES[0])
     let statusIdx = 0
     statusTimer.current = setInterval(() => {
@@ -759,9 +784,9 @@ export function useCalculatorState() {
         fullText += decoder.decode(value, { stream: true })
       }
 
-      const jsonMatch = fullText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('Could not parse AI response')
-      const data = JSON.parse(jsonMatch[0]) as AIRec | AIClarify | { error: string }
+      const jsonPayload = extractJsonObject(fullText)
+      if (!jsonPayload) throw new Error('Could not parse AI response')
+      const data = JSON.parse(jsonPayload) as AIRec | AIClarify | { error: string }
 
       if ('error' in data) throw new Error(data.error)
 
@@ -774,7 +799,7 @@ export function useCalculatorState() {
       setGeminiHistory(prev => [
         ...prev,
         { role: 'user', parts: [{ text: msg }] },
-        { role: 'model', parts: [{ text: fullText }] },
+        { role: 'model', parts: [{ text: jsonPayload }] },
       ])
     } catch (e) {
       setAiError(e instanceof Error ? e.message : 'AI request failed')
@@ -788,6 +813,14 @@ export function useCalculatorState() {
       setAiStatus('')
     }
   }, [chatInput, aiLoading, user, messageCount, rows, programs, geminiHistory, result, preferences, region])
+
+  const retryLastMessage = useCallback(() => {
+    if (!lastAdvisorMessage.current || aiLoading) return
+    void sendMessage(lastAdvisorMessage.current, {
+      bypassAnonLimit: true,
+      countTowardsLimit: false,
+    })
+  }, [aiLoading, sendMessage])
 
   const switchPanel = useCallback((panel: 'redemptions' | 'awards' | 'advisor', source: string) => {
     setActivePanel(panel)
@@ -849,6 +882,7 @@ export function useCalculatorState() {
     aiStatus,
     aiError,
     messageCount,
+    advisorBlockedReason,
     
     // Award state
     awardParams,
@@ -898,6 +932,7 @@ export function useCalculatorState() {
     handleAlertBannerSubscribe,
     shareTripSnapshot,
     sendMessage,
+    retryLastMessage,
     switchPanel,
   }
 }

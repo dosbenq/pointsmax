@@ -13,7 +13,7 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
-import { getTripBuilderPromptSections } from '@/config/booking-links'
+import { getTripBuilderPromptSections } from '@/lib/booking-urls'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -118,6 +118,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
+  const requestRegion =
+    body && typeof body === 'object' && (body as Record<string, unknown>).region === 'in'
+      ? 'in'
+      : 'us'
+
   const validated = validate(body)
   if ('error' in validated) {
     return NextResponse.json({ error: validated.error }, { status: 400 })
@@ -170,7 +175,7 @@ export async function POST(req: NextRequest) {
       `  ${b.program_id}: ${b.amount.toLocaleString()} pts`
     ).join('\n')
 
-    const promptSections = getTripBuilderPromptSections()
+    const promptSections = await getTripBuilderPromptSections(requestRegion)
     const prompt = `You are an expert travel rewards advisor. Plan a trip using points/miles.
 
 TRIP DETAILS:

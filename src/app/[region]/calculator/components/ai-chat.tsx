@@ -14,6 +14,7 @@ interface AIChatProps {
   aiLoading: boolean
   aiStatus: string
   aiError: string | null
+  blockedReason: string | null
   canUseAdvisor: boolean
   hasCalculatorResult: boolean
   result: CalculateResponse | null
@@ -21,6 +22,7 @@ interface AIChatProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>
   onChatInputChange: (value: string) => void
   onSendMessage: (text?: string) => void
+  onRetryLastMessage: () => void
   onClearChat: () => void
   onSwitchPanel: (panel: 'redemptions' | 'awards', source: string) => void
 }
@@ -38,6 +40,7 @@ export function AIChat({
   aiLoading,
   aiStatus,
   aiError,
+  blockedReason,
   canUseAdvisor,
   hasCalculatorResult,
   result,
@@ -45,6 +48,7 @@ export function AIChat({
   chatEndRef,
   onChatInputChange,
   onSendMessage,
+  onRetryLastMessage,
   onClearChat,
   onSwitchPanel,
 }: AIChatProps) {
@@ -72,6 +76,13 @@ export function AIChat({
             <p className="text-pm-ink-700 text-sm">
               Add a destination in the calculator for more specific recommendations.
             </p>
+          </div>
+        )}
+
+        {blockedReason && (
+          <div className="rounded-xl border border-pm-border bg-pm-surface-soft px-4 py-3">
+            <p className="text-pm-ink-900 text-sm font-medium">Guest advisor limit reached</p>
+            <p className="mt-1 text-sm text-pm-ink-700">{blockedReason}</p>
           </div>
         )}
 
@@ -166,7 +177,7 @@ export function AIChat({
                     View non-AI results
                   </button>
                   <button
-                    onClick={() => onSendMessage('Retry last request')}
+                    onClick={onRetryLastMessage}
                     className="text-xs bg-pm-surface-soft px-2 py-1 rounded border border-pm-danger-border hover:bg-pm-surface transition-colors"
                   >
                     Retry
@@ -187,13 +198,13 @@ export function AIChat({
             value={chatInput}
             onChange={(e) => onChatInputChange(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            disabled={aiLoading}
+            disabled={aiLoading || !canUseAdvisor}
             placeholder={chatMessages.length === 0 ? 'e.g. I want to fly business class to Tokyo…' : 'Reply or ask a follow-up…'}
             className="pm-input flex-1"
           />
           <button
             onClick={handleSend}
-            disabled={aiLoading || !chatInput.trim()}
+            disabled={aiLoading || !chatInput.trim() || !canUseAdvisor}
             className="pm-button flex-shrink-0"
           >
             Send

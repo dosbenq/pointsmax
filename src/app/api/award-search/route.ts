@@ -15,6 +15,32 @@ import {
   validateSearchParams,
 } from './helpers'
 
+const DELTA_DYNAMIC_WARNING =
+  'Delta SkyMiles uses dynamic pricing, so PointsMax does not show static Delta estimates. Check delta.com directly for live pricing.'
+
+async function buildSearchWarnings(
+  client: ReturnType<typeof createServerDbClient>,
+  programIds: string[],
+): Promise<string[]> {
+  if (programIds.length === 0) return []
+  const { data } = await client
+    .from('programs')
+    .select('id, slug')
+    .in('id', programIds)
+
+  const slugs = new Set(
+    ((data ?? []) as Array<{ slug?: string | null }>)
+      .map((row) => row.slug)
+      .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0),
+  )
+
+  const warnings: string[] = []
+  if (slugs.has('delta')) {
+    warnings.push(DELTA_DYNAMIC_WARNING)
+  }
+  return warnings
+}
+
 // ── Route handler ─────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -56,6 +82,10 @@ export async function POST(req: NextRequest) {
   try {
     const client = createServerDbClient()
     const provider = createAwardProvider()
+    const warnings = await buildSearchWarnings(
+      client,
+      params.balances.map((balance) => balance.program_id),
+    )
 
     const results = sortAwardResultsByPoints(await provider.search(params, client))
 
@@ -77,6 +107,7 @@ export async function POST(req: NextRequest) {
       params,
       results,
       ai_narrative,
+      warnings,
       searched_at: new Date().toISOString(),
     })
   } catch (err) {
@@ -89,6 +120,10 @@ export async function POST(req: NextRequest) {
       try {
         const client = createServerDbClient()
         const fallbackProvider = new StubProvider()
+        const warnings = await buildSearchWarnings(
+          client,
+          params.balances.map((balance) => balance.program_id),
+        )
         const results = sortAwardResultsByPoints(await fallbackProvider.search(params, client))
         const ai_narrative = includeNarrative
           ? await generateNarrative(params, pickNarrativeOptions(results))
@@ -99,6 +134,7 @@ export async function POST(req: NextRequest) {
           params,
           results,
           ai_narrative,
+          warnings,
           searched_at: new Date().toISOString(),
           error: 'real_availability_unavailable',
           message: ESTIMATES_ONLY_MESSAGE,

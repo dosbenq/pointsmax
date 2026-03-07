@@ -3,7 +3,7 @@ import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 import { inngest } from '@/lib/inngest/client'
 import {
   fetchLatestVideoUrls,
-  getDefaultKnowledgeChannelUrl,
+  getConfiguredKnowledgeChannelUrl,
   normalizeMaxVideos,
   resolveChannelId,
 } from '@/lib/knowledge/channel-ingest'
@@ -22,10 +22,18 @@ export async function POST(req: NextRequest) {
   }
 
   const bodyRecord = body && typeof body === 'object' ? body as Record<string, unknown> : {}
+  const configuredChannelUrl = getConfiguredKnowledgeChannelUrl()
   const channelUrl = typeof bodyRecord.channel_url === 'string' && bodyRecord.channel_url.trim().length > 0
     ? bodyRecord.channel_url.trim()
-    : getDefaultKnowledgeChannelUrl()
+    : configuredChannelUrl
   const maxVideos = normalizeMaxVideos(bodyRecord.max_videos)
+
+  if (!channelUrl) {
+    return NextResponse.json(
+      { error: 'YOUTUBE_KNOWLEDGE_CHANNEL_URL is missing. Configure a default channel or provide channel_url.' },
+      { status: 503 },
+    )
+  }
 
   if (!process.env.GEMINI_API_KEY?.trim()) {
     return NextResponse.json({ error: 'GEMINI_API_KEY is missing' }, { status: 503 })

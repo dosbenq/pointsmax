@@ -35,8 +35,9 @@ export function getCategoriesForRegion(region: 'us' | 'in'): { key: SpendCategor
     { key: 'groceries', label: 'Groceries', icon: '🛒' },
     { key: 'travel', label: 'Travel', icon: '✈️' },
     { key: 'gas', label: 'Gas', icon: '⛽' },
+    { key: 'shopping', label: 'Shopping', icon: '🛍️' },
     { key: 'streaming', label: 'Streaming', icon: '📺' },
-    { key: 'other', label: 'Other', icon: '🛍️' },
+    { key: 'other', label: 'Other', icon: '📦' },
   ]
 }
 
@@ -78,6 +79,14 @@ export const PROGRAM_GOAL_MAP: Record<string, string[]> = {
   'marriott-bonvoy': ['hotels'],
   'hilton-honors': ['hotels'],
   'ihg-one-rewards': ['hotels'],
+
+  // India programs
+  'hdfc-millennia': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
+  'axis-edge': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
+  'amex-india-mr': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
+  'air-india': ['domestic', 'intl_econ', 'intl_biz'],
+  'indigo-6e': ['domestic'],
+  'taj-innercircle': ['hotels'],
 }
 
 export function formatUsdRounded(amount: number): string {

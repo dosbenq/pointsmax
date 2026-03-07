@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createBrowserClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import type { SubscriptionTier } from '@/types/database'
+import { logWarn } from '@/lib/logger'
 
 type Preferences = {
   home_airport: string | null
@@ -74,21 +75,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserData = useCallback(async (authUser: User) => {
     if (!supabase) return
-    
-    // Load preferences via API (respects RLS via session cookie)
-    const prefsRes = await fetch('/api/user/preferences')
-    if (prefsRes.ok) {
-      const { preferences: prefs } = await prefsRes.json()
-      setPreferences(prefs)
+
+    try {
+      const prefsRes = await fetch('/api/user/preferences')
+      if (prefsRes.ok) {
+        const { preferences: prefs } = await prefsRes.json()
+        setPreferences(prefs)
+      }
+    } catch (error) {
+      logWarn('auth_preferences_load_failed', {
+        message: error instanceof Error ? error.message : String(error),
+      })
     }
 
-    // Load user record directly from DB
-    const { data } = await supabase
-      .from('users')
-      .select('id, email, tier')
-      .eq('auth_id', authUser.id)
-      .single()
-    setUserRecord(data)
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, tier')
+        .eq('auth_id', authUser.id)
+        .single()
+
+      if (error) {
+        logWarn('auth_user_record_load_failed', { message: error.message })
+        return
+      }
+
+      setUserRecord(data)
+    } catch (error) {
+      logWarn('auth_user_record_load_failed', {
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
   }, [supabase])
 
   const refreshPreferences = useCallback(async () => {
@@ -103,22 +120,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isSupabaseConfigured) {
       return
     }
-    
-    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: { user: User | null } | null } }) => {
-      const authUser = session?.user ?? null
-      setUser(authUser)
-      if (authUser) await loadUserData(authUser)
-      setLoading(false)
-    })
+
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }: { data: { session: { user: User | null } | null } }) => {
+        const authUser = session?.user ?? null
+        setUser(authUser)
+        if (authUser) await loadUserData(authUser)
+      })
+      .catch((error: unknown) => {
+        logWarn('auth_session_boot_failed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+        setUser(null)
+        setUserRecord(null)
+        setPreferences(null)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: { user: User | null } | null) => {
       const authUser = session?.user ?? null
       setUser(authUser)
-      if (authUser) {
-        await loadUserData(authUser)
-      } else {
+      if (!authUser) {
         setUserRecord(null)
         setPreferences(null)
+        setLoading(false)
+        return
+      }
+
+      try {
+        await loadUserData(authUser)
+      } catch (error) {
+        logWarn('auth_state_change_load_failed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      } finally {
+        setLoading(false)
       }
     })
 

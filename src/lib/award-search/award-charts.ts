@@ -29,11 +29,17 @@ const CANADA_MEXICO = new Set([
 ])
 
 const CARIBBEAN = new Set([
-  'MBJ', 'KIN', 'MBJ', 'NAS', 'GGT', 'ELH', 'FPO', 'SJU', 'BQN', 'MAZ',
+  'MBJ', 'KIN', 'NAS', 'GGT', 'ELH', 'FPO', 'SJU', 'BQN', 'MAZ',
   'STT', 'STX', 'STJ', 'SDQ', 'PUJ', 'STI', 'AUA', 'CUR', 'BON',
   'BGI', 'GCM', 'GND', 'SVD', 'UVF', 'AXA', 'SKB', 'NEV',
   'TAB', 'POS', 'HAV', 'VRA', 'HOG', 'CCC', 'SXM', 'SFG',
   'FDF', 'PTP', 'SBH', 'TER', 'FNC', 'PDL',
+])
+
+const INDIA = new Set([
+  'DEL', 'BOM', 'BLR', 'HYD', 'MAA', 'CCU', 'COK', 'AMD', 'PNQ', 'GOI',
+  'JAI', 'LKO', 'IXC', 'TRV', 'IXM', 'VTZ', 'BBI', 'NAG', 'PAT', 'GAU',
+  'IXB', 'SXR', 'ATQ', 'IXA', 'RAJ', 'UDR', 'IDR', 'JDH', 'CCJ',
 ])
 
 const EUROPE = new Set([
@@ -142,8 +148,9 @@ export function detectRouteRegion(origin: string, destination: string): RouteReg
 
   // Domestic: both airports in US
   if (DOMESTIC_US.has(o) && DOMESTIC_US.has(d)) return 'domestic_us'
+  if (INDIA.has(o) && INDIA.has(d)) return 'domestic_india'
 
-  // Region based on destination (assuming US origin for most users)
+  // Region primarily based on destination, with domestic overrides above.
   if (CANADA_MEXICO.has(d)) return 'canada_mexico'
   if (CARIBBEAN.has(d)) return 'caribbean'
   if (EUROPE.has(d)) return 'europe'
@@ -186,17 +193,6 @@ const AWARD_CHARTS: Record<string, RegionRates> = {
     se_asia:       { economy: 35000, premium_economy: 55000, business: 80000, first: 120000 },
     australia:     { economy: 40000, premium_economy: 65000, business: 80000, first: 130000 },
     south_america: { economy: 30000, business: 68000 },
-  },
-  delta: {
-    domestic_us:   { economy: 18000, business: 30000 },
-    canada_mexico: { economy: 20000, business: 35000 },
-    caribbean:     { economy: 22000, business: 40000 },
-    europe:        { economy: 45000, premium_economy: 65000, business: 95000, first: 160000 },
-    middle_east:   { economy: 50000, business: 100000 },
-    japan_korea:   { economy: 55000, premium_economy: 80000, business: 100000, first: 170000 },
-    se_asia:       { economy: 50000, business: 95000 },
-    australia:     { economy: 55000, business: 100000 },
-    south_america: { economy: 45000, business: 80000 },
   },
   american: {
     domestic_us:   { economy: 12500, business: 25000, first: 35000 },
@@ -252,6 +248,18 @@ const AWARD_CHARTS: Record<string, RegionRates> = {
     se_asia:       { economy: 30000, business: 70000 },
     australia:     { economy: 40000, business: 80000 },
     south_america: { economy: 25000, business: 55000 },
+  },
+  'air-india': {
+    domestic_india: { economy: 7000, business: 16000 },
+    middle_east: { economy: 18000, business: 35000 },
+    europe: { economy: 25000, business: 55000, first: 85000 },
+    se_asia: { economy: 14000, business: 28000 },
+    other: { economy: 20000, business: 45000 },
+  },
+  'indigo-6e': {
+    domestic_india: { economy: 6000 },
+    se_asia: { economy: 12000 },
+    middle_east: { economy: 18000 },
   },
   singapore: {
     domestic_us:   { economy: 22500, business: 45000 },
@@ -382,6 +390,9 @@ const AWARD_CHARTS: Record<string, RegionRates> = {
   },
 }
 
+// Delta uses dynamic pricing, so static chart estimates are intentionally unavailable.
+const DYNAMIC_AWARD_PROGRAMS = new Set(['delta'])
+
 // ── Public API ────────────────────────────────────────────────
 
 /**
@@ -394,6 +405,7 @@ export function getEstimatedMiles(
   cabin: CabinClass,
   passengers: number,
 ): number | null {
+  if (DYNAMIC_AWARD_PROGRAMS.has(slug)) return null
   const programChart = AWARD_CHARTS[slug]
   if (!programChart) return null
 
