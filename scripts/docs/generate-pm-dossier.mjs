@@ -79,22 +79,6 @@ function parseMigrationMeta(filename) {
   }
 }
 
-function parseFrontmatter(raw) {
-  const parts = raw.split('---')
-  if (parts.length < 3) return {}
-  const block = parts[1]
-  const data = {}
-  for (const line of block.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || !trimmed.includes(':')) continue
-    const idx = trimmed.indexOf(':')
-    const key = trimmed.slice(0, idx).trim()
-    const value = trimmed.slice(idx + 1).trim()
-    data[key] = value
-  }
-  return data
-}
-
 async function collectEnvGroups() {
   const file = path.join(ROOT, '.env.local.example')
   const content = await fs.readFile(file, 'utf8')
@@ -185,24 +169,6 @@ async function main() {
       file: rel,
     })
   }
-
-  const taskFiles = (await walkFiles(path.join(ROOT, 'agents/tasks'), (f) => /TASK-\d+\.md$/.test(f))).sort()
-  const taskRows = []
-  for (const file of taskFiles) {
-    const content = await fs.readFile(file, 'utf8')
-    const meta = parseFrontmatter(content)
-    taskRows.push({
-      id: meta.id || path.basename(file, '.md'),
-      owner: meta.owner || 'n/a',
-      status: meta.status || 'n/a',
-      priority: meta.priority || 'n/a',
-      title: meta.title || '(untitled)',
-    })
-  }
-  const statusCounts = taskRows.reduce((acc, row) => {
-    acc[row.status] = (acc[row.status] || 0) + 1
-    return acc
-  }, {})
 
   const scripts = JSON.parse(await fs.readFile(path.join(ROOT, 'package.json'), 'utf8')).scripts || {}
   const scriptRows = Object.entries(scripts)
@@ -300,18 +266,7 @@ async function main() {
       : '| File | LOC |',
     ...(largeFiles.length === 0 ? [] : ['|---|---|', ...largeFiles.map((row) => `| \`${row.file}\` | ${row.lines} |`)]),
     '',
-    '## 10. Agent Task Board Snapshot',
-    '',
-    `- Total tasks: **${taskRows.length}**`,
-    ...Object.entries(statusCounts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([status, count]) => `- ${status}: **${count}**`),
-    '',
-    '| Task | Owner | Status | Priority | Title |',
-    '|---|---|---|---|---|',
-    ...taskRows.map((row) => `| \`${row.id}\` | \`${row.owner}\` | \`${row.status}\` | \`${row.priority}\` | ${row.title} |`),
-    '',
-    '## 11. PM Operational Playbook',
+    '## 10. PM Operational Playbook',
     '',
     '- Source docs:',
     '  - `README.md`',
@@ -325,7 +280,7 @@ async function main() {
     '  - `npm run test -- --run`',
     '  - `npm run build`',
     '',
-    '## 12. Update Policy (Mandatory)',
+    '## 11. Update Policy (Mandatory)',
     '',
     '1. Every behavior, API, schema, workflow, or env-var change must regenerate this dossier.',
     '2. CI blocks merges when this file is stale (`npm run pm:dossier:check`).',

@@ -3,7 +3,6 @@ import { GET, POST } from './route'
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
-import fs from 'node:fs/promises'
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: vi.fn(),
@@ -24,15 +23,6 @@ vi.mock('@/lib/inngest/client', () => ({
   inngest: {
     send: vi.fn().mockResolvedValue([{ id: 'test-event-id' }]),
   },
-}))
-
-vi.mock('node:fs/promises', () => ({
-  default: {
-    readdir: vi.fn(),
-    readFile: vi.fn(),
-  },
-  readdir: vi.fn(),
-  readFile: vi.fn(),
 }))
 
 describe('Workflow Health API', () => {
@@ -58,13 +48,6 @@ describe('Workflow Health API', () => {
     vi.clearAllMocks()
     vi.mocked(requireAdmin).mockResolvedValue(null)
     vi.mocked(createAdminClient).mockReturnValue(mockDb as never)
-    vi.mocked(fs.readdir).mockResolvedValue(['TASK-0001.md', 'TASK-0002.md'] as unknown as string[])
-    vi.mocked(fs.readFile).mockImplementation(async (filePath: string | Buffer | URL | fs.FileHandle) => {
-      const pathStr = filePath.toString()
-      if (pathStr.includes('TASK-0001')) return 'status: pending'
-      if (pathStr.includes('TASK-0002')) return 'status: done'
-      return ''
-    })
   })
 
   it('GET returns new health fields', async () => {
@@ -105,8 +88,6 @@ describe('Workflow Health API', () => {
     const data = await res.json()
 
     expect(res.status).toBe(200)
-    expect(data.workflow).toHaveProperty('queue_depth')
-    expect(data.workflow.queue_depth).toBe(1) // TASK-0001 is pending
     expect(data.workflow).toHaveProperty('failed_runs_24h')
     expect(data.workflow.failed_runs_24h).toBe(1) // workflow.error
     expect(data.workflow).toHaveProperty('last_success_at')
@@ -120,16 +101,13 @@ describe('Workflow Health API', () => {
     }))
   })
 
-  it('POST with retry action returns correct response', async () => {
-    const req = new NextRequest('http://localhost/api/admin/workflow-health', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'retry' }),
-    })
+  it('POST sends a healthcheck event', async () => {
+    const req = new NextRequest('http://localhost/api/admin/workflow-health', { method: 'POST' })
     const res = await POST(req)
     const data = await res.json()
 
     expect(res.status).toBe(200)
     expect(data.ok).toBe(true)
-    expect(data.message).toContain('Retry action logged')
+    expect(data.message).toContain('Healthcheck event sent')
   })
 })

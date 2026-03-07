@@ -22,6 +22,7 @@ import {
   calculatePointsNeededFromWallet,
 } from './reachable-wallet'
 import { resolveCppCents } from '@/lib/cpp-fallback'
+import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
@@ -278,11 +279,15 @@ export class SeatsAeroProvider implements AwardProvider {
 
       const res = await fetch(url.toString(), {
         headers: { 'Partner-Authorization': this.apiKey },
+        signal: AbortSignal.timeout(8000),
         next: { revalidate: 300 }, // cache 5 min
       })
 
       if (!res.ok) {
-        console.error('[SeatsAero] API error:', res.status, await res.text())
+        logWarn('seats_aero_api_error', {
+          status: res.status,
+          body: await res.text(),
+        })
         return []
       }
 
@@ -290,7 +295,9 @@ export class SeatsAeroProvider implements AwardProvider {
       // Seats.aero returns { data: [...], count: N } or just an array
       return Array.isArray(json) ? json : (json.data ?? [])
     } catch (err) {
-      console.error('[SeatsAero] Fetch failed:', err)
+      logError('seats_aero_fetch_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
       return []
     }
   }

@@ -80,7 +80,7 @@ function FeaturedDecision({ region }: { region: Region }) {
           <h2 className="mt-2 text-[1.5rem] font-semibold tracking-[-0.04em] text-[#f4fbff]">What your wallet should do now.</h2>
         </div>
         <div className="rounded-full border border-[#b6e2f0]/24 bg-[#7ce8dc]/12 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#dff7fa]/88">
-          Live strategy
+          Example strategy
         </div>
       </div>
 
@@ -358,7 +358,7 @@ export default function LandingPage() {
                     <div>
                       <label className="pm-label mb-2 block">Program</label>
                       <select value={selectedProgram} onChange={(e) => setSelectedProgram(e.target.value)} className="pm-input">
-                        {programs.slice(0, 10).map((p) => (
+                        {programs.map((p) => (
                           <option key={p.id} value={p.slug}>{p.name}</option>
                         ))}
                       </select>

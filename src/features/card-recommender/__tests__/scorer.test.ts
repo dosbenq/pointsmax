@@ -3,6 +3,7 @@ import type { CardWithRates } from '@/types/database'
 import {
   assessEligibility,
   calculateYearlyPoints,
+  getCardFeatureProfile,
   getSoftBenefits,
   getSoftBenefitAnnualValue,
   scoreAndRankCards,
@@ -87,6 +88,12 @@ describe('card recommender domain metadata', () => {
     expect(getSoftBenefitAnnualValue('hdfc infinia', 'in')).toBe(45000)
     expect(SOFT_BENEFIT_COPY.lounge_access).toBe('Lounge Access')
     expect(SOFT_BENEFIT_VALUES.US.travel_insurance).toBe(150)
+  })
+
+  it('uses currency-aware default complexity thresholds', () => {
+    expect(getCardFeatureProfile(mockCard({ annual_fee_usd: 550, currency: 'USD' })).complexity).toBe('high')
+    expect(getCardFeatureProfile(mockCard({ annual_fee_usd: 10000, currency: 'INR' })).complexity).toBe('medium')
+    expect(getCardFeatureProfile(mockCard({ annual_fee_usd: 30000, currency: 'INR' })).complexity).toBe('high')
   })
 })
 
@@ -273,5 +280,129 @@ describe('scoreAndRankCards', () => {
     expect(hotelWithWallet).toBeDefined()
     expect(hotelWithWallet!.breakdown.walletSynergyBonus).toBeGreaterThan(0)
     expect(hotelWithWallet!.breakdown.totalScore).toBeGreaterThan(hotelWithoutWallet!.breakdown.totalScore)
+  })
+
+  it('calculates time-to-goal correctly when already at target', () => {
+    const card = mockCard({
+      id: 'card-1',
+      program_id: 'prog-1',
+      signup_bonus_pts: 50000,
+    })
+    const result = scoreCard(
+      card,
+      mockInputs({
+        walletBalances: [
+          { program_id: 'prog-1', balance: 100000, source: 'manual', confidence: 'high', is_stale: false },
+        ],
+        targetPointsGoal: 80000,
+      }),
+    )
+
+    expect(result.estimatedMonthsToGoal).toBe(0)
+    // When at target, explanation mentions "0 months"
+    expect(result.explanation.whyNow.join(' ')).toContain('0 month')
+  })
+
+  it('applies different fee penalties based on tolerance level', () => {
+    const highFeeCard = mockCard({
+      id: 'premium',
+      name: 'Premium Card',
+      issuer: 'Amex',
+      annual_fee_usd: 550,
+    })
+
+    const lowToleranceResult = scoreCard(
+      highFeeCard,
+      mockInputs({ annualFeeTolerance: 'low' }),
+    )
+    const mediumToleranceResult = scoreCard(
+      highFeeCard,
+      mockInputs({ annualFeeTolerance: 'medium' }),
+    )
+    const highToleranceResult = scoreCard(
+      highFeeCard,
+      mockInputs({ annualFeeTolerance: 'high' }),
+    )
+
+    // Low tolerance should have highest fee penalty
+    expect(lowToleranceResult.breakdown.feePenalty).toBeGreaterThan(mediumToleranceResult.breakdown.feePenalty)
+    expect(mediumToleranceResult.breakdown.feePenalty).toBeGreaterThan(highToleranceResult.breakdown.feePenalty)
+  })
+
+  it('handles India region with correct currency scaling', () => {
+    const inrCard = mockCard({
+      id: 'inr-card',
+      name: 'HDFC Infinia',
+      issuer: 'HDFC',
+      currency: 'INR',
+      earn_unit: '100_inr',
+      annual_fee_usd: 12500,
+      cpp_cents: 1,
+      earning_rates: {
+        dining: 5,
+        groceries: 1,
+        travel: 1,
+        gas: 1,
+        shopping: 1,
+        streaming: 1,
+        other: 1,
+      },
+    })
+
+    const result = scoreCard(
+      inrCard,
+      mockInputs({
+        regionCode: 'in',
+        spend: { dining: '50000' }, // ₹50k monthly
+      }),
+    )
+
+    expect(result.pointsPerYear).toBe(30000) // ₹50k / 100 * 5 * 12
+    expect(result.card.currency).toBe('INR')
+  })
+
+  it('matches multiple travel goals correctly', () => {
+    const card = mockCard({
+      id: 'multi-goal',
+      program_slug: 'chase-ur',
+    })
+
+    const result = scoreCard(
+      card,
+      mockInputs({
+        travelGoals: new Set(['intl_econ', 'intl_biz', 'hotels', 'flex']),
+        programGoalMap: {
+          'chase-ur': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
+        },
+      }),
+    )
+
+    expect(result.goalCount).toBe(4)
+    expect(result.goalMatchStrength).toBe(1) // Perfect match
+    expect(result.breakdown.goalAlignmentBonus).toBeGreaterThan(0)
+  })
+
+  it('handles empty cards array', () => {
+    const results = scoreAndRankCards([], mockInputs())
+    expect(results).toHaveLength(0)
+  })
+
+  it('excludes signup bonus value when card is already owned', () => {
+    const card = mockCard({
+      id: 'owned-card',
+      name: 'Chase Card',
+      issuer: 'Chase',
+      signup_bonus_pts: 60000,
+    })
+
+    const result = scoreCard(
+      card,
+      mockInputs({
+        ownedCards: new Set(['owned-card']),
+      }),
+    )
+
+    expect(result.signupValueEligible).toBe(0)
+    expect(result.hasCardAlready).toBe(true)
   })
 })

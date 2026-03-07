@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createServerDbClient } from '@/lib/supabase'
 import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
+import { StubProvider } from '@/lib/award-search/stub-provider'
 import type { AwardSearchParams } from '@/lib/award-search'
 import type { TripBuilderResponse, TripBuilderFlightOption } from '@/types/database'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
@@ -14,6 +15,7 @@ import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
 import { getTripBuilderPromptSections } from '@/lib/booking-urls'
+import { extractJsonObject } from '@/lib/json-extract'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -21,6 +23,31 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const MAX_BODY_BYTES = 64_000
 const MAX_BALANCE_ROWS = 25
 const MAX_SEARCH_SPAN_DAYS = 45
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+async function buildBalanceSummary(
+  db: ReturnType<typeof createServerDbClient>,
+  balances: AwardSearchParams['balances'],
+): Promise<string> {
+  const programIds = [...new Set(balances.map((balance) => balance.program_id))]
+  const { data } = await db
+    .from('programs')
+    .select('id, name, short_name')
+    .in('id', programIds)
+
+  const programNameById = new Map(
+    ((data ?? []) as Array<{ id: string; name?: string | null; short_name?: string | null }>)
+      .map((program) => [program.id, program.short_name || program.name || program.id]),
+  )
+
+  return balances.map((balance) => {
+    const programName = programNameById.get(balance.program_id) ?? balance.program_id
+    return `  ${programName}: ${balance.amount.toLocaleString()} pts`
+  }).join('\n')
+}
 
 function validate(body: unknown): AwardSearchParams & { hotel_nights: number; destination_name: string; trip_type: 'round_trip' | 'one_way' } | { error: string } {
   if (!body || typeof body !== 'object') return { error: 'Invalid request body' }
@@ -30,6 +57,7 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   const destination = typeof b.destination === 'string' ? b.destination.toUpperCase().trim() : ''
   if (!IATA_RE.test(origin)) return { error: 'origin must be a 3-letter IATA code' }
   if (!IATA_RE.test(destination)) return { error: 'destination must be a 3-letter IATA code' }
+  if (origin === destination) return { error: 'origin and destination must be different' }
 
   const cabin = b.cabin as string
   const CABIN_VALUES = ['economy', 'premium_economy', 'business', 'first']
@@ -53,6 +81,9 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   const endMs = Date.parse(`${end_date}T00:00:00Z`)
   if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
     return { error: 'Invalid start_date or return_date' }
+  }
+  if (start_date < todayIsoDate()) {
+    return { error: 'start_date must be today or later' }
   }
   const spanDays = (endMs - startMs) / (24 * 60 * 60 * 1000) + 1
   if (spanDays > MAX_SEARCH_SPAN_DAYS) {
@@ -132,8 +163,24 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = createServerDbClient()
-    const provider = createAwardProvider()
-    const results = sortAwardResultsByPoints(await provider.search(awardParams, db))
+    let provider = createAwardProvider()
+    let estimatesOnly = false
+    let results
+    try {
+      results = sortAwardResultsByPoints(await provider.search(awardParams, db))
+    } catch (err) {
+      if (!(err instanceof AwardProviderUnavailableError)) {
+        throw err
+      }
+
+      logWarn('trip_builder_provider_unavailable', {
+        requestId,
+        error: err.message,
+      })
+      provider = new StubProvider()
+      results = sortAwardResultsByPoints(await provider.search(awardParams, db))
+      estimatesOnly = true
+    }
 
     // Build top flights from award search results
     const top_flights: TripBuilderFlightOption[] = results.slice(0, 5).map(r => ({
@@ -171,9 +218,7 @@ export async function POST(req: NextRequest) {
       return `- ${r.program_name}: ~${r.estimated_miles.toLocaleString()} miles (~${r.points_needed_from_wallet.toLocaleString()} points from wallet)${chain} [${reachable}]`
     }).join('\n')
 
-    const balanceSummary = awardParams.balances.map(b =>
-      `  ${b.program_id}: ${b.amount.toLocaleString()} pts`
-    ).join('\n')
+    const balanceSummary = await buildBalanceSummary(db, awardParams.balances)
 
     const promptSections = await getTripBuilderPromptSections(requestRegion)
     const prompt = `You are an expert travel rewards advisor. Plan a trip using points/miles.
@@ -273,16 +318,21 @@ Rules:
     } = { hotel: null, booking_steps: [], ai_summary: '', points_summary: '' }
 
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) aiData = JSON.parse(jsonMatch[0])
-    } catch {
-      console.error('[TripBuilder] Failed to parse Gemini JSON:', text)
+      const jsonPayload = extractJsonObject(text)
+      if (jsonPayload) aiData = JSON.parse(jsonPayload)
+    } catch (err) {
+      logError('trip_builder_ai_parse_failed', {
+        requestId,
+        error: err instanceof Error ? err.message : 'parse_failed',
+        response_text: text,
+      })
     }
 
     logInfo('trip_builder_success', {
       requestId,
       provider: provider.name,
       model: selectedModel,
+      estimates_only: estimatesOnly,
       flight_options: top_flights.length,
       latency_ms: Date.now() - startedAt,
     })
@@ -291,19 +341,13 @@ Rules:
       top_flights,
       hotel: hotel_nights > 0 ? aiData.hotel : null,
       booking_steps: aiData.booking_steps ?? [],
-      ai_summary: aiData.ai_summary ?? '',
+      ai_summary: estimatesOnly
+        ? `${aiData.ai_summary ?? 'Flight and hotel planning is based on static estimates right now.'} Live award availability was unavailable, so PointsMax used fallback estimates.`
+        : (aiData.ai_summary ?? ''),
       points_summary: aiData.points_summary ?? '',
     } as TripBuilderResponse)
 
   } catch (err) {
-    if (err instanceof AwardProviderUnavailableError) {
-      logWarn('trip_builder_provider_unavailable', {
-        requestId,
-        error: err.message,
-      })
-      return NextResponse.json({ error: err.message }, { status: 503 })
-    }
-
     logError('trip_builder_failed', {
       requestId,
       error: err instanceof Error ? err.message : 'Trip planning failed',

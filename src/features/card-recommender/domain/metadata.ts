@@ -105,9 +105,15 @@ export function getCardFeatureProfile(card: CardWithRates): CardFeatureProfile {
   const exact = CARD_FEATURES_BY_NAME[normalizeCardName(card.name)]
   if (exact) return exact
 
+  const isIndiaCard = card.currency === 'INR'
+  const complexity: ComplexityLevel =
+    card.annual_fee_usd > (isIndiaCard ? 25_000 : 500)
+      ? 'high'
+      : 'medium'
+
   return {
     benefits: [],
-    complexity: card.annual_fee_usd > 500 || card.annual_fee_usd > 25000 ? 'high' : 'medium',
+    complexity,
     issuerRules: defaultIssuerRules(card),
   }
 }

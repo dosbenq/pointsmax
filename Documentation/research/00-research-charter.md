@@ -2,7 +2,7 @@
 
 ## Snapshot
 - Date started: `2026-02-27`
-- Owner: `PM + research agents`
+- Owner: `PM + engineering`
 - Product: `PointsMax`
 - Goal: `Identify highest-impact features and GTM strategy based on evidence`
 

@@ -57,7 +57,7 @@ npm run launch:autopilot
 ```
 
 New step included:
-- `Automation watchdog (speed + cron + agents)`
+- `Automation watchdog (speed + cron)`
 
 Skip flags:
 - `--skip-smoke`

@@ -20,5 +20,5 @@ Scoring formula: `RICE = (Reach * Impact * Confidence) / Effort`
 - `P3`: parked
 
 ## Notes
-- Scores for `F-004` to `F-007` are provisional and derived from Kimi synthesis assumptions.
+- Scores for `F-004` to `F-007` are provisional and derived from early strategy-synthesis assumptions.
 - Final scoring must be recalibrated after two weeks of production telemetry.

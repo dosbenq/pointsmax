@@ -16,10 +16,7 @@ This folder is the system of record for product discovery, market research, and 
 5. Convert assumptions into tests in `04-hypothesis-experiment-tracker.md`.
 6. Rank candidate features in `05-feature-prioritization-rice.md`.
 7. Record final choices in `06-decision-log.md`.
-8. Track research-agent quality in `07-agent-research-scorecard.md`.
-9. Convert long external research into execution decisions in `08-kimi-report-synthesis.md`.
-10. Capture corrected external review in `09-claude-strategy-review.md`.
-11. Convert approved bets into implementation scope in `10-connected-wallet-epic.md`.
+8. Convert approved bets into implementation scope in `10-connected-wallet-epic.md`.
 
 ## Update Rule
 Update this folder after every research session and after every major product decision.

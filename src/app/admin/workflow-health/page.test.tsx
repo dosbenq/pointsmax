@@ -40,7 +40,6 @@ describe('AdminWorkflowHealthPage', () => {
       event_name: 'workflow.healthcheck',
       endpoint: '/api/inngest',
       send_ready: true,
-      queue_depth: 3,
       failed_runs_24h: 2,
       last_success_at: new Date().toISOString(),
     },
@@ -66,9 +65,6 @@ describe('AdminWorkflowHealthPage', () => {
     })
 
     // Verify metrics
-    expect(screen.getByText('Queue Depth')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument() // queue_depth
-
     expect(screen.getByText('Failed (24h)')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument() // failed_runs_24h
 
@@ -77,7 +73,7 @@ describe('AdminWorkflowHealthPage', () => {
     expect(screen.getByText(/Last successful run/)).toBeInTheDocument()
   })
 
-  it('handles retry action', async () => {
+  it('handles test event action', async () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
@@ -85,7 +81,12 @@ describe('AdminWorkflowHealthPage', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ ok: true, message: 'Retry action logged' }),
+        json: () => Promise.resolve({
+          ok: true,
+          run_id: 'run-123',
+          event_ids: ['evt-123'],
+          message: 'Healthcheck event sent. Verify run status in Inngest dashboard.',
+        }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -98,20 +99,16 @@ describe('AdminWorkflowHealthPage', () => {
       expect(screen.queryByText('Refreshing…')).not.toBeInTheDocument()
     })
 
-    const retryButton = screen.getByText('Retry failed')
-    fireEvent.click(retryButton)
+    const testButton = screen.getByText('Run test event')
+    fireEvent.click(testButton)
 
-    expect(screen.getByText('Retrying…')).toBeInTheDocument()
+    expect(screen.getByText('Sending…')).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(screen.getByText('Retry failed')).toBeInTheDocument()
+      expect(screen.getByText('Run test event')).toBeInTheDocument()
     })
 
-    // Verify fetch was called with retry action
-    expect(mockFetch).toHaveBeenCalledWith('/api/admin/workflow-health', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ action: 'retry' }),
-    }))
+    expect(mockFetch).toHaveBeenCalledWith('/api/admin/workflow-health', { method: 'POST' })
   })
 
   it('shows error message on fetch failure', async () => {

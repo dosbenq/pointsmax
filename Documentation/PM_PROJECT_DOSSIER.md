@@ -4,17 +4,17 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `main`
-- Git commit: `7bf6509`
+- Git commit: `eb39343`
 
 ## 1. Executive Snapshot
 
-- User-facing pages: **26**
-- API routes: **44**
-- Supabase migrations: **25**
-- Test files: **40**
+- User-facing pages: **35**
+- API routes: **51**
+- Supabase migrations: **34**
+- Test files: **73**
 - GitHub workflows: **6**
-- Feature-slice files: **7**
-- NPM scripts: **49**
+- Feature-slice files: **19**
+- NPM scripts: **30**
 
 ## 2. Product Surface (Pages)
 
@@ -31,6 +31,7 @@
 | `/{region}` | User | `src/app/[region]/page.tsx` |
 | `/{region}/pricing` | User | `src/app/[region]/pricing/page.tsx` |
 | `/{region}/privacy` | User | `src/app/[region]/privacy/page.tsx` |
+| `/{region}/profile` | User | `src/app/[region]/profile/page.tsx` |
 | `/{region}/programs/{slug}` | User | `src/app/[region]/programs/[slug]/page.tsx` |
 | `/{region}/programs` | User | `src/app/[region]/programs/page.tsx` |
 | `/{region}/terms` | User | `src/app/[region]/terms/page.tsx` |
@@ -44,8 +45,16 @@
 | `/admin/programs` | Admin | `src/app/admin/programs/page.tsx` |
 | `/admin/users` | Admin | `src/app/admin/users/page.tsx` |
 | `/admin/workflow-health` | Admin | `src/app/admin/workflow-health/page.tsx` |
+| `/award-search` | User | `src/app/award-search/page.tsx` |
+| `/calculator` | User | `src/app/calculator/page.tsx` |
+| `/card-recommender` | User | `src/app/card-recommender/page.tsx` |
+| `/earning-calculator` | User | `src/app/earning-calculator/page.tsx` |
+| `/how-it-works` | User | `src/app/how-it-works/page.tsx` |
+| `/inspire` | User | `src/app/inspire/page.tsx` |
 | `/` | User | `src/app/page.tsx` |
+| `/pricing` | User | `src/app/pricing/page.tsx` |
 | `/profile` | Profile | `src/app/profile/page.tsx` |
+| `/trip-builder` | User | `src/app/trip-builder/page.tsx` |
 
 ## 3. API Surface
 
@@ -76,6 +85,13 @@
 | `/api/booking-urls` | `GET` | `src/app/api/booking-urls/route.ts` |
 | `/api/calculate` | `POST` | `src/app/api/calculate/route.ts` |
 | `/api/cards` | `GET` | `src/app/api/cards/route.ts` |
+| `/api/connectors/{id}/balances` | `GET` | `src/app/api/connectors/[id]/balances/route.ts` |
+| `/api/connectors/{id}` | `DELETE` | `src/app/api/connectors/[id]/route.ts` |
+| `/api/connectors/disconnect` | `POST` | `src/app/api/connectors/disconnect/route.ts` |
+| `/api/connectors/ingest/csv` | `POST, GET` | `src/app/api/connectors/ingest/csv/route.ts` |
+| `/api/connectors/ingest/email` | `POST, GET` | `src/app/api/connectors/ingest/email/route.ts` |
+| `/api/connectors` | `GET, POST` | `src/app/api/connectors/route.ts` |
+| `/api/connectors/sync` | `POST` | `src/app/api/connectors/sync/route.ts` |
 | `/api/cron/ingest-youtube-knowledge` | `GET` | `src/app/api/cron/ingest-youtube-knowledge/route.ts` |
 | `/api/cron/send-bonus-alerts` | `GET` | `src/app/api/cron/send-bonus-alerts/route.ts` |
 | `/api/cron/update-valuations` | `GET` | `src/app/api/cron/update-valuations/route.ts` |
@@ -127,6 +143,15 @@
 | 22 | `022_more_cards.sql` |
 | 23 | `023_fix_program_geography.sql` |
 | 24 | `024_booking_urls.sql` |
+| 25 | `025_rls_index_hardening.sql` |
+| 26 | `026_queue_durability.sql` |
+| 27 | `027_connected_accounts.sql` |
+| 28 | `028_sync_status.sql` |
+| 29 | `029_connector_audit_log.sql` |
+| 30 | `030_fix_idempotency_index.sql` |
+| 31 | `031_refresh_booking_urls.sql` |
+| 32 | `032_card_image_urls.sql` |
+| 33 | `033_normalize_india_cpp_units.sql` |
 
 ## 5. Integrations and Environment Variables
 
@@ -147,7 +172,7 @@
 | `ANTHROPIC_API_KEY` | Yes |
 | `GEMINI_API_KEY` | Yes |
 
-### Inngest (agent workflows)
+### Inngest (workflow automation)
 
 | Variable | Required |
 |---|---|
@@ -217,7 +242,7 @@
 | Automation Watchdog | `workflow_dispatch, schedule` | `.github/workflows/automation-watchdog.yml` |
 | CI | `push, pull_request` | `.github/workflows/ci.yml` |
 | Link Health | `workflow_dispatch, schedule` | `.github/workflows/link-health.yml` |
-| Database Migrations | `push, workflow_dispatch` | `.github/workflows/migrate.yml` |
+| Database Migrations | `workflow_dispatch` | `.github/workflows/migrate.yml` |
 | Release Gate | `workflow_dispatch` | `.github/workflows/release-gate.yml` |
 | Supabase Keepalive | `workflow_dispatch, schedule` | `.github/workflows/supabase-keepalive.yml` |
 
@@ -225,30 +250,11 @@
 
 | Script | Command |
 |---|---|
-| `agents:create` | `node scripts/agents/orchestrator.mjs create` |
-| `agents:create:gemini` | `node scripts/agents/orchestrator.mjs create --owner gemini` |
-| `agents:dispatch` | `node scripts/agents/orchestrator.mjs dispatch` |
-| `agents:dispatch:all` | `node scripts/agents/orchestrator.mjs dispatch-all` |
-| `agents:dispatch:gemini` | `node scripts/agents/orchestrator.mjs dispatch-all --owner gemini --status pending` |
-| `agents:evaluate` | `node scripts/agents/evaluate.mjs` |
-| `agents:init` | `node scripts/agents/orchestrator.mjs init` |
-| `agents:list` | `node scripts/agents/orchestrator.mjs list` |
-| `agents:queue:list` | `node scripts/agents/queue.mjs list` |
-| `agents:queue:start` | `node scripts/agents/queue.mjs start` |
-| `agents:queue:status` | `node scripts/agents/queue.mjs status` |
-| `agents:queue:watch` | `node scripts/agents/queue.mjs watch` |
-| `agents:report` | `node scripts/agents/report.mjs --write` |
-| `agents:set-status` | `node scripts/agents/orchestrator.mjs set-status` |
-| `agents:show` | `node scripts/agents/orchestrator.mjs show` |
-| `agents:supervisor:list` | `node scripts/agents/supervisor.mjs list` |
-| `agents:supervisor:start` | `node scripts/agents/supervisor.mjs start` |
-| `agents:supervisor:status` | `node scripts/agents/supervisor.mjs status` |
-| `agents:supervisor:stop` | `node scripts/agents/supervisor.mjs stop` |
-| `agents:supervisor:watch` | `node scripts/agents/supervisor.mjs watch` |
 | `build` | `next build` |
 | `check:env` | `node scripts/check-env.mjs` |
 | `check:launch-env` | `node scripts/check-launch-env.mjs` |
 | `check:links` | `node scripts/check-outbound-links.mjs` |
+| `check:rls-indexes` | `node scripts/check-rls-indexes.mjs` |
 | `dev` | `next dev` |
 | `launch:autopilot` | `node scripts/launch-autopilot.mjs` |
 | `launch:autopilot:apply` | `node scripts/launch-autopilot.mjs --apply-migrations` |
@@ -281,42 +287,75 @@
 |---|
 | `src/app/[region]/calculator/components/action-strip.test.tsx` |
 | `src/app/[region]/calculator/components/ai-chat.test.tsx` |
+| `src/app/[region]/calculator/hooks/ai-response.test.ts` |
+| `src/app/[region]/inspire/page.test.ts` |
 | `src/app/admin/workflow-health/page.test.tsx` |
 | `src/app/api/admin/affiliate-clicks/route.test.ts` |
 | `src/app/api/admin/workflow-health/route.test.ts` |
+| `src/app/api/ai/cache-integration.test.ts` |
+| `src/app/api/ai/idempotency-integration.test.ts` |
 | `src/app/api/ai/recommend/route.test.ts` |
 | `src/app/api/analytics/affiliate-click/route.test.ts` |
 | `src/app/api/award-search/helpers.test.ts` |
 | `src/app/api/award-search/route.test.ts` |
 | `src/app/api/calculate/route.test.ts` |
 | `src/app/api/cards/route.test.ts` |
+| `src/app/api/connectors/[id]/balances/route.test.ts` |
+| `src/app/api/connectors/[id]/route.test.ts` |
+| `src/app/api/connectors/disconnect/route.test.ts` |
+| `src/app/api/connectors/ingest/csv/route.test.ts` |
+| `src/app/api/connectors/ingest/email/route.test.ts` |
+| `src/app/api/connectors/lifecycle.test.ts` |
+| `src/app/api/connectors/route.test.ts` |
+| `src/app/api/connectors/sync/route.test.ts` |
 | `src/app/api/cron/ingest-youtube-knowledge/route.test.ts` |
 | `src/app/api/cron/send-bonus-alerts/route.test.ts` |
 | `src/app/api/health/route.test.ts` |
 | `src/app/api/trip-builder/route.test.ts` |
+| `src/app/api/user/balances/route.test.ts` |
+| `src/app/profile/page.test.tsx` |
+| `src/app/sitemap.test.ts` |
+| `src/components/ConnectedWallets.test.tsx` |
 | `src/config/booking-links.test.ts` |
 | `src/features/calculator-shell/__tests__/action-strip.test.tsx` |
-| `src/lib/agent-eval.test.ts` |
+| `src/features/card-recommender/__tests__/hooks.test.tsx` |
+| `src/features/card-recommender/__tests__/ranking.test.ts` |
+| `src/features/card-recommender/__tests__/scorer.test.ts` |
+| `src/lib/ai-cache.test.ts` |
 | `src/lib/api-response.test.ts` |
 | `src/lib/api-security.test.ts` |
+| `src/lib/app-origin.test.ts` |
+| `src/lib/auth-context.test.tsx` |
+| `src/lib/award-search/award-charts.test.ts` |
+| `src/lib/award-search/reachable-wallet.test.ts` |
 | `src/lib/award-search/sort-results.test.ts` |
 | `src/lib/booking-urls.test.ts` |
 | `src/lib/calculate.test.ts` |
 | `src/lib/card-tools.test.ts` |
 | `src/lib/circuit-breaker.test.ts` |
+| `src/lib/connectors/audit-log.test.ts` |
+| `src/lib/connectors/connector-registry.test.ts` |
+| `src/lib/connectors/csv-parser.test.ts` |
+| `src/lib/connectors/sync-orchestrator.test.ts` |
+| `src/lib/connectors/token-vault.test.ts` |
 | `src/lib/db-timeout.test.ts` |
 | `src/lib/db/booking-urls.test.ts` |
 | `src/lib/db/cards.test.ts` |
 | `src/lib/db/programs.test.ts` |
+| `src/lib/db/rls-index-audit.test.ts` |
 | `src/lib/env-validation.test.ts` |
 | `src/lib/error-utils.test.ts` |
 | `src/lib/formatters.test.ts` |
+| `src/lib/idempotency.test.ts` |
 | `src/lib/jsonld-sanitize.test.ts` |
 | `src/lib/knowledge/youtube.test.ts` |
+| `src/lib/programmatic-content.test.ts` |
+| `src/lib/queue-durability.test.ts` |
 | `src/lib/region-parity.test.ts` |
 | `src/lib/scoring.test.ts` |
 | `src/lib/security-headers.test.ts` |
 | `src/lib/stripe.test.ts` |
+| `src/lib/telemetry.test.ts` |
 | `src/lib/validation.test.ts` |
 | `src/test/utils/deterministic.test.ts` |
 
@@ -324,44 +363,18 @@
 
 | File | LOC |
 |---|---|
-| `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 899 |
-| `src/app/[region]/trip-builder/page.tsx` | 822 |
-| `src/app/[region]/award-search/page.tsx` | 684 |
-| `src/app/api/ai/recommend/route.ts` | 616 |
-| `src/app/[region]/calculator/page.tsx` | 595 |
-| `src/app/[region]/card-recommender/page.tsx` | 565 |
-| `src/app/[region]/inspire/page.tsx` | 560 |
-| `src/app/[region]/page.tsx` | 529 |
-| `src/app/profile/page.tsx` | 517 |
-| `src/lib/agent-eval.test.ts` | 504 |
+| `src/app/[region]/card-recommender/page.tsx` | 975 |
+| `src/app/[region]/trip-builder/page.tsx` | 955 |
+| `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 939 |
+| `src/components/ConnectedWallets.test.tsx` | 788 |
+| `src/app/[region]/award-search/page.tsx` | 760 |
+| `src/app/api/ai/recommend/route.ts` | 746 |
+| `src/app/[region]/calculator/page.tsx` | 739 |
+| `src/app/profile/page.tsx` | 715 |
+| `src/app/api/ai/recommend/route.test.ts` | 607 |
+| `src/components/ConnectedWallets.tsx` | 528 |
 
-## 10. Agent Task Board Snapshot
-
-- Total tasks: **18**
-- in_review: **18**
-
-| Task | Owner | Status | Priority | Title |
-|---|---|---|---|---|
-| `TASK-0001` | `gemini` | `in_review` | `p2` | Calculator conversion strip + CTA analytics |
-| `TASK-0002` | `gemini` | `in_review` | `p2` | DB-backed booking URLs with safe fallback |
-| `TASK-0003` | `gemini` | `in_review` | `p2` | Award search sort + latency optimization |
-| `TASK-0004` | `gemini` | `in_review` | `p2` | AI advisor resilience and deterministic fallback |
-| `TASK-0005` | `gemini` | `in_review` | `p2` | Affiliate analytics hardening |
-| `TASK-0006` | `gemini` | `in_review` | `p2` | Workflow health dashboard v2 metrics |
-| `TASK-0007` | `kimi` | `in_review` | `p2` | G0-T1 Engineering constitution docs |
-| `TASK-0008` | `kimi` | `in_review` | `p2` | G0-T2 Unified PR template and DoD |
-| `TASK-0009` | `kimi` | `in_review` | `p2` | G0-T3 CONTRIBUTING governance update |
-| `TASK-0010` | `kimi` | `in_review` | `p2` | G1-T1 Vertical slice scaffolding baseline |
-| `TASK-0011` | `kimi` | `in_review` | `p2` | G1-T2 Calculator shell pilot refactor |
-| `TASK-0012` | `kimi` | `in_review` | `p2` | G1-T3 Booking config extraction |
-| `TASK-0013` | `kimi` | `in_review` | `p2` | G2-T1 Changed-scope test policy gates |
-| `TASK-0014` | `kimi` | `in_review` | `p2` | G2-T2 Core API contract test hardening |
-| `TASK-0015` | `kimi` | `in_review` | `p2` | G2-T3 Deterministic test fixture utilities |
-| `TASK-0016` | `kimi` | `in_review` | `p2` | G3-T1 Quality-first scoring rubric config |
-| `TASK-0017` | `kimi` | `in_review` | `p2` | G3-T2 Normalized agent evaluation artifact |
-| `TASK-0018` | `kimi` | `in_review` | `p2` | G3-T3 Role-fit recommendation matrix |
-
-## 11. PM Operational Playbook
+## 10. PM Operational Playbook
 
 - Source docs:
   - `README.md`
@@ -375,7 +388,7 @@
   - `npm run test -- --run`
   - `npm run build`
 
-## 12. Update Policy (Mandatory)
+## 11. Update Policy (Mandatory)
 
 1. Every behavior, API, schema, workflow, or env-var change must regenerate this dossier.
 2. CI blocks merges when this file is stale (`npm run pm:dossier:check`).

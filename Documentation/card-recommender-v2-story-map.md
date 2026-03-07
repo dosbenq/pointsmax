@@ -3,7 +3,7 @@
 ## Purpose
 
 This file converts the Card Recommender V2 technical audit into execution-ready
-stories for the agent workflow. The goal is to replace the current page-local
+stories for implementation. The goal is to replace the current page-local
 ranking demo with a tested, region-aware, wallet-aware recommendation engine.
 
 Current gap summary:
@@ -138,20 +138,12 @@ Acceptance:
 - Rule/eligibility tests cover disqualifier scenarios
 - UI tests verify key explanation surfaces and mode switching
 
-## Agent Assignment
+## Execution Notes
 
-Primary owner: `kimi`
-
-Reason:
-
-- This is a multi-file refactor plus test-backed behavior work.
-- The work is clearer if split into narrow stories with strict acceptance criteria.
-
-## Workflow Requirements
-
-- Run Kimi through the PTY wrapper in `scripts/agents/run-kimi-pty.sh`
-- Use supervisor mode for async execution and retry visibility
-- Review each story independently before promoting it to `done`
+- Treat each story as an independently reviewable slice.
+- Land engine and contract work before UI polish.
+- Do not combine eligibility logic and UI changes in a single PR unless the API
+  contract is already stable.
 
 ## Review Gate
 

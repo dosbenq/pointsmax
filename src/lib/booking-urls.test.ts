@@ -157,5 +157,48 @@ describe('booking-urls', () => {
     expect(hotels).toContain('World of Hyatt')
     expect(sections.hotelBookingUrls).toContain('Known hotel award booking portals')
     expect(sections.bookingStepUrls).toContain('United MileagePlus award search')
+    expect(vi.mocked(db.getActiveBookingUrls)).toHaveBeenCalledTimes(2)
+  })
+
+  it('loads booking URLs only once when building trip-builder prompt sections', async () => {
+    vi.mocked(db.getActiveBookingUrls).mockResolvedValue([
+      {
+        id: '1',
+        program_slug: 'hyatt',
+        label: 'World of Hyatt',
+        url: 'https://world.hyatt.com/content/gp/en/rewards.html',
+        region: 'global',
+        sort_order: 10,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: '2',
+        program_slug: 'chase-ur',
+        label: 'Chase UR transfer partners',
+        url: 'https://www.ultimaterewards.com',
+        region: 'us',
+        sort_order: 20,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      },
+      {
+        id: '3',
+        program_slug: 'united',
+        label: 'United MileagePlus award search',
+        url: 'https://www.united.com/en/us/fly/travel/awards.html',
+        region: 'global',
+        sort_order: 30,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      },
+    ] as BookingUrl[])
+
+    await getTripBuilderPromptSections('us')
+
+    expect(vi.mocked(db.getActiveBookingUrls)).toHaveBeenCalledTimes(1)
   })
 })

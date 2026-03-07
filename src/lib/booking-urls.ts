@@ -85,6 +85,13 @@ async function loadValidatedBookingUrls(region?: 'us' | 'in'): Promise<BookingUr
   }
 }
 
+function categorizeValidatedUrls(urls: BookingUrl[]): CategorizedBookingLink[] {
+  return urls.map((row) => ({
+    ...row,
+    category: categorizeBookingLink(row.program_slug),
+  }))
+}
+
 /**
  * Get booking URLs formatted for AI prompt.
  * Uses only validated DB-backed URLs. No static fallback.
@@ -115,10 +122,7 @@ export async function getBookingLinks(
   region?: 'us' | 'in',
 ): Promise<CategorizedBookingLink[]> {
   const all = await loadValidatedBookingUrls(region)
-  const categorized = all.map((row) => ({
-    ...row,
-    category: categorizeBookingLink(row.program_slug),
-  }))
+  const categorized = categorizeValidatedUrls(all)
 
   return category
     ? categorized.filter((row) => row.category === category)
@@ -137,15 +141,22 @@ export async function formatBookingLinksForPrompt(
 }
 
 export async function getTripBuilderPromptSections(region: 'us' | 'in') {
+  const categorized = categorizeValidatedUrls(await loadValidatedBookingUrls(region))
+  const formatCategory = (category: BookingLinkCategory) => {
+    const links = categorized.filter((link) => link.category === category)
+    if (links.length === 0) return '- No validated URLs configured'
+    return links.map((link) => `- ${link.label}: ${link.url}`).join('\n')
+  }
+
   return {
     hotelBookingUrls: [
       'Known hotel award booking portals (use ONLY these exact URLs for hotel.booking_url):',
-      await formatBookingLinksForPrompt('hotel_portal', region),
+      formatCategory('hotel_portal'),
     ].join('\n'),
     bookingStepUrls: [
       'Known portal URLs (use ONLY these for booking_steps urls, or null if no exact match):',
-      await formatBookingLinksForPrompt('transfer_portal', region),
-      await formatBookingLinksForPrompt('flight_booking_portal', region),
+      formatCategory('transfer_portal'),
+      formatCategory('flight_booking_portal'),
     ].join('\n'),
   }
 }

@@ -38,7 +38,6 @@ type HealthPayload = {
     event_name: string
     endpoint: string
     send_ready: boolean
-    queue_depth: number
     failed_runs_24h: number
     last_success_at: string | null
   }
@@ -68,7 +67,6 @@ export default function AdminWorkflowHealthPage() {
   const [testResult, setTestResult] = useState<TestPayload | null>(null)
   const [runningKnowledgeIngest, setRunningKnowledgeIngest] = useState(false)
   const [ingestResult, setIngestResult] = useState<IngestPayload | null>(null)
-  const [runningRetry, setRunningRetry] = useState(false)
 
   async function loadHealth() {
     setLoading(true)
@@ -104,27 +102,6 @@ export default function AdminWorkflowHealthPage() {
       setError(err instanceof Error ? err.message : 'Failed to run workflow test')
     } finally {
       setRunningTest(false)
-    }
-  }
-
-  async function runRetryAction() {
-    setRunningRetry(true)
-    setError('')
-    try {
-      const res = await fetch('/api/admin/workflow-health', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'retry' }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data?.error || 'Failed to trigger retry')
-      }
-      await loadHealth()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to trigger retry')
-    } finally {
-      setRunningRetry(false)
     }
   }
 
@@ -182,7 +159,7 @@ export default function AdminWorkflowHealthPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Workflow Health</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Validate agent workflow configuration and send a one-click end-to-end test event.
+            Validate workflow configuration and send a one-click end-to-end test event.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -201,13 +178,6 @@ export default function AdminWorkflowHealthPage() {
             {runningTest ? 'Sending…' : 'Run test event'}
           </button>
           <button
-            onClick={runRetryAction}
-            disabled={runningRetry || loading}
-            className="text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded-full px-4 py-1.5 text-slate-700 disabled:opacity-50"
-          >
-            {runningRetry ? 'Retrying…' : 'Retry failed'}
-          </button>
-          <button
             onClick={runKnowledgeIngest}
             disabled={runningKnowledgeIngest || loading || !knowledgeChannel.configured}
             className="text-xs bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-full px-4 py-1.5"
@@ -224,15 +194,6 @@ export default function AdminWorkflowHealthPage() {
       )}
 
       <div className="grid sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-xs text-slate-400 uppercase tracking-wider">Queue Depth</p>
-          <p className="text-2xl font-semibold text-slate-900 mt-1">
-            {loading ? '—' : (health?.workflow.queue_depth ?? 0)}
-          </p>
-          <p className="text-xs text-slate-500 mt-1">
-            Pending tasks
-          </p>
-        </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <p className="text-xs text-slate-400 uppercase tracking-wider">Failed (24h)</p>
           <p className={`text-2xl font-semibold mt-1 ${health?.workflow.failed_runs_24h && health.workflow.failed_runs_24h > 0 ? 'text-red-600' : 'text-slate-900'}`}>

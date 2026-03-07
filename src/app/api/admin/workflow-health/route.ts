@@ -1,6 +1,4 @@
 import crypto from 'node:crypto'
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 import { getConfiguredKnowledgeChannelUrl, getKnowledgeChannelLabel } from '@/lib/knowledge/channel-ingest'
@@ -111,25 +109,6 @@ function mapEventIds(result: unknown): string[] {
     .filter(Boolean)
 }
 
-async function getQueueDepth(): Promise<number> {
-  const tasksDir = path.join(process.cwd(), 'agents/tasks')
-  try {
-    const entries = await fs.readdir(tasksDir)
-    const taskFiles = entries.filter((f) => f.startsWith('TASK-') && f.endsWith('.md'))
-    let pendingCount = 0
-    for (const file of taskFiles) {
-      const content = await fs.readFile(path.join(tasksDir, file), 'utf8')
-      if (content.includes('status: pending')) {
-        pendingCount += 1
-      }
-    }
-    return pendingCount
-  } catch {
-    // If directory doesn't exist or other error, return 0
-    return 0
-  }
-}
-
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
   const authError = await requireAdmin(req)
@@ -151,7 +130,7 @@ export async function GET(req: NextRequest) {
 
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [totalRes, activeRes, knowledgeRes, auditRes, queueDepth] = await Promise.all([
+  const [totalRes, activeRes, knowledgeRes, auditRes] = await Promise.all([
     db.from('flight_watches').select('id', { count: 'exact', head: true }),
     db.from('flight_watches').select('id', { count: 'exact', head: true }).eq('is_active', true),
     db.from('knowledge_docs').select('id', { count: 'exact', head: true }),
@@ -159,7 +138,6 @@ export async function GET(req: NextRequest) {
       .select('created_at, action')
       .order('created_at', { ascending: false })
       .limit(200),
-    getQueueDepth(),
   ])
 
   const totalResult = totalRes as WatchCountResult
@@ -221,7 +199,6 @@ export async function GET(req: NextRequest) {
       send_ready: statuses
         .filter((status) => status.required)
         .every((status) => status.present),
-      queue_depth: queueDepth,
       failed_runs_24h: auditRows.filter((l) =>
         (l.action.toLowerCase().includes('fail') || l.action.toLowerCase().includes('error')) &&
         l.created_at > last24h
@@ -237,18 +214,6 @@ export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const authError = await requireAdmin(req)
   if (authError) return authError
-
-  const body = await req.json().catch(() => ({}))
-
-  if (body.action === 'retry') {
-    await logAdminAction('workflow.manual_retry', null, {
-      triggered_at: new Date().toISOString()
-    })
-    return NextResponse.json({
-      ok: true,
-      message: 'Retry action logged. System will re-process eligible failed tasks.'
-    })
-  }
 
   const eventKey = process.env.INNGEST_EVENT_KEY?.trim()
   if (!eventKey && process.env.NODE_ENV === 'production') {

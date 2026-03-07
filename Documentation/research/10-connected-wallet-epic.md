@@ -2,7 +2,7 @@
 
 Date: 2026-02-28  
 Status: Approved for implementation  
-Owners: Claude (architecture/high-risk), Gemini (implementation/UI)
+Owners: Platform + product engineering
 
 ## Objective
 Replace manual-only balance input with a connector-based balance sync system, while keeping manual entry as a fallback.
@@ -40,12 +40,12 @@ Replace manual-only balance input with a connector-based balance sync system, wh
 - Least-privilege scopes and connector-specific rate limits.
 
 ## Delivery Stories (Execution Order)
-1. Architecture and data model foundation (`Claude`)
-2. Connector orchestration and sync reliability (`Claude`)
-3. Connected account API contracts and validation (`Gemini`)
-4. Connected Wallet UI + manual fallback UX (`Gemini`)
-5. CSV/email ingestion baseline (`Gemini`)
-6. Security hardening and operational runbook (`Claude`)
+1. Architecture and data model foundation
+2. Connector orchestration and sync reliability
+3. Connected account API contracts and validation
+4. Connected Wallet UI + manual fallback UX
+5. CSV/email ingestion baseline
+6. Security hardening and operational runbook
 
 ## Acceptance Metrics
 - Linked-account onboarding completion rate.

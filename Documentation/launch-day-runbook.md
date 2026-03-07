@@ -8,7 +8,7 @@ Approver: [Name]
 
 All must be true before deploy:
 
-- `Documentation/claude-launch-checklist.md` items are complete.
+- `Documentation/launch-readiness.md` items are complete.
 - GitHub `CI` and `Release Gate` workflows are green.
 - Production env/secrets are configured.
 - Cron job auth and monitoring are verified.
@@ -26,7 +26,7 @@ All must be true before deploy:
    npm run smoke:http
    npm run check:links
    ```
-3. Confirm checklist completion in `Documentation/claude-launch-checklist.md`.
+3. Confirm checklist completion in `Documentation/launch-readiness.md`.
 4. Announce launch window in team channel.
 
 ## 2) T-30 Minutes (Production Readiness)
@@ -57,19 +57,16 @@ All must be true before deploy:
 Run manual smoke against production URL:
 
 1. `/`
-2. `/calculator`
-3. `/award-search`
-4. `/inspire`
-5. `/trip-builder`
-6. `/card-recommender`
-7. `/pricing`
-8. `/how-it-works`
+2. `/us/calculator`
+3. `/us/card-recommender`
+4. `/profile`
+5. `/pricing`
 
 Expected:
 
 - All pages load with no blocking console/network errors.
-- Award search returns results.
-- Inspire returns ranked destinations.
+- Planner loads and returns results.
+- Card Strategy loads and ranks cards.
 
 ## 5) T+20 Minutes (Critical Functional Checks)
 
@@ -105,7 +102,7 @@ Expected:
 Trigger rollback if any of:
 
 - sustained 5xx rate > [threshold]
-- core flow broken (`/calculator`, `/award-search`, auth, alerts)
+- core flow broken (`/us/calculator`, `/us/card-recommender`, auth, alerts)
 - cron processing failing with user-visible impact
 
 Rollback steps:

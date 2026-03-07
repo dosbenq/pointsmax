@@ -122,7 +122,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                     <Link href={`/${normalized}/programs/${partner.to_program_slug}`} className="text-pm-accent hover:underline">
                       {partner.to_program_name}
                     </Link>
-                    {' '}({partner.ratio_from}:{partner.ratio_to})
+                    {' '}(transfer ratio {partner.ratio_from} source : {partner.ratio_to} destination)
                   </li>
                 ))}
               </ul>
@@ -140,7 +140,7 @@ export default async function ProgramDetailPage({ params }: Props) {
                     <Link href={`/${normalized}/programs/${partner.from_program_slug}`} className="text-pm-accent hover:underline">
                       {partner.from_program_name}
                     </Link>
-                    {' '}→ {program.name} ({partner.ratio_from}:{partner.ratio_to})
+                    {' '}→ {program.name} (transfer ratio {partner.ratio_from} source : {partner.ratio_to} destination)
                   </li>
                 ))}
               </ul>

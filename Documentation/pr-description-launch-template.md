@@ -4,15 +4,14 @@ Copy/paste this into the PR body and replace bracketed placeholders.
 
 ## Summary
 
-This PR prepares PointsMax for launch by adding new customer entry points, hardening reliability, and tightening release gates.
+This PR prepares PointsMax for launch by hardening core customer flows and tightening release gates.
 
 ## What Changed
 
 ### Product surfaces
 
-- Added standalone award search page: `/award-search`
-- Added reverse-search destination discovery page: `/inspire`
-- Added both pages to navigation/footer and sitemap
+- Consolidated customer entry points around Planner, Card Strategy, and Wallet
+- Reduced redundant top-level routes in navigation/footer and sitemap
 
 ### API + backend
 
@@ -25,15 +24,16 @@ This PR prepares PointsMax for launch by adding new customer entry points, harde
 ### Release quality
 
 - Expanded smoke checks to include:
-  - `/award-search`
-  - `/inspire`
+  - `/us/calculator`
+  - `/us/card-recommender`
+  - `/profile`
 - Kept link checks strict with hard-fail on broken URLs
 
 ## Why
 
 - Improves user acquisition and activation:
-  - power users can run quick flight checks directly
-  - new users can start with “where can I go with my points?”
+  - the primary flows are clearer and less fragmented
+  - the product emphasizes planning and card strategy instead of scattered tools
 - Reduces launch risk:
   - stronger cron coverage
   - broader route smoke coverage
@@ -56,30 +56,29 @@ Expected:
 
 - tests pass
 - preflight passes
-- smoke passes including `/award-search` and `/inspire`
+- smoke passes including `/us/calculator`, `/us/card-recommender`, and `/profile`
 - link check reports `hard failures: 0` (Hyatt `429` soft block is acceptable)
 
 ## Risk / Rollback
 
 ### Risk
 
-- New pages depend on `/api/programs`, `/api/user/balances`, and `/api/award-search` behavior.
-- Reverse search fans out multiple award-search requests; load may increase with traffic.
+- Primary flows depend on `/api/programs`, `/api/user/balances`, `/api/calculate`, and `/api/award-search` behavior.
 
 ### Rollback
 
-- Revert this PR to remove new pages and fan-out path.
-- Existing core surfaces (`/calculator`, `/trip-builder`) continue to operate independently.
+- Revert this PR to restore the previous top-level navigation and page structure.
+- Existing APIs remain independently testable.
 
 ## Follow-ups (External)
 
-- Set production secrets/envs per `Documentation/claude-launch-checklist.md`.
+- Set production secrets/envs per `Documentation/launch-readiness.md`.
 - Configure cron auth header for `/api/cron/send-bonus-alerts`.
 - Complete production QA and release gate before deploy.
 
 ## Reviewer Checklist
 
-- [ ] Product behavior validated for `/award-search` and `/inspire`
+- [ ] Product behavior validated for `/us/calculator`, `/us/card-recommender`, and `/profile`
 - [ ] Cron route tests are meaningful and deterministic
 - [ ] Smoke/link/preflight outputs are green
 - [ ] No unrelated changes included

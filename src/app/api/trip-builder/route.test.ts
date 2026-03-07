@@ -19,6 +19,12 @@ const validBalance = {
   amount: 25000,
 }
 
+function getFutureDate(daysFromToday: number): string {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + daysFromToday)
+  return date.toISOString().slice(0, 10)
+}
+
 describe('POST /api/trip-builder validation', () => {
   it('rejects return_date on/before start_date', async () => {
     const req = makeRequest({
@@ -60,13 +66,53 @@ describe('POST /api/trip-builder validation', () => {
     expect(body.error).toContain('program_id')
   })
 
+  it('rejects past start dates', async () => {
+    const req = makeRequest({
+      destination_name: 'Tokyo',
+      origin: 'JFK',
+      destination: 'NRT',
+      start_date: '2020-01-01',
+      return_date: '2020-01-05',
+      passengers: 1,
+      cabin: 'business',
+      hotel_nights: 3,
+      balances: [validBalance],
+    })
+
+    const res = await POST(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(body.error).toContain('today or later')
+  })
+
+  it('rejects identical origin and destination', async () => {
+    const req = makeRequest({
+      destination_name: 'New York',
+      origin: 'JFK',
+      destination: 'JFK',
+      start_date: '2026-03-10',
+      return_date: '2026-03-15',
+      passengers: 1,
+      cabin: 'business',
+      hotel_nights: 3,
+      balances: [validBalance],
+    })
+
+    const res = await POST(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(body.error).toContain('must be different')
+  })
+
   it('rejects date ranges wider than max span', async () => {
     const req = makeRequest({
       destination_name: 'Tokyo',
       origin: 'JFK',
       destination: 'NRT',
-      start_date: '2026-01-01',
-      return_date: '2026-03-01',
+      start_date: getFutureDate(1),
+      return_date: getFutureDate(60),
       passengers: 1,
       cabin: 'business',
       hotel_nights: 3,
