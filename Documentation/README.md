@@ -23,6 +23,7 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Vercel environment setup: `Documentation/vercel-env-setup.md`
 - Supabase migrations verification: `Documentation/supabase-migrations-verify.md`
 - Supabase automation notes: `Documentation/supabase-automation.md`
+- OAuth branding setup: `Documentation/oauth-branding-setup.md`
 - Automation control plane: `Documentation/automation-control-plane.md`
 
 ## Research and Strategy

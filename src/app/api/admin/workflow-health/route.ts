@@ -13,6 +13,12 @@ type ConfigStatus = {
   present: boolean
 }
 
+type AuthBrandingStatus = {
+  configured: boolean
+  using_supabase_domain: boolean
+  message: string
+}
+
 type WatchCountResult = {
   count: number | null
   error: { message: string } | null
@@ -44,6 +50,36 @@ function getConfigStatuses(): ConfigStatus[] {
     configPresence('RESEND_FROM_EMAIL', false),
     configPresence('CRON_SECRET', false),
   ]
+}
+
+function getAuthBrandingStatus(): AuthBrandingStatus {
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  if (!rawUrl) {
+    return {
+      configured: false,
+      using_supabase_domain: false,
+      message: 'NEXT_PUBLIC_SUPABASE_URL is not configured.',
+    }
+  }
+
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase()
+    const usingSupabaseDomain = hostname.endsWith('.supabase.co')
+
+    return {
+      configured: true,
+      using_supabase_domain: usingSupabaseDomain,
+      message: usingSupabaseDomain
+        ? 'Google OAuth will show a Supabase-hosted domain until Supabase Auth runs behind a custom PointsMax domain.'
+        : 'OAuth branding is using a custom auth/app domain.',
+    }
+  } catch {
+    return {
+      configured: false,
+      using_supabase_domain: false,
+      message: 'NEXT_PUBLIC_SUPABASE_URL is invalid.',
+    }
+  }
 }
 
 function mapEventIds(result: unknown): string[] {
@@ -83,6 +119,7 @@ export async function GET(req: NextRequest) {
 
   const db = createAdminClient()
   const statuses = getConfigStatuses()
+  const authBranding = getAuthBrandingStatus()
   const required = statuses.filter((status) => status.required)
   const requiredPresent = required.filter((status) => status.present).length
 
@@ -144,6 +181,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     checked_at: new Date().toISOString(),
     configs: statuses,
+    auth_branding: authBranding,
     summary: {
       required_present: requiredPresent,
       required_total: required.length,

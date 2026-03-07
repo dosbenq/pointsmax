@@ -68,6 +68,8 @@ describe('Workflow Health API', () => {
   })
 
   it('GET returns new health fields', async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project-ref.supabase.co'
+
     mockDb.from.mockImplementation((table: string) => {
       if (table === 'admin_audit_log') {
         return {
@@ -108,6 +110,10 @@ describe('Workflow Health API', () => {
     expect(data.workflow).toHaveProperty('failed_runs_24h')
     expect(data.workflow.failed_runs_24h).toBe(1) // workflow.error
     expect(data.workflow).toHaveProperty('last_success_at')
+    expect(data.auth_branding).toEqual(expect.objectContaining({
+      configured: true,
+      using_supabase_domain: true,
+    }))
   })
 
   it('POST with retry action returns correct response', async () => {

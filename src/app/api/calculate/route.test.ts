@@ -12,6 +12,7 @@ vi.mock('@/lib/api-security', () => ({
 
 vi.mock('@/lib/logger', () => ({
   logError: vi.fn(),
+  logInfo: vi.fn(),
 }))
 
 const { calculateRedemptions } = await import('@/lib/calculate')
@@ -38,10 +39,10 @@ describe('POST /api/calculate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     const globalRef = globalThis as typeof globalThis & {
-      __pointsmaxCalculateResultCache?: Map<string, unknown>
+      __pointsmaxAiResponseCache?: Map<string, unknown>
     }
-    if (globalRef.__pointsmaxCalculateResultCache) {
-      globalRef.__pointsmaxCalculateResultCache.clear()
+    if (globalRef.__pointsmaxAiResponseCache) {
+      globalRef.__pointsmaxAiResponseCache.clear()
     }
   })
 

@@ -4,6 +4,12 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 import { badRequest, internalError } from '@/lib/error-utils'
 import type { BalanceInput } from '@/types/database'
+import {
+  generateAiCacheKey,
+  getCachedAiResponse,
+  setCachedAiResponse,
+  logAiCacheMetric,
+} from '@/lib/ai-cache'
 
 const MAX_BODY_BYTES = 48_000
 const RESULT_CACHE_TTL_MS = Number.parseInt(
@@ -11,42 +17,13 @@ const RESULT_CACHE_TTL_MS = Number.parseInt(
   10,
 )
 
-type ResultCacheEntry = {
-  expiresAt: number
-  data: unknown
-}
-
-function getResultCacheStore(): Map<string, ResultCacheEntry> {
-  const globalRef = globalThis as typeof globalThis & {
-    __pointsmaxCalculateResultCache?: Map<string, ResultCacheEntry>
-  }
-  if (!globalRef.__pointsmaxCalculateResultCache) {
-    globalRef.__pointsmaxCalculateResultCache = new Map<string, ResultCacheEntry>()
-  }
-  return globalRef.__pointsmaxCalculateResultCache
-}
-
-function pruneExpiredEntries(store: Map<string, ResultCacheEntry>, now: number) {
-  for (const [key, value] of store.entries()) {
-    if (value.expiresAt <= now) store.delete(key)
-  }
-  if (store.size <= 500) return
-  const keys = store.keys()
-  while (store.size > 500) {
-    const next = keys.next()
-    if (next.done) break
-    store.delete(next.value)
-  }
-}
-
-function balancesCacheKey(balances: BalanceInput[]): string {
-  const normalized = balances
+function getNormalizedBalances(balances: BalanceInput[]) {
+  return balances
     .map((b) => ({
       program_id: b.program_id,
       amount: Math.floor(b.amount),
     }))
     .sort((a, b) => a.program_id.localeCompare(b.program_id))
-  return JSON.stringify(normalized)
 }
 
 // POST /api/calculate
@@ -89,26 +66,24 @@ export async function POST(req: NextRequest) {
   const cacheTtl = Number.isFinite(RESULT_CACHE_TTL_MS) && RESULT_CACHE_TTL_MS > 0
     ? RESULT_CACHE_TTL_MS
     : 15000
-  const cacheKey = balancesCacheKey(balances)
-  const resultCache = getResultCacheStore()
-  const now = Date.now()
-  pruneExpiredEntries(resultCache, now)
-  const cached = resultCache.get(cacheKey)
-  if (cached && cached.expiresAt > now) {
-    return NextResponse.json(cached.data, {
+  const normalizedBalances = getNormalizedBalances(balances)
+  const cacheKey = generateAiCacheKey('calculate', normalizedBalances)
+  const cached = getCachedAiResponse<unknown>(cacheKey)
+  
+  if (cached) {
+    logAiCacheMetric('hit', 'calculate')
+    return NextResponse.json(cached, {
       headers: {
         'X-PointsMax-Cache': 'HIT',
         'X-Calculate-Latency-Ms': String(Date.now() - startedAt),
       },
     })
   }
+  logAiCacheMetric('miss', 'calculate')
 
   try {
     const result = await calculateRedemptions(balances)
-    resultCache.set(cacheKey, {
-      data: result,
-      expiresAt: now + cacheTtl,
-    })
+    setCachedAiResponse(cacheKey, result, cacheTtl)
     return NextResponse.json(result, {
       headers: {
         'X-PointsMax-Cache': 'MISS',

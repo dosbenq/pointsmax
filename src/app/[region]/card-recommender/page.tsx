@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -11,12 +11,13 @@ import {
   formatCurrencyRounded,
   getCategoriesForRegion,
   spendInputPrefix,
-  yearlyPointsFromSpend,
 } from '@/lib/card-tools'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
 import {
   useCardScorer,
+  useSpendOnlyRanking,
+  splitRecommendationsByStatus,
   TRAVEL_GOALS,
   SOFT_BENEFIT_COPY,
   type SoftBenefitType,
@@ -153,7 +154,7 @@ export default function CardRecommenderPage() {
     })
   }
 
-  // Use the extracted scorer hook
+  // Use the extracted scorer hook for full recommendations
   const results = useCardScorer({
     cards,
     spend,
@@ -168,29 +169,18 @@ export default function CardRecommenderPage() {
     targetPointsGoal: Number.parseInt(targetPointsGoal || '0', 10) || null,
     showResults,
   })
-  const visibleResults = results.filter(result => result.status !== 'ineligible')
-  const blockedResults = results.filter(result => result.status === 'ineligible')
-  const spendOnlyResults = useMemo(() => {
-    return cards
-      .map(card => {
-        const pointsPerYear = categories.reduce((sum, { key }) => {
-          const monthly = Number.parseFloat((spend[key] ?? '0').replace(/,/g, '')) || 0
-          const multiplier = key === 'shopping'
-            ? (card.earning_rates.shopping ?? card.earning_rates.other ?? 1)
-            : (card.earning_rates[key] ?? card.earning_rates.other ?? 1)
-          return sum + yearlyPointsFromSpend({
-            monthlySpend: monthly,
-            earnMultiplier: multiplier,
-            earnUnit: card.earn_unit,
-          })
-        }, 0)
-        const annualValue = (pointsPerYear * card.cpp_cents) / 100
-        const netValue = annualValue - card.annual_fee_usd
-        return { card, pointsPerYear, annualValue, netValue }
-      })
-      .sort((a, b) => b.netValue - a.netValue)
-      .slice(0, 5)
-  }, [cards, categories, spend])
+  
+  // Split results by status using domain helper
+  const { visible: visibleResults, blocked: blockedResults } = splitRecommendationsByStatus(results)
+  
+  // Use extracted hook for spend-only ranking (earnings view)
+  const spendOnlyResults = useSpendOnlyRanking({
+    cards,
+    spend,
+    regionCode,
+    enabled: activeView === 'earnings',
+    limit: 5,
+  })
 
   const handleApplyClick = async (
     card: CardWithRates,
