@@ -27,3 +27,4 @@ agents/outbox/**
 !agents/outbox/.gitkeep
 agents/runtime/**
 !agents/runtime/.gitkeep
+.agent-state/
