@@ -44,6 +44,27 @@ npm run agents:queue:watch -- JOB-2026-02-27_04-40-00-000Z --interval_ms 5000
 - `queue:status` returns JSON status + task counts.
 - `queue:watch` streams live status updates until the job exits.
 - Queue logs are written to `agents/runtime/logs/JOB-*.log`.
+- `dispatch-all` now respects `depends_on`; tasks with unfinished dependencies are skipped until upstream tasks are `done`.
+
+## Local runner mode (recommended default for real work)
+
+Runner mode is the top-level control plane for local agent execution. It starts
+and manages per-agent supervisors, so the agents run in your normal shell
+environment while Codex can still control them via repo files.
+
+```bash
+npm run agents:runner:start -- --owners kimi,gemini,claude --interval_ms 15000 --timeout_ms 1200000 --no_output_timeout_ms 900000 --max_blocked_retries 2
+npm run agents:runner:list
+npm run agents:runner:status -- RUN-2026-02-27_05-32-41-979Z
+npm run agents:runner:watch -- RUN-2026-02-27_05-32-41-979Z --interval_ms 5000
+npm run agents:runner:stop -- RUN-2026-02-27_05-32-41-979Z
+```
+
+- `runner:start` starts or attaches to one supervisor per owner.
+- `runner:status` aggregates per-agent supervisor heartbeats.
+- `runner:watch` gives a concise multi-agent live view.
+- `runner:stop` stops all supervisors tracked by that runner manifest.
+- Runner manifests are stored in `agents/runtime/runner/`.
 
 ## Supervisor mode (best for non-blocking parallel work)
 
@@ -51,6 +72,7 @@ Supervisor mode is a detached daemon for agent execution. It repeatedly dispatch
 
 ```bash
 npm run agents:supervisor:start -- --owner kimi --status pending --interval_ms 15000 --timeout_ms 1200000 --no_output_timeout_ms 900000 --max_blocked_retries 2
+npm run agents:supervisor:start:kimi -- --interval_ms 15000 --timeout_ms 1200000 --no_output_timeout_ms 900000 --max_blocked_retries 2
 npm run agents:supervisor:list
 npm run agents:supervisor:status -- SUP-2026-02-27_05-32-41-979Z
 npm run agents:supervisor:watch -- SUP-2026-02-27_05-32-41-979Z --interval_ms 5000
@@ -65,6 +87,15 @@ npm run agents:supervisor:stop -- SUP-2026-02-27_05-32-41-979Z
 ## Configure your local CLI commands
 
 Default commands are in `agents/config/agents.json`.
+
+Kimi is configured through a PTY wrapper (`scripts/agents/run-kimi-pty.sh`) because
+its CLI expects an interactive terminal and can fail under plain headless pipes.
+Keep Kimi on supervisor/queue mode through that wrapper instead of calling the raw
+binary from `agents/config/agents.json`.
+
+The Kimi wrapper also uses `KIMI_SHARE_DIR` to keep its runtime state under the
+repo (`.agent-state/kimi`) so Codex-side sandboxing does not depend on writes to
+`~/.kimi`.
 
 You can override per run via environment variables:
 

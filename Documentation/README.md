@@ -19,6 +19,7 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Launch readiness checklist: `Documentation/launch-readiness.md`
 - Launch-day runbook: `Documentation/launch-day-runbook.md`
 - Release commit checklist: `Documentation/release-commit-checklist.md`
+- Agent runner operations: `Documentation/agent-runner-operations.md`
 - Vercel environment setup: `Documentation/vercel-env-setup.md`
 - Supabase migrations verification: `Documentation/supabase-migrations-verify.md`
 - Supabase automation notes: `Documentation/supabase-automation.md`
@@ -37,6 +38,12 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Kimi strategy synthesis and execution mapping: `Documentation/research/08-kimi-report-synthesis.md`
 - Claude strategy review and corrected plan: `Documentation/research/09-claude-strategy-review.md`
 - Connected Wallet epic and delivery scope: `Documentation/research/10-connected-wallet-epic.md`
+- Card Recommender V2 story map: `Documentation/card-recommender-v2-story-map.md`
+
+## Feature Specs
+- Card Recommender V2 PRD: `Documentation/card-recommender-v2-prd.md`
+- Card Recommender V2 decision engine spec: `Documentation/card-recommender-v2-decision-engine-spec.md`
+- Card Recommender V2 delivery plan: `Documentation/card-recommender-v2-delivery-plan.md`
 
 ## SQL Utilities
 - Migration audit query: `Documentation/sql/launch-migration-audit.sql`

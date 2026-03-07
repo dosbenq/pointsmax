@@ -143,6 +143,19 @@ async function readTask(taskId) {
   return { file, ...parsed }
 }
 
+async function areDependenciesSatisfied(taskMeta) {
+  const deps = Array.isArray(taskMeta.depends_on) ? taskMeta.depends_on : []
+  if (deps.length === 0) return true
+
+  for (const depId of deps) {
+    const depTask = await readTask(String(depId))
+    if (String(depTask.meta.status ?? '') !== 'done') {
+      return false
+    }
+  }
+  return true
+}
+
 async function writeTask(file, meta, body) {
   const serialized = serializeTask(meta, body)
   await fs.writeFile(file, serialized, 'utf8')
@@ -631,6 +644,7 @@ async function cmdDispatchAll(args) {
 
     if (filterOwner && owner !== filterOwner) continue
     if (filterStatus && status !== filterStatus) continue
+    if (!(await areDependenciesSatisfied(task.meta))) continue
 
     await dispatchOne(id, args)
     dispatched += 1
