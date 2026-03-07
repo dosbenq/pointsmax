@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+import { permanentRedirect } from 'next/navigation'
 
 type PageProps = {
   params: Promise<{ region: string }>
@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function EarningCalculatorPage({ params }: PageProps) {
   const { region } = await params
-  redirect(`/${region}/card-recommender?view=earnings`)
+  permanentRedirect(`/${region}/card-recommender?view=earnings`)
 }

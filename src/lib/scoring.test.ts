@@ -107,16 +107,29 @@ describe('scoring', () => {
   })
 
   describe('calculateTotals', () => {
-    it('separates optimal and cash values', () => {
+    it('uses only the best non-cash result per program', () => {
       const results = [
-        { total_value_cents: 10000, category: 'transfer_partner' },
-        { total_value_cents: 5000, category: 'travel_portal' },
-        { total_value_cents: 2000, category: 'statement_credit' },
-        { total_value_cents: 1000, category: 'cashback' },
+        { total_value_cents: 10000, category: 'transfer_partner', from_program_id: 'a', is_best: true },
+        { total_value_cents: 5000, category: 'travel_portal', from_program_id: 'a', is_best: false },
+        { total_value_cents: 9000, category: 'transfer_partner', from_program_id: 'b', is_best: true },
+        { total_value_cents: 2000, category: 'statement_credit', from_program_id: 'a' },
+        { total_value_cents: 1000, category: 'cashback', from_program_id: 'a' },
+        { total_value_cents: 2500, category: 'statement_credit', from_program_id: 'b' },
       ]
       const totals = calculateTotals(results)
-      expect(totals.totalOptimalCents).toBe(15000) // transfer + portal
-      expect(totals.totalCashCents).toBe(3000)     // credit + cashback
+      expect(totals.totalOptimalCents).toBe(19000)
+      expect(totals.totalCashCents).toBe(4500)
+    })
+
+    it('falls back to the best value per grouped program when is_best is missing', () => {
+      const results = [
+        { total_value_cents: 10000, category: 'transfer_partner', from_program_id: 'a' },
+        { total_value_cents: 5000, category: 'travel_portal', from_program_id: 'a' },
+        { total_value_cents: 7000, category: 'transfer_partner', from_program_id: 'b' },
+        { total_value_cents: 4000, category: 'travel_portal', from_program_id: 'b' },
+      ]
+      const totals = calculateTotals(results)
+      expect(totals.totalOptimalCents).toBe(17000)
     })
 
     it('handles empty array', () => {

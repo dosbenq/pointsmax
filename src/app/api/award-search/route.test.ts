@@ -70,14 +70,22 @@ const validBalance = {
   amount: 25000,
 }
 
-const validBody = {
-  origin: 'JFK',
-  destination: 'LHR',
-  cabin: 'business',
-  passengers: 1,
-  start_date: '2026-03-01',
-  end_date: '2026-03-05',
-  balances: [validBalance],
+function getFutureDate(daysFromToday: number): string {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + daysFromToday)
+  return date.toISOString().slice(0, 10)
+}
+
+function makeValidBody() {
+  return {
+    origin: 'JFK',
+    destination: 'LHR',
+    cabin: 'business',
+    passengers: 1,
+    start_date: getFutureDate(10),
+    end_date: getFutureDate(14),
+    balances: [validBalance],
+  }
 }
 
 describe('POST /api/award-search', () => {
@@ -87,6 +95,7 @@ describe('POST /api/award-search', () => {
 
   describe('Validation', () => {
     it('rejects invalid origin IATA code', async () => {
+      const validBody = makeValidBody()
       const req = makeRequest({ ...validBody, origin: 'JF' })
       const res = await POST(req)
       expect(res.status).toBe(400)
@@ -95,7 +104,8 @@ describe('POST /api/award-search', () => {
     })
 
     it('rejects end_date before start_date', async () => {
-      const req = makeRequest({ ...validBody, start_date: '2026-03-05', end_date: '2026-03-01' })
+      const validBody = makeValidBody()
+      const req = makeRequest({ ...validBody, start_date: getFutureDate(14), end_date: getFutureDate(10) })
       const res = await POST(req)
       expect(res.status).toBe(400)
       const payload = await res.json()
@@ -112,6 +122,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('rejects missing origin', async () => {
+      const validBody = makeValidBody()
       const bodyWithoutOrigin = { ...validBody }
       delete (bodyWithoutOrigin as { origin?: string }).origin
       const req = makeRequest(bodyWithoutOrigin)
@@ -120,9 +131,25 @@ describe('POST /api/award-search', () => {
     })
 
     it('rejects missing destination', async () => {
+      const validBody = makeValidBody()
       const bodyWithoutDestination = { ...validBody }
       delete (bodyWithoutDestination as { destination?: string }).destination
       const req = makeRequest(bodyWithoutDestination)
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects past start dates', async () => {
+      const validBody = makeValidBody()
+      const yesterday = getFutureDate(-1)
+      const req = makeRequest({ ...validBody, start_date: yesterday, end_date: getFutureDate(1) })
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+    })
+
+    it('rejects identical origin and destination', async () => {
+      const validBody = makeValidBody()
+      const req = makeRequest({ ...validBody, destination: validBody.origin })
       const res = await POST(req)
       expect(res.status).toBe(400)
     })
@@ -130,6 +157,7 @@ describe('POST /api/award-search', () => {
 
   describe('Functional requirements', () => {
     it('verifies sort order with mixed points and cpp', async () => {
+      const validBody = makeValidBody()
       const mockResults = [
         { program_slug: 'high-points', points_needed_from_wallet: 100000, cpp_cents: 200 },
         { program_slug: 'low-points', points_needed_from_wallet: 50000, cpp_cents: 100 },
@@ -154,6 +182,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('verifies fallback payload includes estimates-only marker', async () => {
+      const validBody = makeValidBody()
       vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
         throw new awardSearch.AwardProviderUnavailableError()
       })
@@ -171,6 +200,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('verifies successful response contract structure', async () => {
+      const validBody = makeValidBody()
       const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
 
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
@@ -194,6 +224,7 @@ describe('POST /api/award-search', () => {
 
   describe('Fallback and edge cases', () => {
     it('returns empty results when provider returns no results', async () => {
+      const validBody = makeValidBody()
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
         name: 'seats_aero',
         search: vi.fn().mockResolvedValue([]),
@@ -209,6 +240,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('returns internal error when fallback provider also fails', async () => {
+      const validBody = makeValidBody()
       // First, make the StubProvider fail by mocking the DB to throw
       const { createServerDbClient } = await import('@/lib/supabase')
       vi.mocked(createServerDbClient).mockImplementationOnce(() => {
@@ -228,6 +260,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('handles generic errors (non-AwardProviderUnavailableError)', async () => {
+      const validBody = makeValidBody()
       vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
         throw new Error('Generic provider error')
       })
@@ -242,6 +275,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('handles different cabin classes', async () => {
+      const validBody = makeValidBody()
       const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
 
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
@@ -265,6 +299,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('handles multiple passengers', async () => {
+      const validBody = makeValidBody()
       const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 150000, cpp_cents: 200 }]
 
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
@@ -281,6 +316,7 @@ describe('POST /api/award-search', () => {
     })
 
     it('handles large date ranges', async () => {
+      const validBody = makeValidBody()
       const mockResults = [{ program_slug: 'test', points_needed_from_wallet: 50000, cpp_cents: 200 }]
 
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
@@ -290,8 +326,8 @@ describe('POST /api/award-search', () => {
 
       const req = makeRequest({
         ...validBody,
-        start_date: '2026-03-01',
-        end_date: '2026-03-31',
+        start_date: getFutureDate(1),
+        end_date: getFutureDate(31),
       })
       const res = await POST(req)
       expect(res.status).toBe(200)

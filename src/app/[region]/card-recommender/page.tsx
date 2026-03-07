@@ -222,13 +222,6 @@ export default function CardRecommenderPage() {
         region: regionCode,
         recommendation_mode: mode,
       })
-      trackEvent('card_apply_clicked', {
-        card_name: card.name,
-        rank,
-        first_year_value: Math.round(firstYearValue),
-        region: regionCode,
-        recommendation_mode: mode,
-      })
 
       const popup = window.open(redirectUrl, '_blank', 'noopener,noreferrer')
       if (!popup) {

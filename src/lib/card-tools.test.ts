@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { PROGRAM_GOAL_MAP, formatUsdRounded, yearlyPointsFromSpend } from '@/lib/card-tools'
+import { PROGRAM_GOAL_MAP, formatUsdRounded, getCategoriesForRegion, yearlyPointsFromSpend } from '@/lib/card-tools'
 
 describe('card-tools', () => {
   it('contains goal mappings for current program slugs used by cards API', () => {
-    const requiredSlugs = ['chase-ur', 'amex-mr', 'capital-one', 'citi-thankyou', 'bilt', 'united', 'delta', 'hyatt']
+    const requiredSlugs = ['chase-ur', 'amex-mr', 'capital-one', 'citi-thankyou', 'bilt', 'united', 'delta', 'hyatt', 'air-india', 'indigo-6e']
 
     for (const slug of requiredSlugs) {
       expect(PROGRAM_GOAL_MAP[slug], `missing goal map for slug: ${slug}`).toBeTruthy()
@@ -23,5 +23,9 @@ describe('card-tools', () => {
     })
 
     expect(yearly).toBeCloseTo(19980, 5)
+  })
+
+  it('includes shopping in the US spend categories', () => {
+    expect(getCategoriesForRegion('us').map((category) => category.key)).toContain('shopping')
   })
 })

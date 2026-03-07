@@ -8,6 +8,7 @@ export type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first'
 
 export type RouteRegion =
   | 'domestic_us'
+  | 'domestic_india'
   | 'canada_mexico'
   | 'caribbean'
   | 'europe'

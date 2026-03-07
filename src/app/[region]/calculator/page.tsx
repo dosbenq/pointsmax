@@ -716,6 +716,7 @@ export default function CalculatorPage() {
               aiLoading={state.aiLoading}
               aiStatus={state.aiStatus}
               aiError={state.aiError}
+              blockedReason={state.advisorBlockedReason}
               canUseAdvisor={state.canUseAdvisor}
               hasCalculatorResult={state.hasCalculatorResult}
               result={state.result}
@@ -723,6 +724,7 @@ export default function CalculatorPage() {
               chatEndRef={state.chatEndRef}
               onChatInputChange={state.setChatInput}
               onSendMessage={state.sendMessage}
+              onRetryLastMessage={state.retryLastMessage}
               onClearChat={() => { state.setChatMessages([]); state.setGeminiHistory([]); state.setMessageCount(0) }}
               onSwitchPanel={state.switchPanel}
             />

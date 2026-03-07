@@ -47,7 +47,7 @@ const defaultRates: Record<SpendCategory, number> = {
   groceries: 1,
   travel: 1,
   gas: 1,
-  shopping: NaN,
+  shopping: 1,
   streaming: 1,
   other: 1,
 }
