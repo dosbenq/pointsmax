@@ -112,6 +112,57 @@ describe('/api/connectors', () => {
       expect(json.accounts[0].freshness).toBe('fresh')
       expect(json.accounts[0].hours_since_sync).toBeLessThan(1)
     })
+
+    it('returns freshness: never for accounts that have never synced', async () => {
+      mockSupabase.auth.getUser.mockResolvedValue({
+        data: { user: { id: 'auth-123' } },
+      })
+      
+      const mockUserRow = { data: { id: 'user-456' }, error: null }
+      const mockAccounts = {
+        data: [
+          {
+            id: 'acc-2',
+            user_id: 'user-456',
+            provider: 'chase',
+            display_name: 'My Chase',
+            status: 'active',
+            last_synced_at: null,
+            sync_status: 'pending',
+          },
+        ],
+        error: null,
+      }
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'users') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue(mockUserRow),
+              }),
+            }),
+          }
+        }
+        if (table === 'connected_accounts') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockResolvedValue(mockAccounts),
+              }),
+            }),
+          }
+        }
+        return mockAdminClient.from(table)
+      })
+
+      const res = await GET()
+      expect(res.status).toBe(200)
+      
+      const json = await res.json()
+      expect(json.accounts[0].freshness).toBe('never')
+      expect(json.accounts[0].hours_since_sync).toBeNull()
+    })
   })
 
   describe('POST', () => {
@@ -208,16 +259,14 @@ describe('/api/connectors', () => {
       expect(await res.json()).toEqual({ error: 'scopes must be a non-empty array' })
     })
 
-    it('returns 409 for duplicate active connection', async () => {
+    it('returns 409 for duplicate connection', async () => {
       mockSupabase.auth.getUser.mockResolvedValue({
         data: { user: { id: 'auth-123' } },
       })
 
-      // Build chain: select().eq().eq().eq().eq().maybeSingle()
-      const maybeSingleMock = vi.fn().mockResolvedValue({ data: { id: 'existing-acc' } })
-      const eq4Mock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
-      const eq3Mock = vi.fn().mockReturnValue({ eq: eq4Mock })
-      const eq2Mock = vi.fn().mockReturnValue({ eq: eq3Mock })
+      // Build chain: select().eq().eq().maybeSingle()
+      const maybeSingleMock = vi.fn().mockResolvedValue({ data: { id: 'existing-acc', status: 'active' } })
+      const eq2Mock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
       const eq1Mock = vi.fn().mockReturnValue({ eq: eq2Mock })
       
       mockSupabase.from.mockImplementation((table: string) => {
@@ -254,6 +303,7 @@ describe('/api/connectors', () => {
       expect(res.status).toBe(409)
       const json = await res.json()
       expect(json.error).toContain('already exists')
+      expect(json.error).toContain('active')
     })
 
     it('creates new connected account successfully', async () => {
@@ -267,15 +317,13 @@ describe('/api/connectors', () => {
         provider: 'amex',
         display_name: 'My Amex',
         status: 'active',
-        sync_status: 'ok',
-        last_synced_at: new Date().toISOString(),
+        sync_status: 'pending',
+        last_synced_at: null,
       }
 
-      // Build chain: select().eq().eq().eq().eq().maybeSingle()
+      // Build chain: select().eq().eq().maybeSingle()
       const maybeSingleMock = vi.fn().mockResolvedValue({ data: null })
-      const eq4Mock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
-      const eq3Mock = vi.fn().mockReturnValue({ eq: eq4Mock })
-      const eq2Mock = vi.fn().mockReturnValue({ eq: eq3Mock })
+      const eq2Mock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
       const eq1Mock = vi.fn().mockReturnValue({ eq: eq2Mock })
       
       mockSupabase.from.mockImplementation((table: string) => {
@@ -320,6 +368,8 @@ describe('/api/connectors', () => {
       const json = await res.json()
       expect(json.account.id).toBe('new-acc-789')
       expect(json.account.provider).toBe('amex')
+      expect(json.account.sync_status).toBe('pending')
+      expect(json.account.last_synced_at).toBeNull()
     })
   })
 })

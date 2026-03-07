@@ -40,6 +40,11 @@ Start here for project context, ownership handoff, and operational playbooks.
 - Connected Wallet epic and delivery scope: `Documentation/research/10-connected-wallet-epic.md`
 - Card Recommender V2 story map: `Documentation/card-recommender-v2-story-map.md`
 
+## Feature Specs
+- Card Recommender V2 PRD: `Documentation/card-recommender-v2-prd.md`
+- Card Recommender V2 decision engine spec: `Documentation/card-recommender-v2-decision-engine-spec.md`
+- Card Recommender V2 delivery plan: `Documentation/card-recommender-v2-delivery-plan.md`
+
 ## SQL Utilities
 - Migration audit query: `Documentation/sql/launch-migration-audit.sql`
 - Post-deploy smoke query: `Documentation/sql/post-deploy-smoke.sql`

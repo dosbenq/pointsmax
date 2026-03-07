@@ -175,19 +175,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'scopes must be a non-empty array' }, { status: 400 })
   }
 
-  // Check for duplicate connections (same provider + display_name)
+  // Check for duplicate connections (DB enforces uniqueness on user_id + provider)
   const { data: existing } = await supabase
     .from('connected_accounts')
-    .select('id')
+    .select('id, status')
     .eq('user_id', userId)
     .eq('provider', provider)
-    .eq('display_name', display_name.trim())
-    .eq('status', 'active')
     .maybeSingle()
 
   if (existing) {
     return NextResponse.json(
-      { error: 'An active connection with this provider and name already exists' },
+      { error: `A connection for ${provider} already exists (status: ${existing.status}). Please remove it before connecting again.` },
       { status: 409 }
     )
   }
@@ -200,10 +198,10 @@ export async function POST(req: Request) {
       provider,
       display_name: display_name.trim(),
       token_vault_ref: token_vault_ref.trim(),
-      scopes,
+      scopes: scopes.join(' '), // Store as space-separated string
       status: 'active',
-      sync_status: 'ok',
-      last_synced_at: new Date().toISOString(),
+      sync_status: 'pending',
+      last_synced_at: null,
     })
     .select('id, user_id, provider, display_name, status, token_expires_at, scopes, last_synced_at, last_error, sync_status, error_code, created_at, updated_at')
     .single()

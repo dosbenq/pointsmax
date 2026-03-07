@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
 import NavBar from '@/components/NavBar'
@@ -10,83 +10,28 @@ import {
   formatCurrencyRounded,
   getCategoriesForRegion,
   spendInputPrefix,
-  yearlyPointsFromSpend,
 } from '@/lib/card-tools'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
-
-const TRAVEL_GOALS = [
-  { key: 'domestic',   label: 'Domestic economy' },
-  { key: 'intl_econ',  label: 'International economy' },
-  { key: 'intl_biz',   label: 'International business class' },
-  { key: 'hotels',     label: 'Hotel nights' },
-  { key: 'flex',       label: 'Transferable points flexibility' },
-]
+import {
+  useCardScorer,
+  TRAVEL_GOALS,
+  SOFT_BENEFIT_COPY,
+  type SoftBenefitType,
+  type RecommendationMode,
+  type AnnualFeeTolerance,
+} from '@/features/card-recommender'
 
 type SpendInputs = Partial<Record<SpendCategory, string>>
-
-type SoftBenefitType =
-  | 'lounge_access'
-  | 'golf'
-  | 'concierge'
-  | 'hotel_status'
-  | 'travel_insurance'
-
-const SOFT_BENEFIT_COPY: Record<SoftBenefitType, string> = {
-  lounge_access: 'Lounge Access',
-  golf: 'Golf',
-  concierge: 'Concierge',
-  hotel_status: 'Hotel Status',
-  travel_insurance: 'Travel Insurance',
-}
-
-const SOFT_BENEFIT_VALUES: Record<'US' | 'IN', Record<SoftBenefitType, number>> = {
-  US: {
-    lounge_access: 500,
-    golf: 0,
-    concierge: 100,
-    hotel_status: 200,
-    travel_insurance: 150,
-  },
-  IN: {
-    lounge_access: 20000,
-    golf: 15000,
-    concierge: 10000,
-    hotel_status: 12000,
-    travel_insurance: 6000,
-  },
-}
-
-const CARD_SOFT_BENEFITS: Record<string, SoftBenefitType[]> = {
-  // India
-  'hdfc infinia': ['lounge_access', 'golf', 'concierge'],
-  'amex platinum (india)': ['lounge_access', 'hotel_status', 'concierge'],
-  'axis atlas': ['lounge_access', 'travel_insurance'],
-  // US
-  'amex platinum': ['lounge_access', 'hotel_status', 'concierge'],
-  'chase sapphire reserve': ['lounge_access', 'travel_insurance'],
-  'capital one venture x': ['lounge_access', 'travel_insurance'],
-}
-
-function getSoftBenefits(cardName: string): SoftBenefitType[] {
-  return CARD_SOFT_BENEFITS[cardName.trim().toLowerCase()] ?? []
-}
-
-function getSoftBenefitAnnualValue(cardName: string, regionCode: Region): number {
-  const regionKey = regionCode === 'in' ? 'IN' : 'US'
-  return getSoftBenefits(cardName)
-    .reduce((sum, benefit) => sum + (SOFT_BENEFIT_VALUES[regionKey][benefit] ?? 0), 0)
-}
-
-function goalMatchScore(card: CardWithRates, goals: Set<string>, programGoalMap: Record<string, string[]>): number {
-  const programGoals = programGoalMap[card.program_slug] ?? []
-  let count = 0
-  for (const goal of goals) {
-    if (programGoals.includes(goal)) {
-      count++
-    }
-  }
-  return count
+type WalletBalanceSummary = {
+  program_id: string
+  balance: number
+  source: 'manual' | 'connector'
+  as_of: string | null
+  confidence: 'high' | 'medium' | 'low'
+  sync_status: string | null
+  is_stale: boolean
+  connected_account_id: string | null
 }
 
 function safeApplyUrl(url: string | null | undefined): string | null {
@@ -106,9 +51,15 @@ export default function CardRecommenderPage() {
   const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
   const [travelGoals, setTravelGoals] = useState<Set<string>>(new Set())
   const [ownedCards, setOwnedCards] = useState<Set<string>>(new Set())
+  const [mode, setMode] = useState<RecommendationMode>('next_best_card')
+  const [annualFeeTolerance, setAnnualFeeTolerance] = useState<AnnualFeeTolerance>('medium')
+  const [recentOpenAccounts24m, setRecentOpenAccounts24m] = useState('0')
+  const [targetPointsGoal, setTargetPointsGoal] = useState('')
+  const [walletBalances, setWalletBalances] = useState<WalletBalanceSummary[]>([])
+  const [walletLoaded, setWalletLoaded] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
-  const categories = useMemo(() => getCategoriesForRegion(regionCode), [regionCode])
+  const categories = getCategoriesForRegion(regionCode)
 
   // Reset spend when region changes
   useEffect(() => {
@@ -140,7 +91,35 @@ export default function CardRecommenderPage() {
       })
   }, [regionCode])
 
+  useEffect(() => {
+    let cancelled = false
+
+    fetch(`/api/user/balances?region=${encodeURIComponent(regionCode.toUpperCase())}`)
+      .then(async response => {
+        if (!response.ok) {
+          return { balances: [] as WalletBalanceSummary[] }
+        }
+        return response.json() as Promise<{ balances?: WalletBalanceSummary[] }>
+      })
+      .then(payload => {
+        if (cancelled) return
+        setWalletBalances(payload.balances ?? [])
+        setWalletLoaded(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setWalletBalances([])
+        setWalletLoaded(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [regionCode])
+
   const spendPrefix = spendInputPrefix(config.currency)
+  const trackedPrograms = walletBalances.filter(balance => balance.balance > 0)
+  const staleWalletCount = trackedPrograms.filter(balance => balance.is_stale).length
 
   const toggleGoal = (key: string) => {
     setTravelGoals(prev => {
@@ -160,58 +139,23 @@ export default function CardRecommenderPage() {
     })
   }
 
-  const results = useMemo(() => {
-    if (!showResults) return []
-    return cards
-      .map(card => {
-        const pointsPerYear = categories.reduce((sum, { key }) => {
-          const monthly = parseFloat((spend[key] ?? '0').replace(/,/g, '')) || 0
-          return sum + yearlyPointsFromSpend({
-            monthlySpend: monthly,
-            earnMultiplier: key === 'shopping'
-              ? (card.earning_rates.shopping ?? card.earning_rates.other ?? 1)
-              : (card.earning_rates[key] ?? 1),
-            earnUnit: card.earn_unit,
-          })
-        }, 0)
-        const annualRewardsValue = (pointsPerYear * card.cpp_cents) / 100
-        const signupValue = (card.signup_bonus_pts * card.cpp_cents) / 100
-        const hasCardAlready = ownedCards.has(card.id)
-        const signupValueEligible = hasCardAlready ? 0 : signupValue
-        const softBenefitValue = getSoftBenefitAnnualValue(card.name, regionCode)
-        const firstYearValue = annualRewardsValue + signupValueEligible + softBenefitValue - card.annual_fee_usd
-        const goalCount = goalMatchScore(card, travelGoals, config.programGoalMap)
-        // K4: Heavy penalty/boost based on travel goal matching
-        let finalScore: number
-        if (travelGoals.size > 0) {
-          const hasAnyMatch = goalCount > 0
-          if (!hasAnyMatch) {
-            // Card doesn't serve this goal at all — heavy penalty
-            finalScore = firstYearValue * 0.3
-          } else {
-            // Card matches — boost scales with match quality
-            finalScore = firstYearValue * (1 + 0.4 * goalCount)
-          }
-        } else {
-          // No goal selected — rank purely by value
-          finalScore = firstYearValue
-        }
-        return {
-          card,
-          pointsPerYear,
-          annualRewardsValue,
-          signupValue,
-          signupValueEligible,
-          softBenefitValue,
-          softBenefits: getSoftBenefits(card.name),
-          firstYearValue,
-          goalCount,
-          finalScore,
-          hasCardAlready,
-        }
-      })
-      .sort((a, b) => b.finalScore - a.finalScore)
-  }, [cards, ownedCards, spend, travelGoals, showResults, config.programGoalMap, categories, regionCode])
+  // Use the extracted scorer hook
+  const results = useCardScorer({
+    cards,
+    spend,
+    travelGoals,
+    ownedCards,
+    regionCode,
+    programGoalMap: config.programGoalMap,
+    annualFeeTolerance,
+    mode,
+    recentOpenAccounts24m: Number.parseInt(recentOpenAccounts24m || '0', 10) || 0,
+    walletBalances,
+    targetPointsGoal: Number.parseInt(targetPointsGoal || '0', 10) || null,
+    showResults,
+  })
+  const visibleResults = results.filter(result => result.status !== 'ineligible')
+  const blockedResults = results.filter(result => result.status === 'ineligible')
 
   const handleApplyClick = async (
     card: CardWithRates,
@@ -232,6 +176,7 @@ export default function CardRecommenderPage() {
           source_page: 'card-recommender',
           rank,
           region: regionCode,
+          recommendation_mode: mode,
         }),
       })
 
@@ -246,12 +191,14 @@ export default function CardRecommenderPage() {
         rank,
         first_year_value: Math.round(firstYearValue),
         region: regionCode,
+        recommendation_mode: mode,
       })
       trackEvent('card_apply_clicked', {
         card_name: card.name,
         rank,
         first_year_value: Math.round(firstYearValue),
         region: regionCode,
+        recommendation_mode: mode,
       })
 
       const popup = window.open(redirectUrl, '_blank', 'noopener,noreferrer')
@@ -329,10 +276,121 @@ export default function CardRecommenderPage() {
           </div>
         </div>
 
+        <div className="pm-card p-6 space-y-5">
+          <div>
+            <h2 className="pm-heading text-lg mb-1">Recommendation Strategy</h2>
+            <p className="text-xs text-pm-ink-500 mb-3">Pick the decision mode first. V2 uses a different scoring model for “best next card” versus long-term keeper value.</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'next_best_card', label: 'Best next card' },
+                { value: 'long_term_value', label: 'Best long-term value' },
+              ].map(option => {
+                const active = mode === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setMode(option.value as RecommendationMode)}
+                    className={`text-sm px-4 py-2 rounded-full border transition-colors ${
+                      active
+                        ? 'bg-pm-accent text-pm-bg border-pm-accent'
+                        : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="pm-heading text-sm mb-2">Annual fee tolerance</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'low', label: 'Keep fees low' },
+                { value: 'medium', label: 'Balanced' },
+                { value: 'high', label: 'Premium is OK' },
+              ].map(option => {
+                const active = annualFeeTolerance === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setAnnualFeeTolerance(option.value as AnnualFeeTolerance)}
+                    className={`text-sm px-4 py-2 rounded-full border transition-colors ${
+                      active
+                        ? 'bg-pm-accent-soft text-pm-accent-strong border-pm-accent-border'
+                        : 'bg-pm-surface text-pm-ink-700 border-pm-border hover:border-pm-accent-border'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="pm-label block mb-1.5">
+                Cards opened in the last 24 months
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={recentOpenAccounts24m}
+                onChange={event => setRecentOpenAccounts24m(event.target.value)}
+                className="pm-input"
+                placeholder="0"
+              />
+              <p className="mt-1 text-xs text-pm-ink-500">Used for issuer-rule checks like Chase 5/24.</p>
+            </div>
+            <div>
+              <label className="pm-label block mb-1.5">
+                Optional points goal
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={targetPointsGoal}
+                onChange={event => setTargetPointsGoal(event.target.value)}
+                className="pm-input"
+                placeholder={regionCode === 'in' ? '120000' : '80000'}
+              />
+              <p className="mt-1 text-xs text-pm-ink-500">Used for time-to-goal estimates when the card earns into a tracked program.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-pm-border bg-pm-surface-soft p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-pm-ink-900">Wallet context</p>
+                <p className="text-xs text-pm-ink-500">
+                  {walletLoaded
+                    ? trackedPrograms.length > 0
+                      ? `Using ${trackedPrograms.length} tracked balance${trackedPrograms.length === 1 ? '' : 's'} in this region.`
+                      : 'No tracked balances found for this region. Recommendations will rely on spend inputs only.'
+                    : 'Loading tracked balances...'}
+                </p>
+              </div>
+              {walletLoaded && trackedPrograms.length > 0 && (
+                <span className={`text-xs px-2 py-1 rounded-full border ${
+                  staleWalletCount > 0
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-pm-success-soft text-pm-success border-pm-border'
+                }`}>
+                  {staleWalletCount > 0 ? `${staleWalletCount} stale balance${staleWalletCount === 1 ? '' : 's'}` : 'Fresh enough for scoring'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {!loading && (
           <div className="pm-card p-6">
             <h2 className="pm-heading text-lg mb-1">Cards You Already Have</h2>
-            <p className="text-xs text-pm-ink-500 mb-4">We&apos;ll keep them visible, but remove signup bonus value from scoring.</p>
+            <p className="text-xs text-pm-ink-500 mb-4">Use this to stop V2 from recommending a card you already hold. Those cards will move into the “not recommended right now” section.</p>
             <div className="flex flex-wrap gap-2">
               {cards.map(card => {
                 const owned = ownedCards.has(card.id)
@@ -359,7 +417,7 @@ export default function CardRecommenderPage() {
           disabled={loading || !!loadError}
           className="pm-button w-full"
         >
-          Find My Best Card →
+          Run Recommender V2 →
         </button>
 
         {loadError && (
@@ -375,19 +433,32 @@ export default function CardRecommenderPage() {
           </div>
         )}
 
-        {showResults && results.length > 0 && (
+        {showResults && visibleResults.length > 0 && (
           <div className="space-y-4">
-            <h2 className="pm-heading text-lg">Your Recommendations</h2>
-            {results.map(({
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="pm-heading text-lg">Your Recommendations</h2>
+                <p className="text-xs text-pm-ink-500">
+                  Mode: {mode === 'next_best_card' ? 'Best next card' : 'Best long-term value'}
+                </p>
+              </div>
+            </div>
+            {visibleResults.map(({
               card,
+              confidence,
+              explanation,
+              status,
+              breakdown,
               annualRewardsValue,
-              signupValue,
               signupValueEligible,
               softBenefitValue,
               softBenefits,
+              ongoingValue,
               firstYearValue,
+              estimatedMonthsToGoal,
+              walletBalance,
               goalCount,
-              hasCardAlready,
+              rank,
             }, i) => (
               <motion.div
                 key={card.id}
@@ -402,11 +473,25 @@ export default function CardRecommenderPage() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-pm-ink-500">#{i + 1}</span>
+                        <span className="text-xs font-bold text-pm-ink-500">#{rank}</span>
                         <span className="font-semibold text-pm-ink-900">{card.name}</span>
                         {i === 0 && (
                           <span className="text-xs bg-pm-accent-soft text-pm-accent-strong px-2 py-0.5 rounded-full font-medium border border-pm-accent-border">
                             Top Pick
+                          </span>
+                        )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                          confidence.level === 'high'
+                            ? 'bg-pm-success-soft text-pm-success border-pm-border'
+                            : confidence.level === 'medium'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-pm-surface-soft text-pm-ink-500 border-pm-border'
+                        }`}>
+                          {confidence.level} confidence
+                        </span>
+                        {status === 'unknown' && (
+                          <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                            needs verification
                           </span>
                         )}
                       </div>
@@ -416,20 +501,8 @@ export default function CardRecommenderPage() {
                       <p className="text-xl font-bold text-pm-success">
                         {firstYearValue >= 0 ? '+' : ''}{formatCurrencyRounded(firstYearValue, card.currency)}
                       </p>
-                      <p className="text-xs text-pm-ink-500">first-year value</p>
+                      <p className="text-xs text-pm-ink-500">{mode === 'next_best_card' ? 'next-card score leader' : 'first-year value'}</p>
                     </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="inline-flex items-center gap-2 text-xs text-pm-ink-500 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={hasCardAlready}
-                        onChange={() => toggleOwned(card.id)}
-                        className="h-3.5 w-3.5 rounded border-pm-border text-pm-accent focus:ring-pm-accent"
-                      />
-                      Already have this card (exclude signup bonus)
-                    </label>
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center text-xs">
@@ -438,34 +511,56 @@ export default function CardRecommenderPage() {
                       <p className="font-bold text-pm-ink-900">{formatCurrencyRounded(annualRewardsValue, card.currency)}</p>
                     </div>
                     <div className="bg-pm-surface-soft rounded-xl p-2.5">
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Ongoing value</p>
+                      <p className="font-bold text-pm-ink-900">
+                        {ongoingValue >= 0 ? '+' : ''}{formatCurrencyRounded(ongoingValue, card.currency)}
+                      </p>
+                    </div>
+                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
                       <p className="text-pm-ink-500 font-medium mb-0.5">Signup bonus</p>
                       <p className="font-bold text-pm-ink-900">
                         {card.signup_bonus_pts > 0
-                          ? hasCardAlready
-                            ? `Already held (was ${formatCurrencyRounded(signupValue, card.currency)})`
-                            : `${card.signup_bonus_pts.toLocaleString()} pts (${formatCurrencyRounded(signupValueEligible, card.currency)})`
+                          ? `${card.signup_bonus_pts.toLocaleString()} pts (${formatCurrencyRounded(signupValueEligible, card.currency)})`
                           : 'None'}
                       </p>
                     </div>
                     <div className="bg-pm-surface-soft rounded-xl p-2.5">
-                      <p className="text-pm-ink-500 font-medium mb-0.5">Soft benefits</p>
+                      <p className="text-pm-ink-500 font-medium mb-0.5">Score drivers</p>
                       <p className="font-bold text-pm-ink-900">
-                        {softBenefitValue > 0 ? formatCurrencyRounded(softBenefitValue, card.currency) : '—'}
+                        {softBenefitValue > 0 ? 'Benefits +' : ''}
+                        {goalCount > 0 ? (softBenefitValue > 0 ? ' goals' : 'Goals') : ''}
+                        {walletBalance > 0 ? (goalCount > 0 || softBenefitValue > 0 ? ' + wallet' : 'Wallet') : ''}
+                        {softBenefitValue === 0 && goalCount === 0 && walletBalance === 0 ? 'Spend + bonus' : ''}
                       </p>
                     </div>
-                    <div className="bg-pm-surface-soft rounded-xl p-2.5">
-                      <p className="text-pm-ink-500 font-medium mb-0.5">Annual fee</p>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-3">
+                      <p className="text-pm-ink-500 font-medium mb-1">Goal alignment bonus</p>
+                      <p className="font-bold text-pm-ink-900">{goalCount > 0 ? formatCurrencyRounded(breakdown.goalAlignmentBonus, card.currency) : '—'}</p>
+                    </div>
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-3">
+                      <p className="text-pm-ink-500 font-medium mb-1">Wallet synergy</p>
+                      <p className="font-bold text-pm-ink-900">
+                        {walletBalance > 0
+                          ? `${formatCurrencyRounded(breakdown.walletSynergyBonus, card.currency)} · ${Math.round(walletBalance).toLocaleString()} existing pts`
+                          : 'No tracked balance match'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-3">
+                      <p className="text-pm-ink-500 font-medium mb-1">Fee penalty</p>
                       <p className="font-bold text-pm-ink-900">
                         {card.annual_fee_usd === 0
-                          ? <span className="text-pm-success">Free</span>
-                          : formatCurrencyRounded(card.annual_fee_usd, card.currency)}
+                          ? 'Free'
+                          : `${formatCurrencyRounded(card.annual_fee_usd, card.currency)} fee, ${annualFeeTolerance} tolerance`}
                       </p>
                     </div>
                   </div>
 
                   {softBenefits.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {softBenefits.map((benefit) => (
+                      {softBenefits.map((benefit: SoftBenefitType) => (
                         <span
                           key={`${card.id}-${benefit}`}
                           className="text-xs bg-pm-success-soft text-pm-ink-700 border border-pm-border px-2 py-0.5 rounded-full"
@@ -500,11 +595,39 @@ export default function CardRecommenderPage() {
                     </div>
                   )}
 
+                  {estimatedMonthsToGoal !== null && (
+                    <div className="mt-3 rounded-xl border border-pm-border bg-pm-accent-soft px-3 py-2 text-xs text-pm-accent-strong">
+                      {estimatedMonthsToGoal === 0
+                        ? 'You are already at this card’s target program threshold once the current balance and bonus are counted.'
+                        : `Estimated time to your stated points goal: about ${estimatedMonthsToGoal} month${estimatedMonthsToGoal === 1 ? '' : 's'}.`}
+                    </div>
+                  )}
+
+                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-pm-ink-500 mb-2">Why this card</p>
+                      <ul className="space-y-1.5 text-sm text-pm-ink-700">
+                        {explanation.whyThisCard.map(line => (
+                          <li key={line}>• {line}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-xl border border-pm-border bg-pm-surface-soft p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-pm-ink-500 mb-2">Assumptions and warnings</p>
+                      <ul className="space-y-1.5 text-sm text-pm-ink-700">
+                        {[...explanation.assumptions, ...explanation.whyNow, ...explanation.warnings].map(line => (
+                          <li key={line}>• {line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
                   <div className="mt-4 pt-4 border-t border-pm-surface-soft">
                     {safeApplyUrl(card.apply_url) ? (
                       <button
                         type="button"
-                        onClick={() => handleApplyClick(card, i + 1, firstYearValue)}
+                        onClick={() => handleApplyClick(card, rank, firstYearValue)}
                         disabled={redirectingCardId === card.id}
                         className="pm-button w-full inline-flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
                       >
@@ -525,7 +648,7 @@ export default function CardRecommenderPage() {
           </div>
         )}
 
-        {showResults && results.length === 0 && (
+        {showResults && visibleResults.length === 0 && (
           <div className="pm-card p-8 text-center">
             <p className="text-pm-ink-500 text-sm">
               No cards match your current filters. Try broadening spend categories or resetting travel goals.
@@ -536,6 +659,28 @@ export default function CardRecommenderPage() {
             >
               Clear goals and try again
             </button>
+          </div>
+        )}
+
+        {showResults && blockedResults.length > 0 && (
+          <div className="pm-card p-6">
+            <h3 className="pm-heading text-lg mb-2">Not recommended right now</h3>
+            <p className="text-xs text-pm-ink-500 mb-4">These cards were filtered out by ownership or issuer-rule checks.</p>
+            <div className="space-y-3">
+              {blockedResults.map(result => (
+                <div key={result.card.id} className="rounded-xl border border-pm-border bg-pm-surface-soft px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-pm-ink-900">{result.card.name}</p>
+                      <p className="text-xs text-pm-ink-500 mt-1">{result.eligibility.reasons.join(' · ')}</p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full border bg-pm-surface text-pm-ink-500 border-pm-border">
+                      blocked
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -551,7 +696,8 @@ export default function CardRecommenderPage() {
             <div className="pm-card p-4 bg-pm-surface-soft border-pm-border">
               <p className="text-xs text-pm-ink-500 leading-relaxed">
                 PointsMax may earn a commission when you apply for cards through our links.
-                This doesn&apos;t affect our rankings, which are based solely on your spending profile.
+                This doesn&apos;t affect our rankings, which are based on your spending profile,
+                wallet context, issuer-rule filters, and the scoring model above.
               </p>
             </div>
           </>
