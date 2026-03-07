@@ -1,14 +1,11 @@
 name: Database Migrations
 
-# Runs automatically after CI passes on every push to main.
-# Never runs on PRs — migrations only apply to production on merge.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'supabase/migrations/**'
-      - '.github/workflows/migrate.yml'
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
 
   workflow_dispatch:
     inputs:
@@ -21,12 +18,25 @@ on:
 jobs:
   migrate:
     name: Apply pending migrations
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main'
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: database-migrations-main
+      cancel-in-progress: false
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.workflow_run.head_sha }}
 
       - name: Validate Supabase SQL API access
         env:
