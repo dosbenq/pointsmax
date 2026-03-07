@@ -195,6 +195,7 @@ export interface Card {
   id: string
   name: string
   issuer: string
+  image_url: string | null
   annual_fee_usd: number
   currency: string
   earn_unit: string

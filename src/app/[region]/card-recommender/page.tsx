@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -718,8 +719,22 @@ export default function CardRecommenderPage() {
                 }`}
               >
                 <div className="px-6 py-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 gap-4">
+                      <div className="hidden w-[148px] shrink-0 overflow-hidden rounded-[18px] border border-pm-border bg-white/80 sm:block">
+                        {card.image_url ? (
+                          <Image
+                            src={card.image_url}
+                            alt={`${card.name} card art`}
+                            width={640}
+                            height={404}
+                            className="h-auto w-full"
+                          />
+                        ) : (
+                          <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3]" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-pm-ink-500">#{rank}</span>
                         <span className="font-semibold text-pm-ink-900">{card.name}</span>
@@ -744,6 +759,7 @@ export default function CardRecommenderPage() {
                         )}
                       </div>
                       <p className="text-xs text-pm-ink-500 mt-0.5">{card.issuer} · {card.program_name}</p>
+                    </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xl font-bold text-pm-success">

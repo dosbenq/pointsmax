@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -43,6 +44,19 @@ export default async function CardsIndexPage({ params }: Props) {
               0
             return (
               <Link key={card.id} href={`/${normalized}/cards/${card.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
+                <div className="mb-4 overflow-hidden rounded-[18px] border border-pm-border bg-white/80">
+                  {card.image_url ? (
+                    <Image
+                      src={card.image_url}
+                      alt={`${card.name} card art`}
+                      width={640}
+                      height={404}
+                      className="h-auto w-full"
+                    />
+                  ) : (
+                    <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3]" />
+                  )}
+                </div>
                 <p className="text-xs text-pm-ink-500">{card.issuer}</p>
                 <h2 className="pm-heading text-lg mt-1">{card.name}</h2>
                 <p className="text-sm text-pm-ink-500 mt-2">

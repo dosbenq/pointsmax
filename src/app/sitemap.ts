@@ -1,26 +1,15 @@
 import { MetadataRoute } from 'next'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { createServerDbClient } from '@/lib/supabase'
-import { slugifyCardName } from '@/lib/programmatic-content'
+import { listCardsForRegion } from '@/lib/programmatic-content'
 
 const BASE_URL = getConfiguredAppOrigin()
 
 const REGIONS = ['us', 'in'] as const
 
-type SitemapCardRow = {
-  name: string
-  geography: string | null
-}
-
 type SitemapProgramRow = {
   slug: string
   geography: string | null
-}
-
-function isSitemapCardRow(value: unknown): value is SitemapCardRow {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return typeof row.name === 'string'
 }
 
 function isSitemapProgramRow(value: unknown): value is SitemapProgramRow {
@@ -61,22 +50,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const db = createServerDbClient()
-    const [{ data: cards }, { data: programs }] = await Promise.all([
-      db.from('cards').select('name, geography').eq('is_active', true),
+    const [cardsByRegion, { data: programs }] = await Promise.all([
+      Promise.all(REGIONS.map(async (region) => ({ region, cards: await listCardsForRegion(region) }))),
       db.from('programs').select('slug, geography').eq('is_active', true),
     ])
 
-    const normalizedCards = ((cards ?? []) as unknown[]).filter(isSitemapCardRow)
     const normalizedPrograms = ((programs ?? []) as unknown[]).filter(isSitemapProgramRow)
 
-    for (const card of normalizedCards) {
-      const region = card.geography === 'IN' ? 'in' : 'us'
-      items.push({
-        url: `${BASE_URL}/${region}/cards/${slugifyCardName(card.name)}`,
-        lastModified: now,
-        changeFrequency: 'monthly',
-        priority: 0.8,
-      })
+    for (const entry of cardsByRegion) {
+      for (const card of entry.cards) {
+        items.push({
+          url: `${BASE_URL}/${entry.region}/cards/${card.slug}`,
+          lastModified: now,
+          changeFrequency: 'monthly',
+          priority: 0.8,
+        })
+      }
     }
 
     for (const program of normalizedPrograms) {

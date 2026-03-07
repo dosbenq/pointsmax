@@ -15,6 +15,7 @@ interface CardRow {
   id: string
   name: string
   issuer: string
+  image_url?: unknown
   annual_fee_usd: number
   signup_bonus_pts: number
   signup_bonus_spend: number
@@ -162,6 +163,7 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
         : (currency === 'INR' ? '100_inr' : '1_dollar'),
       geography: card.geography === 'IN' ? 'IN' : 'US',
       apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
+      image_url: typeof card.image_url === 'string' ? card.image_url : null,
       program_name: val?.program_name ?? 'Unknown',
       program_slug: val?.program_slug ?? '',
       cpp_cents: normalizedCppCents,
@@ -229,6 +231,7 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
       : (currency === 'INR' ? '100_inr' : '1_dollar'),
     geography,
     apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
+    image_url: typeof card.image_url === 'string' ? card.image_url : null,
     program_name: val?.program_name ?? 'Unknown',
     program_slug: val?.program_slug ?? '',
     cpp_cents: normalizedCppCents,
