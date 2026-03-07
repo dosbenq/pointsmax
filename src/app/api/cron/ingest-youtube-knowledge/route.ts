@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { inngest } from '@/lib/inngest/client'
 import {
   fetchLatestVideoUrls,
-  getDefaultKnowledgeChannelUrl,
+  getConfiguredKnowledgeChannelUrl,
   getDefaultKnowledgeMaxVideos,
   resolveChannelId,
 } from '@/lib/knowledge/channel-ingest'
@@ -36,8 +36,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'INNGEST_EVENT_KEY is missing' }, { status: 503 })
   }
 
-  const channelUrl = getDefaultKnowledgeChannelUrl()
+  const channelUrl = getConfiguredKnowledgeChannelUrl()
   const maxVideos = getDefaultKnowledgeMaxVideos()
+
+  if (!channelUrl) {
+    logWarn('cron_ingest_youtube_knowledge_missing_channel_url', { requestId })
+    return NextResponse.json({ error: 'YOUTUBE_KNOWLEDGE_CHANNEL_URL is missing' }, { status: 503 })
+  }
 
   try {
     const channelId = await resolveChannelId(channelUrl)

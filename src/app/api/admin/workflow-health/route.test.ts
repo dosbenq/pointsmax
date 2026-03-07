@@ -114,6 +114,10 @@ describe('Workflow Health API', () => {
       configured: true,
       using_supabase_domain: true,
     }))
+    expect(data.knowledge_channel).toEqual(expect.objectContaining({
+      configured: false,
+      url: null,
+    }))
   })
 
   it('POST with retry action returns correct response', async () => {

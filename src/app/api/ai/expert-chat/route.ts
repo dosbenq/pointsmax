@@ -2,9 +2,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
-import { logError } from '@/lib/logger'
+import { logError, getRequestId } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase'
-import { generateAiCacheKey, getCachedAiResponse, setCachedAiResponse } from '@/lib/ai-cache'
+import {
+  generateAiCacheKey,
+  getCachedAiResponse,
+  setCachedAiResponse,
+  logAiCacheMetric,
+} from '@/lib/ai-cache'
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -91,6 +96,7 @@ function buildContext(chunks: KnowledgeChunk[]): string {
 }
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req)
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
   if (sizeError) return sizeError
 
@@ -128,6 +134,7 @@ export async function POST(req: NextRequest) {
     })
     const cached = getCachedAiResponse<Record<string, unknown>>(idemCacheKey)
     if (cached) {
+      logAiCacheMetric('hit', 'expert-chat-idem', requestId)
       return NextResponse.json(cached, {
         headers: {
           'X-PointsMax-Cache': 'HIT',
@@ -135,6 +142,7 @@ export async function POST(req: NextRequest) {
         },
       })
     }
+    logAiCacheMetric('miss', 'expert-chat-idem', requestId)
   }
 
   // Content-based cache: when no Idempotency-Key, deduplicate identical messages.
@@ -143,10 +151,12 @@ export async function POST(req: NextRequest) {
     const contentCacheKey = generateAiCacheKey('expert-chat', { message, requestScope })
     const contentCached = getCachedAiResponse<Record<string, unknown>>(contentCacheKey)
     if (contentCached) {
+      logAiCacheMetric('hit', 'expert-chat', requestId)
       return NextResponse.json(contentCached, {
         headers: { 'X-PointsMax-Cache': 'HIT' },
       })
     }
+    logAiCacheMetric('miss', 'expert-chat', requestId)
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim()

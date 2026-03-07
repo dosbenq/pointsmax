@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { calculateRedemptions } from '@/lib/calculate'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { logError } from '@/lib/logger'
+import { logError, getRequestId } from '@/lib/logger'
 import { badRequest, internalError } from '@/lib/error-utils'
 import type { BalanceInput } from '@/types/database'
 import {
@@ -30,6 +30,7 @@ function getNormalizedBalances(balances: BalanceInput[]) {
 // Body: { balances: [{ program_id: string, amount: number }] }
 // Returns: ranked redemption options with dollar values
 export async function POST(req: NextRequest) {
+  const requestId = getRequestId(req)
   const startedAt = Date.now()
   const sizeError = enforceJsonContentLength(req, MAX_BODY_BYTES)
   if (sizeError) return sizeError
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   const cached = getCachedAiResponse<unknown>(cacheKey)
   
   if (cached) {
-    logAiCacheMetric('hit', 'calculate')
+    logAiCacheMetric('hit', 'calculate', requestId)
     return NextResponse.json(cached, {
       headers: {
         'X-PointsMax-Cache': 'HIT',
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
       },
     })
   }
-  logAiCacheMetric('miss', 'calculate')
+  logAiCacheMetric('miss', 'calculate', requestId)
 
   try {
     const result = await calculateRedemptions(balances)

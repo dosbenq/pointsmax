@@ -428,6 +428,21 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
       </section>
 
       <main className="flex-1 pm-shell max-w-3xl py-8 w-full space-y-6">
+        <div className="pm-card p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              ['1. Keep balances current', 'Connected accounts and manual balances should be updated here first.'],
+              ['2. Set timing alerts', 'Only watch programs you would actually act on when a bonus appears.'],
+              ['3. Refine preferences', 'Planner and booking flows should use this page as your travel context.'],
+            ].map(([title, body]) => (
+              <div key={title} className="rounded-[22px] border border-pm-border bg-pm-surface-soft p-4">
+                <p className="text-sm font-semibold text-pm-ink-900">{title}</p>
+                <p className="mt-2 text-xs leading-6 text-pm-ink-700">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           <div className="pm-card p-5">
             <p className="pm-section-title mb-2">Plan</p>

@@ -13,6 +13,7 @@ vi.mock('@/lib/api-security', () => ({
 vi.mock('@/lib/logger', () => ({
   logError: vi.fn(),
   logInfo: vi.fn(),
+  getRequestId: vi.fn(() => 'test-request-id'),
 }))
 
 const { calculateRedemptions } = await import('@/lib/calculate')

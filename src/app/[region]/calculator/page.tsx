@@ -11,7 +11,7 @@
 import React, { useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowRight, Compass, PlaneTakeoff, WandSparkles } from 'lucide-react'
+import { Compass, PlaneTakeoff, WandSparkles } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -251,49 +251,64 @@ export default function CalculatorPage() {
       </section>
 
       <main className="pm-shell py-8 sm:py-10 space-y-6 flex-1">
-        <div className="grid gap-4 lg:grid-cols-3">
-          {plannerStages.map((stage) => (
-            <button
-              key={stage.key}
-              type="button"
-              onClick={stage.action}
-              disabled={stage.disabled}
-              className={`pm-card p-5 text-left transition-all ${stage.disabled ? 'opacity-60' : 'hover:-translate-y-[1px]'}`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="pm-section-title mb-2">{stage.eyebrow}</p>
-                  <h2 className="pm-heading text-lg">{stage.title}</h2>
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-pm-premium-soft text-pm-ink-900">
-                  <stage.icon className="h-5 w-5" />
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-7 text-pm-ink-700">{stage.body}</p>
-              <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-pm-ink-900">
-                {stage.cta}
-                <ArrowRight className="h-4 w-4" />
-              </div>
-            </button>
-          ))}
-        </div>
+        <div className="pm-card p-6">
+          <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+            <div>
+              <p className="pm-section-title mb-2">Planner flow</p>
+              <h2 className="pm-heading text-xl">Use Planner in one direction.</h2>
+              <p className="mt-2 text-sm leading-7 text-pm-ink-700">
+                Start with the wallet you already have. Verify the route before any transfer. Only then use the booking plan to decide what to do next.
+              </p>
 
-        {/* Progress Steps */}
-        <div className="pm-card p-3 sm:p-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {state.steps.map((step, idx) => (
-              <div
-                key={step.label}
-                className={`rounded-[20px] px-4 py-3 border text-sm ${
-                  step.done
-                    ? 'border-[#10243a]/8 bg-[#0f2747] text-[#f4f8ff]'
-                    : 'bg-pm-surface border-pm-border text-pm-ink-500'
-                }`}
-              >
-                <p className={`text-[10px] uppercase tracking-[0.22em] font-semibold ${step.done ? 'text-[#bfd0e8]/78' : ''}`}>Step {idx + 1}</p>
-                <p className="mt-1 font-semibold">{step.label}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {plannerStages.map((stage) => (
+                  <button
+                    key={stage.key}
+                    type="button"
+                    onClick={stage.action}
+                    disabled={stage.disabled}
+                    className={`rounded-[22px] border p-4 text-left transition-colors ${
+                      state.activePanel === stage.key
+                        ? 'border-pm-accent-border bg-pm-accent-soft'
+                        : 'border-pm-border bg-pm-surface hover:border-pm-accent-border'
+                    } ${stage.disabled ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-pm-ink-500">{stage.eyebrow}</p>
+                        <p className="mt-2 text-sm font-semibold text-pm-ink-900">{stage.title}</p>
+                      </div>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-pm-premium-soft text-pm-ink-900">
+                        <stage.icon className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs leading-6 text-pm-ink-700">{stage.body}</p>
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="rounded-[24px] border border-pm-border bg-pm-surface-soft p-5">
+              <p className="pm-section-title mb-2">Readiness</p>
+              <div className="space-y-3">
+                {state.steps.map((step, idx) => (
+                  <div
+                    key={step.label}
+                    className={`rounded-[18px] border px-4 py-3 ${
+                      step.done
+                        ? 'border-pm-accent-border bg-pm-accent-soft'
+                        : 'border-pm-border bg-pm-surface'
+                    }`}
+                  >
+                    <p className="text-[10px] uppercase tracking-[0.22em] font-semibold text-pm-ink-500">Step {idx + 1}</p>
+                    <p className="mt-1 text-sm font-semibold text-pm-ink-900">{step.label}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs leading-6 text-pm-ink-500">
+                This page should end in one confident move, not a list of tabs you still need to interpret.
+              </p>
+            </div>
           </div>
         </div>
 

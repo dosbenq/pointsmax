@@ -5,6 +5,7 @@ import type { CardWithRates } from '@/types/database'
 import type { Region } from '@/lib/regions'
 import {
   scoreAndRankCards,
+  splitRecommendationsByStatus,
   type CardRecommendation,
   type AnnualFeeTolerance,
   type RecommendationMode,
@@ -30,11 +31,17 @@ export interface UseCardScorerInputs {
   showResults: boolean
 }
 
+export interface UseCardScorerResult {
+  all: CardRecommendation[]
+  visible: CardRecommendation[]
+  blocked: CardRecommendation[]
+}
+
 /**
  * React hook for scoring and ranking cards
- * Returns empty array if showResults is false
+ * Returns empty result if showResults is false
  */
-export function useCardScorer(inputs: UseCardScorerInputs): CardRecommendation[] {
+export function useCardScorer(inputs: UseCardScorerInputs): UseCardScorerResult {
   const {
     cards,
     spend,
@@ -51,9 +58,11 @@ export function useCardScorer(inputs: UseCardScorerInputs): CardRecommendation[]
   } = inputs
 
   return useMemo(() => {
-    if (!showResults) return []
+    if (!showResults) {
+      return { all: [], visible: [], blocked: [] }
+    }
 
-    return scoreAndRankCards(cards, {
+    const all = scoreAndRankCards(cards, {
       spend,
       travelGoals,
       ownedCards,
@@ -65,6 +74,9 @@ export function useCardScorer(inputs: UseCardScorerInputs): CardRecommendation[]
       walletBalances,
       targetPointsGoal,
     })
+
+    const { visible, blocked } = splitRecommendationsByStatus(all)
+    return { all, visible, blocked }
   }, [
     cards,
     spend,

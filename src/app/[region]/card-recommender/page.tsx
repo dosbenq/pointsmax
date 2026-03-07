@@ -17,7 +17,6 @@ import { REGIONS, type Region } from '@/lib/regions'
 import {
   useCardScorer,
   useSpendOnlyRanking,
-  splitRecommendationsByStatus,
   TRAVEL_GOALS,
   SOFT_BENEFIT_COPY,
   type SoftBenefitType,
@@ -39,8 +38,16 @@ type WalletBalanceSummary = {
 
 function safeApplyUrl(url: string | null | undefined): string | null {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  return `https://${url}`
+  const trimmed = url.trim()
+  if (!trimmed) return null
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(candidate)
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : null
+  } catch {
+    return null
+  }
 }
 
 export default function CardRecommenderPage() {
@@ -155,7 +162,7 @@ export default function CardRecommenderPage() {
   }
 
   // Use the extracted scorer hook for full recommendations
-  const results = useCardScorer({
+  const { visible: visibleResults, blocked: blockedResults } = useCardScorer({
     cards,
     spend,
     travelGoals,
@@ -169,9 +176,6 @@ export default function CardRecommenderPage() {
     targetPointsGoal: Number.parseInt(targetPointsGoal || '0', 10) || null,
     showResults,
   })
-  
-  // Split results by status using domain helper
-  const { visible: visibleResults, blocked: blockedResults } = splitRecommendationsByStatus(results)
   
   // Use extracted hook for spend-only ranking (earnings view)
   const spendOnlyResults = useSpendOnlyRanking({
@@ -286,6 +290,54 @@ export default function CardRecommenderPage() {
       </section>
 
       <main className="pm-shell py-8 w-full space-y-6 flex-1">
+        <div className="pm-card p-6">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p className="pm-section-title mb-2">Decision flow</p>
+              <h2 className="pm-heading text-xl">Use Card Strategy in three steps.</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {[
+                  ['1. Describe spend', 'Keep the spend profile directional, not perfect.'],
+                  ['2. Add constraints', 'Goals, fee comfort, recent approvals, and owned cards shape the shortlist.'],
+                  ['3. Pick one move', 'Use strategy mode for the next card. Use earnings mode only when you want pure spend math.'],
+                ].map(([title, body]) => (
+                  <div key={title} className="rounded-[22px] border border-pm-border bg-pm-surface-soft p-4">
+                    <p className="text-sm font-semibold text-pm-ink-900">{title}</p>
+                    <p className="mt-2 text-xs leading-6 text-pm-ink-700">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[24px] border border-pm-border bg-pm-surface-soft p-5">
+              <p className="pm-section-title mb-2">Decision brief</p>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-pm-ink-500">Mode</span>
+                  <span className="font-semibold text-pm-ink-900">
+                    {activeView === 'earnings' ? 'Spend-only ranking' : mode === 'next_best_card' ? 'Best next card' : 'Best long-term value'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-pm-ink-500">Wallet balances</span>
+                  <span className="font-semibold text-pm-ink-900">{trackedPrograms.length}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-pm-ink-500">Owned cards excluded</span>
+                  <span className="font-semibold text-pm-ink-900">{ownedCards.size}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-pm-ink-500">Goal count</span>
+                  <span className="font-semibold text-pm-ink-900">{travelGoals.size}</span>
+                </div>
+              </div>
+              <p className="mt-4 text-xs leading-6 text-pm-ink-500">
+                The page should answer one question: what should come next for this wallet, in this region, under these constraints?
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-8">
         <div className="pm-card p-5">

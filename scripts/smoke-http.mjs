@@ -8,9 +8,11 @@ const START_TIMEOUT_MS = 90_000
 const ROUTES = [
   '/',
   '/calculator',
+  '/us/calculator',
   '/award-search',
   '/inspire',
   '/card-recommender',
+  '/us/card-recommender',
   '/earning-calculator',
   '/trip-builder',
   '/pricing',
@@ -51,6 +53,12 @@ async function verifyRoutes() {
       if (!text.includes('PointsMax')) {
         throw new Error('Homepage did not include expected "PointsMax" marker')
       }
+    }
+    if (route === '/us/calculator' && !text.includes('Planner')) {
+      throw new Error('/us/calculator did not render Planner content')
+    }
+    if (route === '/us/card-recommender' && !text.includes('Card strategy')) {
+      throw new Error('/us/card-recommender did not render Card Strategy content')
     }
     if (route === '/profile' || route === '/us/profile' || route === '/in/profile') {
       if (!text.includes('Wallet')) {

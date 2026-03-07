@@ -12,9 +12,26 @@ export function normalizeMaxVideos(value: unknown): number {
   return Math.min(Math.floor(parsed), MAX_ALLOWED_VIDEOS)
 }
 
-export function getDefaultKnowledgeChannelUrl(): string {
-  return process.env.YOUTUBE_KNOWLEDGE_CHANNEL_URL?.trim()
-    || 'https://www.youtube.com/@GreatIndianMiles'
+export function getConfiguredKnowledgeChannelUrl(): string | null {
+  const value = process.env.YOUTUBE_KNOWLEDGE_CHANNEL_URL?.trim()
+  return value && value.length > 0 ? value : null
+}
+
+export function getKnowledgeChannelLabel(channelUrl?: string | null): string | null {
+  const explicit = process.env.YOUTUBE_KNOWLEDGE_CHANNEL_LABEL?.trim()
+  if (explicit) return explicit
+
+  const source = channelUrl?.trim()
+  if (!source) return null
+
+  try {
+    const url = new URL(source)
+    const handle = url.pathname.split('/').filter(Boolean).find((part) => part.startsWith('@'))
+    if (handle) return handle.slice(1)
+    return url.hostname
+  } catch {
+    return source
+  }
 }
 
 export function getDefaultKnowledgeMaxVideos(): number {

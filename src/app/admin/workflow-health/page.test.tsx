@@ -18,6 +18,11 @@ describe('AdminWorkflowHealthPage', () => {
       using_supabase_domain: true,
       message: 'Google OAuth will show a Supabase-hosted domain until Supabase Auth runs behind a custom PointsMax domain.',
     },
+    knowledge_channel: {
+      configured: true,
+      url: 'https://www.youtube.com/@ConfiguredChannel',
+      label: 'ConfiguredChannel',
+    },
     summary: {
       required_present: 1,
       required_total: 1,
