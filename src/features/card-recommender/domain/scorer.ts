@@ -4,6 +4,7 @@ import { yearlyPointsFromSpend, getCategoriesForRegion } from '@/lib/card-tools'
 import {
   getCardFeatureProfile,
   getComplexityPenalty,
+  getCardAnnualFeeAmount,
   getSoftBenefitAnnualValue,
   getSoftBenefits,
   SOFT_BENEFIT_COPY,
@@ -73,14 +74,14 @@ function parseSpendValue(value: string | undefined): number {
 }
 
 function getFeePenalty(card: CardWithRates, tolerance: AnnualFeeTolerance): number {
-  const fee = card.annual_fee_usd
+  const fee = getCardAnnualFeeAmount(card)
   if (fee <= 0) return 0
 
   if (tolerance === 'high') return fee * 0.15
   if (tolerance === 'medium') return fee * 0.4
 
   const lowToleranceSurcharge = fee > 95 && fee < 1000 ? fee * 0.35 : fee * 0.55
-  return fee * 0.75 + lowToleranceSurcharge
+  return Math.min(fee, fee * 0.75 + lowToleranceSurcharge)
 }
 
 /**
@@ -109,16 +110,11 @@ function getGoalAlignmentBonus(
   annualRewardsValue: number,
   goalMatchStrength: number,
   regionCode: Region,
+  programGoalMap: Record<string, string[]>,
 ): number {
   if (goalMatchStrength <= 0) return 0
   const base = Math.max(getRegionBaseBonus(regionCode), annualRewardsValue * 0.35)
-  const flexBoost = card.program_slug.includes('chase')
-    || card.program_slug.includes('amex')
-    || card.program_slug.includes('capital')
-    || card.program_slug.includes('citi')
-    || card.program_slug.includes('bilt')
-      ? 1.15
-      : 1
+  const flexBoost = (programGoalMap[card.program_slug] ?? []).includes('flex') ? 1.15 : 1
   return base * goalMatchStrength * flexBoost
 }
 
@@ -304,7 +300,7 @@ function buildExplanation(
   }
 
   if (estimatedMonthsToGoal !== null) {
-    whyNow.push(`At your current spend, this card could get you to your stated points target in about ${estimatedMonthsToGoal} month${estimatedMonthsToGoal === 1 ? '' : 's'}.`)
+    whyNow.push(`At your current spend, this card could get you to your stated value goal in about ${estimatedMonthsToGoal} month${estimatedMonthsToGoal === 1 ? '' : 's'}.`)
   }
 
   assumptions.push('Spend-based estimates assume your monthly inputs remain stable over the next year.')
@@ -314,8 +310,8 @@ function buildExplanation(
   if (annualRewardsValue <= 0) {
     warnings.push('Your current spend inputs are too low to create meaningful ongoing rewards value.')
   }
-  if (inputs.targetPointsGoal && walletBalance === 0) {
-    assumptions.push('Time-to-goal only counts tracked balances in the same rewards program.')
+  if (inputs.targetGoalValue && walletBalance === 0) {
+    assumptions.push('Time-to-goal only counts tracked value in the same rewards program.')
   }
 
   return { whyThisCard, whyNow, assumptions, warnings }
@@ -328,17 +324,18 @@ function calculateEstimatedMonthsToGoal(
   walletBalance: number,
   hasCardAlready: boolean,
 ): number | null {
-  const target = inputs.targetPointsGoal
+  const target = inputs.targetGoalValue
   if (!target || target <= 0) return null
 
-  const immediatePoints = walletBalance + (hasCardAlready ? 0 : card.signup_bonus_pts)
-  if (immediatePoints >= target) return 0
+  const immediateValue =
+    ((walletBalance + (hasCardAlready ? 0 : card.signup_bonus_pts)) * card.cpp_cents) / 100
+  if (immediateValue >= target) return 0
 
-  const monthlyPoints = pointsPerYear / 12
-  if (monthlyPoints <= 0) return null
+  const monthlyValue = ((pointsPerYear / 12) * card.cpp_cents) / 100
+  if (monthlyValue <= 0) return null
 
-  const remaining = target - immediatePoints
-  return Math.ceil(remaining / monthlyPoints)
+  const remaining = target - immediateValue
+  return Math.ceil(remaining / monthlyValue)
 }
 
 function getWeightedTotal(
@@ -397,13 +394,20 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
   const hasCardAlready = inputs.ownedCards.has(card.id)
   const signupValueEligible = hasCardAlready ? 0 : signupValue
   const softBenefitValue = getSoftBenefitAnnualValue(card, inputs.regionCode)
-  const ongoingValue = annualRewardsValue + softBenefitValue - card.annual_fee_usd
+  const annualFeeAmount = getCardAnnualFeeAmount(card)
+  const ongoingValue = annualRewardsValue + softBenefitValue - annualFeeAmount
   const firstYearValue = ongoingValue + signupValueEligible
   const goalCount = goalMatchScore(card, inputs.travelGoals, inputs.programGoalMap)
   const goalMatchStrength = getGoalMatchStrength(goalCount, inputs.travelGoals.size)
   const walletBalance = getWalletBalanceForCard(card, inputs.walletBalances ?? [])
   const eligibility = assessEligibility(card, inputs)
-  const goalAlignmentBonus = getGoalAlignmentBonus(card, annualRewardsValue, goalMatchStrength, inputs.regionCode)
+  const goalAlignmentBonus = getGoalAlignmentBonus(
+    card,
+    annualRewardsValue,
+    goalMatchStrength,
+    inputs.regionCode,
+    inputs.programGoalMap,
+  )
   const walletSynergyBonus = getWalletSynergyBonus(card, walletBalance, inputs.regionCode)
   const feePenalty = getFeePenalty(card, inputs.annualFeeTolerance)
   const complexityPenalty = getComplexityPenalty(card, inputs.regionCode)

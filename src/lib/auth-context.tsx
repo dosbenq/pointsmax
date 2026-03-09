@@ -51,7 +51,12 @@ function createClient() {
     return null
   }
   
-  return createBrowserClient(url, key)
+  return createBrowserClient(url, key, {
+    auth: {
+      storageKey: 'pm-auth-token-v2',
+      debug: false,
+    }
+  })
 }
 
 let browserSupabaseClient: BrowserSupabaseClient | null = null

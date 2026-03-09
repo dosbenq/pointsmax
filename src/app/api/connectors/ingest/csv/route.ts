@@ -26,12 +26,6 @@ type IngestJob = {
 
 const ingestJobs = new Map<string, IngestJob>()
 
-export const __testing = {
-  resetIngestJobs() {
-    ingestJobs.clear()
-  },
-}
-
 // Maximum concurrent jobs per user
 const MAX_CONCURRENT_JOBS = 3
 

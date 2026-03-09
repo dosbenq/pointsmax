@@ -1,6 +1,7 @@
 import type { CardWithRates, SpendCategory } from '@/types/database'
 import type { Region } from '@/lib/regions'
 import { yearlyPointsFromSpend, getCategoriesForRegion } from '@/lib/card-tools'
+import { getCardAnnualFeeAmount } from './metadata'
 import type { SpendOnlyResult, RankingOptions, CardRecommendation } from './types'
 
 /**
@@ -28,7 +29,7 @@ export function calculateSpendOnlyRanking(
       })
     }, 0)
     const annualValue = (pointsPerYear * card.cpp_cents) / 100
-    const netValue = annualValue - card.annual_fee_usd
+    const netValue = annualValue - getCardAnnualFeeAmount(card)
     return { card, pointsPerYear, annualValue, netValue }
   })
 

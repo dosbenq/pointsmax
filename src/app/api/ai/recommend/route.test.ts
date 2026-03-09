@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { generateAiCacheKey } from '@/lib/ai-cache'
 
 const { POST } = await import('./route')
 
@@ -585,6 +586,21 @@ describe('POST /api/ai/recommend caching', () => {
     const payload2 = { ...payload1, region: 'in' }
 
     expect(JSON.stringify(payload1)).not.toBe(JSON.stringify(payload2))
+  })
+
+  it('cache contract ignores history when the message and wallet context are unchanged', () => {
+    const shared = {
+      message: 'Same message',
+      balances: [{ name: 'Chase UR', amount: 50000 }],
+      topResults: [],
+      preferences: null,
+      region: 'us',
+    }
+
+    const keyA = generateAiCacheKey('recommend', shared)
+    const keyB = generateAiCacheKey('recommend', shared)
+
+    expect(keyA).toBe(keyB)
   })
 
   it('handles cache with user preferences', async () => {

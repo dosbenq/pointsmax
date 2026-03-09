@@ -40,6 +40,8 @@ type ValuationRow = {
   cpp_cents: number
 }
 
+type CardIdentityRow = Pick<CardRow, 'id' | 'name' | 'issuer'>
+
 export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
   return resolveCppCents(cppCents, programType)
 }
@@ -66,7 +68,7 @@ export function slugifyCardName(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-function buildCardSlug(card: Pick<CardRow, 'id' | 'name' | 'issuer'>, used = new Set<string>()): string {
+function buildCardSlug(card: CardIdentityRow, used = new Set<string>()): string {
   const base = slugifyCardName(card.name)
   if (!used.has(base)) {
     used.add(base)
@@ -85,7 +87,7 @@ function buildCardSlug(card: Pick<CardRow, 'id' | 'name' | 'issuer'>, used = new
   return withId
 }
 
-export function buildCardSlugById(cards: Array<Pick<CardRow, 'id' | 'name' | 'issuer'>>): Map<string, string> {
+export function buildCardSlugById(cards: CardIdentityRow[]): Map<string, string> {
   const used = new Set<string>()
   return new Map(cards.map((card) => [card.id, buildCardSlug(card, used)]))
 }
@@ -200,6 +202,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
   if (programRows.length === 0) return []
 
   const programIds = programRows.map((program) => program.id)
+  const programFilter = programIds.join(',')
   const [{ data: valuations }, { data: cards }, { data: partners }] = await Promise.all([
     db.from('latest_valuations').select('program_id, cpp_cents').in('program_id', programIds),
     db.from('cards')
@@ -209,13 +212,14 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
       .in('program_id', programIds),
     db.from('transfer_partners')
       .select('from_program_id, to_program_id, ratio_from, ratio_to')
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .or(`from_program_id.in.(${programFilter}),to_program_id.in.(${programFilter})`),
   ])
 
   const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
   const cardsByProgramId = new Map<string, Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>>()
   const cardRows = (cards ?? []) as Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null; image_url?: string | null }>
-  const slugByCardId = buildCardSlugById(cardRows as CardRow[])
+  const slugByCardId = buildCardSlugById(cardRows)
   for (const card of cardRows) {
     const list = cardsByProgramId.get(card.program_id) ?? []
     list.push({

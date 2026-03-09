@@ -92,6 +92,12 @@ function normalizeCardName(name: string): string {
   return name.trim().toLowerCase()
 }
 
+// `annual_fee_usd` is a legacy column name. Treat the numeric value as
+// region-local currency and use `card.currency` to interpret it.
+export function getCardAnnualFeeAmount(card: CardWithRates): number {
+  return Number.isFinite(card.annual_fee_usd) ? card.annual_fee_usd : 0
+}
+
 function defaultIssuerRules(card: CardWithRates): IssuerRuleTag[] {
   const issuer = card.issuer.trim().toLowerCase()
   if (issuer.includes('chase')) return ['chase_5_24', 'duplicate_card_not_allowed']
@@ -106,8 +112,9 @@ export function getCardFeatureProfile(card: CardWithRates): CardFeatureProfile {
   if (exact) return exact
 
   const isIndiaCard = card.currency === 'INR'
+  const annualFeeAmount = getCardAnnualFeeAmount(card)
   const complexity: ComplexityLevel =
-    card.annual_fee_usd > (isIndiaCard ? 25_000 : 500)
+    annualFeeAmount > (isIndiaCard ? 25_000 : 500)
       ? 'high'
       : 'medium'
 

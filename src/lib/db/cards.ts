@@ -84,15 +84,11 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
       .order('display_order')
   }
 
-  const valuationsRes = await db
-    .from('latest_valuations')
-    .select('program_id, cpp_cents, program_name, program_slug, program_type')
-
-  if (cardsRes.error || valuationsRes.error) {
+  if (cardsRes.error) {
     logError('cards_repository_fetch_failed', {
       geography,
       cards_error: cardsRes.error?.message ?? null,
-      valuations_error: valuationsRes.error?.message ?? null,
+      valuations_error: null,
     })
     throw new Error('Failed to fetch cards data')
   }
@@ -102,21 +98,34 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
     ? geography === 'US' ? cardsRaw : []
     : cardsRaw
 
-  const valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
   const activeCardIds = cards.map(card => card.id)
+  const activeProgramIds = [...new Set(cards.map((card) => card.program_id))]
 
+  let valuations: ValuationRow[] = []
   let rates: RateRow[] = []
-  if (activeCardIds.length > 0) {
-    const ratesRes = await db
-      .from('card_earning_rates')
-      .select('*')
-      .in('card_id', activeCardIds)
+  if (activeProgramIds.length > 0 && activeCardIds.length > 0) {
+    const [valuationsRes, ratesRes] = await Promise.all([
+      db
+        .from('latest_valuations')
+        .select('program_id, cpp_cents, program_name, program_slug, program_type')
+        .in('program_id', activeProgramIds),
+      db
+        .from('card_earning_rates')
+        .select('*')
+        .in('card_id', activeCardIds),
+    ])
 
-    if (ratesRes.error) {
-      logError('cards_repository_rates_fetch_failed', { geography, error: ratesRes.error.message })
-      throw new Error('Failed to fetch card rates')
+    if (valuationsRes.error || ratesRes.error) {
+      logError('cards_repository_fetch_failed', {
+        geography,
+        cards_error: null,
+        valuations_error: valuationsRes.error?.message ?? null,
+        rates_error: ratesRes.error?.message ?? null,
+      })
+      throw new Error('Failed to fetch cards data')
     }
 
+    valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
     rates = (ratesRes.data ?? []) as unknown as RateRow[]
   }
 
@@ -184,7 +193,10 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
   const geography = normalizeGeography(card.geography as string)
 
   const [valuationsRes, ratesRes] = await Promise.all([
-    db.from('latest_valuations').select('program_id, cpp_cents, program_name, program_slug, program_type'),
+    db
+      .from('latest_valuations')
+      .select('program_id, cpp_cents, program_name, program_slug, program_type')
+      .eq('program_id', card.program_id),
     db.from('card_earning_rates').select('*').eq('card_id', cardId),
   ])
 
@@ -195,7 +207,7 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
 
   const valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
   const rates = (ratesRes.data ?? []) as unknown as RateRow[]
-  const val = valuations.find(v => v.program_id === card.program_id)
+  const val = valuations[0]
 
   const currency = card.currency === 'INR' ? 'INR' : 'USD'
   const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)

@@ -52,7 +52,7 @@ describe('ConnectedWallets', () => {
       })
       
       expect(screen.getByText('No balance sources added yet')).toBeInTheDocument()
-      expect(screen.getByText('Import balances from CSV or enter them manually. Live account linking is still in beta.')).toBeInTheDocument()
+      expect(screen.getByText('Connect your accounts to live-sync your balances, or enter them manually.')).toBeInTheDocument()
     })
 
     it('shows connect wallet button in empty state', async () => {

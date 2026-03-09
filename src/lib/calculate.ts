@@ -248,8 +248,9 @@ export async function calculateRedemptions(
   }
 
   const results: RedemptionResult[] = []
-  let totalCashValue = 0
   let totalOptimalValue = 0
+  let totalCashValue = 0
+  let cashBaselineAvailable = true
 
   // ── Process each balance the user entered ──
   for (const balance of balances) {
@@ -323,16 +324,16 @@ export async function calculateRedemptions(
     // Mark the single best option for this program
     if (options.length > 0) options[0].is_best = true
 
-    // Cash floor: the lowest direct redemption (cash back / statement credit)
-    // This is the baseline — what most people get without thinking
     const cashOption = options.find(
-      o => o.category === 'cashback' || o.category === 'statement_credit'
+      (o) => o.category === 'cashback' || o.category === 'statement_credit',
     )
-    const cashValue = cashOption?.total_value_cents
-      ?? balance.amount * resolveCppCents(valuationMap.get(balance.program_id)?.cpp_cents, fromProgram.type)
+    if (cashOption) {
+      totalCashValue += cashOption.total_value_cents
+    } else {
+      cashBaselineAvailable = false
+    }
 
-    totalCashValue += cashValue
-    totalOptimalValue += options[0]?.total_value_cents ?? cashValue
+    totalOptimalValue += options[0]?.total_value_cents ?? 0
 
     results.push(...options)
   }
@@ -341,9 +342,10 @@ export async function calculateRedemptions(
   results.sort((a, b) => b.total_value_cents - a.total_value_cents)
 
   return {
-    total_cash_value_cents: totalCashValue,
+    total_cash_value_cents: cashBaselineAvailable ? totalCashValue : null,
     total_optimal_value_cents: totalOptimalValue,
-    value_left_on_table_cents: totalOptimalValue - totalCashValue,
+    value_left_on_table_cents: cashBaselineAvailable ? totalOptimalValue - totalCashValue : null,
+    cash_baseline_available: cashBaselineAvailable,
     results,
   }
 }

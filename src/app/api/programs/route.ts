@@ -7,7 +7,6 @@ import { NextResponse } from 'next/server'
 import { getActivePrograms } from '@/lib/db/programs'
 import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
-import { internalError } from '@/lib/error-utils'
 
 export async function GET(request: Request) {
   // Rate limit: 60 requests per minute per IP
@@ -38,6 +37,11 @@ export async function GET(request: Request) {
       region,
       error: error instanceof Error ? error.message : 'Unknown error',
     })
-    return internalError('Failed to load programs')
+    // Return empty array so UI shows a "no programs available" message instead of failing with invalid UUIDs
+    return NextResponse.json([], {
+      headers: {
+        'Cache-Control': 'no-store, private',
+      },
+    })
   }
 }

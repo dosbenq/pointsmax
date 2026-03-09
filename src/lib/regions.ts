@@ -84,6 +84,11 @@ export const REGIONS: Record<Region, RegionConfig> = {
   },
 }
 
+export const PROGRAM_GOAL_MAP: Record<string, string[]> = {
+  ...REGIONS.us.programGoalMap,
+  ...REGIONS.in.programGoalMap,
+}
+
 export const DEFAULT_REGION: Region = 'us'
 
 export function getRegionFromPath(pathname: string): Region {

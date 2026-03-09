@@ -63,7 +63,7 @@ const mockInputs = (overrides: Partial<ScoringInputs> = {}): ScoringInputs => ({
   annualFeeTolerance: 'medium',
   recentOpenAccounts24m: 2,
   walletBalances: [],
-  targetPointsGoal: null,
+  targetGoalValue: null,
   ...overrides,
 })
 
@@ -182,7 +182,7 @@ describe('scoreCard', () => {
         walletBalances: [
           { program_id: 'prog-1', balance: 25000, source: 'manual', confidence: 'high', is_stale: false },
         ],
-        targetPointsGoal: 90000,
+        targetGoalValue: 1800,
       }),
     )
 
@@ -260,7 +260,7 @@ describe('scoreAndRankCards', () => {
       [hotelCard, chaseCard],
       mockInputs({
         walletBalances: [],
-        targetPointsGoal: null,
+        targetGoalValue: null,
       }),
     )
     const withWallet = scoreAndRankCards(
@@ -269,7 +269,7 @@ describe('scoreAndRankCards', () => {
         walletBalances: [
           { program_id: 'prog-hyatt', balance: 60000, source: 'manual', confidence: 'high', is_stale: false },
         ],
-        targetPointsGoal: 90000,
+        targetGoalValue: 2200,
       }),
     )
 
@@ -294,7 +294,7 @@ describe('scoreAndRankCards', () => {
         walletBalances: [
           { program_id: 'prog-1', balance: 100000, source: 'manual', confidence: 'high', is_stale: false },
         ],
-        targetPointsGoal: 80000,
+        targetGoalValue: 800,
       }),
     )
 
@@ -329,6 +329,16 @@ describe('scoreAndRankCards', () => {
     expect(mediumToleranceResult.breakdown.feePenalty).toBeGreaterThan(highToleranceResult.breakdown.feePenalty)
   })
 
+  it('caps low fee tolerance penalty at the annual fee', () => {
+    const highFeeCard = mockCard({
+      id: 'premium-cap',
+      annual_fee_usd: 550,
+    })
+
+    const result = scoreCard(highFeeCard, mockInputs({ annualFeeTolerance: 'low' }))
+    expect(result.breakdown.feePenalty).toBe(550)
+  })
+
   it('handles India region with correct currency scaling', () => {
     const inrCard = mockCard({
       id: 'inr-card',
@@ -359,6 +369,42 @@ describe('scoreAndRankCards', () => {
 
     expect(result.pointsPerYear).toBe(30000) // ₹50k / 100 * 5 * 12
     expect(result.card.currency).toBe('INR')
+  })
+
+  it('applies flex boost to India flexible programs from the goal map', () => {
+    const indiaCard = mockCard({
+      id: 'india-flex',
+      name: 'HDFC Travel Card',
+      issuer: 'HDFC',
+      currency: 'INR',
+      earn_unit: '100_inr',
+      annual_fee_usd: 12500,
+      program_slug: 'hdfc-millennia',
+      cpp_cents: 1,
+    })
+
+    const flexible = scoreCard(
+      indiaCard,
+      mockInputs({
+        regionCode: 'in',
+        travelGoals: new Set(['flex']),
+        programGoalMap: {
+          'hdfc-millennia': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
+        },
+      }),
+    )
+    const nonFlexible = scoreCard(
+      indiaCard,
+      mockInputs({
+        regionCode: 'in',
+        travelGoals: new Set(['flex']),
+        programGoalMap: {
+          'hdfc-millennia': ['intl_econ', 'intl_biz', 'hotels'],
+        },
+      }),
+    )
+
+    expect(flexible.breakdown.goalAlignmentBonus).toBeGreaterThan(nonFlexible.breakdown.goalAlignmentBonus)
   })
 
   it('matches multiple travel goals correctly', () => {

@@ -43,6 +43,16 @@ describe('sortAwardResultsByPoints', () => {
     expect(sorted.map(r => r.program_slug)).toEqual(['high-cpp', 'low-cpp'])
   })
 
+  it('sorts reachable results ahead of unreachable results', () => {
+    const input = [
+      makeResult({ program_slug: 'unreachable', is_reachable: false, points_needed_from_wallet: 25000 }),
+      makeResult({ program_slug: 'reachable', is_reachable: true, points_needed_from_wallet: 70000 }),
+    ]
+
+    const sorted = sortAwardResultsByPoints(input)
+    expect(sorted.map(r => r.program_slug)).toEqual(['reachable', 'unreachable'])
+  })
+
   it('prefers live availability on ties', () => {
     const input = [
       makeResult({ program_slug: 'estimate', points_needed_from_wallet: 50000, cpp_cents: 200, has_real_availability: false }),

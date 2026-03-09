@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { AwardNarrative, AwardSearchParams, AwardSearchResult, CabinClass } from '@/lib/award-search'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
+import { extractJsonObject } from '@/lib/json-extract'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -83,8 +84,8 @@ export function validateSearchParams(body: unknown): AwardSearchParams | { error
   if ('error' in routeParams) return routeParams
 
   const balances = b.balances
-  if (!Array.isArray(balances) || balances.length === 0) {
-    return { error: 'balances must be a non-empty array' }
+  if (!Array.isArray(balances)) {
+    return { error: 'balances must be an array' }
   }
   if (balances.length > MAX_BALANCE_ROWS) {
     return { error: `balances can include at most ${MAX_BALANCE_ROWS} rows` }
@@ -184,8 +185,29 @@ export function parseNarrativeOptionsParam(raw: string | null): AwardNarrativeOp
   return options.slice(0, 8)
 }
 
-const narrativeCache = new Map<string, { narrative: AwardNarrative; expiresAt: number }>()
 const NARRATIVE_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const NARRATIVE_CACHE_MAX_ENTRIES = 200
+const narrativeCache = new Map<string, { narrative: AwardNarrative; expiresAt: number }>()
+
+function pruneNarrativeCache(now: number): void {
+  for (const [key, value] of narrativeCache) {
+    if (value.expiresAt <= now) narrativeCache.delete(key)
+  }
+
+  while (narrativeCache.size >= NARRATIVE_CACHE_MAX_ENTRIES) {
+    const oldestKey = narrativeCache.keys().next().value
+    if (!oldestKey) break
+    narrativeCache.delete(oldestKey)
+  }
+}
+
+export function __clearNarrativeCacheForTests(): void {
+  narrativeCache.clear()
+}
+
+export function __getNarrativeCacheSizeForTests(): number {
+  return narrativeCache.size
+}
 
 export async function generateNarrative(
   params: AwardNarrativeParams,
@@ -197,6 +219,7 @@ export async function generateNarrative(
 
   // Cache key based on simplified params and top options
   const cacheKey = JSON.stringify({ params, options })
+  pruneNarrativeCache(Date.now())
   const cached = narrativeCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) {
     return cached.narrative
@@ -242,9 +265,10 @@ Return ONLY valid JSON (no markdown) with this exact shape:
         const model = genAI.getGenerativeModel({ model: modelName })
         const response = await model.generateContent(prompt)
         const text = response.response.text()
-        const jsonMatch = text.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) return null
-        const result = JSON.parse(jsonMatch[0]) as AwardNarrative
+        const jsonPayload = extractJsonObject(text)
+        if (!jsonPayload) return null
+        const result = JSON.parse(jsonPayload) as AwardNarrative
+        pruneNarrativeCache(Date.now())
         narrativeCache.set(cacheKey, {
           narrative: result,
           expiresAt: Date.now() + NARRATIVE_CACHE_TTL_MS,

@@ -290,8 +290,9 @@ export interface RedemptionResult {
 
 /** Full API response from /api/calculate */
 export interface CalculateResponse {
-  total_cash_value_cents: number    // sum of floor (cashback) values
+  total_cash_value_cents: number | null    // sum of cash-out baselines, null when any balance lacks one
   total_optimal_value_cents: number // sum of best redemption per program
-  value_left_on_table_cents: number // difference = money you're leaving behind
+  value_left_on_table_cents: number | null // difference = money you're leaving behind when cash baseline exists
+  cash_baseline_available: boolean
   results: RedemptionResult[]       // all options, sorted by value DESC
 }

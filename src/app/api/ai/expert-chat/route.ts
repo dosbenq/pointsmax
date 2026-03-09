@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
-import { logError, getRequestId } from '@/lib/logger'
+import { logError, getRequestId, logWarn } from '@/lib/logger'
 import { createAdminClient } from '@/lib/supabase'
 import { REGIONS, type Region } from '@/lib/regions'
 import {
@@ -11,6 +11,7 @@ import {
   setCachedAiResponse,
   logAiCacheMetric,
 } from '@/lib/ai-cache'
+import { CircuitBreakerOpenError, geminiCircuitBreaker } from '@/lib/circuit-breaker'
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -32,7 +33,7 @@ function sanitizeMessage(value: unknown): string {
 }
 
 function normalizeRegion(value: unknown): Region {
-  return value === 'us' ? 'us' : 'in'
+  return value === 'in' ? 'in' : 'us'
 }
 
 function getRequestScope(req: NextRequest): string {
@@ -41,7 +42,7 @@ function getRequestScope(req: NextRequest): string {
   return `${ip}|${ua}`
 }
 
-async function fetchKnowledgeChunks(queryVector: number[], rawMessage: string): Promise<KnowledgeChunk[]> {
+async function fetchKnowledgeChunks(queryVector: number[], requestId: string): Promise<KnowledgeChunk[]> {
   const db = createAdminClient()
 
   const rpc = await db.rpc('search_knowledge_docs', {
@@ -66,25 +67,12 @@ async function fetchKnowledgeChunks(queryVector: number[], rawMessage: string): 
       .filter((row) => row.id && row.content)
   }
 
-  const fallback = await db
-    .from('knowledge_docs')
-    .select('id, source_id, source_url, title, content')
-    .ilike('content', `%${rawMessage.slice(0, 80)}%`)
-    .order('created_at', { ascending: false })
-    .limit(6)
-
-  if (fallback.error || !fallback.data) return []
-
-  const rows = fallback.data as Array<Record<string, unknown>>
-  return rows
-    .map((row) => ({
-      id: String(row.id ?? ''),
-      source_id: typeof row.source_id === 'string' ? row.source_id : undefined,
-      source_url: typeof row.source_url === 'string' ? row.source_url : undefined,
-      title: typeof row.title === 'string' ? row.title : undefined,
-      content: typeof row.content === 'string' ? row.content : '',
-    }))
-    .filter((row) => row.id && row.content)
+  logWarn('expert_chat_knowledge_context_unavailable', {
+    requestId,
+    rpc_error: rpc.error?.message ?? null,
+    rpc_rows: rpcRows.length,
+  })
+  return []
 }
 
 function buildContext(chunks: KnowledgeChunk[]): string {
@@ -175,7 +163,7 @@ export async function POST(req: NextRequest) {
     const embeddingResult = await embeddingModel.embedContent(message)
     const queryVector = embeddingResult.embedding.values
 
-    const chunks = await fetchKnowledgeChunks(queryVector, message)
+    const chunks = await fetchKnowledgeChunks(queryVector, requestId)
     const contextText = buildContext(chunks)
 
     const modelNames = await getGeminiModelCandidatesForApiKey(apiKey)
@@ -195,15 +183,26 @@ User question: ${message}
     `.trim()
 
     let reply = ''
-    for (const modelName of modelNames) {
-      try {
-        const model = genAI.getGenerativeModel({ model: modelName })
-        const result = await model.generateContent(prompt)
-        reply = result.response.text().trim()
-        if (reply) break
-      } catch (err) {
-        markGeminiModelUnavailable(modelName, err)
+    try {
+      await geminiCircuitBreaker.execute(async () => {
+        for (const modelName of modelNames) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName })
+            const result = await model.generateContent(prompt)
+            reply = result.response.text().trim()
+            if (reply) return
+          } catch (err) {
+            markGeminiModelUnavailable(modelName, err)
+          }
+        }
+        throw new Error('AI model unavailable. Please retry shortly.')
+      })
+    } catch (error) {
+      if (error instanceof CircuitBreakerOpenError) {
+        logWarn('expert_chat_circuit_open', { requestId })
+        return NextResponse.json({ error: 'Expert assistant temporarily unavailable. Please retry shortly.' }, { status: 503 })
       }
+      throw error
     }
 
     if (!reply) {

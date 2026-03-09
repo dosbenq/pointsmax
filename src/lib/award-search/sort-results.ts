@@ -1,6 +1,9 @@
 import type { AwardSearchResult } from './types'
 
 function compareAwardResults(a: AwardSearchResult, b: AwardSearchResult): number {
+  if (a.is_reachable !== b.is_reachable) {
+    return a.is_reachable ? -1 : 1
+  }
   if (a.points_needed_from_wallet !== b.points_needed_from_wallet) {
     return a.points_needed_from_wallet - b.points_needed_from_wallet
   }

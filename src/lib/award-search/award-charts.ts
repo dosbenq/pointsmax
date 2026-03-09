@@ -108,7 +108,6 @@ const SE_ASIA = new Set([
   'PNH', 'REP',
   'VTE', 'LPQ',
   'RGN', 'MDL',
-  'CCU', 'MAA', 'BOM', 'DEL', 'BLR', 'HYD', 'COK', 'AMD', 'PNQ', 'GOI',
   'CMB', 'HRI',
   'MLE',
   'DAC', 'CXB',
@@ -149,6 +148,9 @@ export function detectRouteRegion(origin: string, destination: string): RouteReg
   // Domestic: both airports in US
   if (DOMESTIC_US.has(o) && DOMESTIC_US.has(d)) return 'domestic_us'
   if (INDIA.has(o) && INDIA.has(d)) return 'domestic_india'
+
+  // US to India routes typically map to Middle East / South Asia charts
+  if ((DOMESTIC_US.has(o) && INDIA.has(d)) || (INDIA.has(o) && DOMESTIC_US.has(d))) return 'middle_east'
 
   // Region primarily based on destination, with domestic overrides above.
   if (CANADA_MEXICO.has(d)) return 'canada_mexico'
@@ -421,4 +423,11 @@ export function getEstimatedMiles(
 
   if (rate == null) return null
   return rate * passengers
+}
+
+export function getAwardChartSupportedSlugs(
+  region: RouteRegion,
+  cabin: CabinClass,
+): string[] {
+  return Object.keys(AWARD_CHARTS).filter((slug) => getEstimatedMiles(slug, region, cabin, 1) != null)
 }

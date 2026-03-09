@@ -142,5 +142,23 @@ describe('scoring', () => {
       expect(calculateTotals(null as unknown as [])).toEqual({ totalOptimalCents: 0, totalCashCents: 0 })
       expect(calculateTotals(undefined as unknown as [])).toEqual({ totalOptimalCents: 0, totalCashCents: 0 })
     })
+
+    it('groups real RedemptionResult rows by nested from_program.id', () => {
+      const totals = calculateTotals([
+        { total_value_cents: 9000, category: 'transfer_partner', from_program: { id: 'a' }, is_best: true },
+        { total_value_cents: 8000, category: 'travel_portal', from_program: { id: 'a' }, is_best: true },
+      ])
+
+      expect(totals.totalOptimalCents).toBe(9000)
+    })
+
+    it('uses cashback rows as optimal when a program has no non-cash options', () => {
+      const totals = calculateTotals([
+        { total_value_cents: 4000, category: 'cashback', from_program: { id: 'cash-only' }, is_best: true },
+      ])
+
+      expect(totals.totalOptimalCents).toBe(4000)
+      expect(totals.totalCashCents).toBe(4000)
+    })
   })
 })

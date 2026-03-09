@@ -14,7 +14,11 @@ import type {
   TransferPartnerRow,
   ValuationRow,
 } from './types'
-import { detectRouteRegion, getEstimatedMiles } from './award-charts'
+import {
+  detectRouteRegion,
+  getAwardChartSupportedSlugs,
+  getEstimatedMiles,
+} from './award-charts'
 import { buildDeepLink } from './deep-links'
 import {
   buildReachablePaths,
@@ -211,8 +215,12 @@ export class SeatsAeroProvider implements AwardProvider {
     // ── Build results ────────────────────────────────────────
     const results: AwardSearchResult[] = []
 
-    // Include all slugs that either have real availability or have a path
-    const allSlugs = new Set([...availBySlug.keys(), ...reachablePaths.keys()])
+    // Include all slugs that either have real availability, a wallet path, or a chart estimate.
+    const allSlugs = new Set([
+      ...availBySlug.keys(),
+      ...reachablePaths.keys(),
+      ...getAwardChartSupportedSlugs(region, cabin),
+    ])
 
     for (const slug of allSlugs) {
       const airlineProgram = slugToProgram.get(slug)

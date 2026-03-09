@@ -1,4 +1,19 @@
 import type { SpendCategory } from '@/types/database'
+import { PROGRAM_GOAL_MAP as REGION_PROGRAM_GOAL_MAP } from '@/lib/regions'
+
+// Hand-sourced official card art for the most popular US cards.
+// These are mapped directly to the `name` column in the cards table.
+export const CARD_ART_MAP: Record<string, string> = {
+  'Chase Sapphire Preferred': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/sapphire_preferred.png',
+  'Chase Sapphire Reserve': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/sapphire_reserve.png',
+  'Amex Gold': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/Gold.png',
+  'Amex Platinum': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/Platinum.png',
+  'Capital One Venture X': 'https://ecm.capitalone.com/WCM/card/products/venture-x/venture_x_card_art_1x.png',
+  'Citi Premier': 'https://www.citi.com/CRD/images/citi-strata-premier/citi-strata-premier.png',
+  'Bilt Mastercard': 'https://wfp.biltrewards.com/images/card/card_Bilt_Mastercard_black.png',
+  'United Explorer': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/united_explorer.png',
+  'Delta Gold Amex': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/SkyMilesGold.png',
+}
 
 export type CardRegion = 'US' | 'IN'
 
@@ -14,7 +29,7 @@ export const CATEGORIES: { key: SpendCategory; label: string; icon: string }[] =
   { key: 'gas', label: 'Gas', icon: '⛽' },
   { key: 'shopping', label: 'Shopping', icon: '🛍️' },
   { key: 'streaming', label: 'Streaming', icon: '📺' },
-  { key: 'other', label: 'Other', icon: '🛍️' },
+  { key: 'other', label: 'Other', icon: '📦' },
 ]
 
 export function getCategoriesForRegion(region: 'us' | 'in'): { key: SpendCategory; label: string; icon: string }[] {
@@ -41,53 +56,7 @@ export function getCategoriesForRegion(region: 'us' | 'in'): { key: SpendCategor
   ]
 }
 
-export const PROGRAM_GOAL_MAP: Record<string, string[]> = {
-  // Current program slugs in database
-  'chase-ur': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'amex-mr': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'capital-one': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'citi-thankyou': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  bilt: ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  united: ['domestic', 'intl_econ', 'intl_biz'],
-  delta: ['domestic', 'intl_econ', 'intl_biz'],
-  american: ['domestic', 'intl_econ', 'intl_biz'],
-  southwest: ['domestic'],
-  alaska: ['domestic', 'intl_econ', 'intl_biz'],
-  hyatt: ['hotels'],
-  marriott: ['hotels'],
-  hilton: ['hotels'],
-  ihg: ['hotels'],
-  wyndham: ['hotels'],
-
-  // Legacy/alternate slugs (compatibility)
-  // Transferable points for flexibility and international travel
-  'chase-ultimate-rewards': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'amex-membership-rewards': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'capital-one-miles': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'citi-thankyou-points': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'bilt-rewards': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-
-  // Airline miles for domestic travel
-  'united-mileageplus': ['domestic', 'intl_econ', 'intl_biz'],
-  'delta-skymiles': ['domestic', 'intl_econ', 'intl_biz'],
-  'american-aadvantage': ['domestic', 'intl_econ', 'intl_biz'],
-  'southwest-rapid-rewards': ['domestic'],
-  'alaska-mileage-plan': ['domestic', 'intl_econ', 'intl_biz'],
-
-  // Hotel points
-  'world-of-hyatt': ['hotels'],
-  'marriott-bonvoy': ['hotels'],
-  'hilton-honors': ['hotels'],
-  'ihg-one-rewards': ['hotels'],
-
-  // India programs
-  'hdfc-millennia': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'axis-edge': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'amex-india-mr': ['intl_econ', 'intl_biz', 'hotels', 'flex'],
-  'air-india': ['domestic', 'intl_econ', 'intl_biz'],
-  'indigo-6e': ['domestic'],
-  'taj-innercircle': ['hotels'],
-}
+export const PROGRAM_GOAL_MAP: Record<string, string[]> = REGION_PROGRAM_GOAL_MAP
 
 export function formatUsdRounded(amount: number): string {
   return amount.toLocaleString('en-US', {

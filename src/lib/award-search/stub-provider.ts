@@ -13,7 +13,11 @@ import type {
   TransferPartnerRow,
   ValuationRow,
 } from './types'
-import { detectRouteRegion, getEstimatedMiles } from './award-charts'
+import {
+  detectRouteRegion,
+  getAwardChartSupportedSlugs,
+  getEstimatedMiles,
+} from './award-charts'
 import { buildDeepLink } from './deep-links'
 import {
   buildReachablePaths,
@@ -70,11 +74,16 @@ export class StubProvider implements AwardProvider {
       programMap,
       (transferPartners as TransferPartnerRow[]) ?? [],
     )
+    const candidateSlugs = new Set<string>([
+      ...reachablePaths.keys(),
+      ...getAwardChartSupportedSlugs(region, cabin),
+    ])
 
     // ── Build results ────────────────────────────────────────
     const results: AwardSearchResult[] = []
 
-    for (const [slug, path] of reachablePaths) {
+    for (const slug of candidateSlugs) {
+      const path = reachablePaths.get(slug)
       const estimatedMiles = getEstimatedMiles(slug, region, cabin, passengers)
       if (estimatedMiles == null) continue
 
@@ -88,9 +97,11 @@ export class StubProvider implements AwardProvider {
       const estimatedCashValueCents = estimatedMiles * cppCents
 
       // How many source program points are needed to get estimatedMiles
-      const pointsNeededFromWallet = calculatePointsNeededFromWallet(path, estimatedMiles)
+      const pointsNeededFromWallet = path
+        ? calculatePointsNeededFromWallet(path, estimatedMiles)
+        : estimatedMiles
 
-      const isReachable = path.availableMiles >= estimatedMiles
+      const isReachable = path ? path.availableMiles >= estimatedMiles : false
 
       results.push({
         program_slug: slug,
@@ -99,8 +110,8 @@ export class StubProvider implements AwardProvider {
         estimated_miles: estimatedMiles,
         estimated_cash_value_cents: estimatedCashValueCents,
         cpp_cents: cppCents,
-        transfer_chain: buildTransferChain(path, airlineProgram),
-        transfer_is_instant: path.transferIsInstant,
+        transfer_chain: path ? buildTransferChain(path, airlineProgram) : null,
+        transfer_is_instant: path?.transferIsInstant ?? true,
         points_needed_from_wallet: pointsNeededFromWallet,
         availability: null,
         deep_link: buildDeepLink(slug, params),

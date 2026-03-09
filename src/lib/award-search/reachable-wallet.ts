@@ -56,7 +56,7 @@ export function buildReachablePaths(
 
   for (const balance of balances) {
     const program = programMap.get(balance.program_id)
-    if (!program || program.type !== 'airline_miles' || balance.amount <= 0) continue
+    if (!program || balance.amount <= 0) continue
     appendContributor(program.slug, {
       sourceProgram: program,
       balance: balance.amount,
@@ -71,7 +71,7 @@ export function buildReachablePaths(
 
   for (const partner of transferPartners) {
     const toProgram = programMap.get(partner.to_program_id)
-    if (!toProgram || toProgram.type !== 'airline_miles') continue
+    if (!toProgram) continue
 
     const sourceProgram = programMap.get(partner.from_program_id)
     const balance = balanceMap.get(partner.from_program_id) ?? 0
@@ -106,6 +106,9 @@ export function calculatePointsNeededFromWallet(path: ReachablePath, requiredMil
     remaining -= milesUsed
   }
 
+  // If required/estimated miles exceed what the user can realistically transfer from all sources combined,
+  // we fallback to using the ratio of the "best" contributor to calculate the remaining needed.
+  // This allows the UI to show a mathematically consistent (though hypothetical) 'Points Needed' value.
   if (remaining > 0 && path.contributors[0]) {
     const best = path.contributors[0]
     pointsNeeded += best.directHold

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { generateNarrative } from './helpers'
+import {
+  __clearNarrativeCacheForTests,
+  __getNarrativeCacheSizeForTests,
+  generateNarrative,
+} from './helpers'
 
 const { mockGenerateContent } = vi.hoisted(() => ({
   mockGenerateContent: vi.fn().mockResolvedValue({
@@ -55,6 +59,7 @@ describe('generateNarrative caching', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    __clearNarrativeCacheForTests()
     process.env.GEMINI_API_KEY = 'test-key'
   })
 
@@ -88,5 +93,35 @@ describe('generateNarrative caching', () => {
 
     await generateNarrative(params2, options)
     expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+  })
+
+  it('extracts JSON when the model wraps it in extra text', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      response: {
+        text: () => `Preface ${JSON.stringify({
+          headline: 'Wrapped',
+          body: 'Wrapped Body',
+          top_pick_slug: 'test',
+          warnings: [],
+          booking_tips: [],
+        })} trailing`,
+      },
+    })
+
+    const result = await generateNarrative(getParams('BOS'), options)
+    expect(result?.headline).toBe('Wrapped')
+  })
+
+  it('evicts old entries when the cache exceeds the size cap', async () => {
+    for (let index = 0; index < 205; index += 1) {
+      await generateNarrative(getParams('JFK'), [
+        {
+          ...options[0],
+          program_slug: `test-${index}`,
+        },
+      ])
+    }
+
+    expect(__getNarrativeCacheSizeForTests()).toBeLessThanOrEqual(200)
   })
 })

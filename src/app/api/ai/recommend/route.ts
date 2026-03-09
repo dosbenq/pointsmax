@@ -116,19 +116,18 @@ async function fetchProgramContext(
   const db = createServerDbClient()
   const regionGeo = regionCtx.code.toUpperCase()
 
-  const { data: programsData, error: programsError } = await db
-    .from('programs')
-    .select('id, name, slug, geography')
-    .eq('is_active', true)
-    .in('geography', ['global', regionGeo])
+  const [{ data: programsData, error: programsError }, { data: valuationData, error: valuationError }] = await Promise.all([
+    db
+      .from('programs')
+      .select('id, name, slug, geography')
+      .eq('is_active', true)
+      .in('geography', ['global', regionGeo]),
+    db
+      .from('latest_valuations')
+      .select('program_id, cpp_cents'),
+  ])
 
-  if (programsError) return []
-
-  const { data: valuationData, error: valuationError } = await db
-    .from('latest_valuations')
-    .select('program_id, cpp_cents')
-
-  if (valuationError) return []
+  if (programsError || valuationError) return []
 
   const valuations = new Map<string, number>(
     (valuationData ?? [])
@@ -192,6 +191,58 @@ async function fetchProgramContext(
   }
 
   return [...selected.values()]
+}
+
+async function fetchTransferPartnerSummary(
+  balances: Balance[],
+): Promise<string> {
+  const balanceProgramIds = [...new Set(
+    balances
+      .map((balance) => balance.program_id)
+      .filter((programId): programId is string => typeof programId === 'string' && programId.length > 0),
+  )]
+
+  if (balanceProgramIds.length === 0) return '  (none)'
+
+  const db = createServerDbClient()
+  const { data: partnersData, error: partnersError } = await db
+    .from('transfer_partners')
+    .select('from_program_id, to_program_id')
+    .eq('is_active', true)
+    .in('from_program_id', balanceProgramIds)
+
+  if (partnersError || !partnersData || partnersData.length === 0) return '  (none)'
+
+  const partnerRows = partnersData as Array<{ from_program_id: string; to_program_id: string }>
+  const programIds = [...new Set(partnerRows.flatMap((row) => [row.from_program_id, row.to_program_id]))]
+  const { data: programsData, error: programsError } = await db
+    .from('programs')
+    .select('id, name')
+    .in('id', programIds)
+
+  if (programsError || !programsData) return '  (none)'
+
+  const programNameById = new Map(
+    (programsData as Array<{ id: string; name: string }>).map((row) => [row.id, row.name]),
+  )
+  const partnersByProgram = new Map<string, string[]>()
+
+  for (const row of partnerRows) {
+    const fromName = programNameById.get(row.from_program_id)
+    const toName = programNameById.get(row.to_program_id)
+    if (!fromName || !toName) continue
+    const list = partnersByProgram.get(fromName) ?? []
+    if (!list.includes(toName)) {
+      list.push(toName)
+      partnersByProgram.set(fromName, list)
+    }
+  }
+
+  if (partnersByProgram.size === 0) return '  (none)'
+
+  return [...partnersByProgram.entries()]
+    .map(([program, partnerNames]) => `  - ${program} → ${partnerNames.join(', ')}`)
+    .join('\n')
 }
 
 function buildSafeModeResponse(
@@ -418,7 +469,6 @@ export async function POST(req: NextRequest) {
   // ── Cache Layer ──────────────────────────────────────────────────
   const cacheKey = generateAiCacheKey('recommend', {
     message,
-    history,
     balances,
     topResults,
     preferences,
@@ -468,7 +518,10 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const programContext = await fetchProgramContext(balances, topResults, regionCtx)
+  const [programContext, fallbackPartnerSummary] = await Promise.all([
+    fetchProgramContext(balances, topResults, regionCtx),
+    fetchTransferPartnerSummary(balances),
+  ])
 
   // ── Build context (re-injected every turn via system prompt) ───
   const programContextById = new Map(programContext.map((p) => [p.id, p]))
@@ -500,7 +553,7 @@ export async function POST(req: NextRequest) {
 
   const partnerSummary = Object.entries(partnersByProgram)
     .map(([prog, partners]) => `  - ${prog} → ${partners.join(', ')}`)
-    .join('\n') || '  (none)'
+    .join('\n') || fallbackPartnerSummary
 
   const topValueSummary = topResults.length > 0
     ? topResults

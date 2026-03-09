@@ -35,7 +35,7 @@ export interface ScoringInputs {
   annualFeeTolerance: AnnualFeeTolerance
   recentOpenAccounts24m?: number | null
   walletBalances?: WalletBalanceInput[]
-  targetPointsGoal?: number | null
+  targetGoalValue?: number | null
 }
 
 export interface RecommendationScoreBreakdown {

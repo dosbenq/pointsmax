@@ -27,7 +27,7 @@ export interface UseCardScorerInputs {
   mode: RecommendationMode
   recentOpenAccounts24m?: number | null
   walletBalances?: WalletBalanceInput[]
-  targetPointsGoal?: number | null
+  targetGoalValue?: number | null
   showResults: boolean
 }
 
@@ -53,7 +53,7 @@ export function useCardScorer(inputs: UseCardScorerInputs): UseCardScorerResult 
     mode,
     recentOpenAccounts24m,
     walletBalances,
-    targetPointsGoal,
+    targetGoalValue,
     showResults,
   } = inputs
 
@@ -72,7 +72,7 @@ export function useCardScorer(inputs: UseCardScorerInputs): UseCardScorerResult 
       mode,
       recentOpenAccounts24m,
       walletBalances,
-      targetPointsGoal,
+      targetGoalValue,
     })
 
     const { visible, blocked } = splitRecommendationsByStatus(all)
@@ -88,7 +88,7 @@ export function useCardScorer(inputs: UseCardScorerInputs): UseCardScorerResult 
     mode,
     recentOpenAccounts24m,
     walletBalances,
-    targetPointsGoal,
+    targetGoalValue,
     showResults,
   ])
 }

@@ -118,14 +118,21 @@ interface ConnectedWalletsProps {
   onManualEntry?: () => void
   /** Optional CSS class for the container */
   className?: string
+  /** Whether the user is a guest (hides sync features) */
+  isGuest?: boolean
 }
 
-export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWalletsProps) {
+export function ConnectedWallets({ onManualEntry, className = '', isGuest = false }: ConnectedWalletsProps) {
   const [viewState, setViewState] = useState<ViewState>({ type: 'loading' })
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   const fetchAccounts = useCallback(async () => {
+    if (isGuest) {
+      setViewState({ type: 'empty' })
+      return
+    }
+
     try {
       const res = await fetch('/api/connectors')
       if (!res.ok) {
@@ -340,22 +347,24 @@ export function ConnectedWallets({ onManualEntry, className = '' }: ConnectedWal
         </div>
         <div className="text-center py-6 border border-dashed border-pm-border rounded-xl">
           <div className="text-3xl mb-2">👛</div>
-          <p className="text-sm text-pm-ink-700 mb-1">No balance sources added yet</p>
+          <p className="text-sm text-pm-ink-700 mb-1">{isGuest ? 'Sign in to connect live sources' : 'No balance sources added yet'}</p>
           <p className="text-xs text-pm-ink-500 mb-4 max-w-sm mx-auto">
-            Import balances from CSV or enter them manually. Live account linking is still in beta.
+            {isGuest ? 'Guests can only enter balances manually. Sign in to seamlessly sync your airline and hotel accounts.' : 'Connect your accounts to live-sync your balances, or enter them manually.'}
           </p>
           <div className="flex gap-2 justify-center">
-            <button
-              onClick={handleConnect}
-              className="pm-button text-xs px-4 py-2"
-              data-testid="connect-wallet-btn"
-            >
-              Add Balances
-            </button>
+            {!isGuest && (
+              <button
+                onClick={handleConnect}
+                className="pm-button text-xs px-4 py-2"
+                data-testid="connect-wallet-btn"
+              >
+                Add Balances
+              </button>
+            )}
             {onManualEntry && (
               <button
                 onClick={onManualEntry}
-                className="pm-button-secondary text-xs px-4 py-2"
+                className={`text-xs px-4 py-2 ${isGuest ? 'pm-button' : 'pm-button-secondary'}`}
                 data-testid="manual-entry-btn"
               >
                 Enter Balance Manually

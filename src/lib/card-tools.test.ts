@@ -28,4 +28,8 @@ describe('card-tools', () => {
   it('includes shopping in the US spend categories', () => {
     expect(getCategoriesForRegion('us').map((category) => category.key)).toContain('shopping')
   })
+
+  it('uses the package icon for the other category', () => {
+    expect(getCategoriesForRegion('us').find((category) => category.key === 'other')?.icon).toBe('📦')
+  })
 })

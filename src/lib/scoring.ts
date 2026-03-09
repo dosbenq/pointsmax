@@ -75,31 +75,23 @@ type TotalsRow = {
   is_best?: boolean
   program_id?: string
   from_program_id?: string
+  from_program?: {
+    id?: string
+  }
 }
 
 function groupKey(row: TotalsRow, index: number): string {
-  return row.from_program_id ?? row.program_id ?? `row-${index}`
+  return row.from_program_id ?? row.from_program?.id ?? row.program_id ?? `row-${index}`
 }
 
-function sumBestPerGroup(results: TotalsRow[]): number {
-  if (results.length === 0) return 0
-
-  const flagged = results.filter((row) => row.is_best)
-  if (flagged.length > 0) {
-    return flagged.reduce((sum, row) => sum + (Number.isFinite(row.total_value_cents) ? row.total_value_cents : 0), 0)
-  }
-
-  const bestByGroup = new Map<string, number>()
-  results.forEach((row, index) => {
-    const key = groupKey(row, index)
+function pickBestValue(rows: TotalsRow[]): number {
+  if (rows.length === 0) return 0
+  const candidates = rows.filter((row) => row.is_best)
+  const source = candidates.length > 0 ? candidates : rows
+  return source.reduce((best, row) => {
     const value = Number.isFinite(row.total_value_cents) ? row.total_value_cents : 0
-    const current = bestByGroup.get(key) ?? Number.NEGATIVE_INFINITY
-    if (value > current) {
-      bestByGroup.set(key, value)
-    }
-  })
-
-  return [...bestByGroup.values()].reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+    return Math.max(best, value)
+  }, 0)
 }
 
 export function calculateTotals(results: TotalsRow[]): {
@@ -109,14 +101,24 @@ export function calculateTotals(results: TotalsRow[]): {
   if (!Array.isArray(results)) {
     return { totalOptimalCents: 0, totalCashCents: 0 }
   }
-  
-  const totalOptimalCents = sumBestPerGroup(
-    results.filter(r => r.category !== 'statement_credit' && r.category !== 'cashback')
-  )
 
-  const totalCashCents = sumBestPerGroup(
-    results.filter(r => r.category === 'statement_credit' || r.category === 'cashback')
-  )
+  const grouped = new Map<string, TotalsRow[]>()
+  results.forEach((row, index) => {
+    const key = groupKey(row, index)
+    const list = grouped.get(key) ?? []
+    list.push(row)
+    grouped.set(key, list)
+  })
+
+  let totalOptimalCents = 0
+  let totalCashCents = 0
+
+  for (const rows of grouped.values()) {
+    const cashRows = rows.filter((row) => row.category === 'statement_credit' || row.category === 'cashback')
+    const nonCashRows = rows.filter((row) => row.category !== 'statement_credit' && row.category !== 'cashback')
+    totalOptimalCents += pickBestValue(nonCashRows.length > 0 ? nonCashRows : cashRows)
+    totalCashCents += pickBestValue(cashRows)
+  }
   
   return { totalOptimalCents, totalCashCents }
 }

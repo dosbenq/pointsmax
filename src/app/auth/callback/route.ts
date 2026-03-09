@@ -15,6 +15,23 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Check if user has completed onboarding (has a home airport)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+         const { data: prefs } = await supabase
+           .from('user_preferences')
+           .select('home_airport')
+           .eq('id', user.id)
+           .single()
+           
+         if (!prefs?.home_airport) {
+           // Extract region from 'next' path (e.g. /in/calculator -> in)
+           const pathParts = next.split('/').filter(Boolean)
+           const region = pathParts[0] === 'in' ? 'in' : 'us'
+           return NextResponse.redirect(`${origin}/${region}/onboarding`)
+         }
+      }
+
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

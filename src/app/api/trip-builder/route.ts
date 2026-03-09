@@ -96,8 +96,8 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   }
 
   const balances = b.balances
-  if (!Array.isArray(balances) || balances.length === 0) {
-    return { error: 'balances must be a non-empty array' }
+  if (!Array.isArray(balances)) {
+    return { error: 'balances must be an array' }
   }
   if (balances.length > MAX_BALANCE_ROWS) {
     return { error: `balances can include at most ${MAX_BALANCE_ROWS} rows` }

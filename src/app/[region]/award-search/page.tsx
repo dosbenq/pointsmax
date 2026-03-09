@@ -14,8 +14,9 @@ import { type Region } from '@/lib/regions'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, Plus, Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
@@ -344,41 +345,41 @@ export default function AwardSearchPage() {
         <div className="pm-shell">
           <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
-              <span className="inline-flex rounded-full border border-[#9fc6ff]/18 bg-[#5ac7d4]/10 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d6e4f7]/82">
+              <span className="inline-flex rounded-full border border-pm-accent-border bg-pm-accent-soft px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-accent">
                 Planner subflow
               </span>
-              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4f8ff] sm:text-[4.5rem]">
+              <h1 className="mt-5 pm-display text-[3.15rem] leading-[0.93] sm:text-[4.5rem]">
                 Search award space with a better decision frame.
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-[#dce8f8]/86">
+              <p className="mt-5 max-w-2xl text-base leading-8 text-pm-ink-700">
                 Use this when you already know the route. Planner remains the main decision surface; Award Search is the direct verification tool.
               </p>
               <Link
                 href={`/${region}/calculator`}
-                className="mt-5 inline-flex items-center text-sm font-semibold text-[#eefcff]/92 underline underline-offset-4"
+                className="mt-5 inline-flex items-center text-sm font-semibold text-pm-ink-900 hover:text-pm-accent underline underline-offset-4 transition-colors"
               >
                 Back to Planner
               </Link>
             </div>
 
-            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4f8ff]">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c6d9f4]/78">Search snapshot</p>
-              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+            <div className="pm-card-soft p-5 text-pm-ink-900">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-ink-500">Search snapshot</p>
+              <div className="mt-4 pm-card px-5 py-5 text-pm-ink-900">
                 <p className="text-lg font-semibold leading-8 tracking-[-0.03em]">
                   {params.origin || defaultOrigin} → {params.destination || defaultDestination}
                 </p>
-                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                <div className="mt-5 space-y-3 border-t border-pm-border pt-4 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Cabin</span>
-                    <span className="font-semibold">{CABIN_LABELS[params.cabin]}</span>
+                    <span className="text-pm-ink-500">Cabin</span>
+                    <span className="font-semibold text-pm-ink-900">{CABIN_LABELS[params.cabin]}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Date range</span>
-                    <span className="font-semibold text-right">{params.start_date} → {params.end_date}</span>
+                    <span className="text-pm-ink-500">Date range</span>
+                    <span className="font-semibold text-right text-pm-ink-900">{params.start_date} → {params.end_date}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Wallet balances</span>
-                    <span className="font-semibold">{rows.filter((row) => row.program_id && parsePointsAmount(row.amount) > 0).length}</span>
+                    <span className="text-pm-ink-500">Wallet balances</span>
+                    <span className="font-semibold text-pm-ink-900">{rows.filter((row) => row.program_id && parsePointsAmount(row.amount) > 0).length}</span>
                   </div>
                 </div>
               </div>
@@ -406,24 +407,22 @@ export default function AwardSearchPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="pm-label block mb-1.5">From</label>
-                <input
-                  type="text"
-                  maxLength={3}
+                <AirportAutocomplete
+                  id="award-origin"
                   value={params.origin}
-                  onChange={(e) => setParams((p) => ({ ...p, origin: e.target.value.toUpperCase() }))}
+                  onChange={(val) => setParams((p) => ({ ...p, origin: val }))}
                   placeholder={defaultOrigin}
-                  className="pm-input font-mono uppercase"
+                  className="w-full bg-pm-surface-soft hover:bg-pm-surface-raised transition-colors py-2 min-h-[46px]"
                 />
               </div>
               <div>
                 <label className="pm-label block mb-1.5">To</label>
-                <input
-                  type="text"
-                  maxLength={3}
+                <AirportAutocomplete
+                  id="award-dest"
                   value={params.destination}
-                  onChange={(e) => setParams((p) => ({ ...p, destination: e.target.value.toUpperCase() }))}
+                  onChange={(val) => setParams((p) => ({ ...p, destination: val }))}
                   placeholder={defaultDestination}
-                  className="pm-input font-mono uppercase"
+                  className="w-full bg-pm-surface-soft hover:bg-pm-surface-raised transition-colors py-2 min-h-[46px]"
                 />
               </div>
             </div>

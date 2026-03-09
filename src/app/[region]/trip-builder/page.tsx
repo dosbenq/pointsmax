@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
@@ -14,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 
 type UIState = 'form' | 'loading' | 'results'
 type DateMode = 'exact' | 'flexible_month'
@@ -321,41 +323,41 @@ export default function TripBuilderPage() {
         <div className="pm-shell">
           <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
-              <span className="inline-flex rounded-full border border-[#9fc6ff]/18 bg-[#5ac7d4]/10 px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#d6e4f7]/82">
+              <span className="inline-flex rounded-full border border-pm-accent-border bg-pm-accent-soft px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-accent">
                 Planner subflow {config.flag}
               </span>
-              <h1 className="mt-5 text-[3.15rem] font-semibold leading-[0.93] tracking-[-0.065em] text-[#f4f8ff] sm:text-[4.5rem]">
+              <h1 className="mt-5 pm-display text-[3.15rem] leading-[0.93] sm:text-[4.5rem]">
                 Build the booking path, not just the idea.
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-[#dce8f8]/86">
+              <p className="mt-5 max-w-2xl text-base leading-8 text-pm-ink-700">
                 Use this once Planner has already narrowed the opportunity. Trip Builder turns a route and wallet into a concrete booking sequence.
               </p>
               <Link
                 href={`/${region}/calculator`}
-                className="mt-5 inline-flex items-center text-sm font-semibold text-[#eefcff]/92 underline underline-offset-4"
+                className="mt-5 inline-flex items-center text-sm font-semibold text-pm-ink-900 hover:text-pm-accent underline underline-offset-4 transition-colors"
               >
                 Back to Planner
               </Link>
             </div>
 
-            <div className="pm-hero-frame rounded-[30px] p-5 text-[#f4f8ff]">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-[#c6d9f4]/78">Draft summary</p>
-              <div className="mt-4 rounded-[24px] bg-[#f8fbff] px-5 py-5 text-[#0f2747]">
+            <div className="pm-card-soft p-5 text-pm-ink-900">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-ink-500">Draft summary</p>
+              <div className="mt-4 pm-card px-5 py-5 text-pm-ink-900">
                 <p className="text-lg font-semibold leading-8 tracking-[-0.03em]">
                   {origin || 'Origin'} → {dest || 'Destination'} · {tripType === 'one_way' ? 'One way' : 'Round trip'}
                 </p>
-                <div className="mt-5 space-y-3 border-t border-[#10243a]/8 pt-4 text-sm">
+                <div className="mt-5 space-y-3 border-t border-pm-border pt-4 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Search window</span>
-                    <span className="font-semibold text-right">{searchWindowLabel}</span>
+                    <span className="text-pm-ink-500">Search window</span>
+                    <span className="font-semibold text-right text-pm-ink-900">{searchWindowLabel}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Wallet balances</span>
-                    <span className="font-semibold">{activeBalanceCount || 0}</span>
+                    <span className="text-pm-ink-500">Wallet balances</span>
+                    <span className="font-semibold text-pm-ink-900">{activeBalanceCount || 0}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#10243a]/54">Tracked points</span>
-                    <span className="font-semibold">{trackedPointsTotal > 0 ? trackedPointsTotal.toLocaleString() : '—'}</span>
+                    <span className="text-pm-ink-500">Tracked points</span>
+                    <span className="font-semibold text-pm-ink-900">{trackedPointsTotal > 0 ? trackedPointsTotal.toLocaleString() : '—'}</span>
                   </div>
                 </div>
               </div>
@@ -365,17 +367,21 @@ export default function TripBuilderPage() {
       </section>
 
       <main className="pm-shell py-8 w-full flex-1">
-
+        <AnimatePresence mode="wait">
         {/* ── FORM STATE ─────────────────────────────────────── */}
         {uiState === 'form' && (
-          <div className="grid gap-6 lg:grid-cols-12">
+          <motion.div 
+            key="form"
+            initial={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }} animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }} exit={{ opacity: 0, scale: 0.98, filter: 'blur(10px)' }} transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="grid gap-6 lg:grid-cols-12"
+          >
             <div className="space-y-6 lg:col-span-8">
 
             {/* Destination & IATA */}
-            <div className="pm-card-soft p-6 space-y-4">
+            <div className="pm-glass p-6 md:p-8 space-y-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="pm-section-title mb-2">Trip brief</p>
+                  <p className="pm-section-title mb-2 text-pm-accent tracking-widest">Trip brief</p>
                   <h2 className="pm-heading">Define the route and travel window</h2>
                 </div>
                 <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
@@ -399,28 +405,26 @@ export default function TripBuilderPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="pm-label block mb-1.5">
-                    Origin Airport *
+                    Origin <span className="text-pm-danger">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <AirportAutocomplete
+                    id="trip-origin"
                     value={origin}
-                    onChange={e => setOrigin(e.target.value.toUpperCase().slice(0, 3))}
-                    placeholder="e.g. JFK"
-                    maxLength={3}
-                    className="pm-input font-mono uppercase"
+                    onChange={setOrigin}
+                    placeholder="From"
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="pm-label block mb-1.5">
-                    Destination Airport *
+                    Destination <span className="text-pm-danger">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <AirportAutocomplete
+                    id="trip-dest"
                     value={dest}
-                    onChange={e => setDest(e.target.value.toUpperCase().slice(0, 3))}
-                    placeholder="e.g. NRT"
-                    maxLength={3}
-                    className="pm-input font-mono uppercase"
+                    onChange={setDest}
+                    placeholder="To"
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -649,10 +653,11 @@ export default function TripBuilderPage() {
             </div>
 
             {/* Balance Rows */}
-            <div className="pm-card p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="pm-glass p-6 md:p-8 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-tr from-pm-bg to-pm-accent-glow opacity-10 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none" />
+              <div className="relative z-10 flex items-center justify-between mb-4">
                 <div>
-                  <p className="pm-section-title mb-2">Wallet</p>
+                  <p className="pm-section-title mb-2 text-pm-accent tracking-widest">Wallet</p>
                   <h2 className="pm-heading">Balances you want this plan to use</h2>
                   {!user && (
                     <p className="text-xs text-pm-ink-500 mt-0.5">Sign in to auto-load your saved balances</p>
@@ -724,9 +729,11 @@ export default function TripBuilderPage() {
             </div>
 
             <aside className="lg:col-span-4">
-              <div className="pm-card sticky top-[calc(var(--navbar-height)+1.5rem)] p-6">
-                <p className="pm-section-title mb-3">Before you build</p>
-                <div className="space-y-4">
+              <div className="pm-glass sticky top-[calc(var(--navbar-height)+1.5rem)] p-6 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-bl from-pm-bg to-pm-accent-glow opacity-10 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none" />
+                <div className="relative z-10">
+                  <p className="pm-section-title mb-3 text-pm-accent tracking-widest">Before you build</p>
+                  <div className="space-y-4">
                   {[
                     ['Return from Planner', 'Use Planner for the broad ranking. Use this page for the exact trip build-out.'],
                     ['Flight shortlist', 'Top reachable award programs ranked for your route.'],
@@ -775,22 +782,34 @@ export default function TripBuilderPage() {
                 <p className="mt-3 text-xs leading-6 text-pm-ink-500">
                   If the dates or balances are weak, the output should make that obvious instead of pretending certainty.
                 </p>
+                </div>
               </div>
             </aside>
-          </div>
+          </motion.div>
         )}
 
         {/* ── LOADING STATE ──────────────────────────────────── */}
         {uiState === 'loading' && (
-          <div className="flex flex-col items-center justify-center py-24 space-y-6">
-            <div className="w-12 h-12 rounded-full border-4 border-pm-accent border-t-transparent animate-spin" />
-            <p className="text-pm-ink-500 text-sm font-medium animate-pulse">{loadingMsg}</p>
-          </div>
+          <motion.div 
+            key="loading"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="flex flex-col items-center justify-center py-32 space-y-8"
+          >
+            <div className="relative w-24 h-24">
+              <div className="absolute inset-0 border-4 border-pm-accent/20 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-pm-accent rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <p className="text-xl font-bold text-pm-ink-900 tracking-tight animate-pulse">{loadingMsg}</p>
+          </motion.div>
         )}
 
         {/* ── RESULTS STATE ──────────────────────────────────── */}
         {uiState === 'results' && result && (
-          <div className="space-y-5">
+          <motion.div 
+            key="results"
+            initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: "easeOut" }}
+            className="space-y-5"
+          >
 
             {/* AI Summary */}
             {result.ai_summary && (
@@ -943,9 +962,9 @@ export default function TripBuilderPage() {
             >
               ← Build a new trip
             </button>
-          </div>
+          </motion.div>
         )}
-
+        </AnimatePresence>
       </main>
 
       <Footer />

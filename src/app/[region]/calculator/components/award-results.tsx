@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 import type { AwardParams, AwardSearchResponse, AwardSearchResult } from '../hooks/use-calculator-state'
 import type { Region } from '@/lib/regions'
 import { formatCpp } from '@/lib/formatters'
@@ -49,37 +50,36 @@ export function AwardResults({
     awardResult?.error === 'real_availability_unavailable'
 
   return (
-    <div className="pm-card-soft overflow-hidden">
-      <div className="px-6 py-4 border-b border-pm-border flex items-center gap-2">
-        <span className="text-xl">✈️</span>
-        <h2 className="pm-heading text-base">Find Award Flights</h2>
-        <span className="pm-pill ml-1">
-          {awardResult?.provider === 'seats_aero' ? 'Live via Seats.aero' : 'Chart estimates'}
-        </span>
-      </div>
+    <div className="flex flex-col">
+      {/* Top: Form Inputs */}
+      <div className="p-8 lg:p-10 space-y-6 bg-pm-surface">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-xl">✈️</span>
+          <h2 className="pm-heading text-lg">Find Award Flights</h2>
+          <span className="pm-pill ml-2">
+            {awardResult?.provider === 'seats_aero' ? 'Live Search' : 'Chart estimates'}
+          </span>
+        </div>
 
-      <div className="px-6 py-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="pm-label block mb-1.5">From</label>
-            <input
-              type="text"
-              maxLength={3}
-              placeholder="JFK"
+            <AirportAutocomplete
+              id="award-origin"
               value={awardParams.origin}
-              onChange={e => setAwardParams(p => ({ ...p, origin: e.target.value.toUpperCase() }))}
-              className="pm-input font-mono uppercase"
+              onChange={(val) => setAwardParams(p => ({ ...p, origin: val }))}
+              placeholder="Origin"
+              className="w-full bg-pm-surface-soft hover:bg-pm-surface-raised transition-colors py-2 min-h-[46px]"
             />
           </div>
           <div>
             <label className="pm-label block mb-1.5">To</label>
-            <input
-              type="text"
-              maxLength={3}
-              placeholder="NRT"
+            <AirportAutocomplete
+              id="award-dest"
               value={awardParams.destination}
-              onChange={e => setAwardParams(p => ({ ...p, destination: e.target.value.toUpperCase() }))}
-              className="pm-input font-mono uppercase"
+              onChange={(val) => setAwardParams(p => ({ ...p, destination: val }))}
+              placeholder="Dest"
+              className="w-full bg-pm-surface-soft hover:bg-pm-surface-raised transition-colors py-2 min-h-[46px]"
             />
           </div>
         </div>
@@ -120,10 +120,6 @@ export function AwardResults({
                   }}
                   disabled={(date) => isBefore(date, startOfToday())}
                   initialFocus
-                  classNames={{
-                    day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
-                    day_today: 'bg-pm-accent-soft text-pm-accent',
-                  }}
                 />
               </PopoverContent>
             </Popover>
@@ -157,10 +153,6 @@ export function AwardResults({
                     return isBefore(date, minDate)
                   }}
                   initialFocus
-                  classNames={{
-                    day_selected: 'bg-pm-accent text-pm-bg hover:bg-pm-accent-strong',
-                    day_today: 'bg-pm-accent-soft text-pm-accent',
-                  }}
                 />
               </PopoverContent>
             </Popover>
@@ -211,7 +203,7 @@ export function AwardResults({
         >
           {awardLoading ? (
             <>
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <svg className="animate-spin w-4 h-4 mr-2 inline" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
               </svg>
@@ -221,60 +213,63 @@ export function AwardResults({
         </button>
       </div>
 
+      {/* Bottom: Results & Analysis */}
       {awardResult && (
-        <div className="border-t border-pm-border px-6 py-5 space-y-5 bg-pm-surface-soft/50">
-          {narrative && (
-            <div className="rounded-xl p-4 space-y-3 border border-pm-accent-soft bg-pm-accent-soft/30">
-              <p className="pm-label text-pm-accent">AI analysis</p>
-              <p className="pm-heading text-base leading-snug">{narrative.headline}</p>
-              <p className="text-pm-ink-900 text-sm leading-relaxed">{narrative.body}</p>
-              {narrative.booking_tips?.length > 0 && (
-                <div>
-                  <p className="pm-label text-pm-accent mb-1.5">Booking tips</p>
-                  <ul className="space-y-1">
-                    {narrative.booking_tips.map((tip, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-pm-ink-900">
-                        <span className="text-pm-accent flex-shrink-0">•</span>{tip}
-                      </li>
+        <div className="p-8 lg:p-10 bg-pm-surface-soft border-t border-pm-border border-dashed">
+          <div className="space-y-6">
+            {narrative && (
+              <div className="rounded-xl p-4 space-y-3 border border-pm-accent-soft bg-pm-accent-soft/30">
+                <p className="pm-label text-pm-accent">AI analysis</p>
+                <p className="pm-heading text-base leading-snug">{narrative.headline}</p>
+                <p className="text-pm-ink-900 text-sm leading-relaxed">{narrative.body}</p>
+                {narrative.booking_tips?.length > 0 && (
+                  <div>
+                    <p className="pm-label text-pm-accent mb-1.5">Booking tips</p>
+                    <ul className="space-y-1">
+                      {narrative.booking_tips.map((tip, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-pm-ink-900">
+                          <span className="text-pm-accent flex-shrink-0">•</span>{tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {narrative.warnings?.length > 0 && (
+                  <div className="bg-pm-warning-soft border border-pm-warning-border rounded-lg px-3 py-2 space-y-1">
+                    {narrative.warnings.map((w, i) => (
+                      <p key={i} className="text-pm-warning text-xs flex gap-2">
+                        <span>⚠️</span>{w}
+                      </p>
                     ))}
-                  </ul>
-                </div>
-              )}
-              {narrative.warnings?.length > 0 && (
-                <div className="bg-pm-warning-soft border border-pm-warning-border rounded-lg px-3 py-2 space-y-1">
-                  {narrative.warnings.map((w, i) => (
-                    <p key={i} className="text-pm-warning text-xs flex gap-2">
-                      <span>⚠️</span>{w}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            )}
 
-          <p className="text-xs text-pm-ink-500">
-            {awardResult.params.origin} → {awardResult.params.destination} ·{' '}
-            {CABIN_LABELS[awardResult.params.cabin]} · {awardResult.params.passengers} pax ·{' '}
-            {reachable.length} reachable program{reachable.length !== 1 ? 's' : ''}
-          </p>
+            <p className="text-xs text-pm-ink-500">
+              {awardResult.params.origin} → {awardResult.params.destination} ·{' '}
+              {CABIN_LABELS[awardResult.params.cabin]} · {awardResult.params.passengers} pax ·{' '}
+              {reachable.length} reachable program{reachable.length !== 1 ? 's' : ''}
+            </p>
 
-          {reachable.length > 0 && (
-            <div className="space-y-3">
-              <p className="pm-label text-pm-success">Reachable with your points</p>
-              {reachable.map(r => (
-                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} region={region} />
-              ))}
-            </div>
-          )}
+            {reachable.length > 0 && (
+              <div className="space-y-3">
+                <p className="pm-label text-pm-success">Reachable with your points</p>
+                {reachable.map(r => (
+                  <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} region={region} />
+                ))}
+              </div>
+            )}
 
-          {unreachable.length > 0 && (
-            <div className="space-y-3">
-              <p className="pm-label">Need more points</p>
-              {unreachable.map(r => (
-                <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} muted region={region} />
-              ))}
-            </div>
-          )}
+            {unreachable.length > 0 && (
+              <div className="space-y-3">
+                <p className="pm-label">Need more points</p>
+                {unreachable.map(r => (
+                  <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} muted region={region} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

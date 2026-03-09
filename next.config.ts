@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: 'ecm.capitalone.com' },
+      { protocol: 'https', hostname: 'creditcards.chase.com' },
+      { protocol: 'https', hostname: 'icm.aexp-static.com' },
+      { protocol: 'https', hostname: 'www.citi.com' },
+      { protocol: 'https', hostname: 'wfp.biltrewards.com' },
     ],
   },
   async headers() {

@@ -7,7 +7,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
@@ -42,9 +42,10 @@ export type RedemptionResult = {
 }
 
 export type CalculateResponse = {
-  total_cash_value_cents: number
+  total_cash_value_cents: number | null
   total_optimal_value_cents: number
-  value_left_on_table_cents: number
+  value_left_on_table_cents: number | null
+  cash_baseline_available: boolean
   results: RedemptionResult[]
 }
 
@@ -157,6 +158,13 @@ export type AwardParams = {
   passengers: number
 }
 
+export type HotelParams = {
+  destination: string
+  start_date: string
+  end_date: string
+  hotel_name: string
+}
+
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
@@ -188,6 +196,7 @@ function parsePointsInput(raw: string): number {
 
 export function useCalculatorState() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const region = (params.region as Region) || 'us'
   const config = REGIONS[region] ?? REGIONS.us
   const { user, preferences, refreshPreferences } = useAuth()
@@ -236,21 +245,35 @@ export function useCalculatorState() {
   const [advisorBlockedReason, setAdvisorBlockedReason] = useState<string | null>(null)
 
   // Award search state
+  const initialOrigin = searchParams?.get('origin') || ''
+  const initialDestination = searchParams?.get('destination') || ''
+  
   const [awardParams, setAwardParams] = useState<AwardParams>({
-    origin: '', destination: '', start_date: '', end_date: '',
+    origin: initialOrigin, destination: initialDestination, start_date: '', end_date: '',
     cabin: 'business', passengers: 1,
   })
   const [awardLoading, setAwardLoading] = useState(false)
   const [awardResult, setAwardResult] = useState<AwardSearchResponse | null>(null)
   const [awardError, setAwardError] = useState<string | null>(null)
-  const [activePanel, setActivePanel] = useState<'redemptions' | 'awards' | 'advisor'>('redemptions')
+  
+  // Hotel search state
+  const [hotelParams, setHotelParams] = useState<HotelParams>({
+    destination: initialDestination,
+    start_date: '',
+    end_date: '',
+    hotel_name: ''
+  })
+  
+  const [activePanel, setActivePanel] = useState<'redemptions' | 'awards' | 'advisor'>(
+    initialOrigin && initialDestination ? 'awards' : 'redemptions'
+  )
 
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const resultsRef = useRef<HTMLDivElement>(null)
   const statusTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const milestoneFired = useRef<Set<string>>(new Set())
   const lastAdvisorMessage = useRef<string | null>(null)
+  const hasAttemptedAutoSearch = useRef(false)
 
   // ── Derived state ───────────────────────────────────────────
   const byType = useCallback((type: string) => programs.filter(p => p.type === type), [programs])
@@ -371,9 +394,29 @@ export function useCalculatorState() {
     }
   }, [user, alertEmailInput])
 
-  // Load saved balances on sign-in
+  // Load saved balances
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      try {
+        const localBalancesRaw = localStorage.getItem('pm_local_balances')
+        if (localBalancesRaw) {
+          const parsed = JSON.parse(localBalancesRaw)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+             setRows(parsed.map((b: any, i: number) => ({
+               id: String(i + 1),
+               program_id: b.program_id,
+               amount: String(Math.max(0, Math.round(b.balance))),
+             })))
+             return
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse local balances:', e)
+      }
+      setRows([{ id: '1', program_id: '', amount: '' }])
+      return
+    }
+
     fetch(`/api/user/balances?region=${encodeURIComponent(region.toUpperCase())}`, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' }
@@ -415,7 +458,12 @@ export function useCalculatorState() {
 
   // Auto-scroll chat to bottom
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (chatMessages.length > 0 || aiLoading) {
+      const container = chatEndRef.current?.parentElement
+      if (container) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+      }
+    }
   }, [chatMessages, aiLoading])
 
   // Track funnel milestones
@@ -460,7 +508,21 @@ export function useCalculatorState() {
   [])
 
   const saveBalances = useCallback(async (balances: { program_id: string; amount: number }[]) => {
-    if (!user) return
+    if (!user) {
+      try {
+        const toSave = balances.map(b => ({
+          program_id: b.program_id,
+          balance: b.amount
+        }))
+        localStorage.setItem('pm_local_balances', JSON.stringify(toSave))
+        setSaveToast(true)
+        setTimeout(() => setSaveToast(false), 3000)
+      } catch (e) {
+        console.error('Failed to save local balances', e)
+      }
+      return
+    }
+    
     await fetch('/api/user/balances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -482,8 +544,6 @@ export function useCalculatorState() {
   const calculate = useCallback(async () => {
     setCalcError(null)
     setResult(null)
-    setChatMessages([])
-    setGeminiHistory([])
     setShowAllResults(false)
     setMessageCount(0)
     setActivePanel('redemptions')
@@ -498,7 +558,6 @@ export function useCalculatorState() {
       signed_in: Boolean(user),
       region,
     })
-    trackEvent('calculator_run', { balances_count: balances.length, region })
 
     if (balances.length === 0) {
       setCalcError('Select at least one program and enter a balance.')
@@ -521,7 +580,11 @@ export function useCalculatorState() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ balances }),
       })
-      if (!res.ok) throw new Error((await res.json()).error)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Calculation failed' }))
+        const errorMessage = typeof err.error === 'object' && err.error?.message ? err.error.message : (err.error ?? 'Calculation failed')
+        throw new Error(errorMessage)
+      }
       const data: CalculateResponse = await res.json()
       setResult(data)
       trackEvent('calculator_calculate_succeeded', {
@@ -529,9 +592,8 @@ export function useCalculatorState() {
         top_value_cents: data.total_optimal_value_cents,
         region,
       })
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
 
-      if (user) await saveBalances(balances)
+      await saveBalances(balances)
     } catch (e) {
       setCalcError(e instanceof Error ? e.message : 'Calculation failed')
       trackEvent('calculator_calculate_failed', {
@@ -579,11 +641,6 @@ export function useCalculatorState() {
       region,
     })
 
-    if (balances.length === 0) {
-      setAwardError('Add at least one points balance above, then search.')
-      trackEvent('calculator_award_search_blocked', { reason: 'no_balances', region })
-      return
-    }
 
     setAwardLoading(true)
     try {
@@ -594,7 +651,8 @@ export function useCalculatorState() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Search failed' }))
-        throw new Error(err.error ?? 'Search failed')
+        const errorMessage = typeof err.error === 'object' && err.error?.message ? err.error.message : (err.error ?? 'Search failed')
+        throw new Error(errorMessage)
       }
       const data: AwardSearchResponse = await res.json()
       setAwardResult(data)
@@ -614,6 +672,19 @@ export function useCalculatorState() {
       setAwardLoading(false)
     }
   }, [awardParams, rows, region])
+
+  // Auto-run search if coming from the landing page with params
+  useEffect(() => {
+    if (initialOrigin && initialDestination && !hasAttemptedAutoSearch.current) {
+      const timer = setTimeout(() => {
+        if (!hasAttemptedAutoSearch.current) {
+          hasAttemptedAutoSearch.current = true
+          runAwardSearch()
+        }
+      }, 1000) // Give auth and balances a second to load
+      return () => clearTimeout(timer)
+    }
+  }, [initialOrigin, initialDestination, runAwardSearch])
 
   const addTag = useCallback((field: 'preferred_airlines' | 'avoided_airlines', inputKey: 'preferred' | 'avoided') => {
     const val = prefInput[inputKey].trim()
@@ -828,9 +899,6 @@ export function useCalculatorState() {
     if (panel === 'advisor') {
       trackEvent('advisor_opened', { source, region })
     }
-    if (hasActionableOutput) {
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-    }
   }, [hasActionableOutput, region])
 
   // ── Return ──────────────────────────────────────────────────
@@ -889,11 +957,11 @@ export function useCalculatorState() {
     awardLoading,
     awardResult,
     awardError,
+    hotelParams,
     activePanel,
     
     // Refs
     chatEndRef,
-    resultsRef,
     
     // Derived
     byType,
@@ -908,12 +976,14 @@ export function useCalculatorState() {
     steps,
     
     // Setters (for direct access in components)
+    setResult,
     setShowAllResults,
     setChatInput,
     setChatMessages,
     setGeminiHistory,
     setMessageCount,
     setAwardParams,
+    setHotelParams,
     setPrefOpen,
     setPrefForm,
     setPrefInput,
