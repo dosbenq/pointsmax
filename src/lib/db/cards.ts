@@ -122,7 +122,7 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
         valuations_error: valuationsRes.error?.message ?? null,
         rates_error: ratesRes.error?.message ?? null,
       })
-      throw new Error('Failed to fetch cards data')
+      throw new Error(`Failed to fetch cards data`)
     }
 
     valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
