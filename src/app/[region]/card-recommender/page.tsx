@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
@@ -487,8 +487,16 @@ export default function CardRecommenderPage() {
     }
   }
 
+  interface WizardLayoutProps {
+    title: string
+    subtitle?: string
+    children: ReactNode
+    onNext: () => void
+    nextTabLabel?: string
+  }
+
   // WRAPPER FOR WIZARD STEPS
-  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: any) => (
+  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
     <motion.div 
       initial={reduceMotion ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
       className="max-w-4xl mx-auto w-full flex flex-col min-h-[65vh]"
