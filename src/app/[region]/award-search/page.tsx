@@ -14,7 +14,7 @@ import { type Region } from '@/lib/regions'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { CalendarIcon, Plus, Check, ChevronsUpDown } from 'lucide-react'
+import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 

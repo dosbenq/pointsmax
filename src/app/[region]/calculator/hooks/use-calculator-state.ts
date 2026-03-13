@@ -312,6 +312,7 @@ export function useCalculatorState() {
   
   const hasActionableOutput = Boolean(result || awardResult || chatMessages.length > 0 || aiLoading)
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const alertProgramIds = useMemo(() => {
     if (!result) return []
     return [...new Set(
@@ -402,7 +403,7 @@ export function useCalculatorState() {
         if (localBalancesRaw) {
           const parsed = JSON.parse(localBalancesRaw)
           if (Array.isArray(parsed) && parsed.length > 0) {
-             setRows(parsed.map((b: any, i: number) => ({
+             setRows(parsed.map((b: { program_id: string; balance: number }, i: number) => ({
                id: String(i + 1),
                program_id: b.program_id,
                amount: String(Math.max(0, Math.round(b.balance))),
@@ -517,8 +518,8 @@ export function useCalculatorState() {
         localStorage.setItem('pm_local_balances', JSON.stringify(toSave))
         setSaveToast(true)
         setTimeout(() => setSaveToast(false), 3000)
-      } catch (e) {
-        console.error('Failed to save local balances', e)
+      } catch {
+        // ignore errors
       }
       return
     }
@@ -899,7 +900,8 @@ export function useCalculatorState() {
     if (panel === 'advisor') {
       trackEvent('advisor_opened', { source, region })
     }
-  }, [hasActionableOutput, region])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [region])
 
   // ── Return ──────────────────────────────────────────────────
   return {

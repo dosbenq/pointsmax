@@ -187,7 +187,8 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
 
   useEffect(() => {
     fetchAccounts()
-  }, [fetchAccounts])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSync = async (accountId: string) => {
     setActionLoading(prev => ({ ...prev, [accountId]: true }))

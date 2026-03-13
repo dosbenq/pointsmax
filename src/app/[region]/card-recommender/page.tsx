@@ -1,8 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Check, Sparkles, ChevronLeft, Loader2, ArrowLeft } from 'lucide-react'
@@ -21,8 +20,6 @@ import {
   useCardScorer,
   useSpendOnlyRanking,
   TRAVEL_GOALS,
-  SOFT_BENEFIT_COPY,
-  type SoftBenefitType,
   type RecommendationMode,
   type AnnualFeeTolerance,
 } from '@/features/card-recommender'
@@ -171,7 +168,7 @@ export default function CardRecommenderPage() {
                   return
                 }
              }
-          } catch(e) {}
+          } catch {}
         }
         setWalletBalances(payload.balances ?? [])
         setWalletLoaded(true)
@@ -188,7 +185,7 @@ export default function CardRecommenderPage() {
                   return
                 }
              }
-          } catch(e) {}
+          } catch {}
         }
         setWalletBalances([])
         setWalletLoaded(true)
@@ -307,7 +304,7 @@ export default function CardRecommenderPage() {
                    <div className="absolute inset-0 bg-gradient-to-tr from-pm-bg to-pm-accent-glow opacity-30 group-hover:opacity-60 transition-opacity duration-700" />
                    <div className="relative z-10">
                      <h3 className="text-2xl font-bold mb-4">Precision Scoring</h3>
-                     <p className="text-pm-ink-500 leading-relaxed text-lg">We don't just recommend the card with the highest signup bonus. We calculate your exact earning potential across every category, mapping it directly to your stated travel goals.</p>
+                     <p className="text-pm-ink-500 leading-relaxed text-lg">We don&apos;t just recommend the card with the highest signup bonus. We calculate your exact earning potential across every category, mapping it directly to your stated travel goals.</p>
                    </div>
                 </div>
                 <div className="md:w-1/2">
@@ -488,7 +485,7 @@ export default function CardRecommenderPage() {
   }
 
   // WRAPPER FOR WIZARD STEPS
-  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: any) => (
+  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: { title: string, subtitle?: string, children: React.ReactNode, onNext: () => void, nextTabLabel?: string }) => (
     <motion.div 
       initial={reduceMotion ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
       className="max-w-4xl mx-auto w-full flex flex-col min-h-[65vh]"
