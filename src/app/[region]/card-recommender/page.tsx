@@ -101,7 +101,6 @@ export default function CardRecommenderPage() {
 
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
   
   // Recommender Inputs
   const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
@@ -145,7 +144,6 @@ export default function CardRecommenderPage() {
       })
       .catch(() => {
         setCards([])
-        setLoadError('Server error while loading card data. Please try again.')
         setLoading(false)
       })
   }, [regionCode])
