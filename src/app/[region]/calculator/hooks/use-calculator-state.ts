@@ -402,7 +402,7 @@ export function useCalculatorState() {
         if (localBalancesRaw) {
           const parsed = JSON.parse(localBalancesRaw)
           if (Array.isArray(parsed) && parsed.length > 0) {
-             setRows(parsed.map((b: any, i: number) => ({
+             setRows(parsed.map((b: { program_id: string; balance: number }, i: number) => ({
                id: String(i + 1),
                program_id: b.program_id,
                amount: String(Math.max(0, Math.round(b.balance))),
@@ -899,7 +899,7 @@ export function useCalculatorState() {
     if (panel === 'advisor') {
       trackEvent('advisor_opened', { source, region })
     }
-  }, [hasActionableOutput, region])
+  }, [region])
 
   // ── Return ──────────────────────────────────────────────────
   return {
