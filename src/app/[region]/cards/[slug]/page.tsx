@@ -13,6 +13,7 @@ import {
 import { REGIONS, type Region } from '@/lib/regions'
 import { CATEGORIES, formatCurrencyRounded, spendUnitLabel } from '@/lib/card-tools'
 import { generateCardJsonLd } from '@/lib/seo'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 
 type Props = {
   params: Promise<{ region: string; slug: string }>
@@ -161,7 +162,7 @@ export default async function CardDetailPage({ params }: Props) {
         </section>
       </main>
       <Footer />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)} />
     </div>
   )
 }

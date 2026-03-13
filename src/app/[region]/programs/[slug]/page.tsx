@@ -7,6 +7,7 @@ import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getProgramBySlug, listProgramsForRegion } from '@/lib/programmatic-content'
 import { REGIONS, type Region } from '@/lib/regions'
 import { generateProgramJsonLd } from '@/lib/seo'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 
 type Props = {
   params: Promise<{ region: string; slug: string }>
@@ -149,7 +150,7 @@ export default async function ProgramDetailPage({ params }: Props) {
         </section>
       </main>
       <Footer />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)} />
     </div>
   )
 }
