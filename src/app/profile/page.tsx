@@ -363,8 +363,6 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
 
     setSavingManual(true)
     try {
-      // Find the program to get its name/slug for the UI
-      const selectedProgram = programs.find(p => p.id === manualProgramId)
       
       if (isGuest) {
         // Save to local storage for guests

@@ -897,9 +897,9 @@ export function useCalculatorState() {
     setActivePanel(panel)
     trackEvent('calculator_panel_changed', { panel, source, region })
     if (panel === 'advisor') {
-      trackEvent('advisor_opened', { source, region })
+      trackEvent('advisor_opened', { source, region, hasActionableOutput })
     }
-  }, [region])
+  }, [hasActionableOutput, region])
 
   // ── Return ──────────────────────────────────────────────────
   return {

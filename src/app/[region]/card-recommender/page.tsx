@@ -101,8 +101,6 @@ export default function CardRecommenderPage() {
 
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  
   // Recommender Inputs
   const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
   const [travelGoals, setTravelGoals] = useState<Set<string>>(new Set())
@@ -110,10 +108,9 @@ export default function CardRecommenderPage() {
   const [mode, setMode] = useState<RecommendationMode>('next_best_card')
   const [annualFeeTolerance, setAnnualFeeTolerance] = useState<AnnualFeeTolerance>('medium')
   const [recentOpenAccounts24m, setRecentOpenAccounts24m] = useState('0')
-  const [targetGoalValue, setTargetGoalValue] = useState('')
+  const [targetGoalValue] = useState('')
   
   const [walletBalances, setWalletBalances] = useState<WalletBalanceSummary[]>([])
-  const [walletLoaded, setWalletLoaded] = useState(false)
   const [activeView, setActiveView] = useState<'strategy' | 'earnings'>(initialView)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
 
@@ -164,14 +161,12 @@ export default function CardRecommenderPage() {
                 const parsed = JSON.parse(raw)
                 if (Array.isArray(parsed)) {
                   setWalletBalances(parsed)
-                  setWalletLoaded(true)
                   return
                 }
              }
-          } catch(e) {}
+          } catch(err) { console.error(err) }
         }
         setWalletBalances(payload.balances ?? [])
-        setWalletLoaded(true)
       })
       .catch(() => {
         if (typeof window !== 'undefined') {
@@ -181,14 +176,12 @@ export default function CardRecommenderPage() {
                 const parsed = JSON.parse(raw)
                 if (Array.isArray(parsed)) {
                   setWalletBalances(parsed)
-                  setWalletLoaded(true)
                   return
                 }
              }
-          } catch(e) {}
+          } catch(err) { console.error(err) }
         }
         setWalletBalances([])
-        setWalletLoaded(true)
       })
   }, [regionCode])
 
@@ -346,7 +339,11 @@ export default function CardRecommenderPage() {
                     key={goal.key}
                     onClick={() => setTravelGoals(prev => {
                       const next = new Set(prev)
-                      next.has(goal.key) ? next.delete(goal.key) : next.add(goal.key)
+                      if (next.has(goal.key)) {
+                        next.delete(goal.key)
+                      } else {
+                        next.add(goal.key)
+                      }
                       return next
                     })}
                     className={`flex items-center justify-between p-5 rounded-[20px] text-left border-2 transition-all duration-200 shadow-sm ${
@@ -443,7 +440,11 @@ export default function CardRecommenderPage() {
                       key={card.id}
                       onClick={() => setOwnedCards(prev => {
                         const next = new Set(prev)
-                        next.has(card.id) ? next.delete(card.id) : next.add(card.id)
+                        if (next.has(card.id)) {
+                          next.delete(card.id)
+                        } else {
+                          next.add(card.id)
+                        }
                         return next
                       })}
                       className={`text-sm px-4 py-2.5 rounded-full border-2 transition-all font-medium shadow-sm ${
@@ -493,7 +494,7 @@ export default function CardRecommenderPage() {
     nextTabLabel?: string
   }
 
-  const WizardLayout = ({ title, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
+  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
     <motion.div 
       initial={reduceMotion ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
       className="max-w-4xl mx-auto w-full flex flex-col min-h-[65vh]"
@@ -532,7 +533,7 @@ export default function CardRecommenderPage() {
             <h2 className="text-2xl font-bold text-pm-ink-900">Explore All Cards</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {spendOnlyResults.map(({ card, pointsPerYear, annualValue, netValue }, index) => (
+            {spendOnlyResults.map(({ card, pointsPerYear, netValue }, index) => (
               <div key={card.id} className="pm-card flex flex-col overflow-hidden group hover:border-pm-accent transition-colors">
                  <div className="p-4 bg-pm-surface-soft border-b border-pm-border flex justify-between items-center text-xs">
                    <span className="font-bold text-pm-ink-500 uppercase tracking-widest">Rank #{index + 1}</span>
