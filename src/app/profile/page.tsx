@@ -268,7 +268,7 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
           const parsed = JSON.parse(localBalancesRaw)
           // Format them to match UnifiedBalance structure
           // pm_local_balances is an array: [{ program_id: string, balance: number }]
-          const formattedBals = (Array.isArray(parsed) ? parsed : []).map((b: any) => ({
+          const formattedBals = (Array.isArray(parsed) ? parsed : []).map((b: { program_id: string; balance: number }) => ({
             program_id: b.program_id,
             balance: b.balance as number,
             source: 'manual' as const,
@@ -363,16 +363,13 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
 
     setSavingManual(true)
     try {
-      // Find the program to get its name/slug for the UI
-      const selectedProgram = programs.find(p => p.id === manualProgramId)
-      
       if (isGuest) {
         // Save to local storage for guests
         const existingRaw = localStorage.getItem('pm_local_balances')
-        let localBalances: any[] = []
-        try { localBalances = existingRaw ? JSON.parse(existingRaw) : [] } catch (e) {}
+        let localBalances: { program_id: string; balance: number }[] = []
+        try { localBalances = existingRaw ? JSON.parse(existingRaw) : [] } catch (_e) {}
         
-        const existingIdx = localBalances.findIndex((b: any) => b.program_id === manualProgramId)
+        const existingIdx = localBalances.findIndex((b: { program_id: string; balance: number }) => b.program_id === manualProgramId)
         if (existingIdx >= 0) {
           localBalances[existingIdx].balance = num
         } else {
@@ -419,8 +416,8 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
       setShowManualEntry(false)
       setManualProgramId('')
       setManualAmount('')
-    } catch (e: any) {
-      alert(e.message || 'Error saving balance.')
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error saving balance.')
     } finally {
       setSavingManual(false)
     }

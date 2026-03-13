@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, PlaneTakeoff, Sparkles, MapPin, Loader2 } from 'lucide-react'
+import { ArrowRight, Sparkles, MapPin, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 import { createBrowserClient } from '@supabase/ssr'
@@ -199,7 +199,7 @@ export default function OnboardingPage() {
                       <span className="text-2xl">💳</span>
                     </div>
                     <h2 className="pm-display text-4xl mb-3">Add your first wallet.</h2>
-                    <p className="text-pm-ink-500 text-lg">Credit card points transfer to dozens of airlines. Let's start with the top two programs.</p>
+                    <p className="text-pm-ink-500 text-lg">Credit card points transfer to dozens of airlines. Let&apos;s start with the top two programs.</p>
                   </div>
 
                   <div className="space-y-4 flex-1">
@@ -265,9 +265,9 @@ export default function OnboardingPage() {
                     <Sparkles className="w-10 h-10" />
                   </div>
                   
-                  <h2 className="pm-display text-4xl sm:text-5xl mb-4">You're all set.</h2>
+                  <h2 className="pm-display text-4xl sm:text-5xl mb-4">You&apos;re all set.</h2>
                   <p className="text-pm-ink-500 text-lg max-w-md mx-auto mb-10 leading-relaxed">
-                    We'll automatically scan Live availability and match flights from {homeAirport || 'your airport'} against your new balances.
+                    We&apos;ll automatically scan Live availability and match flights from {homeAirport || 'your airport'} against your new balances.
                   </p>
 
                   <button 
