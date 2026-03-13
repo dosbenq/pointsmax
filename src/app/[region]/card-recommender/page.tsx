@@ -142,7 +142,7 @@ export default function CardRecommenderPage() {
       })
       .catch(() => {
         setCards([])
-        setLoadError('Server error while loading card data. Please try again.')
+        console.error('Server error while loading card data. Please try again.')
         setLoading(false)
       })
   }, [regionCode])
