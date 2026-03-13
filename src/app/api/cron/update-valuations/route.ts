@@ -226,7 +226,6 @@ export async function GET(req: NextRequest) {
   }
 
   const db = createAdminClient()
-  const mappedProgramKeys = [...parsed.mapped.keys()]
   const today = new Date().toISOString().slice(0, 10)
 
   const activeMappings = PROGRAM_MAPPINGS.filter((mapping) => parsed.mapped.has(mapping.key))
@@ -290,7 +289,7 @@ export async function GET(req: NextRequest) {
     existingToday = new Set(existingProgramIds)
   }
 
-  const inserts = mappedProgramKeys
+  const inserts = Array.from(parsed.mapped.keys())
     .map((programKey) => {
       const programId = programIdByKey.get(programKey)
       if (!programId || existingToday.has(programId)) return null
@@ -325,7 +324,7 @@ export async function GET(req: NextRequest) {
     revalidatePath('/in/programs')
   }
 
-  const skipped = mappedProgramKeys.length - inserts.length
+  const skipped = parsed.mapped.size - inserts.length
   const unmapped = [
     ...missingProgramKeys.map((key) => `missing_program:${key}`),
     ...parsed.unmapped,
@@ -342,7 +341,7 @@ export async function GET(req: NextRequest) {
 
   logInfo('cron_update_valuations_complete', {
     requestId,
-    parsed_rows: mappedProgramKeys.length,
+    parsed_rows: parsed.mapped.size,
     inserted_rows: inserts.length,
     skipped_rows: skipped,
     latency_ms: Date.now() - startedAt,

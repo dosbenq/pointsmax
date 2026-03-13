@@ -45,7 +45,7 @@ export default function CalculatorPage() {
           How can we maximize your points?
         </h1>
         <p className="mt-5 text-xl text-pm-ink-500 font-medium leading-relaxed tracking-[-0.02em] max-w-2xl mx-auto">
-           Select a tool below to analyze your wallet's value, plan a specific dream trip, or get personalized AI advice.
+           Select a tool below to analyze your wallet&apos;s value, plan a specific dream trip, or get personalized AI advice.
         </p>
       </div>
 
@@ -192,7 +192,7 @@ export default function CalculatorPage() {
                   { origin: 'SFO', dest: 'LHR', label: 'London' },
                   { origin: 'LAX', dest: 'CDG', label: 'Paris' },
                   { origin: 'ORD', dest: 'FCO', label: 'Rome' }
-              ].map((route, idx) => (
+              ].map((route) => (
                   <button
                     key={`${route.origin}-${route.dest}`}
                     onClick={() => {
@@ -277,7 +277,7 @@ export default function CalculatorPage() {
                  <Calculator className="w-10 h-10" />
               </div>
               <p className="text-pm-ink-700 font-medium max-w-sm mx-auto mb-2 text-base leading-relaxed">
-                 We'll analyze every point in your wallet against live valuations and partner transfer ratios to find your ultimate portfolio worth.
+                 We&apos;ll analyze every point in your wallet against live valuations and partner transfer ratios to find your ultimate portfolio worth.
               </p>
               <button 
                  onClick={() => state.calculate()} 
