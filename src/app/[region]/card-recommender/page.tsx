@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
@@ -21,8 +21,6 @@ import {
   useCardScorer,
   useSpendOnlyRanking,
   TRAVEL_GOALS,
-  SOFT_BENEFIT_COPY,
-  type SoftBenefitType,
   type RecommendationMode,
   type AnnualFeeTolerance,
 } from '@/features/card-recommender'
@@ -257,6 +255,14 @@ export default function CardRecommenderPage() {
   }
 
   // WIZARD RENDERING
+  interface WizardLayoutProps {
+    title: string
+    subtitle?: string
+    children: ReactNode
+    onNext: () => void
+    nextTabLabel?: string
+  }
+
   const renderStepContent = () => {
     switch (step) {
       case 0:
@@ -307,7 +313,7 @@ export default function CardRecommenderPage() {
                    <div className="absolute inset-0 bg-gradient-to-tr from-pm-bg to-pm-accent-glow opacity-30 group-hover:opacity-60 transition-opacity duration-700" />
                    <div className="relative z-10">
                      <h3 className="text-2xl font-bold mb-4">Precision Scoring</h3>
-                     <p className="text-pm-ink-500 leading-relaxed text-lg">We don't just recommend the card with the highest signup bonus. We calculate your exact earning potential across every category, mapping it directly to your stated travel goals.</p>
+                     <p className="text-pm-ink-500 leading-relaxed text-lg">We don&apos;t just recommend the card with the highest signup bonus. We calculate your exact earning potential across every category, mapping it directly to your stated travel goals.</p>
                    </div>
                 </div>
                 <div className="md:w-1/2">
@@ -340,7 +346,7 @@ export default function CardRecommenderPage() {
 
       case 1:
         return (
-          <WizardLayout key="step-1" title="What are your travel goals?" subtitle="Select all that apply. We'll score cards higher if they map directly to these redemptions." onNext={() => setStep(2)}>
+          <WizardLayout key="step-1" title="What are your travel goals?" subtitle="Select all that apply. We&apos;ll score cards higher if they map directly to these redemptions." onNext={() => setStep(2)}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               {TRAVEL_GOALS.map(goal => {
                 const active = travelGoals.has(goal.key)
@@ -393,7 +399,7 @@ export default function CardRecommenderPage() {
 
       case 3:
         return (
-          <WizardLayout key="step-3" title="Any rules or constraints?" subtitle="We need to know your fee tolerance and recent approval history to filter out cards you won't get approved for." onNext={() => setStep(4)}>
+          <WizardLayout key="step-3" title="Any rules or constraints?" subtitle="We need to know your fee tolerance and recent approval history to filter out cards you won&apos;t get approved for." onNext={() => setStep(4)}>
             <div className="space-y-10 mt-8">
               <div>
                 <label className="block text-sm font-semibold text-pm-ink-700 mb-4 uppercase tracking-wider">Annual Fee Tolerance</label>
@@ -485,14 +491,6 @@ export default function CardRecommenderPage() {
       
       default: return null
     }
-  }
-
-  interface WizardLayoutProps {
-    title: string
-    subtitle?: string
-    children: ReactNode
-    onNext: () => void
-    nextTabLabel?: string
   }
 
   // WRAPPER FOR WIZARD STEPS
@@ -708,7 +706,7 @@ export default function CardRecommenderPage() {
         ) : (
           <div className="text-center py-20 px-6">
             <h3 className="text-2xl font-bold text-pm-ink-900 mb-3">No match found</h3>
-            <p className="text-pm-ink-500 mb-6">We couldn't find a card that fits your strict criteria.</p>
+            <p className="text-pm-ink-500 mb-6">We couldn&apos;t find a card that fits your strict criteria.</p>
             <button onClick={() => setStep(0)} className="pm-button">Try Again</button>
           </div>
         )}
