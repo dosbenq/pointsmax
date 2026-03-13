@@ -312,7 +312,6 @@ export function useCalculatorState() {
   
   const hasActionableOutput = Boolean(result || awardResult || chatMessages.length > 0 || aiLoading)
   
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const alertProgramIds = useMemo(() => {
     if (!result) return []
     return [...new Set(
@@ -898,10 +897,9 @@ export function useCalculatorState() {
     setActivePanel(panel)
     trackEvent('calculator_panel_changed', { panel, source, region })
     if (panel === 'advisor') {
-      trackEvent('advisor_opened', { source, region })
+      trackEvent('advisor_opened', { source, region, has_actionable_output: hasActionableOutput })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [region])
+  }, [region, hasActionableOutput])
 
   // ── Return ──────────────────────────────────────────────────
   return {
