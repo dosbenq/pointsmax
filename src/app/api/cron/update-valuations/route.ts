@@ -228,16 +228,13 @@ export async function GET(req: NextRequest) {
   const db = createAdminClient()
   const mappedProgramKeys = [...parsed.mapped.keys()]
   const today = new Date().toISOString().slice(0, 10)
-  const candidateSlugs = [
-    ...new Set(
-      PROGRAM_MAPPINGS
-        .filter((mapping) => mappedProgramKeys.includes(mapping.key))
-        .flatMap((mapping) => mapping.candidateSlugs),
-    ),
-  ]
+
+  const activeMappings = PROGRAM_MAPPINGS.filter((mapping) => parsed.mapped.has(mapping.key))
+  const candidateSlugs = [...new Set(activeMappings.flatMap((mapping) => mapping.candidateSlugs))]
 
   // Skip India programs - they are handled by a separate scraper
   const indiaSlugs = ['hdfc-millennia', 'axis-edge', 'amex-india-mr', 'air-india', 'indigo-6e', 'taj-innercircle']
+  const indiaSlugsSet = new Set(indiaSlugs)
 
   const { data: programRows, error: programErr } = await db
     .from('programs')
@@ -259,8 +256,7 @@ export async function GET(req: NextRequest) {
   const programIdByKey = new Map<string, string>()
   const missingProgramKeys: string[] = []
 
-  for (const mapping of PROGRAM_MAPPINGS) {
-    if (!mappedProgramKeys.includes(mapping.key)) continue
+  for (const mapping of activeMappings) {
     const matchedSlug = mapping.candidateSlugs.find((slug) => programIdBySlug.has(slug))
     if (!matchedSlug) {
       missingProgramKeys.push(mapping.key)
@@ -336,7 +332,7 @@ export async function GET(req: NextRequest) {
   ]
 
   // Log skipped India programs
-  const skippedIndiaCount = candidateSlugs.filter(slug => indiaSlugs.includes(slug)).length
+  const skippedIndiaCount = candidateSlugs.filter((slug) => indiaSlugsSet.has(slug)).length
   if (skippedIndiaCount > 0) {
     logInfo('cron_update_valuations_skipped_india_programs', {
       requestId,
