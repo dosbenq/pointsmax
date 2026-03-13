@@ -34,7 +34,9 @@ function makeDbClient(options: {
 
       if (table === 'latest_valuations') {
         return {
-          select: vi.fn(async () => options.valuations),
+          select: vi.fn(() => ({
+            in: vi.fn(async () => options.valuations),
+          })),
         }
       }
 
@@ -119,8 +121,8 @@ describe('GET /api/cards', () => {
     expect(res.status).toBe(500)
     expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
-      'cards_repository_rates_fetch_failed',
-      expect.objectContaining({ error: 'rates failed' })
+      'cards_repository_fetch_failed',
+      expect.objectContaining({ rates_error: 'rates failed' })
     )
   })
 

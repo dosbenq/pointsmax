@@ -11,8 +11,8 @@ describe('award charts', () => {
     expect(getEstimatedMiles('indigo-6e', 'domestic_india', 'economy', 2)).toBe(12000)
   })
 
-  it('does not classify India to US routes as Southeast Asia', () => {
-    expect(detectRouteRegion('DEL', 'JFK')).toBe('other')
+  it('classifies India to US routes as Middle East', () => {
+    expect(detectRouteRegion('DEL', 'JFK')).toBe('middle_east')
   })
 
   it('does not pretend to estimate Delta dynamic awards', () => {

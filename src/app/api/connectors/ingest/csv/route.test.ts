@@ -18,7 +18,9 @@ vi.mock('@/lib/logger', () => ({
   logWarn: vi.fn(),
 }))
 
-const { POST, GET, __testing } = await import('./route')
+function resetIngestJobs() {
+  vi.resetModules()
+}
 
 function createFormRequest(formData: FormData, userId = 'test-user'): NextRequest {
   mockGetUser.mockResolvedValue({ data: { user: { id: userId } } })
@@ -34,9 +36,11 @@ function createGetRequest(url: string, userId = 'test-user'): NextRequest {
 }
 
 describe('POST /api/connectors/ingest/csv', () => {
-  beforeEach(() => {
+  let POST_fn: any;
+  beforeEach(async () => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
+    resetIngestJobs()
+    POST_fn = (await import('./route')).POST
     mockFrom.mockImplementation(() => ({ insert: mockInsert }))
     mockInsert.mockResolvedValue({ error: null })
   })
@@ -49,7 +53,7 @@ describe('POST /api/connectors/ingest/csv', () => {
       formData: async () => formData,
     } as NextRequest
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(401)
@@ -60,7 +64,7 @@ describe('POST /api/connectors/ingest/csv', () => {
     const formData = new FormData()
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(400)
@@ -74,7 +78,7 @@ describe('POST /api/connectors/ingest/csv', () => {
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(400)
@@ -89,7 +93,7 @@ describe('POST /api/connectors/ingest/csv', () => {
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(400)
@@ -107,7 +111,7 @@ Amex MR,50000`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(200)
@@ -130,7 +134,7 @@ Amex,invalid`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     // Should still succeed with partial import
@@ -151,7 +155,7 @@ Amex,invalid`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(422)
@@ -170,7 +174,7 @@ Amex,invalid`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(500)
@@ -188,7 +192,7 @@ Amex,invalid`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     
     expect(res.status).toBe(200)
     // The snapshots should use the provided account ID
@@ -203,7 +207,7 @@ Amex,invalid`
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(422)
@@ -221,7 +225,7 @@ Chase,100000
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     // Should handle gracefully (one valid row, one invalid)
@@ -237,7 +241,7 @@ Chase,100000
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(body.jobId).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
@@ -248,9 +252,13 @@ Chase,100000
 })
 
 describe('GET /api/connectors/ingest/csv', () => {
-  beforeEach(() => {
+  let POST_fn: any;
+  let GET_fn: any;
+  beforeEach(async () => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
+    resetIngestJobs()
+    POST_fn = (await import('./route')).POST
+    GET_fn = (await import('./route')).GET
     mockFrom.mockImplementation(() => ({ insert: mockInsert }))
     mockInsert.mockResolvedValue({ error: null })
   })
@@ -260,7 +268,7 @@ describe('GET /api/connectors/ingest/csv', () => {
     
     const req = new NextRequest('http://localhost/api/connectors/ingest/csv?jobId=123')
 
-    const res = await GET(req)
+    const res = await GET_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(401)
@@ -270,7 +278,7 @@ describe('GET /api/connectors/ingest/csv', () => {
   it('returns 404 for non-existent job', async () => {
     const req = createGetRequest('http://localhost/api/connectors/ingest/csv?jobId=non-existent-job')
 
-    const res = await GET(req)
+    const res = await GET_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(404)
@@ -285,11 +293,11 @@ describe('GET /api/connectors/ingest/csv', () => {
     formData.append('file', file)
     
     const postReq = createFormRequest(formData, 'user-jobs-test')
-    await POST(postReq)
+    await POST_fn(postReq)
 
     // Then get all jobs
     const getReq = createGetRequest('http://localhost/api/connectors/ingest/csv', 'user-jobs-test')
-    const res = await GET(getReq)
+    const res = await GET_fn(getReq)
     const body = await res.json()
 
     expect(res.status).toBe(200)
@@ -308,7 +316,7 @@ describe('GET /api/connectors/ingest/csv', () => {
     formData.append('file', file)
     
     const postReq = createFormRequest(formData, 'user-details-test')
-    const postRes = await POST(postReq)
+    const postRes = await POST_fn(postReq)
     const postBody = await postRes.json()
     const jobId = postBody.jobId
 
@@ -317,7 +325,7 @@ describe('GET /api/connectors/ingest/csv', () => {
       `http://localhost/api/connectors/ingest/csv?jobId=${jobId}`,
       'user-details-test'
     )
-    const res = await GET(getReq)
+    const res = await GET_fn(getReq)
     const body = await res.json()
 
     expect(res.status).toBe(200)
@@ -337,7 +345,7 @@ describe('GET /api/connectors/ingest/csv', () => {
     formData.append('file', file)
     
     const postReq = createFormRequest(formData, 'user-status-test')
-    const postRes = await POST(postReq)
+    const postRes = await POST_fn(postReq)
     const postBody = await postRes.json()
     const jobId = postBody.jobId
 
@@ -345,7 +353,7 @@ describe('GET /api/connectors/ingest/csv', () => {
       `http://localhost/api/connectors/ingest/csv?jobId=${jobId}`,
       'user-status-test'
     )
-    const res = await GET(getReq)
+    const res = await GET_fn(getReq)
     const body = await res.json()
 
     expect(body.status).toMatchObject({
@@ -356,9 +364,11 @@ describe('GET /api/connectors/ingest/csv', () => {
 })
 
 describe('CSV Ingestion edge cases', () => {
-  beforeEach(() => {
+  let POST_fn: any;
+  beforeEach(async () => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
+    resetIngestJobs()
+    POST_fn = (await import('./route')).POST
     mockFrom.mockImplementation(() => ({ insert: mockInsert }))
     mockInsert.mockResolvedValue({ error: null })
   })
@@ -374,7 +384,7 @@ describe('CSV Ingestion edge cases', () => {
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(200)
@@ -392,7 +402,7 @@ describe('CSV Ingestion edge cases', () => {
     
     const req = createFormRequest(formData)
 
-    const res = await POST(req)
+    const res = await POST_fn(req)
     const body = await res.json()
 
     expect(res.status).toBe(200)

@@ -493,7 +493,7 @@ export default function CardRecommenderPage() {
     nextTabLabel?: string
   }
 
-  const WizardLayout = ({ title, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
+  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
     <motion.div 
       initial={reduceMotion ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
       className="max-w-4xl mx-auto w-full flex flex-col min-h-[65vh]"
