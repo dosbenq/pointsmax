@@ -1,7 +1,15 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const mockAuthState = {
+const mockAuthState: {
+  user: { email: string; id: string } | null
+  userRecord: { id: string; email: string; tier: string } | null
+  preferences: unknown
+  loading: boolean
+  signInWithGoogle: ReturnType<typeof vi.fn>
+  signOut: ReturnType<typeof vi.fn>
+  refreshPreferences: ReturnType<typeof vi.fn>
+} = {
   user: { email: 'test@example.com', id: 'user-123' },
   userRecord: { id: 'user-123', email: 'test@example.com', tier: 'free' },
   preferences: null,
@@ -213,8 +221,8 @@ describe('Profile Page - Region-aware Alert Program Scoping', () => {
 
   describe('authentication states', () => {
     it('shows a sign-in state instead of redirecting when no user is present', async () => {
-      mockAuthState.user = null as any
-      mockAuthState.userRecord = null as any
+      mockAuthState.user = null
+      mockAuthState.userRecord = null
 
       render(<ProfilePage />)
 
