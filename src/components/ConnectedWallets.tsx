@@ -183,12 +183,11 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
     } catch {
       setViewState({ type: 'error', message: 'Failed to load connected wallets. Please try again.' })
     }
-  }, [])
+  }, [isGuest])
 
   useEffect(() => {
     fetchAccounts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchAccounts])
 
   const handleSync = async (accountId: string) => {
     setActionLoading(prev => ({ ...prev, [accountId]: true }))
