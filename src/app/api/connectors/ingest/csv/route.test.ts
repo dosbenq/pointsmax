@@ -36,7 +36,7 @@ function createGetRequest(url: string, userId = 'test-user'): NextRequest {
 }
 
 describe('POST /api/connectors/ingest/csv', () => {
-  let POST_fn: any;
+  let POST_fn: (req: NextRequest) => Promise<Response>;
   beforeEach(async () => {
     vi.clearAllMocks()
     resetIngestJobs()
@@ -252,8 +252,8 @@ Chase,100000
 })
 
 describe('GET /api/connectors/ingest/csv', () => {
-  let POST_fn: any;
-  let GET_fn: any;
+  let POST_fn: (req: NextRequest) => Promise<Response>;
+  let GET_fn: (req: NextRequest) => Promise<Response>;
   beforeEach(async () => {
     vi.clearAllMocks()
     resetIngestJobs()
@@ -364,7 +364,7 @@ describe('GET /api/connectors/ingest/csv', () => {
 })
 
 describe('CSV Ingestion edge cases', () => {
-  let POST_fn: any;
+  let POST_fn: (req: NextRequest) => Promise<Response>;
   beforeEach(async () => {
     vi.clearAllMocks()
     resetIngestJobs()
