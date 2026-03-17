@@ -39,9 +39,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const normalized = normalizeRegion(region)
   const program = await getProgramBySlug(normalized, slug)
   if (!program) return { title: 'Program not found' }
+  const appOrigin = getConfiguredAppOrigin()
+  const canonical = `${appOrigin}/${normalized}/programs/${program.slug}`
+  const description = `${program.name} is currently valued around ${program.cpp_cents.toFixed(2)}¢/pt. Transfer to ${program.transfer_out.length} partner${program.transfer_out.length === 1 ? '' : 's'} and see the best redemption use cases on PointsMax.`
   return {
     title: `${program.name} — Current Point Value & Transfer Partners | PointsMax`,
-    description: `${program.name} valuation, transfer partners, earning cards, and best redemption uses.`,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: `${program.name} — Current Point Value & Transfer Partners | PointsMax`,
+      description,
+      url: canonical,
+      images: [`${appOrigin}/${normalized}/programs/${program.slug}/opengraph-image`],
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${program.name} — Current Point Value & Transfer Partners | PointsMax`,
+      description,
+      images: [`${appOrigin}/${normalized}/programs/${program.slug}/opengraph-image`],
+    },
   }
 }
 

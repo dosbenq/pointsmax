@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -7,16 +8,23 @@ import Footer from '@/components/Footer'
 import { TrackedApplyButton } from '@/components/cards/TrackedApplyButton'
 import { CARD_ART_MAP, formatCurrencyRounded } from '@/lib/card-tools'
 import { buildReviewSnapshotFromCard, getCanonicalCardSlug } from '@/lib/card-surfaces'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import {
   getCardFeatureProfile,
   getSoftBenefits,
   SOFT_BENEFIT_COPY,
 } from '@/features/card-recommender/domain/metadata'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
+import { generateCardJsonLd } from '@/lib/seo'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 
 type PageProps = {
   params: Promise<{ region: string; slug: string }>
+}
+
+function findCardByRouteSlug(cards: CardWithRates[], slug: string): CardWithRates | null {
+  return cards.find((entry) => entry.program_slug === slug || entry.id === slug) ?? null
 }
 
 const RATE_LABELS: Record<SpendCategory, string> = {
@@ -122,12 +130,44 @@ function buildAlternatives(card: CardWithRates, cards: CardWithRates[]): CardWit
   return scored.slice(0, 3).map((entry) => entry.candidate)
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await params
+  const allCards = await getActiveCards(normalizeGeography(resolvedParams.region))
+  const card = findCardByRouteSlug(allCards, resolvedParams.slug)
+
+  if (!card) {
+    return { title: 'Card not found | PointsMax' }
+  }
+
+  const topRate = getSortedRates(card)[0]
+  const appOrigin = getConfiguredAppOrigin()
+  const canonical = `${appOrigin}/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}`
+  const description = `${card.name} earns ${topRate ? `${topRate.value} on ${topRate.label}` : `${card.cpp_cents.toFixed(2)} cpp in ${card.program_name}`}. Annual fee: ${card.annual_fee_usd === 0 ? 'Free' : formatCurrencyRounded(card.annual_fee_usd, card.currency)}. Compare, calculate, and review the fit on PointsMax.`
+
+  return {
+    title: `${card.name} Review | PointsMax`,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: `${card.name} Review | PointsMax`,
+      description,
+      url: canonical,
+      images: [`${appOrigin}/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}/opengraph-image`],
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${card.name} Review | PointsMax`,
+      description,
+      images: [`${appOrigin}/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}/opengraph-image`],
+    },
+  }
+}
+
 export default async function CardReviewPage({ params }: PageProps) {
   const resolvedParams = await params
   const allCards = await getActiveCards(normalizeGeography(resolvedParams.region))
-  const card = allCards.find((entry) => (
-    entry.program_slug === resolvedParams.slug || entry.id === resolvedParams.slug
-  ))
+  const card = findCardByRouteSlug(allCards, resolvedParams.slug)
 
   if (!card) return notFound()
 
@@ -142,6 +182,15 @@ export default async function CardReviewPage({ params }: PageProps) {
   const compareHref = alternatives.length > 0
     ? `/${resolvedParams.region}/cards/compare?cards=${[card, ...alternatives.slice(0, 2)].map((entry) => getCanonicalCardSlug(entry)).join(',')}`
     : `/${resolvedParams.region}/cards/compare?cards=${getCanonicalCardSlug(card)}`
+  const appOrigin = getConfiguredAppOrigin()
+  const jsonLd = generateCardJsonLd({
+    name: card.name,
+    description: `${card.name} review with reward value, fee context, and wallet-fit analysis on PointsMax.`,
+    url: `${appOrigin}/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}`,
+    issuer: card.issuer,
+    annualFeeAmount: card.annual_fee_usd,
+    annualFeeCurrency: card.currency,
+  })
 
   return (
     <div className="min-h-screen flex flex-col bg-pm-bg">
@@ -425,6 +474,7 @@ export default async function CardReviewPage({ params }: PageProps) {
         </section>
       </div>
       <Footer />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)} />
     </div>
   )
 }
