@@ -16,6 +16,8 @@ type UserRow = {
   stripe_customer_id: string | null
 }
 
+const CREATOR_REF_COOKIE = 'pm_creator_ref'
+
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const secretKey = getStripeSecretKey()
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     const appOrigin = getSafeAppOrigin(req.url)
+    const refSlug = req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null
     const session = await createStripeCheckoutSession({
       secretKey,
       customerId,
@@ -86,6 +89,7 @@ export async function POST(req: NextRequest) {
       successUrl: `${appOrigin}/pricing?checkout=success`,
       cancelUrl: `${appOrigin}/pricing?checkout=cancelled`,
       priceId: process.env.STRIPE_PRO_PRICE_ID,
+      refSlug,
     })
 
     logInfo('stripe_checkout_created', {

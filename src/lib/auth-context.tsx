@@ -168,6 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [loadUserData, supabase, isSupabaseConfigured])
 
+  useEffect(() => {
+    if (!user) return
+    void fetch('/api/user/ping', {
+      method: 'POST',
+      keepalive: true,
+      credentials: 'include',
+    }).catch(() => {})
+  }, [user])
+
   const signInWithGoogle = async () => {
     if (!isSupabaseConfigured) {
       console.error('Supabase not configured - cannot sign in')

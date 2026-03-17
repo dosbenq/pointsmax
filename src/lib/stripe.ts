@@ -76,6 +76,7 @@ export async function createStripeCheckoutSession(params: {
   successUrl: string
   cancelUrl: string
   priceId?: string | null
+  refSlug?: string | null
 }): Promise<{ id: string; url: string }> {
   const body = new URLSearchParams()
   body.set('mode', 'subscription')
@@ -86,6 +87,10 @@ export async function createStripeCheckoutSession(params: {
   body.set('client_reference_id', params.userId)
   body.set('metadata[user_id]', params.userId)
   body.set('subscription_data[metadata][user_id]', params.userId)
+  if (params.refSlug) {
+    body.set('metadata[ref_slug]', params.refSlug)
+    body.set('subscription_data[metadata][ref_slug]', params.refSlug)
+  }
   body.set('line_items[0][quantity]', '1')
 
   const priceId = params.priceId?.trim()

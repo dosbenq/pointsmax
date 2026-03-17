@@ -131,6 +131,16 @@ export default function OnboardingPage() {
           await supabase.from('wallet_balances').insert(balancesToInsert)
        }
 
+       await fetch('/api/onboarding/complete', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           region,
+           home_airport: homeAirport.toUpperCase(),
+         }),
+         keepalive: true,
+       }).catch(() => {})
+
        // 3. Mark auth completed & redirect
        router.push(homeAirport ? `/${region}/calculator?origin=${homeAirport.toUpperCase()}` : `/${region}/calculator`)
 
