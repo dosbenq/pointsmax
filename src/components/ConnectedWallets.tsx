@@ -44,6 +44,34 @@ const PROVIDER_ICONS: Record<ConnectorProvider, string> = {
   barclays: '🇬🇧',
 }
 
+const CSV_TEMPLATES = [
+  {
+    key: 'generic',
+    label: 'Generic template',
+    fileName: 'pointsmax-balances-template.csv',
+    instruction: 'Use columns: Program,Balance. Example: Chase UR,100000',
+    csv: 'Program,Balance,Notes\nChase UR,100000,Primary transferable balance\nAmex MR,50000,Keep values as whole numbers\n',
+  },
+  {
+    key: 'chase',
+    label: 'Chase-style template',
+    fileName: 'pointsmax-chase-template.csv',
+    instruction: 'Map Chase export columns like Program and Points Balance into Program,Balance before upload.',
+    csv: 'Program,Balance,Notes\nChase Ultimate Rewards,100000,Example Chase points balance\nUnited MileagePlus,42000,If present in the same export\n',
+  },
+  {
+    key: 'amex',
+    label: 'Amex-style template',
+    fileName: 'pointsmax-amex-template.csv',
+    instruction: 'Map Membership Rewards balances into Program,Balance. Keep the balance numeric only.',
+    csv: 'Program,Balance,Notes\nAmex MR,85000,Example Amex Membership Rewards balance\nHilton Honors,120000,Optional if your export includes partner balances\n',
+  },
+] as const
+
+function buildCsvTemplateUrl(csv: string): string {
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`
+}
+
 function getStatusBadgeClass(status: ConnectedAccount['status']): string {
   switch (status) {
     case 'active':
@@ -126,6 +154,12 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
   const [viewState, setViewState] = useState<ViewState>({ type: 'loading' })
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<(typeof CSV_TEMPLATES)[number]['key']>('generic')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [csvImporting, setCsvImporting] = useState(false)
+  const [csvStatus, setCsvStatus] = useState<string | null>(null)
+
+  const selectedTemplate = CSV_TEMPLATES.find((template) => template.key === selectedTemplateKey) ?? CSV_TEMPLATES[0]
 
   const fetchAccounts = useCallback(async () => {
     if (isGuest) {
@@ -283,6 +317,115 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
     })
   }
 
+  const handleCsvImport = async () => {
+    if (!selectedFile) {
+      setCsvStatus('Choose a CSV file before importing.')
+      return
+    }
+
+    setCsvImporting(true)
+    setCsvStatus(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+
+      const response = await fetch('/api/connectors/ingest/csv', {
+        method: 'POST',
+        body: formData,
+      })
+      const payload = await response.json().catch(() => ({})) as {
+        error?: string
+        summary?: { importedBalances?: number }
+        warnings?: string[]
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'CSV import failed')
+      }
+
+      setCsvStatus(
+        payload.summary?.importedBalances
+          ? `Imported ${payload.summary.importedBalances} balance${payload.summary.importedBalances === 1 ? '' : 's'} from CSV.`
+          : 'CSV import completed.',
+      )
+      setSelectedFile(null)
+      await fetchAccounts()
+    } catch (error) {
+      setCsvStatus(error instanceof Error ? error.message : 'CSV import failed')
+    } finally {
+      setCsvImporting(false)
+    }
+  }
+
+  const renderCsvImportSection = () => (
+    <div className="mt-4 rounded-xl border border-pm-border bg-pm-surface-soft p-4" data-testid="csv-import-section">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-xl">
+          <p className="pm-label">Import from CSV</p>
+          <p className="mt-1 text-sm text-pm-ink-700">
+            Upload a statement export or use one of the starter templates below. This is the recommended wallet-import path until direct provider onboarding is live.
+          </p>
+          <p className="mt-2 text-xs text-pm-ink-500">
+            {selectedTemplate.instruction}
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <select
+            value={selectedTemplateKey}
+            onChange={(event) => setSelectedTemplateKey(event.target.value as (typeof CSV_TEMPLATES)[number]['key'])}
+            className="rounded-lg border border-pm-border bg-pm-surface px-3 py-2 text-sm text-pm-ink-900"
+            data-testid="csv-template-select"
+          >
+            {CSV_TEMPLATES.map((template) => (
+              <option key={template.key} value={template.key}>
+                {template.label}
+              </option>
+            ))}
+          </select>
+          <a
+            href={buildCsvTemplateUrl(selectedTemplate.csv)}
+            download={selectedTemplate.fileName}
+            className="pm-button-secondary text-center text-xs px-4 py-2"
+            data-testid="csv-template-download"
+          >
+            Download template
+          </a>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <input
+          type="file"
+          accept=".csv,text/csv,text/plain"
+          onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+          className="block w-full rounded-lg border border-pm-border bg-pm-surface px-3 py-2 text-sm text-pm-ink-700"
+          data-testid="csv-file-input"
+        />
+        <button
+          type="button"
+          onClick={handleCsvImport}
+          disabled={csvImporting}
+          className="pm-button whitespace-nowrap text-xs px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="csv-import-button"
+        >
+          {csvImporting ? 'Importing…' : 'Import CSV'}
+        </button>
+      </div>
+
+      {selectedFile && (
+        <p className="mt-2 text-xs text-pm-ink-500">
+          Ready to import: <span className="font-medium text-pm-ink-700">{selectedFile.name}</span>
+        </p>
+      )}
+      {csvStatus && (
+        <p className="mt-2 text-xs text-pm-accent-strong" data-testid="csv-import-status">
+          {csvStatus}
+        </p>
+      )}
+    </div>
+  )
+
   // Loading State
   if (viewState.type === 'loading') {
     return (
@@ -372,6 +515,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
             )}
           </div>
         </div>
+        {!isGuest && renderCsvImportSection()}
       </div>
     )
   }
@@ -531,6 +675,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
           )
         })}
       </div>
+      {renderCsvImportSection()}
     </div>
   )
 }

@@ -42,6 +42,17 @@ type ValuationRow = {
 
 type CardIdentityRow = Pick<CardRow, 'id' | 'name' | 'issuer'>
 
+type ComparisonPageRow = {
+  slug: string
+  region: string
+  title: string
+  description: string
+  card_slugs: string[]
+  category_focus: string | null
+  is_published: boolean
+  display_order: number
+}
+
 export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
   return resolveCppCents(cppCents, programType)
 }
@@ -101,6 +112,15 @@ function parseBestUses(raw: unknown): string[] {
     return raw.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
   }
   return []
+}
+
+function isMissingTableError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false
+  return (
+    error.code === '42P01' ||
+    error.message?.toLowerCase().includes('relation') === true ||
+    error.message?.toLowerCase().includes('does not exist') === true
+  )
 }
 
 export function estimateEffectiveCashbackPct(card: ProgrammaticCard): number {
@@ -299,4 +319,58 @@ export async function listProgramsForRegion(region: Region): Promise<Programmati
 export async function getProgramBySlug(region: Region, slug: string): Promise<ProgrammaticProgram | null> {
   const programs = await listProgramsForRegion(region)
   return programs.find((program) => program.slug === slug) ?? null
+}
+
+export type ProgrammaticComparisonPage = {
+  slug: string
+  region: Region
+  title: string
+  description: string
+  cardSlugs: string[]
+  categoryFocus: string | null
+  displayOrder: number
+}
+
+async function listComparisonPagesForRegionUncached(region: Region): Promise<ProgrammaticComparisonPage[]> {
+  const db = createServerDbClient()
+  const { data, error } = await db
+    .from('comparison_pages')
+    .select('slug, region, title, description, card_slugs, category_focus, is_published, display_order')
+    .eq('region', region)
+    .eq('is_published', true)
+    .order('display_order', { ascending: true })
+
+  if (isMissingTableError(error)) return []
+  if (error || !data) return []
+
+  return (data as ComparisonPageRow[]).map((row) => ({
+    slug: row.slug,
+    region,
+    title: row.title,
+    description: row.description,
+    cardSlugs: Array.isArray(row.card_slugs) ? row.card_slugs.filter((value): value is string => typeof value === 'string') : [],
+    categoryFocus: row.category_focus,
+    displayOrder: row.display_order,
+  }))
+}
+
+const listComparisonPagesForRegionCached = unstable_cache(
+  async (region: Region) => listComparisonPagesForRegionUncached(region),
+  ['programmatic-comparison-pages-v1'],
+  {
+    revalidate: 3600,
+    tags: ['programmatic-comparison-pages'],
+  },
+)
+
+export async function listComparisonPagesForRegion(region: Region): Promise<ProgrammaticComparisonPage[]> {
+  return listComparisonPagesForRegionCached(region)
+}
+
+export async function getComparisonPageBySlug(
+  region: Region,
+  slug: string,
+): Promise<ProgrammaticComparisonPage | null> {
+  const pages = await listComparisonPagesForRegion(region)
+  return pages.find((page) => page.slug === slug) ?? null
 }

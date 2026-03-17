@@ -12,10 +12,11 @@ import {
   type CalculateResponse,
   type RedemptionResult,
 } from './hooks/use-calculator-state'
-import { AwardResults, AIChat, BalanceInputPanel } from './components'
+import { AwardResults, AIChat, BalanceInputPanel, HotelResults } from './components'
 import { type Region } from '@/lib/regions'
 
 type Tool = 'hub' | 'trip' | 'value' | 'ai'
+type TripMode = 'flights' | 'hotels'
 
 type ProgramValueSummary = {
   programId: string
@@ -170,6 +171,7 @@ export default function CalculatorPage() {
   const { user } = useAuth()
   
   const [activeTool, setActiveTool] = useState<Tool>('hub')
+  const [tripMode, setTripMode] = useState<TripMode>('flights')
 
   const hasLoadedPrograms = !state.programsLoading && state.programs.length > 0
   const hasEmptyWallet = hasLoadedPrograms && state.totalTrackedPoints === 0
@@ -285,10 +287,21 @@ export default function CalculatorPage() {
       </button>
 
       <div className="flex justify-center relative z-20 mb-8">
-         <div className="pm-glass flex items-center gap-3 px-5 py-3 rounded-full border border-pm-border">
-            <span className="flex items-center gap-2 text-sm font-semibold text-pm-ink-900">✈️ Flights</span>
-            <span className="h-4 w-px bg-pm-border" />
-            <span className="text-sm text-pm-ink-500">Hotel awards are still in development.</span>
+         <div className="pm-glass flex items-center gap-2 px-3 py-3 rounded-full border border-pm-border">
+            <button
+              type="button"
+              onClick={() => setTripMode('flights')}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tripMode === 'flights' ? 'bg-pm-ink-900 text-white' : 'text-pm-ink-500'}`}
+            >
+              ✈️ Flights
+            </button>
+            <button
+              type="button"
+              onClick={() => setTripMode('hotels')}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tripMode === 'hotels' ? 'bg-pm-ink-900 text-white' : 'text-pm-ink-500'}`}
+            >
+              🏨 Hotels
+            </button>
          </div>
       </div>
 
@@ -296,51 +309,61 @@ export default function CalculatorPage() {
         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         className="w-full shadow-card rounded-[32px] overflow-hidden border border-pm-border bg-pm-surface pm-glass min-h-[400px] mb-8"
       >
-        <AwardResults
-          awardParams={state.awardParams}
-          setAwardParams={state.setAwardParams}
-          awardLoading={state.awardLoading}
-          awardResult={state.awardResult}
-          awardError={state.awardError}
-          onSearch={state.runAwardSearch}
-          region={region}
-          programs={state.programs}
-          rows={state.rows}
-          user={user}
-        />
+        {tripMode === 'flights' ? (
+          <AwardResults
+            awardParams={state.awardParams}
+            setAwardParams={state.setAwardParams}
+            awardLoading={state.awardLoading}
+            awardResult={state.awardResult}
+            awardError={state.awardError}
+            onSearch={state.runAwardSearch}
+            region={region}
+            programs={state.programs}
+            rows={state.rows}
+            user={user}
+          />
+        ) : (
+          <HotelResults
+            hotelParams={state.hotelParams}
+            setHotelParams={state.setHotelParams}
+            rows={state.rows}
+          />
+        )}
       </motion.div>
 
-      <motion.div
-         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-         className="w-full"
-      >
-         <h2 className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-4">Quick Routes</h2>
-         <div className="flex flex-wrap gap-4">
-            {QUICK_ROUTES[region].map((route) => (
-                <button
-                  key={`${route.origin}-${route.dest}`}
-                  onClick={() => {
-                      state.setAwardParams(prev => ({ ...prev, origin: route.origin, destination: route.dest }))
-                  }}
-                  className="pm-glass px-5 py-4 flex items-center gap-4 hover:border-pm-accent-border transition-all duration-300 group rounded-2xl overflow-hidden relative"
-                >
-                   <div className="absolute inset-0 bg-gradient-to-r from-pm-accent-glow to-transparent opacity-0 group-hover:opacity-20 transition-opacity" />
-                   <div className="relative z-10 flex items-center gap-3">
-                       <div className="flex flex-col text-left">
-                           <span className="font-bold text-pm-ink-900 group-hover:text-pm-accent transition-colors">{route.origin}</span>
-                       </div>
-                       <Plane className="w-4 h-4 text-pm-ink-400 group-hover:translate-x-1 transition-transform" />
-                       <div className="flex flex-col text-left">
-                           <span className="font-bold text-pm-ink-900 group-hover:text-pm-accent transition-colors">{route.dest}</span>
-                       </div>
-                   </div>
-                   <span className="relative z-10 ml-2 text-xs text-pm-ink-500 bg-pm-surface-soft px-2 py-1 rounded-md border border-pm-border">
-                       {route.label}
-                   </span>
-                </button>
-            ))}
-         </div>
-      </motion.div>
+      {tripMode === 'flights' && (
+        <motion.div
+           initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+           className="w-full"
+        >
+           <h2 className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-4">Quick Routes</h2>
+           <div className="flex flex-wrap gap-4">
+              {QUICK_ROUTES[region].map((route) => (
+                  <button
+                    key={`${route.origin}-${route.dest}`}
+                    onClick={() => {
+                        state.setAwardParams(prev => ({ ...prev, origin: route.origin, destination: route.dest }))
+                    }}
+                    className="pm-glass px-5 py-4 flex items-center gap-4 hover:border-pm-accent-border transition-all duration-300 group rounded-2xl overflow-hidden relative"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-r from-pm-accent-glow to-transparent opacity-0 group-hover:opacity-20 transition-opacity" />
+                     <div className="relative z-10 flex items-center gap-3">
+                         <div className="flex flex-col text-left">
+                             <span className="font-bold text-pm-ink-900 group-hover:text-pm-accent transition-colors">{route.origin}</span>
+                         </div>
+                         <Plane className="w-4 h-4 text-pm-ink-400 group-hover:translate-x-1 transition-transform" />
+                         <div className="flex flex-col text-left">
+                             <span className="font-bold text-pm-ink-900 group-hover:text-pm-accent transition-colors">{route.dest}</span>
+                         </div>
+                     </div>
+                     <span className="relative z-10 ml-2 text-xs text-pm-ink-500 bg-pm-surface-soft px-2 py-1 rounded-md border border-pm-border">
+                         {route.label}
+                     </span>
+                  </button>
+              ))}
+           </div>
+        </motion.div>
+      )}
     </motion.div>
   )
 

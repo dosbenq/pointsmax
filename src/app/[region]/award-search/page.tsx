@@ -66,6 +66,26 @@ function formatCpp(cppCents: number | null | undefined, region: Region): string 
   return `${cppCents.toFixed(2)}¢/pt`
 }
 
+function formatUsd(cents: number | null | undefined): string {
+  if (cents == null || !Number.isFinite(cents)) return '—'
+  return `$${(cents / 100).toLocaleString(undefined, {
+    maximumFractionDigits: 0,
+  })}`
+}
+
+function getValueTone(cppCents: number): string {
+  if (cppCents >= 3) return 'border-pm-success-border ring-2 ring-pm-success-border/50'
+  if (cppCents >= 2) return 'border-pm-success-border'
+  if (cppCents >= 1) return 'border-amber-300'
+  return 'border-pm-border'
+}
+
+function getValueTextTone(cppCents: number): string {
+  if (cppCents >= 2) return 'text-pm-success-strong'
+  if (cppCents >= 1) return 'text-amber-700'
+  return 'text-pm-ink-900'
+}
+
 function closeDatePopover(setOpen: (open: boolean) => void) {
   window.setTimeout(() => {
     setOpen(false)
@@ -92,10 +112,13 @@ function AwardResultCard({
 }) {
   const isTopPick = result.program_slug === topSlug
   const resultClass = isTopPick
-    ? 'bg-pm-accent-soft border-pm-accent-border'
+    ? `bg-pm-accent-soft border-pm-accent-border ${result.cpp_cents >= 3 ? 'ring-2 ring-pm-accent-border/60' : ''}`
     : result.is_reachable
-      ? 'bg-pm-surface border-pm-border'
+      ? `bg-pm-surface ${getValueTone(result.cpp_cents)}`
       : 'bg-pm-surface-soft border-pm-border opacity-80'
+  const valueTone = getValueTextTone(result.cpp_cents)
+  const valueSourceLabel = result.cash_value_source === 'live_fare_api' ? 'Live price' : 'Estimated'
+  const valueTooltip = `${result.estimated_miles.toLocaleString()} miles for ${formatUsd(result.estimated_cash_value_cents)} = ${formatCpp(result.cpp_cents, region)}`
 
   return (
     <div className={`rounded-xl border p-4 space-y-3 ${resultClass}`}>
@@ -123,9 +146,25 @@ function AwardResultCard({
           <p className="text-pm-ink-900 font-semibold mt-0.5">{result.points_needed_from_wallet.toLocaleString()}</p>
         </div>
         <div>
-          <p className="text-pm-ink-500 uppercase tracking-wider font-semibold text-[10px]">Rate</p>
-          <p className="text-pm-ink-900 mt-0.5">{formatCpp(result.cpp_cents, region)}</p>
+          <p className="text-pm-ink-500 uppercase tracking-wider font-semibold text-[10px]">Value</p>
+          <p
+            className={`mt-0.5 font-semibold ${valueTone}`}
+            title={valueTooltip}
+          >
+            {formatCpp(result.cpp_cents, region)}
+          </p>
+          <p className="mt-1 text-[10px] text-pm-ink-500">{formatUsd(result.estimated_cash_value_cents)}</p>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 text-[11px] text-pm-ink-500">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${result.cash_value_source === 'live_fare_api' ? 'bg-pm-success-soft text-pm-success-strong' : 'bg-pm-surface-soft text-pm-ink-500'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${result.cash_value_source === 'live_fare_api' ? 'bg-pm-success' : 'bg-pm-ink-400'}`} />
+          {valueSourceLabel}
+        </span>
+        <span title={valueTooltip}>
+          {result.estimated_miles.toLocaleString()} miles for {formatUsd(result.estimated_cash_value_cents)}
+        </span>
       </div>
 
       {result.transfer_chain && (

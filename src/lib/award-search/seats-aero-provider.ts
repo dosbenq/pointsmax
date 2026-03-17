@@ -25,10 +25,11 @@ import {
   buildTransferChain,
   calculatePointsNeededFromWallet,
 } from './reachable-wallet'
-import { estimateAwardCashValue } from './redemption-value'
+import { estimateAwardCashValueWithLiveFare } from './redemption-value'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
+import { fetchCashFareUsd } from './cash-fare-provider'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
 const SEATS_AERO_SOURCE_TO_SLUG: Record<string, string> = {
@@ -172,6 +173,7 @@ export class SeatsAeroProvider implements AwardProvider {
       ((valuations as ValuationRow[]) ?? []).map(v => [v.program_id, v]),
     )
     const region = detectRouteRegion(origin, destination)
+    const liveFareUsd = await fetchCashFareUsd(origin, destination, cabin, start_date)
 
     // ── Parse availability from Seats.aero ───────────────────
     // Best (lowest mileage) available date per source slug
@@ -237,12 +239,13 @@ export class SeatsAeroProvider implements AwardProvider {
 
       const valuation = valuationByProgramId.get(airlineProgram.id)
       const baselineCppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
-      const modeledRedemptionValue = estimateAwardCashValue({
+      const modeledRedemptionValue = estimateAwardCashValueWithLiveFare({
         routeRegion: region,
         cabin,
         passengers,
         estimatedMiles,
         hasRealAvailability: !!avail,
+        liveFareUsd,
       })
       const estimatedCashValueCents = modeledRedemptionValue?.cashValueCents ?? (estimatedMiles * baselineCppCents)
       const cppCents = modeledRedemptionValue?.cppCents ?? baselineCppCents

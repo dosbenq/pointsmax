@@ -1,8 +1,14 @@
 import { Resend } from 'resend'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { inngest } from '../client'
 import { createAdminClient } from '@/lib/supabase'
+import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
-const SOURCE_URL = 'https://www.doctorofcredit.com/best-current-transfer-bonuses/'
+const SOURCE_URLS = [
+  'https://global.americanexpress.com/rewards/transfer',
+  'https://www.chase.com/personal/credit-cards/ultimate-rewards',
+  'https://www.doctorofcredit.com/best-current-transfer-bonuses/',
+]
 
 type ExtractedBonus = {
   from: string
@@ -18,7 +24,11 @@ type PartnerRow = {
 }
 
 function normalizeText(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  return value
+    .toLowerCase()
+    .replace(/\bamex\b/g, 'american express')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
 }
 
 function readProgramName(value: PartnerRow['from_program']): string {
@@ -50,7 +60,7 @@ function parseEndDate(snippet: string): string | null {
   return null
 }
 
-function extractBonusesFromText(text: string): ExtractedBonus[] {
+export function extractBonusesFromText(text: string): ExtractedBonus[] {
   const bonuses: ExtractedBonus[] = []
   const re = /([A-Za-z][A-Za-z&\s]{2,60})\s+(?:to|→|-)\s+([A-Za-z][A-Za-z&\s]{2,80})[^%]{0,40}(\d{1,2})\s*%/gi
   let match: RegExpExecArray | null
@@ -70,7 +80,7 @@ function extractBonusesFromText(text: string): ExtractedBonus[] {
   return bonuses
 }
 
-function partnerMatchesBonus(partner: PartnerRow, bonus: ExtractedBonus): boolean {
+export function partnerMatchesBonus(partner: PartnerRow, bonus: ExtractedBonus): boolean {
   const fromName = normalizeText(readProgramName(partner.from_program))
   const toName = normalizeText(readProgramName(partner.to_program))
   const fromTarget = normalizeText(bonus.from)
@@ -105,30 +115,55 @@ async function maybeSendAdminEmail(newBonuses: Array<{ from: string; to: string;
       <h2>New transfer bonuses detected</h2>
       <p>Please verify these in Admin → Transfer Bonuses before publishing.</p>
       <ul>${lines}</ul>
-      <p>Source: <a href="${SOURCE_URL}">${SOURCE_URL}</a></p>
+      <p>Sources: ${SOURCE_URLS.map((url) => `<a href="${url}">${url}</a>`).join(' · ')}</p>
     `,
   })
 }
 
 export const transferBonusMonitor = inngest.createFunction(
   { id: 'transfer-bonus-monitor', name: 'Agent: Transfer Bonus Monitor' },
-  { cron: '0 7 * * *' },
+  { cron: '0 6 * * *' },
   async ({ step }) => {
     const db = createAdminClient()
     const today = new Date().toISOString().slice(0, 10)
 
-    const sourceText = await step.run('fetch-doc-transfer-bonuses', async () => {
-      const response = await fetch(SOURCE_URL, {
-        headers: { 'User-Agent': 'PointsMaxBonusMonitor/1.0 (+https://pointsmax.com)' },
-        cache: 'no-store',
-      })
-      if (!response.ok) throw new Error(`Failed to fetch source: ${response.status}`)
-      const html = await response.text()
-      return htmlToText(html)
+    const sourceHtml = await step.run('fetch-transfer-bonus-sources', async () => {
+      const pages = await Promise.all(SOURCE_URLS.map(async (sourceUrl) => {
+        const response = await fetch(sourceUrl, {
+          headers: { 'User-Agent': 'PointsMaxBonusMonitor/1.0 (+https://pointsmax.com)' },
+          cache: 'no-store',
+        })
+        if (!response.ok) return ''
+        return response.text()
+      }))
+      return pages.filter(Boolean)
     })
 
     const extracted = await step.run('extract-transfer-bonus-candidates', async () => {
-      const parsed = extractBonusesFromText(sourceText)
+      const apiKey = process.env.GEMINI_API_KEY?.trim()
+      if (apiKey && sourceHtml.length > 0) {
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const prompt = `Extract transfer bonus offers from these HTML pages. Return JSON only as an array of objects shaped like {"from":"...", "to":"...", "bonus_pct":25, "end_date":"YYYY-MM-DD"}. Ignore expired offers and rumors.\n\n${sourceHtml.map((html, index) => `SOURCE ${index + 1}\n${html.slice(0, 90000)}`).join('\n\n')}`
+        const candidates = await getGeminiModelCandidatesForApiKey(apiKey)
+
+        for (const candidate of candidates) {
+          try {
+            const model = genAI.getGenerativeModel({ model: candidate })
+            const result = await model.generateContent(prompt)
+            const text = result.response.text()
+            const match = text.match(/\[[\s\S]*\]/)
+            if (match) {
+              const parsed = JSON.parse(match[0]) as ExtractedBonus[]
+              const bonuses = parsed.filter((row) => Number.isFinite(row.bonus_pct) && row.bonus_pct > 0)
+              if (bonuses.length > 0) return bonuses
+            }
+          } catch (error) {
+            markGeminiModelUnavailable(candidate, error)
+          }
+        }
+      }
+
+      const parsed = extractBonusesFromText(sourceHtml.map((html) => htmlToText(html)).join(' '))
       return parsed.filter((row) => Number.isFinite(row.bonus_pct) && row.bonus_pct > 0)
     })
 
@@ -166,7 +201,7 @@ export const transferBonusMonitor = inngest.createFunction(
           bonus_pct: bonus.bonus_pct,
           start_date: today,
           end_date: bonus.end_date,
-          source_url: SOURCE_URL,
+          source_url: SOURCE_URLS[0],
           auto_detected: true,
           verified: false,
           is_verified: false,

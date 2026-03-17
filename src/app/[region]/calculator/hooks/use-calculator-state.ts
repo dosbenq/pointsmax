@@ -115,8 +115,8 @@ export type AwardSearchResult = {
   estimated_cash_value_cents: number
   cpp_cents: number
   baseline_cpp_cents: number
-  cash_value_source: 'modeled_route_fare' | 'static_program_cpp'
-  cash_value_confidence: 'low' | 'medium'
+  cash_value_source: 'modeled_route_fare' | 'live_fare_api' | 'static_program_cpp'
+  cash_value_confidence: 'low' | 'medium' | 'high'
   transfer_chain: string | null
   transfer_is_instant: boolean
   points_needed_from_wallet: number

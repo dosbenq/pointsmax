@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { createServerDbClient } from '@/lib/supabase'
-import { listCardsForRegion } from '@/lib/programmatic-content'
+import { listCardsForRegion, listComparisonPagesForRegion } from '@/lib/programmatic-content'
 
 const BASE_URL = getConfiguredAppOrigin()
 
@@ -20,16 +20,13 @@ function isSitemapProgramRow(value: unknown): value is SitemapProgramRow {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
-  const staticRoutes = [
-    '',
-    'calculator',
-    'award-search',
-    'card-recommender',
-    'earning-calculator',
-    'how-it-works',
-    'inspire',
-    'pricing',
-  ]
+  const staticRoutes = ['', 'calculator', 'award-search', 'card-recommender', 'earning-calculator', 'how-it-works', 'inspire', 'pricing']
+
+  function getRoutePriority(route: string): number {
+    if (!route) return 0.95
+    if (['calculator', 'award-search', 'card-recommender', 'earning-calculator'].includes(route)) return 0.9
+    return 0.7
+  }
 
   const items: MetadataRoute.Sitemap = [
     {
@@ -46,15 +43,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: route ? `${BASE_URL}/${region}/${route}` : `${BASE_URL}/${region}`,
         lastModified: now,
         changeFrequency: 'yearly',
-        priority: route ? 0.7 : 0.95,
+        priority: getRoutePriority(route),
       })
     }
   }
 
   try {
     const db = createServerDbClient()
-    const [cardsByRegion, { data: programs }] = await Promise.all([
+    const [cardsByRegion, comparisonPagesByRegion, { data: programs }] = await Promise.all([
       Promise.all(REGIONS.map(async (region) => ({ region, cards: await listCardsForRegion(region) }))),
+      Promise.all(REGIONS.map(async (region) => ({ region, pages: await listComparisonPagesForRegion(region) }))),
       db.from('programs').select('slug, geography').eq('is_active', true),
     ])
 
@@ -66,6 +64,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           url: `${BASE_URL}/${entry.region}/cards/${card.slug}`,
           lastModified: now,
           changeFrequency: 'monthly',
+          priority: 0.8,
+        })
+      }
+    }
+
+    for (const entry of comparisonPagesByRegion) {
+      for (const page of entry.pages) {
+        items.push({
+          url: `${BASE_URL}/${entry.region}/cards/best/${page.slug}`,
+          lastModified: now,
+          changeFrequency: 'weekly',
           priority: 0.8,
         })
       }

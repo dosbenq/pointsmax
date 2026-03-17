@@ -72,8 +72,8 @@ const ONE_WAY_FARE_BENCHMARKS_USD: Record<RouteRegion, Partial<Record<CabinClass
 export type RedemptionValueModel = {
   cashValueCents: number
   cppCents: number
-  source: 'modeled_route_fare'
-  confidence: 'low' | 'medium'
+  source: 'modeled_route_fare' | 'live_fare_api'
+  confidence: 'low' | 'medium' | 'high'
 }
 
 export function estimateAwardCashValue(args: {
@@ -100,4 +100,26 @@ export function estimateAwardCashValue(args: {
     source: 'modeled_route_fare',
     confidence: args.hasRealAvailability ? 'medium' : 'low',
   }
+}
+
+export function estimateAwardCashValueWithLiveFare(args: {
+  routeRegion: RouteRegion
+  cabin: CabinClass
+  passengers: number
+  estimatedMiles: number
+  hasRealAvailability: boolean
+  liveFareUsd: number | null
+}): RedemptionValueModel | null {
+  if (typeof args.liveFareUsd === 'number' && Number.isFinite(args.liveFareUsd) && args.liveFareUsd > 0 && Number.isFinite(args.estimatedMiles) && args.estimatedMiles > 0) {
+    const passengers = Number.isFinite(args.passengers) && args.passengers > 0 ? args.passengers : 1
+    const cashValueCents = Math.round(args.liveFareUsd * 100 * passengers)
+    return {
+      cashValueCents,
+      cppCents: cashValueCents / args.estimatedMiles,
+      source: 'live_fare_api',
+      confidence: 'high',
+    }
+  }
+
+  return estimateAwardCashValue(args)
 }
