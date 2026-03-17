@@ -14,6 +14,7 @@ import {
 } from './hooks/use-calculator-state'
 import { AwardResults, AIChat, BalanceInputPanel, HotelResults } from './components'
 import { type Region } from '@/lib/regions'
+import { analyzePortfolioHealth } from '@/lib/portfolio-health'
 
 type Tool = 'hub' | 'trip' | 'value' | 'ai'
 type TripMode = 'flights' | 'hotels'
@@ -70,6 +71,12 @@ function formatUsdFromCents(cents: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })}`
+}
+
+function healthScoreTone(score: number): string {
+  if (score >= 70) return 'text-pm-success'
+  if (score >= 40) return 'text-amber-700'
+  return 'text-pm-danger'
 }
 
 function getLowEffortOption(options: RedemptionResult[]): RedemptionResult {
@@ -178,6 +185,14 @@ export default function CalculatorPage() {
   const valueAnalysis = useMemo(
     () => (state.result ? buildValueAnalyzerModel(state.result) : null),
     [state.result],
+  )
+  const portfolioHealth = useMemo(
+    () => analyzePortfolioHealth(
+      state.enteredBalances,
+      state.programs.map((program) => ({ id: program.id, name: program.name, type: program.type })),
+      [],
+    ),
+    [state.enteredBalances, state.programs],
   )
 
   const renderHub = () => (
@@ -521,6 +536,33 @@ export default function CalculatorPage() {
                          </div>
                        </div>
                      </div>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             <div className="rounded-[28px] border border-pm-border bg-pm-surface p-6 sm:p-8">
+               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                 <div>
+                   <p className="text-xs font-bold uppercase tracking-widest text-pm-ink-500 mb-2">Portfolio Health</p>
+                   <h4 className="text-2xl font-bold text-pm-ink-900">How resilient your wallet looks right now</h4>
+                   <p className="mt-2 text-sm text-pm-ink-500">
+                     This score rewards diversification, transfer flexibility, and a usable hotel side.
+                   </p>
+                 </div>
+                 <div className="flex items-center gap-5">
+                   <div className="relative h-28 w-28 rounded-full border-[10px] border-pm-border bg-pm-surface-soft flex items-center justify-center">
+                     <div className={`text-center ${healthScoreTone(portfolioHealth.score)}`}>
+                       <div className="text-3xl font-black">{portfolioHealth.score}</div>
+                       <div className="text-xs font-bold uppercase tracking-widest">Grade {portfolioHealth.grade}</div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+               <div className="mt-6 grid gap-3 md:grid-cols-3">
+                 {portfolioHealth.recommendations.slice(0, 3).map((recommendation) => (
+                   <div key={recommendation} className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3 text-sm text-pm-ink-700">
+                     {recommendation}
                    </div>
                  ))}
                </div>

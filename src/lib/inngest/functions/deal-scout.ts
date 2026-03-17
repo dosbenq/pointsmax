@@ -6,6 +6,7 @@ import { StubProvider } from '@/lib/award-search/stub-provider'
 import type { CabinClass } from '@/lib/award-search/types'
 import type { AwardProvider } from '@/lib/award-search'
 import { loadUnifiedBalancesByUser } from '@/lib/user-balances'
+import { scoreDeal } from '@/lib/deal-scorer'
 
 type WatchRow = {
   id: string
@@ -142,7 +143,7 @@ export const dealScout = inngest.createFunction(
 
     const results: Array<{
       watch_id: string
-      status: 'alerted' | 'no_match' | 'missing_balances' | 'missing_email' | 'send_disabled' | 'search_failed'
+      status: 'alerted' | 'no_match' | 'missing_balances' | 'missing_email' | 'send_disabled' | 'search_failed' | 'below_threshold'
       detail?: string
     }> = []
 
@@ -213,6 +214,18 @@ export const dealScout = inngest.createFunction(
         continue
       }
 
+      const dealScore = scoreDeal(bestDeal, bestDeal.baseline_cpp_cents)
+      if (dealScore.rating === 'fair' || dealScore.rating === 'poor') {
+        results.push({ watch_id: watch.id, status: 'below_threshold', detail: dealScore.rating })
+        await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+          await db
+            .from('flight_watches')
+            .update({ last_checked_at: new Date().toISOString() })
+            .eq('id', watch.id)
+        })
+        continue
+      }
+
       const userEmail = getWatchEmail(watch.users)
       if (!userEmail) {
         results.push({ watch_id: watch.id, status: 'missing_email' })
@@ -223,13 +236,15 @@ export const dealScout = inngest.createFunction(
           await resend.emails.send({
             from: fromEmail!,
             to: userEmail,
-            subject: `Deal Alert: ${watch.origin} to ${watch.destination}`,
+            subject: dealScore.headline,
             html: `
               <h2>We found a match for your watch.</h2>
               <p><strong>Route:</strong> ${watch.origin} to ${watch.destination}</p>
               <p><strong>Program:</strong> ${bestDeal.program_name}</p>
               <p><strong>Estimated miles:</strong> ${bestDeal.estimated_miles.toLocaleString()}</p>
               <p><strong>Points needed from wallet:</strong> ${bestDeal.points_needed_from_wallet.toLocaleString()}</p>
+              <p><strong>Deal rating:</strong> ${dealScore.rating}</p>
+              <p><strong>Value:</strong> ${dealScore.cpp_cents.toFixed(1)}¢/pt (${dealScore.vs_static_baseline_pct}% of typical value)</p>
               <p><strong>Travel date:</strong> ${bestDeal.availability?.date ?? watch.start_date}</p>
               <p><a href="${bestDeal.deep_link.url}" style="background:#0f172a;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">Open booking link</a></p>
             `,
