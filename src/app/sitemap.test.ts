@@ -15,13 +15,15 @@ vi.mock('@/lib/supabase', () => ({
 const { default: sitemap } = await import('./sitemap')
 
 describe('sitemap', () => {
-  it('does not include redirected legacy feature routes', async () => {
+  it('includes live inspire and earning calculator routes', async () => {
     const items = await sitemap()
     const urls = items.map((item) => item.url)
 
-    expect(urls).not.toContain('https://pointsmax.com/us/inspire')
-    expect(urls).not.toContain('https://pointsmax.com/in/inspire')
-    expect(urls).not.toContain('https://pointsmax.com/us/earning-calculator')
-    expect(urls).not.toContain('https://pointsmax.com/in/earning-calculator')
+    expect(urls).toContain('https://pointsmax.com/us/inspire')
+    expect(urls).toContain('https://pointsmax.com/in/inspire')
+    expect(urls).toContain('https://pointsmax.com/us/earning-calculator')
+    expect(urls).toContain('https://pointsmax.com/in/earning-calculator')
+    expect(urls).toContain('https://pointsmax.com/us/award-search')
+    expect(urls).toContain('https://pointsmax.com/in/award-search')
   })
 })

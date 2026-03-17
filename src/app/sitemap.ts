@@ -23,8 +23,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     '',
     'calculator',
+    'award-search',
     'card-recommender',
+    'earning-calculator',
     'how-it-works',
+    'inspire',
     'pricing',
   ]
 
