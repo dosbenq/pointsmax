@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/bonuses', label: 'Transfer Bonuses' },
   { href: '/admin/link-health', label: 'Link Health' },
   { href: '/admin/creators', label: 'Creators' },
+  { href: '/admin/catalog-health', label: 'Catalog Health' },
   { href: '/admin/audit-log', label: 'Audit Log' },
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/workflow-health', label: 'Workflow Health' },
