@@ -90,6 +90,22 @@ describe('ConnectedWallets', () => {
       expect(screen.getByTestId('manual-entry-btn')).toHaveTextContent('Enter Balance Manually')
     })
 
+    it('shows the CSV import section in empty state', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ accounts: [] }),
+      })
+
+      render(<ConnectedWallets />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('csv-import-section')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('csv-template-download')).toBeInTheDocument()
+      expect(screen.getByTestId('csv-import-button')).toHaveTextContent('Import CSV')
+    })
+
     it('calls onManualEntry when manual entry button clicked', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -105,6 +121,42 @@ describe('ConnectedWallets', () => {
       
       fireEvent.click(screen.getByTestId('manual-entry-btn'))
       expect(onManualEntry).toHaveBeenCalledTimes(1)
+    })
+
+    it('imports a CSV file and shows success status', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ summary: { importedBalances: 2 } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        })
+
+      render(<ConnectedWallets />)
+
+      await waitFor(() => {
+        expect(screen.getByTestId('csv-file-input')).toBeInTheDocument()
+      })
+
+      const file = new File(['Program,Balance\nChase UR,100000'], 'balances.csv', { type: 'text/csv' })
+      fireEvent.change(screen.getByTestId('csv-file-input'), {
+        target: { files: [file] },
+      })
+      fireEvent.click(screen.getByTestId('csv-import-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('csv-import-status')).toHaveTextContent('Imported 2 balances from CSV.')
+      })
+
+      expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/connectors/ingest/csv', expect.objectContaining({
+        method: 'POST',
+      }))
     })
   })
 
