@@ -205,7 +205,7 @@ export default function AwardSearchPage() {
   const originFromQuery = (searchParams.get('origin') || defaultOrigin).trim().toUpperCase().slice(0, 3)
   const destinationFromQuery = (searchParams.get('destination') || defaultDestination).trim().toUpperCase().slice(0, 3)
 
-  const { user } = useAuth()
+  const { user, preferences } = useAuth()
   const reduceMotion = useReducedMotion()
   const [programs, setPrograms] = useState<ProgramOption[]>([])
   const [rows, setRows] = useState<BalanceRow[]>([{ id: '1', program_id: '', amount: '' }])
@@ -218,8 +218,11 @@ export default function AwardSearchPage() {
     passengers: 1,
   })
   const [loading, setLoading] = useState(false)
+  const [parseLoading, setParseLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AwardSearchResponse | null>(null)
+  const [naturalQuery, setNaturalQuery] = useState('')
+  const [parseNotice, setParseNotice] = useState<string | null>(null)
   const [narrative, setNarrative] = useState<AwardNarrative | null>(null)
   const [narrativeLoading, setNarrativeLoading] = useState(false)
   const [watchSaving, setWatchSaving] = useState(false)
@@ -288,6 +291,49 @@ export default function AwardSearchPage() {
     params.end_date &&
     rows.some((r) => r.program_id && parsePointsAmount(r.amount) > 0),
   )
+
+  const parseNaturalQuery = async () => {
+    if (!naturalQuery.trim()) return
+    setParseLoading(true)
+    setParseNotice(null)
+
+    try {
+      const response = await fetch('/api/award-search/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: naturalQuery,
+          home_airport: preferences?.home_airport ?? null,
+        }),
+      })
+
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to parse query')
+      }
+
+      const parsed = payload.params as Partial<AwardParams>
+      setParams((current) => ({
+        ...current,
+        origin: parsed.origin ?? current.origin,
+        destination: parsed.destination ?? current.destination,
+        cabin: parsed.cabin ?? current.cabin,
+        start_date: parsed.start_date ?? current.start_date,
+        end_date: parsed.end_date ?? current.end_date,
+        passengers: parsed.passengers ?? current.passengers,
+      }))
+
+      setParseNotice(
+        payload.confidence === 'low'
+          ? 'We guessed some fields from your prompt. Please verify the route, dates, and cabin before searching.'
+          : 'Search inputs updated from your prompt.',
+      )
+    } catch (err) {
+      setParseNotice(err instanceof Error ? err.message : 'Could not parse that query yet.')
+    } finally {
+      setParseLoading(false)
+    }
+  }
 
   const submitSearch = async () => {
     setLoading(true)
@@ -552,6 +598,32 @@ export default function AwardSearchPage() {
               <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
                 Search
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-pm-border bg-pm-surface p-4">
+              <label className="pm-label block mb-2">Describe the trip in plain English</label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="text"
+                  value={naturalQuery}
+                  onChange={(event) => setNaturalQuery(event.target.value)}
+                  placeholder="Try: business class to Tokyo in March"
+                  className="pm-input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={parseNaturalQuery}
+                  disabled={parseLoading || !naturalQuery.trim()}
+                  className="pm-button whitespace-nowrap"
+                >
+                  {parseLoading ? 'Parsing…' : 'Use prompt'}
+                </button>
+              </div>
+              {parseNotice && (
+                <p className={`mt-3 text-sm ${parseNotice.startsWith('We guessed') ? 'text-amber-700' : 'text-pm-ink-500'}`}>
+                  {parseNotice}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
