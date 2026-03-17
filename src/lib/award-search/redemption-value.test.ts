@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimateAwardCashValue } from './redemption-value'
+import { estimateAwardCashValue, estimateAwardCashValueWithLiveFare } from './redemption-value'
 
 describe('estimateAwardCashValue', () => {
   it('returns a modeled route fare with medium confidence when availability is real', () => {
@@ -44,5 +44,23 @@ describe('estimateAwardCashValue', () => {
       estimatedMiles: 0,
       hasRealAvailability: true,
     })).toBeNull()
+  })
+
+  it('uses live fare data when available', () => {
+    const result = estimateAwardCashValueWithLiveFare({
+      routeRegion: 'europe',
+      cabin: 'business',
+      passengers: 1,
+      estimatedMiles: 55000,
+      hasRealAvailability: true,
+      liveFareUsd: 3900,
+    })
+
+    expect(result).toEqual({
+      cashValueCents: 390000,
+      cppCents: 390000 / 55000,
+      source: 'live_fare_api',
+      confidence: 'high',
+    })
   })
 })
