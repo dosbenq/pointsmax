@@ -31,6 +31,22 @@ const programs: ProgramRow[] = [
     color_hex: '#002244',
     type: 'airline_miles',
   },
+  {
+    id: 'aeroplan',
+    name: 'Air Canada Aeroplan',
+    short_name: 'Aeroplan',
+    slug: 'aeroplan',
+    color_hex: '#ff0000',
+    type: 'airline_miles',
+  },
+  {
+    id: 'ana',
+    name: 'ANA Mileage Club',
+    short_name: 'ANA',
+    slug: 'ana',
+    color_hex: '#003399',
+    type: 'airline_miles',
+  },
 ]
 
 const transferPartners: TransferPartnerRow[] = [
@@ -52,6 +68,24 @@ const transferPartners: TransferPartnerRow[] = [
     is_instant: true,
     transfer_time_max_hrs: 0,
   },
+  {
+    id: 'tp-3',
+    from_program_id: 'chase',
+    to_program_id: 'aeroplan',
+    ratio_from: 1,
+    ratio_to: 1,
+    is_instant: true,
+    transfer_time_max_hrs: 0,
+  },
+  {
+    id: 'tp-4',
+    from_program_id: 'aeroplan',
+    to_program_id: 'ana',
+    ratio_from: 1,
+    ratio_to: 1,
+    is_instant: false,
+    transfer_time_max_hrs: 24,
+  },
 ]
 
 describe('reachable-wallet', () => {
@@ -69,8 +103,8 @@ describe('reachable-wallet', () => {
     expect(path).toBeDefined()
     expect(path?.availableMiles).toBe(80000)
     expect(calculatePointsNeededFromWallet(path!, 70000)).toBe(70000)
-    expect(buildTransferChain(path!, programMap.get('united')!)).toContain('Chase Ultimate Rewards')
-    expect(buildTransferChain(path!, programMap.get('united')!)).toContain('Amex Membership Rewards')
+    expect(buildTransferChain(path!)).toContain('Chase Ultimate Rewards')
+    expect(buildTransferChain(path!)).toContain('Amex Membership Rewards')
   })
 
   it('prefers more efficient sources first when ratios differ', () => {
@@ -94,5 +128,23 @@ describe('reachable-wallet', () => {
     expect(path).toBeDefined()
     expect(calculatePointsNeededFromWallet(path!, 50000)).toBe(50000)
     expect(calculatePointsNeededFromWallet(path!, 70000)).toBe(72500)
+  })
+
+  it('finds multi-hop transfer paths up to three hops', () => {
+    const programMap = new Map(programs.map((program) => [program.id, program]))
+    const path = buildReachablePaths(
+      [{ program_id: 'chase', amount: 55000 }],
+      programMap,
+      transferPartners,
+    ).get('ana')
+
+    expect(path).toBeDefined()
+    expect(path?.availableMiles).toBe(55000)
+    expect(path?.transferIsInstant).toBe(false)
+    expect(path?.transferTimeMaxHrs).toBe(24)
+    expect(calculatePointsNeededFromWallet(path!, 50000)).toBe(50000)
+    expect(buildTransferChain(path!)).toContain(
+      'Chase Ultimate Rewards → Air Canada Aeroplan → ANA Mileage Club',
+    )
   })
 })

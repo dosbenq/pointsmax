@@ -1,3 +1,5 @@
+import type { BookingGuideContext } from '@/lib/booking-guide-context'
+
 export type BookingGuideSessionStatus =
   | 'pending'
   | 'generating'
@@ -40,17 +42,32 @@ export type BookingGuideStepRow = {
   updated_at: string
 }
 
-export function buildFallbackBookingSteps(redemptionLabel: string): string[] {
+export function buildFallbackBookingSteps(
+  redemptionLabel: string,
+  context: BookingGuideContext | null = null,
+): string[] {
   const label = redemptionLabel.trim() || 'your redemption'
+  const availabilityDetail = context?.availability_date
+    ? ` on ${context.availability_date}`
+    : ''
+  const transferDetail = context?.transfer_chain
+    ? ` using ${context.transfer_chain}`
+    : ` for ${label}`
+  const bookingPortal = context?.deep_link_label ?? context?.program_name ?? 'the airline or hotel portal'
+
   return [
-    `Confirm award space is still available for ${label}`,
-    `Transfer only the points needed for ${label}`,
-    `Complete the booking on the airline or hotel portal`,
+    `Confirm award space is still available for ${label}${availabilityDetail}`,
+    `Transfer only the points needed${transferDetail}`,
+    `Complete the booking on ${bookingPortal}`,
     `Save confirmation details and verify the itinerary`,
   ]
 }
 
-export function parseBookingChecklist(raw: string, redemptionLabel: string): string[] {
+export function parseBookingChecklist(
+  raw: string,
+  redemptionLabel: string,
+  context: BookingGuideContext | null = null,
+): string[] {
   const parsed = raw
     .split('\n')
     .map((line) => line.trim())
@@ -60,7 +77,7 @@ export function parseBookingChecklist(raw: string, redemptionLabel: string): str
     .filter(Boolean)
 
   const unique = [...new Set(parsed)].slice(0, 8)
-  return unique.length > 0 ? unique : buildFallbackBookingSteps(redemptionLabel)
+  return unique.length > 0 ? unique : buildFallbackBookingSteps(redemptionLabel, context)
 }
 
 export function getCurrentBookingGuideStep(

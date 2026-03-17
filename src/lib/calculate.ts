@@ -66,6 +66,30 @@ type ReferenceCacheStore = {
   pending: Promise<ReferenceData> | null
 }
 
+type TransferExplorationState = {
+  currentProgramId: string
+  pointsOut: number
+  isInstant: boolean
+  transferTimeMaxHrs: number
+  hopCount: number
+  pathProgramIds: string[]
+  appliedBonuses: number[]
+}
+
+type TransferOptionCandidate = {
+  targetProgram: Program
+  pointsOut: number
+  effectiveCppCents: number
+  totalValueCents: number
+  isInstant: boolean
+  transferTimeMaxHrs: number
+  hopCount: number
+  pathProgramIds: string[]
+  appliedBonuses: number[]
+}
+
+const MAX_TRANSFER_HOPS = 3
+
 const REFERENCE_CACHE_TTL_MS = Number.parseInt(
   process.env.CALCULATE_REFERENCE_CACHE_TTL_MS ?? '120000',
   10,
@@ -228,6 +252,137 @@ async function getReferenceData(): Promise<ReferenceData> {
   return store.pending
 }
 
+function chooseBetterTransferCandidate(
+  current: TransferOptionCandidate | undefined,
+  candidate: TransferOptionCandidate,
+): TransferOptionCandidate {
+  if (!current) return candidate
+  if (candidate.totalValueCents !== current.totalValueCents) {
+    return candidate.totalValueCents > current.totalValueCents ? candidate : current
+  }
+  if (candidate.pointsOut !== current.pointsOut) {
+    return candidate.pointsOut > current.pointsOut ? candidate : current
+  }
+  if (candidate.isInstant !== current.isInstant) {
+    return candidate.isInstant ? candidate : current
+  }
+  if (candidate.transferTimeMaxHrs !== current.transferTimeMaxHrs) {
+    return candidate.transferTimeMaxHrs < current.transferTimeMaxHrs ? candidate : current
+  }
+  if (candidate.hopCount !== current.hopCount) {
+    return candidate.hopCount < current.hopCount ? candidate : current
+  }
+  return current
+}
+
+function buildTransferOptionLabel(targetProgram: Program, pathProgramIds: string[], programMap: Map<string, Program>): string {
+  if (pathProgramIds.length <= 2) return `Transfer to ${targetProgram.name}`
+  const intermediates = pathProgramIds
+    .slice(1, -1)
+    .map((programId) => programMap.get(programId)?.name)
+    .filter((name): name is string => Boolean(name))
+
+  return intermediates.length > 0
+    ? `Transfer to ${targetProgram.name} via ${intermediates.join(' → ')}`
+    : `Transfer to ${targetProgram.name}`
+}
+
+function buildTransferOptionsForBalance(
+  balance: BalanceInput,
+  fromProgram: Program,
+  referenceData: ReferenceData,
+): RedemptionResult[] {
+  const {
+    valuationMap,
+    programMap,
+    bonusMap,
+    partnersByFromProgram,
+  } = referenceData
+
+  const bestByTargetProgramId = new Map<string, TransferOptionCandidate>()
+  const queue: TransferExplorationState[] = [{
+    currentProgramId: balance.program_id,
+    pointsOut: balance.amount,
+    isInstant: true,
+    transferTimeMaxHrs: 0,
+    hopCount: 0,
+    pathProgramIds: [balance.program_id],
+    appliedBonuses: [],
+  }]
+
+  while (queue.length > 0) {
+    const state = queue.shift()
+    if (!state || state.hopCount >= MAX_TRANSFER_HOPS) continue
+
+    const partners = partnersByFromProgram.get(state.currentProgramId) ?? []
+    for (const partner of partners) {
+      if (state.pathProgramIds.includes(partner.to_program_id)) continue
+
+      const toProgram = programMap.get(partner.to_program_id)
+      if (!toProgram) continue
+
+      let pointsOut = state.pointsOut * (partner.ratio_to / partner.ratio_from)
+      const bonusPct = bonusMap.get(partner.id) ?? 0
+      if (bonusPct > 0) {
+        pointsOut = pointsOut * (1 + bonusPct / 100)
+      }
+
+      const flooredPointsOut = Math.floor(pointsOut)
+      if (flooredPointsOut <= 0) continue
+
+      const toValuation = valuationMap.get(partner.to_program_id)
+      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type)
+      const totalValueCents = flooredPointsOut * toCppCents
+      const effectiveCppCents = balance.amount > 0 ? totalValueCents / balance.amount : 0
+
+      const candidate: TransferOptionCandidate = {
+        targetProgram: toProgram,
+        pointsOut: flooredPointsOut,
+        effectiveCppCents,
+        totalValueCents,
+        isInstant: state.isInstant && partner.is_instant,
+        transferTimeMaxHrs: Math.max(state.transferTimeMaxHrs, partner.transfer_time_max_hrs),
+        hopCount: state.hopCount + 1,
+        pathProgramIds: [...state.pathProgramIds, toProgram.id],
+        appliedBonuses: bonusPct > 0 ? [...state.appliedBonuses, bonusPct] : [...state.appliedBonuses],
+      }
+
+      const existing = bestByTargetProgramId.get(toProgram.id)
+      bestByTargetProgramId.set(
+        toProgram.id,
+        chooseBetterTransferCandidate(existing, candidate),
+      )
+
+      queue.push({
+        currentProgramId: toProgram.id,
+        pointsOut: flooredPointsOut,
+        isInstant: candidate.isInstant,
+        transferTimeMaxHrs: candidate.transferTimeMaxHrs,
+        hopCount: candidate.hopCount,
+        pathProgramIds: candidate.pathProgramIds,
+        appliedBonuses: candidate.appliedBonuses,
+      })
+    }
+  }
+
+  return [...bestByTargetProgramId.values()].map((candidate) => ({
+    label: buildTransferOptionLabel(candidate.targetProgram, candidate.pathProgramIds, programMap),
+    category: 'transfer_partner',
+    from_program: fromProgram,
+    to_program: candidate.targetProgram,
+    points_in: balance.amount,
+    points_out: candidate.pointsOut,
+    cpp_cents: candidate.effectiveCppCents,
+    total_value_cents: candidate.totalValueCents,
+    active_bonus_pct: candidate.hopCount === 1 && candidate.appliedBonuses.length === 1
+      ? candidate.appliedBonuses[0]
+      : undefined,
+    is_instant: candidate.isInstant,
+    transfer_time_max_hrs: candidate.transferTimeMaxHrs,
+    is_best: false,
+  }))
+}
+
 // ─────────────────────────────────────────────
 // MAIN EXPORT
 // ─────────────────────────────────────────────
@@ -235,13 +390,11 @@ async function getReferenceData(): Promise<ReferenceData> {
 export async function calculateRedemptions(
   balances: BalanceInput[]
 ): Promise<CalculateResponse> {
+  const referenceData = await getReferenceData()
   const {
-    valuationMap,
     programMap,
-    bonusMap,
     directOptionsByProgram,
-    partnersByFromProgram,
-  } = await getReferenceData()
+  } = referenceData
 
   if (programMap.size === 0) {
     throw new Error('No programs loaded from database')
@@ -278,45 +431,9 @@ export async function calculateRedemptions(
     }
 
     // 2. Transfer partner options
-    //    For each partner: apply transfer ratio, apply active bonus if any,
-    //    then multiply by the destination program's CPP.
-    const partners = partnersByFromProgram.get(balance.program_id) ?? []
-
-    for (const partner of partners) {
-      const toValuation = valuationMap.get(partner.to_program_id)
-      const toProgram = programMap.get(partner.to_program_id)
-      if (!toProgram) continue
-
-      // Apply transfer ratio: e.g. Amex→JetBlue is 250:200
-      // so 10,000 Amex MR → 10,000 × (200/250) = 8,000 JetBlue points
-      let pointsOut = balance.amount * (partner.ratio_to / partner.ratio_from)
-
-      // Apply active transfer bonus if one exists
-      const bonusPct = bonusMap.get(partner.id) ?? 0
-      if (bonusPct > 0) {
-        pointsOut = pointsOut * (1 + bonusPct / 100)
-      }
-
-      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type)
-      const flooredPointsOut = Math.floor(pointsOut)
-      const totalValue = flooredPointsOut * toCppCents
-      const effectiveCppCents = balance.amount > 0 ? totalValue / balance.amount : 0
-
-      options.push({
-        label: `Transfer to ${toProgram.name}`,
-        category: 'transfer_partner',
-        from_program: fromProgram,
-        to_program: toProgram,
-        points_in: balance.amount,
-        points_out: flooredPointsOut,
-        cpp_cents: effectiveCppCents,
-        total_value_cents: totalValue,
-        active_bonus_pct: bonusPct > 0 ? bonusPct : undefined,
-        is_instant: partner.is_instant,
-        transfer_time_max_hrs: partner.transfer_time_max_hrs,
-        is_best: false,
-      })
-    }
+    //    Explore up to three transfer hops, carrying ratios/bonuses forward
+    //    and keeping the highest-value path to each destination program.
+    options.push(...buildTransferOptionsForBalance(balance, fromProgram, referenceData))
 
     // Sort this program's options by total value, highest first
     options.sort((a, b) => b.total_value_cents - a.total_value_cents)

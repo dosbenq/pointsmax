@@ -229,9 +229,13 @@ export interface CardWithRates extends Card {
 
 export interface TripBuilderFlightOption {
   program_name: string
+  program_slug: string
   estimated_miles: number
   points_needed_from_wallet: number
   transfer_chain: string | null
+  transfer_is_instant: boolean
+  has_real_availability: boolean
+  availability_date: string | null
   is_reachable: boolean
   deep_link_url: string
   deep_link_label: string

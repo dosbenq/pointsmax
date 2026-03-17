@@ -24,6 +24,7 @@ import {
   buildTransferChain,
   calculatePointsNeededFromWallet,
 } from './reachable-wallet'
+import { estimateAwardCashValue } from './redemption-value'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { sortAwardResultsByPoints } from './sort-results'
 
@@ -35,7 +36,6 @@ export class StubProvider implements AwardProvider {
     client: SupabaseClient,
   ): Promise<AwardSearchResult[]> {
     const { origin, destination, cabin, passengers, balances } = params
-    const programIds = balances.map(b => b.program_id)
 
     // ── Fetch data in parallel ───────────────────────────────
     const [
@@ -46,7 +46,6 @@ export class StubProvider implements AwardProvider {
       client
         .from('transfer_partners')
         .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .in('from_program_id', programIds)
         .eq('is_active', true),
 
       client
@@ -90,11 +89,18 @@ export class StubProvider implements AwardProvider {
       const airlineProgram = slugToProgram.get(slug)
       if (!airlineProgram) continue
 
-      // Look up valuation to get cpp_cents and estimated cash value
+      // Look up valuation to get a generic baseline, then overlay a route/cabin-specific modeled redemption value.
       const valuation = valuationByProgramId.get(airlineProgram.id)
-      const cppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
-
-      const estimatedCashValueCents = estimatedMiles * cppCents
+      const baselineCppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
+      const modeledRedemptionValue = estimateAwardCashValue({
+        routeRegion: region,
+        cabin,
+        passengers,
+        estimatedMiles,
+        hasRealAvailability: false,
+      })
+      const estimatedCashValueCents = modeledRedemptionValue?.cashValueCents ?? (estimatedMiles * baselineCppCents)
+      const cppCents = modeledRedemptionValue?.cppCents ?? baselineCppCents
 
       // How many source program points are needed to get estimatedMiles
       const pointsNeededFromWallet = path
@@ -110,7 +116,10 @@ export class StubProvider implements AwardProvider {
         estimated_miles: estimatedMiles,
         estimated_cash_value_cents: estimatedCashValueCents,
         cpp_cents: cppCents,
-        transfer_chain: path ? buildTransferChain(path, airlineProgram) : null,
+        baseline_cpp_cents: baselineCppCents,
+        cash_value_source: modeledRedemptionValue?.source ?? 'static_program_cpp',
+        cash_value_confidence: modeledRedemptionValue?.confidence ?? 'low',
+        transfer_chain: path ? buildTransferChain(path) : null,
         transfer_is_instant: path?.transferIsInstant ?? true,
         points_needed_from_wallet: pointsNeededFromWallet,
         availability: null,

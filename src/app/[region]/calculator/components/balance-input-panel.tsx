@@ -1,9 +1,3 @@
-// ============================================================
-// BalanceInputPanel — Sprint 18
-// Extracted from 2033-line calculator
-// Handles balance row inputs with program selector
-// ============================================================
-
 'use client'
 
 import type { Program, BalanceRow } from '../hooks/use-calculator-state'

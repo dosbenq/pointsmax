@@ -20,6 +20,10 @@ import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
+type BookingGuideStartResponse = {
+  ok: boolean
+  session?: { id: string }
+}
 
 type AwardParams = {
   origin: string
@@ -71,7 +75,21 @@ function closeDatePopover(setOpen: (open: boolean) => void) {
   }, 0)
 }
 
-function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResult; topSlug?: string; region: Region }) {
+function AwardResultCard({
+  result,
+  topSlug,
+  region,
+  canStartGuide,
+  isStartingGuide,
+  onStartGuide,
+}: {
+  result: AwardSearchResult
+  topSlug?: string
+  region: Region
+  canStartGuide: boolean
+  isStartingGuide: boolean
+  onStartGuide: (result: AwardSearchResult) => void
+}) {
   const isTopPick = result.program_slug === topSlug
   const resultClass = isTopPick
     ? 'bg-pm-accent-soft border-pm-accent-border'
@@ -114,15 +132,27 @@ function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResul
         <p className="text-xs text-pm-accent">{result.transfer_chain}</p>
       )}
 
-      <a
-        href={result.deep_link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-success-soft text-pm-ink-700 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
-      >
-        {result.deep_link.label}
-        <span className="text-pm-ink-500">↗</span>
-      </a>
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={result.deep_link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-success-soft text-pm-ink-700 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
+        >
+          {result.deep_link.label}
+          <span className="text-pm-ink-500">↗</span>
+        </a>
+        {result.is_reachable && (
+          <button
+            type="button"
+            onClick={() => onStartGuide(result)}
+            disabled={!canStartGuide || isStartingGuide}
+            className="inline-flex items-center gap-1.5 text-xs bg-pm-accent-soft hover:bg-pm-accent-soft/80 text-pm-accent border border-pm-accent-border px-3 py-1.5 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isStartingGuide ? 'Starting guide…' : 'Start booking guide'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -155,6 +185,8 @@ export default function AwardSearchPage() {
   const [narrativeLoading, setNarrativeLoading] = useState(false)
   const [watchSaving, setWatchSaving] = useState(false)
   const [watchStatus, setWatchStatus] = useState<string | null>(null)
+  const [bookingGuideStartingSlug, setBookingGuideStartingSlug] = useState<string | null>(null)
+  const [bookingGuideStatus, setBookingGuideStatus] = useState<string | null>(null)
   const [startDateOpen, setStartDateOpen] = useState(false)
   const [endDateOpen, setEndDateOpen] = useState(false)
 
@@ -225,6 +257,7 @@ export default function AwardSearchPage() {
     setNarrative(null)
     setNarrativeLoading(false)
     setWatchStatus(null)
+    setBookingGuideStatus(null)
 
     try {
       const balances = rows
@@ -345,6 +378,73 @@ export default function AwardSearchPage() {
       setWatchStatus(err instanceof Error ? err.message : 'Failed to save watch')
     } finally {
       setWatchSaving(false)
+    }
+  }
+
+  const startBookingGuide = async (selectedResult: AwardSearchResult) => {
+    if (!result) return
+    if (!user) {
+      setBookingGuideStatus('Sign in to start a booking guide for this option.')
+      return
+    }
+
+    const selectedBalances = rows
+      .filter((row) => row.program_id && parsePointsAmount(row.amount) > 0)
+      .map((row) => {
+        const program = programs.find((candidate) => candidate.id === row.program_id)
+        return {
+          program_id: row.program_id,
+          program_name: program?.name ?? row.program_id,
+          balance: parsePointsAmount(row.amount),
+        }
+      })
+      .filter((row) => Number.isFinite(row.balance) && row.balance > 0)
+
+    setBookingGuideStartingSlug(selectedResult.program_slug)
+    setBookingGuideStatus(null)
+
+    try {
+      const response = await fetch('/api/booking-guide/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          redemption_label: `${selectedResult.program_name} for ${result.params.origin} to ${result.params.destination}`,
+          booking_context: {
+            origin: result.params.origin,
+            destination: result.params.destination,
+            cabin: result.params.cabin,
+            passengers: result.params.passengers,
+            start_date: result.params.start_date,
+            end_date: result.params.end_date,
+            program_name: selectedResult.program_name,
+            program_slug: selectedResult.program_slug,
+            estimated_miles: selectedResult.estimated_miles,
+            points_needed_from_wallet: selectedResult.points_needed_from_wallet,
+            transfer_chain: selectedResult.transfer_chain,
+            transfer_is_instant: selectedResult.transfer_is_instant,
+            has_real_availability: selectedResult.has_real_availability,
+            availability_date: selectedResult.availability?.date ?? null,
+            deep_link_url: selectedResult.deep_link.url,
+            deep_link_label: selectedResult.deep_link.label,
+            balances: selectedBalances,
+          },
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({})) as Partial<BookingGuideStartResponse> & { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to start booking guide')
+      }
+
+      setBookingGuideStatus(
+        payload.session?.id
+          ? `Booking guide started for ${selectedResult.program_name}. Session ${payload.session.id.slice(0, 8)} is ready.`
+          : `Booking guide started for ${selectedResult.program_name}.`,
+      )
+    } catch (err) {
+      setBookingGuideStatus(err instanceof Error ? err.message : 'Failed to start booking guide')
+    } finally {
+      setBookingGuideStartingSlug(null)
     }
   }
 
@@ -717,6 +817,19 @@ export default function AwardSearchPage() {
                   )}
                 </div>
 
+                <div className="rounded-xl p-4 border border-pm-border bg-pm-surface">
+                  <p className="pm-label mb-1">Booking guide</p>
+                  <p className="text-xs text-pm-ink-500">
+                    Start a guided booking session from any reachable result. The guide now uses this route, transfer path, and your wallet balances.
+                  </p>
+                  {!user && (
+                    <p className="text-xs text-pm-ink-500 mt-2">Sign in to start and save a booking guide session.</p>
+                  )}
+                  {bookingGuideStatus && (
+                    <p className="text-xs text-pm-accent-strong mt-2">{bookingGuideStatus}</p>
+                  )}
+                </div>
+
                 {reachable.length > 0 && (
                   <div className="space-y-3">
                     <p className="pm-label text-pm-success">Reachable with your wallet</p>
@@ -727,7 +840,14 @@ export default function AwardSearchPage() {
                         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? undefined : { duration: 0.2, delay: index * 0.05 }}
                       >
-                        <AwardResultCard result={r} topSlug={topSlug} region={region} />
+                        <AwardResultCard
+                          result={r}
+                          topSlug={topSlug}
+                          region={region}
+                          canStartGuide={Boolean(user)}
+                          isStartingGuide={bookingGuideStartingSlug === r.program_slug}
+                          onStartGuide={startBookingGuide}
+                        />
                       </motion.div>
                     ))}
                   </div>
@@ -743,7 +863,14 @@ export default function AwardSearchPage() {
                         animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
                         transition={reduceMotion ? undefined : { duration: 0.2, delay: index * 0.05 }}
                       >
-                        <AwardResultCard result={r} topSlug={topSlug} region={region} />
+                        <AwardResultCard
+                          result={r}
+                          topSlug={topSlug}
+                          region={region}
+                          canStartGuide={false}
+                          isStartingGuide={false}
+                          onStartGuide={startBookingGuide}
+                        />
                       </motion.div>
                     ))}
                   </div>

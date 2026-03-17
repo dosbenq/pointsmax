@@ -4,6 +4,10 @@ import { createAdminClient } from '@/lib/supabase'
 import { getGeminiModelCandidatesForApiKey } from '@/lib/gemini-models'
 import { logError, logInfo, logWarn } from '@/lib/logger'
 import {
+  buildBookingGuidePrompt,
+  type BookingGuideContext,
+} from '@/lib/booking-guide-context'
+import {
   buildFallbackBookingSteps,
   parseBookingChecklist,
   type BookingGuideSessionRow,
@@ -14,6 +18,7 @@ type BookingStartedEvent = {
     session_id: string
     user_id: string
     redemption_label: string
+    booking_context?: BookingGuideContext | null
   }
 }
 
@@ -28,35 +33,30 @@ function getCompletionNote(event: BookingCompletedEvent): string | null {
   return typeof note === 'string' && note.trim() ? note.trim() : null
 }
 
-async function generateChecklist(redemptionLabel: string): Promise<string[]> {
+async function generateChecklist(
+  redemptionLabel: string,
+  bookingContext: BookingGuideContext | null,
+): Promise<string[]> {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) {
-    return buildFallbackBookingSteps(redemptionLabel)
+    return buildFallbackBookingSteps(redemptionLabel, bookingContext)
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey)
     const modelNames = await getGeminiModelCandidatesForApiKey(apiKey)
     const model = genAI.getGenerativeModel({ model: modelNames[0] })
-    const prompt = `
-Generate a concise 4-step checklist for booking this redemption: ${redemptionLabel}.
-
-Requirements:
-- Focus on practical transfer and booking actions.
-- One step per line.
-- Start each line with "Step X:".
-- Do not include markdown or extra commentary.
-`.trim()
+    const prompt = buildBookingGuidePrompt(redemptionLabel, bookingContext)
 
     const result = await model.generateContent(prompt)
     const text = result.response.text()
-    return parseBookingChecklist(text, redemptionLabel)
+    return parseBookingChecklist(text, redemptionLabel, bookingContext)
   } catch (error) {
     logWarn('booking_guide_generate_checklist_fallback', {
       redemption_label: redemptionLabel,
       error: error instanceof Error ? error.message : String(error),
     })
-    return buildFallbackBookingSteps(redemptionLabel)
+    return buildFallbackBookingSteps(redemptionLabel, bookingContext)
   }
 }
 
@@ -64,7 +64,12 @@ export const bookingGuide = inngest.createFunction(
   { id: 'booking-guide', name: 'Agent: Interactive Booking Guide' },
   { event: 'booking.started' },
   async ({ event, step }) => {
-    const { session_id, user_id, redemption_label } = (event as BookingStartedEvent).data
+    const {
+      session_id,
+      user_id,
+      redemption_label,
+      booking_context,
+    } = (event as BookingStartedEvent).data
     const db = createAdminClient()
 
     const { data: sessionData } = await db
@@ -93,7 +98,7 @@ export const bookingGuide = inngest.createFunction(
       })
 
       const stepTitles = await step.run('generate-booking-checklist', async () => {
-        return generateChecklist(redemption_label)
+        return generateChecklist(redemption_label, booking_context ?? null)
       })
 
       const createdAt = new Date().toISOString()

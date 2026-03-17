@@ -1,8 +1,3 @@
-// ============================================================
-// AwardResults — Sprint 18
-// Extracted AwardSearchPanel and AwardResultCard from calculator
-// ============================================================
-
 'use client'
 
 import { useState } from 'react'
@@ -13,9 +8,21 @@ import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
-import type { AwardParams, AwardSearchResponse, AwardSearchResult } from '../hooks/use-calculator-state'
+import type {
+  AwardParams,
+  AwardSearchResponse,
+  AwardSearchResult,
+  BalanceRow,
+  Program,
+} from '../hooks/use-calculator-state'
 import type { Region } from '@/lib/regions'
 import { formatCpp } from '@/lib/formatters'
+import type { User } from '@supabase/supabase-js'
+
+type BookingGuideStartResponse = {
+  ok: boolean
+  session?: { id: string }
+}
 
 interface AwardResultsProps {
   awardParams: AwardParams
@@ -25,6 +32,9 @@ interface AwardResultsProps {
   awardError: string | null
   onSearch: () => void
   region: Region
+  programs: Program[]
+  rows: BalanceRow[]
+  user: User | null
 }
 
 const CABIN_LABELS: Record<AwardParams['cabin'], string> = {
@@ -51,15 +61,88 @@ export function AwardResults({
   awardError,
   onSearch,
   region,
+  programs,
+  rows,
+  user,
 }: AwardResultsProps) {
   const [startDateOpen, setStartDateOpen] = useState(false)
   const [endDateOpen, setEndDateOpen] = useState(false)
+  const [bookingGuideStartingSlug, setBookingGuideStartingSlug] = useState<string | null>(null)
+  const [bookingGuideStatus, setBookingGuideStatus] = useState<string | null>(null)
   const reachable = awardResult?.results.filter(r => r.is_reachable) ?? []
   const unreachable = awardResult?.results.filter(r => !r.is_reachable) ?? []
   const narrative = awardResult?.ai_narrative ?? null
   const estimatesOnly =
     awardResult?.provider === 'stub' &&
     awardResult?.error === 'real_availability_unavailable'
+
+  const startBookingGuide = async (selectedResult: AwardSearchResult) => {
+    if (!awardResult) return
+    if (!user) {
+      setBookingGuideStatus('Sign in to start a booking guide for this option.')
+      return
+    }
+
+    const selectedBalances = rows
+      .filter((row) => row.program_id && row.amount)
+      .map((row) => {
+        const balance = Number.parseInt(row.amount.replace(/[^\d]/g, ''), 10)
+        const program = programs.find((candidate) => candidate.id === row.program_id)
+        return {
+          program_id: row.program_id,
+          program_name: program?.name ?? row.program_id,
+          balance,
+        }
+      })
+      .filter((row) => Number.isFinite(row.balance) && row.balance > 0)
+
+    setBookingGuideStartingSlug(selectedResult.program_slug)
+    setBookingGuideStatus(null)
+
+    try {
+      const response = await fetch('/api/booking-guide/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          redemption_label: `${selectedResult.program_name} for ${awardResult.params.origin} to ${awardResult.params.destination}`,
+          booking_context: {
+            origin: awardResult.params.origin,
+            destination: awardResult.params.destination,
+            cabin: awardResult.params.cabin,
+            passengers: awardResult.params.passengers,
+            start_date: awardResult.params.start_date,
+            end_date: awardResult.params.end_date,
+            program_name: selectedResult.program_name,
+            program_slug: selectedResult.program_slug,
+            estimated_miles: selectedResult.estimated_miles,
+            points_needed_from_wallet: selectedResult.points_needed_from_wallet,
+            transfer_chain: selectedResult.transfer_chain,
+            transfer_is_instant: selectedResult.transfer_is_instant,
+            has_real_availability: selectedResult.has_real_availability,
+            availability_date: selectedResult.availability?.date ?? null,
+            deep_link_url: selectedResult.deep_link.url,
+            deep_link_label: selectedResult.deep_link.label,
+            balances: selectedBalances,
+          },
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({})) as Partial<BookingGuideStartResponse> & { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to start booking guide')
+      }
+
+      setBookingGuideStatus(
+        payload.session?.id
+          ? `Booking guide started for ${selectedResult.program_name}. Session ${payload.session.id.slice(0, 8)} is ready.`
+          : `Booking guide started for ${selectedResult.program_name}.`,
+      )
+    } catch (err) {
+      setBookingGuideStatus(err instanceof Error ? err.message : 'Failed to start booking guide')
+    } finally {
+      setBookingGuideStartingSlug(null)
+    }
+  }
 
   return (
     <div className="flex flex-col">
@@ -270,7 +353,15 @@ export function AwardResults({
               <div className="space-y-3">
                 <p className="pm-label text-pm-success">Reachable with your points</p>
                 {reachable.map(r => (
-                  <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} region={region} />
+                  <AwardResultCard
+                    key={r.program_slug}
+                    result={r}
+                    topSlug={narrative?.top_pick_slug}
+                    region={region}
+                    canStartGuide={Boolean(user)}
+                    isStartingGuide={bookingGuideStartingSlug === r.program_slug}
+                    onStartGuide={startBookingGuide}
+                  />
                 ))}
               </div>
             )}
@@ -279,10 +370,32 @@ export function AwardResults({
               <div className="space-y-3">
                 <p className="pm-label">Need more points</p>
                 {unreachable.map(r => (
-                  <AwardResultCard key={r.program_slug} result={r} topSlug={narrative?.top_pick_slug} muted region={region} />
+                  <AwardResultCard
+                    key={r.program_slug}
+                    result={r}
+                    topSlug={narrative?.top_pick_slug}
+                    muted
+                    region={region}
+                    canStartGuide={false}
+                    isStartingGuide={false}
+                    onStartGuide={startBookingGuide}
+                  />
                 ))}
               </div>
             )}
+
+            <div className="rounded-xl p-4 border border-pm-border bg-pm-surface">
+              <p className="pm-label mb-1">Booking guide</p>
+              <p className="text-xs text-pm-ink-500">
+                Start a guided booking session from any reachable result. The guide uses this route, transfer path, and your current wallet balances.
+              </p>
+              {!user && (
+                <p className="text-xs text-pm-ink-500 mt-2">Sign in to start and save a booking guide session.</p>
+              )}
+              {bookingGuideStatus && (
+                <p className="text-xs text-pm-accent-strong mt-2">{bookingGuideStatus}</p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -295,9 +408,20 @@ interface AwardResultCardProps {
   topSlug?: string
   muted?: boolean
   region: Region
+  canStartGuide: boolean
+  isStartingGuide: boolean
+  onStartGuide: (result: AwardSearchResult) => void
 }
 
-function AwardResultCard({ result: r, topSlug, muted = false, region }: AwardResultCardProps) {
+function AwardResultCard({
+  result: r,
+  topSlug,
+  muted = false,
+  region,
+  canStartGuide,
+  isStartingGuide,
+  onStartGuide,
+}: AwardResultCardProps) {
   const isTopPick = r.program_slug === topSlug
 
   return (
@@ -361,15 +485,27 @@ function AwardResultCard({ result: r, topSlug, muted = false, region }: AwardRes
         </p>
       )}
 
-      <a
-        href={r.deep_link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-accent-soft/50 text-pm-ink-900 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
-      >
-        {r.deep_link.label}
-        <span className="text-pm-ink-500">↗</span>
-      </a>
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={r.deep_link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs bg-pm-surface-soft hover:bg-pm-accent-soft/50 text-pm-ink-900 border border-pm-border px-3 py-1.5 rounded-full transition-colors"
+        >
+          {r.deep_link.label}
+          <span className="text-pm-ink-500">↗</span>
+        </a>
+        {r.is_reachable && (
+          <button
+            type="button"
+            onClick={() => onStartGuide(r)}
+            disabled={!canStartGuide || isStartingGuide}
+            className="inline-flex items-center gap-1.5 text-xs bg-pm-accent-soft hover:bg-pm-accent-soft/80 text-pm-accent border border-pm-accent-border px-3 py-1.5 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isStartingGuide ? 'Starting guide…' : 'Start booking guide'}
+          </button>
+        )}
+      </div>
       {r.deep_link.note && (
         <p className="text-[11px] text-pm-ink-500">{r.deep_link.note}</p>
       )}

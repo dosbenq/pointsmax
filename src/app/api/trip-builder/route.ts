@@ -185,9 +185,13 @@ export async function POST(req: NextRequest) {
     // Build top flights from award search results
     const top_flights: TripBuilderFlightOption[] = results.slice(0, 5).map(r => ({
       program_name: r.program_name,
+      program_slug: r.program_slug,
       estimated_miles: r.estimated_miles,
       points_needed_from_wallet: r.points_needed_from_wallet,
       transfer_chain: r.transfer_chain,
+      transfer_is_instant: r.transfer_is_instant,
+      has_real_availability: r.has_real_availability,
+      availability_date: r.availability?.date ?? null,
       is_reachable: r.is_reachable,
       deep_link_url: r.deep_link.url,
       deep_link_label: r.deep_link.label,

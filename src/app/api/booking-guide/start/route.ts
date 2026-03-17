@@ -4,6 +4,10 @@ import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { inngest } from '@/lib/inngest/client'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 import {
+  sanitizeBookingGuideContext,
+  type BookingGuideContext,
+} from '@/lib/booking-guide-context'
+import {
   getCurrentBookingGuideStep,
   type BookingGuideSessionRow,
   type BookingGuideStepRow,
@@ -14,6 +18,7 @@ const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 type Body = {
   redemption_label?: unknown
+  booking_context?: unknown
 }
 
 async function getAuthenticatedUser() {
@@ -129,6 +134,7 @@ export async function POST(req: NextRequest) {
   if (!redemptionLabel) {
     return NextResponse.json({ error: 'redemption_label is required' }, { status: 400 })
   }
+  const bookingContext: BookingGuideContext | null = sanitizeBookingGuideContext(body.booking_context)
 
   const supabase = await createSupabaseServerClient()
   const { data: sessionData, error: sessionError } = await supabase
@@ -169,6 +175,7 @@ export async function POST(req: NextRequest) {
         session_id: session.id,
         user_id: auth.profileId,
         redemption_label: redemptionLabel,
+        booking_context: bookingContext,
         requested_at: new Date().toISOString(),
       },
     })

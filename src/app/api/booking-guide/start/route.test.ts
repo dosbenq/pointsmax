@@ -102,6 +102,105 @@ describe('/api/booking-guide/start', () => {
         data: expect.objectContaining({
           session_id: 'session-1',
           user_id: 'user-1',
+          booking_context: null,
+        }),
+      }),
+    )
+  })
+
+  it('sanitizes and forwards structured booking context to the workflow event', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'users') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { id: 'user-1' } }),
+            }),
+          }),
+        }
+      }
+
+      if (table === 'booking_guide_sessions') {
+        return {
+          insert: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'session-1',
+                  user_id: 'user-1',
+                  redemption_label: 'Transfer Chase to Hyatt',
+                  status: 'pending',
+                  current_step_index: 0,
+                  total_steps: 0,
+                  started_at: '2026-03-13T12:00:00.000Z',
+                  completed_at: null,
+                  last_error: null,
+                  created_at: '2026-03-13T12:00:00.000Z',
+                  updated_at: '2026-03-13T12:00:00.000Z',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    vi.mocked(inngest.send).mockResolvedValue([{ id: 'evt-1' }] as never)
+
+    const res = await POST(new NextRequest('http://localhost/api/booking-guide/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        redemption_label: 'Transfer Chase to Hyatt',
+        booking_context: {
+          origin: 'jfk',
+          destination: 'cdg',
+          cabin: 'business',
+          passengers: 2,
+          start_date: '2026-06-01',
+          end_date: '2026-06-10',
+          program_name: 'World of Hyatt',
+          estimated_miles: 60000,
+          points_needed_from_wallet: 60000,
+          transfer_chain: 'Chase Ultimate Rewards → World of Hyatt',
+          transfer_is_instant: true,
+          has_real_availability: true,
+          availability_date: '2026-06-02',
+          deep_link_label: 'Hyatt',
+          deep_link_url: 'https://www.hyatt.com/',
+          balances: [
+            { program_name: 'Chase Ultimate Rewards', balance: 80000 },
+            { program_name: 'Invalid', balance: -1 },
+          ],
+        },
+      }),
+      headers: { 'content-type': 'application/json' },
+    }))
+
+    expect(res.status).toBe(200)
+    expect(inngest.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          booking_context: {
+            origin: 'JFK',
+            destination: 'CDG',
+            cabin: 'business',
+            passengers: 2,
+            start_date: '2026-06-01',
+            end_date: '2026-06-10',
+            program_name: 'World of Hyatt',
+            estimated_miles: 60000,
+            points_needed_from_wallet: 60000,
+            transfer_chain: 'Chase Ultimate Rewards → World of Hyatt',
+            transfer_is_instant: true,
+            has_real_availability: true,
+            availability_date: '2026-06-02',
+            deep_link_label: 'Hyatt',
+            deep_link_url: 'https://www.hyatt.com/',
+            balances: [{ program_name: 'Chase Ultimate Rewards', balance: 80000 }],
+          },
         }),
       }),
     )

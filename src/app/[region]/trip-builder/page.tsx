@@ -22,6 +22,10 @@ type DateMode = 'exact' | 'flexible_month'
 type TripType = 'round_trip' | 'one_way'
 
 type BalanceRow = { id: string; program_id: string; amount: string }
+type BookingGuideStartResponse = {
+  ok: boolean
+  session?: { id: string }
+}
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 
@@ -137,6 +141,8 @@ export default function TripBuilderPage() {
     { id: '1', program_id: '', amount: '' },
   ])
   const [programs, setPrograms] = useState<ProgramOption[]>([])
+  const [bookingGuideStartingSlug, setBookingGuideStartingSlug] = useState<string | null>(null)
+  const [bookingGuideStatus, setBookingGuideStatus] = useState<string | null>(null)
 
   // Loading animation
   const [loadingMsg, setLoadingMsg] = useState(LOADING_MESSAGES[0])
@@ -245,6 +251,7 @@ export default function TripBuilderPage() {
 
   const buildPlan = async () => {
     setError(null)
+    setBookingGuideStatus(null)
 
     const balances = rows
       .filter(r => r.program_id && r.amount)
@@ -313,6 +320,7 @@ export default function TripBuilderPage() {
     setUiState('form')
     setResult(null)
     setError(null)
+    setBookingGuideStatus(null)
   }
 
   const byType = (type: string) => programs.filter(p => p.type === type)
@@ -325,6 +333,83 @@ export default function TripBuilderPage() {
   const googleFlightsUrl = origin && dest
     ? getGoogleFlightsUrl(origin.toUpperCase(), dest.toUpperCase())
     : null
+
+  const startBookingGuide = async (flight: TripBuilderResponse['top_flights'][number]) => {
+    if (!user) {
+      setBookingGuideStatus('Sign in to start a booking guide for this option.')
+      return
+    }
+    if (!flight.is_reachable) {
+      setBookingGuideStatus('Booking guides are only available for reachable options.')
+      return
+    }
+
+    const monthRange = getMonthRange(flexMonth)
+    const startDate = dateMode === 'exact' ? departDate : (monthRange?.start ?? '')
+    const endDate = dateMode === 'exact'
+      ? (tripType === 'one_way' ? departDate : returnDate)
+      : (monthRange?.end ?? '')
+
+    const selectedBalances = rows
+      .filter((row) => row.program_id && row.amount)
+      .map((row) => {
+        const balance = parsePointsAmount(row.amount)
+        const program = programs.find((candidate) => candidate.id === row.program_id)
+        return {
+          program_id: row.program_id,
+          program_name: program?.name ?? row.program_id,
+          balance,
+        }
+      })
+      .filter((row) => Number.isFinite(row.balance) && row.balance > 0)
+
+    setBookingGuideStartingSlug(flight.program_slug)
+    setBookingGuideStatus(null)
+
+    try {
+      const response = await fetch('/api/booking-guide/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          redemption_label: `${flight.program_name} for ${origin.toUpperCase()} to ${dest.toUpperCase()}`,
+          booking_context: {
+            origin: origin.toUpperCase(),
+            destination: dest.toUpperCase(),
+            cabin,
+            passengers: travelers,
+            start_date: startDate,
+            end_date: endDate,
+            program_name: flight.program_name,
+            program_slug: flight.program_slug,
+            estimated_miles: flight.estimated_miles,
+            points_needed_from_wallet: flight.points_needed_from_wallet,
+            transfer_chain: flight.transfer_chain,
+            transfer_is_instant: flight.transfer_is_instant,
+            has_real_availability: flight.has_real_availability,
+            availability_date: flight.availability_date,
+            deep_link_url: flight.deep_link_url,
+            deep_link_label: flight.deep_link_label,
+            balances: selectedBalances,
+          },
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({})) as Partial<BookingGuideStartResponse> & { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to start booking guide')
+      }
+
+      setBookingGuideStatus(
+        payload.session?.id
+          ? `Booking guide started for ${flight.program_name}. Session ${payload.session.id.slice(0, 8)} is ready.`
+          : `Booking guide started for ${flight.program_name}.`,
+      )
+    } catch (err) {
+      setBookingGuideStatus(err instanceof Error ? err.message : 'Failed to start booking guide')
+    } finally {
+      setBookingGuideStartingSlug(null)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -883,11 +968,34 @@ export default function TripBuilderPage() {
                       >
                         {flight.deep_link_label} ↗
                       </a>
+                      {flight.is_reachable && (
+                        <button
+                          type="button"
+                          onClick={() => startBookingGuide(flight)}
+                          disabled={!user || bookingGuideStartingSlug === flight.program_slug}
+                          className="text-xs text-pm-accent hover:text-pm-accent-strong font-medium whitespace-nowrap flex-shrink-0 border border-pm-accent-border hover:border-pm-accent-border px-3 py-1.5 rounded-full transition-colors bg-pm-surface disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {bookingGuideStartingSlug === flight.program_slug ? 'Starting guide…' : 'Start booking guide'}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
+            <div className="rounded-2xl border border-pm-border bg-pm-surface px-6 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-pm-ink-500">Booking guide</p>
+              <p className="mt-2 text-sm text-pm-ink-700">
+                Start a guided booking session from any reachable flight option. The guide uses this route, dates, transfer path, and your current wallet balances.
+              </p>
+              {!user && (
+                <p className="mt-2 text-xs text-pm-ink-500">Sign in to start and save a booking guide session.</p>
+              )}
+              {bookingGuideStatus && (
+                <p className="mt-2 text-xs text-pm-accent-strong">{bookingGuideStatus}</p>
+              )}
+            </div>
 
             {/* Hotel Plan */}
             {result.hotel && (

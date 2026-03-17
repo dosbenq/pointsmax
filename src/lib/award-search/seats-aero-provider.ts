@@ -25,6 +25,7 @@ import {
   buildTransferChain,
   calculatePointsNeededFromWallet,
 } from './reachable-wallet'
+import { estimateAwardCashValue } from './redemption-value'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
@@ -139,7 +140,6 @@ export class SeatsAeroProvider implements AwardProvider {
     client: SupabaseClient,
   ): Promise<AwardSearchResult[]> {
     const { origin, destination, cabin, passengers, balances, start_date, end_date } = params
-    const programIds = balances.map(b => b.program_id)
 
     // ── Fetch Supabase data in parallel with Seats.aero API ──
     const [
@@ -152,7 +152,6 @@ export class SeatsAeroProvider implements AwardProvider {
       client
         .from('transfer_partners')
         .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .in('from_program_id', programIds)
         .eq('is_active', true),
       client
         .from('programs')
@@ -237,8 +236,16 @@ export class SeatsAeroProvider implements AwardProvider {
       if (estimatedMiles == null) continue
 
       const valuation = valuationByProgramId.get(airlineProgram.id)
-      const cppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
-      const estimatedCashValueCents = estimatedMiles * cppCents
+      const baselineCppCents = resolveCppCents(valuation?.cpp_cents, airlineProgram.type)
+      const modeledRedemptionValue = estimateAwardCashValue({
+        routeRegion: region,
+        cabin,
+        passengers,
+        estimatedMiles,
+        hasRealAvailability: !!avail,
+      })
+      const estimatedCashValueCents = modeledRedemptionValue?.cashValueCents ?? (estimatedMiles * baselineCppCents)
+      const cppCents = modeledRedemptionValue?.cppCents ?? baselineCppCents
 
       const pointsNeededFromWallet = path
         ? calculatePointsNeededFromWallet(path, estimatedMiles)
@@ -255,7 +262,10 @@ export class SeatsAeroProvider implements AwardProvider {
         estimated_miles: estimatedMiles,
         estimated_cash_value_cents: estimatedCashValueCents,
         cpp_cents: cppCents,
-        transfer_chain: path ? buildTransferChain(path, airlineProgram) : null,
+        baseline_cpp_cents: baselineCppCents,
+        cash_value_source: modeledRedemptionValue?.source ?? 'static_program_cpp',
+        cash_value_confidence: modeledRedemptionValue?.confidence ?? 'low',
+        transfer_chain: path ? buildTransferChain(path) : null,
         transfer_is_instant: path?.transferIsInstant ?? true,
         points_needed_from_wallet: pointsNeededFromWallet,
         availability: avail

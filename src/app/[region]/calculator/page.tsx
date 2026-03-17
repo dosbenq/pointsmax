@@ -171,7 +171,6 @@ export default function CalculatorPage() {
   
   const [activeTool, setActiveTool] = useState<Tool>('hub')
 
-  // Derive empty wallet state
   const hasLoadedPrograms = !state.programsLoading && state.programs.length > 0
   const hasEmptyWallet = hasLoadedPrograms && state.totalTrackedPoints === 0
   const valueAnalysis = useMemo(
@@ -179,7 +178,6 @@ export default function CalculatorPage() {
     [state.result],
   )
 
-  // Render Hub Selection Screen
   const renderHub = () => (
     <motion.div
       key="hub"
@@ -272,7 +270,6 @@ export default function CalculatorPage() {
     </motion.div>
   )
 
-  // Render Trip Planner Tool
   const renderTripPlanner = () => (
     <motion.div
       key="trip"
@@ -307,6 +304,9 @@ export default function CalculatorPage() {
           awardError={state.awardError}
           onSearch={state.runAwardSearch}
           region={region}
+          programs={state.programs}
+          rows={state.rows}
+          user={user}
         />
       </motion.div>
 
@@ -344,7 +344,6 @@ export default function CalculatorPage() {
     </motion.div>
   )
 
-  // Render Value Analyzer Tool
   const renderValueAnalyzer = () => (
     <motion.div
       key="value"
@@ -615,7 +614,6 @@ export default function CalculatorPage() {
     </motion.div>
   )
 
-  // Render AI Advisor Tool
   const renderAIAdvisor = () => (
     <motion.div
       key="ai"
@@ -651,7 +649,7 @@ export default function CalculatorPage() {
               aiError={state.aiError}
               blockedReason={state.advisorBlockedReason}
               canUseAdvisor={state.canUseAdvisor}
-              hasCalculatorResult={true} // Override to true since it's a dedicated view
+              hasCalculatorResult={true}
               result={state.result}
               user={user}
               chatEndRef={state.chatEndRef}
@@ -659,7 +657,7 @@ export default function CalculatorPage() {
               onSendMessage={state.sendMessage}
               onRetryLastMessage={state.retryLastMessage}
               onClearChat={() => { state.setChatMessages([]); state.setGeminiHistory([]); state.setMessageCount(0) }}
-              onSwitchPanel={() => {}} 
+              onSwitchPanel={() => {}}
             />
          </div>
       </div>

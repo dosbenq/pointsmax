@@ -1,8 +1,3 @@
-// ============================================================
-// AIChat — Sprint 18
-// Extracted AI advisor chat panel from calculator
-// ============================================================
-
 'use client'
 
 import { trackEvent } from '@/lib/analytics'

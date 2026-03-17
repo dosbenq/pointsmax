@@ -1,16 +1,19 @@
-import type { ProgramRow, TransferPartnerRow } from './types'
+import type { TransferPartnerRow, ProgramRow } from './types'
 
 type BalanceInput = { program_id: string; amount: number }
+
+const MAX_TRANSFER_HOPS = 3
 
 export interface ReachableContributor {
   sourceProgram: ProgramRow
   balance: number
   availableMiles: number
-  ratioFrom: number
-  ratioTo: number
+  walletPointsPerTargetMile: number
   isInstant: boolean
   transferTimeMaxHrs: number
   directHold: boolean
+  hopCount: number
+  pathProgramNames: string[]
 }
 
 export interface ReachablePath {
@@ -20,18 +23,153 @@ export interface ReachablePath {
   transferTimeMaxHrs: number
 }
 
+type ExplorationState = {
+  currentProgramId: string
+  availableMiles: number
+  walletPointsPerTargetMile: number
+  isInstant: boolean
+  transferTimeMaxHrs: number
+  hopCount: number
+  pathProgramIds: string[]
+  pathProgramNames: string[]
+}
+
 function contributorSortValue(contributor: ReachableContributor): number {
-  return contributor.ratioTo / contributor.ratioFrom
+  return contributor.walletPointsPerTargetMile
 }
 
 function mergeContributors(existing: ReachableContributor[], next: ReachableContributor): ReachableContributor[] {
   const merged = [...existing, next]
   merged.sort((a, b) => {
-    const valueDiff = contributorSortValue(b) - contributorSortValue(a)
+    const valueDiff = contributorSortValue(a) - contributorSortValue(b)
     if (valueDiff !== 0) return valueDiff
     return b.availableMiles - a.availableMiles
   })
   return merged
+}
+
+function chooseBetterContributor(
+  current: ReachableContributor | undefined,
+  candidate: ReachableContributor,
+): ReachableContributor {
+  if (!current) return candidate
+  if (candidate.availableMiles !== current.availableMiles) {
+    return candidate.availableMiles > current.availableMiles ? candidate : current
+  }
+  if (candidate.walletPointsPerTargetMile !== current.walletPointsPerTargetMile) {
+    return candidate.walletPointsPerTargetMile < current.walletPointsPerTargetMile ? candidate : current
+  }
+  if (candidate.isInstant !== current.isInstant) {
+    return candidate.isInstant ? candidate : current
+  }
+  if (candidate.transferTimeMaxHrs !== current.transferTimeMaxHrs) {
+    return candidate.transferTimeMaxHrs < current.transferTimeMaxHrs ? candidate : current
+  }
+  if (candidate.hopCount !== current.hopCount) {
+    return candidate.hopCount < current.hopCount ? candidate : current
+  }
+  return current
+}
+
+function buildAdjacency(transferPartners: TransferPartnerRow[]): Map<string, TransferPartnerRow[]> {
+  const adjacency = new Map<string, TransferPartnerRow[]>()
+  for (const row of transferPartners) {
+    const existing = adjacency.get(row.from_program_id)
+    if (existing) {
+      existing.push(row)
+    } else {
+      adjacency.set(row.from_program_id, [row])
+    }
+  }
+  return adjacency
+}
+
+function exploreContributorsForBalance(
+  balance: BalanceInput,
+  programMap: Map<string, ProgramRow>,
+  adjacency: Map<string, TransferPartnerRow[]>,
+): Array<{ targetSlug: string; contributor: ReachableContributor }> {
+  const sourceProgram = programMap.get(balance.program_id)
+  if (!sourceProgram || balance.amount <= 0) return []
+
+  const bestByTargetSlug = new Map<string, ReachableContributor>()
+  const seedState: ExplorationState = {
+    currentProgramId: sourceProgram.id,
+    availableMiles: balance.amount,
+    walletPointsPerTargetMile: 1,
+    isInstant: true,
+    transferTimeMaxHrs: 0,
+    hopCount: 0,
+    pathProgramIds: [sourceProgram.id],
+    pathProgramNames: [sourceProgram.name],
+  }
+
+  bestByTargetSlug.set(sourceProgram.slug, {
+    sourceProgram,
+    balance: balance.amount,
+    availableMiles: balance.amount,
+    walletPointsPerTargetMile: 1,
+    isInstant: true,
+    transferTimeMaxHrs: 0,
+    directHold: true,
+    hopCount: 0,
+    pathProgramNames: [sourceProgram.name],
+  })
+
+  const queue: ExplorationState[] = [seedState]
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (!current || current.hopCount >= MAX_TRANSFER_HOPS) continue
+
+    const edges = adjacency.get(current.currentProgramId) ?? []
+    for (const edge of edges) {
+      if (current.pathProgramIds.includes(edge.to_program_id)) continue
+
+      const nextProgram = programMap.get(edge.to_program_id)
+      if (!nextProgram) continue
+
+      const nextAvailableMiles = Math.floor(current.availableMiles * (edge.ratio_to / edge.ratio_from))
+      if (nextAvailableMiles <= 0) continue
+
+      const nextState: ExplorationState = {
+        currentProgramId: nextProgram.id,
+        availableMiles: nextAvailableMiles,
+        walletPointsPerTargetMile:
+          current.walletPointsPerTargetMile * (edge.ratio_from / edge.ratio_to),
+        isInstant: current.isInstant && edge.is_instant,
+        transferTimeMaxHrs: Math.max(current.transferTimeMaxHrs, edge.transfer_time_max_hrs),
+        hopCount: current.hopCount + 1,
+        pathProgramIds: [...current.pathProgramIds, nextProgram.id],
+        pathProgramNames: [...current.pathProgramNames, nextProgram.name],
+      }
+
+      const candidateContributor: ReachableContributor = {
+        sourceProgram,
+        balance: balance.amount,
+        availableMiles: nextAvailableMiles,
+        walletPointsPerTargetMile: nextState.walletPointsPerTargetMile,
+        isInstant: nextState.isInstant,
+        transferTimeMaxHrs: nextState.transferTimeMaxHrs,
+        directHold: false,
+        hopCount: nextState.hopCount,
+        pathProgramNames: nextState.pathProgramNames,
+      }
+
+      const targetSlug = nextProgram.slug
+      bestByTargetSlug.set(
+        targetSlug,
+        chooseBetterContributor(bestByTargetSlug.get(targetSlug), candidateContributor),
+      )
+
+      queue.push(nextState)
+    }
+  }
+
+  return [...bestByTargetSlug.entries()].map(([targetSlug, contributor]) => ({
+    targetSlug,
+    contributor,
+  }))
 }
 
 export function buildReachablePaths(
@@ -39,8 +177,8 @@ export function buildReachablePaths(
   programMap: Map<string, ProgramRow>,
   transferPartners: TransferPartnerRow[],
 ): Map<string, ReachablePath> {
-  const balanceMap = new Map<string, number>(balances.map((balance) => [balance.program_id, balance.amount]))
   const pathBySlug = new Map<string, ReachablePath>()
+  const adjacency = buildAdjacency(transferPartners)
 
   const appendContributor = (targetSlug: string, contributor: ReachableContributor) => {
     const existing = pathBySlug.get(targetSlug)
@@ -55,39 +193,10 @@ export function buildReachablePaths(
   }
 
   for (const balance of balances) {
-    const program = programMap.get(balance.program_id)
-    if (!program || balance.amount <= 0) continue
-    appendContributor(program.slug, {
-      sourceProgram: program,
-      balance: balance.amount,
-      availableMiles: balance.amount,
-      ratioFrom: 1,
-      ratioTo: 1,
-      isInstant: true,
-      transferTimeMaxHrs: 0,
-      directHold: true,
-    })
-  }
-
-  for (const partner of transferPartners) {
-    const toProgram = programMap.get(partner.to_program_id)
-    if (!toProgram) continue
-
-    const sourceProgram = programMap.get(partner.from_program_id)
-    const balance = balanceMap.get(partner.from_program_id) ?? 0
-    const availableMiles = Math.floor(balance * (partner.ratio_to / partner.ratio_from))
-    if (!sourceProgram || balance <= 0 || availableMiles <= 0) continue
-
-    appendContributor(toProgram.slug, {
-      sourceProgram,
-      balance,
-      availableMiles,
-      ratioFrom: partner.ratio_from,
-      ratioTo: partner.ratio_to,
-      isInstant: partner.is_instant,
-      transferTimeMaxHrs: partner.transfer_time_max_hrs,
-      directHold: false,
-    })
+    const contributors = exploreContributorsForBalance(balance, programMap, adjacency)
+    for (const { targetSlug, contributor } of contributors) {
+      appendContributor(targetSlug, contributor)
+    }
   }
 
   return pathBySlug
@@ -102,35 +211,29 @@ export function calculatePointsNeededFromWallet(path: ReachablePath, requiredMil
     const milesUsed = Math.min(remaining, contributor.availableMiles)
     pointsNeeded += contributor.directHold
       ? milesUsed
-      : Math.ceil(milesUsed * (contributor.ratioFrom / contributor.ratioTo))
+      : Math.ceil(milesUsed * contributor.walletPointsPerTargetMile)
     remaining -= milesUsed
   }
 
-  // If required/estimated miles exceed what the user can realistically transfer from all sources combined,
-  // we fallback to using the ratio of the "best" contributor to calculate the remaining needed.
-  // This allows the UI to show a mathematically consistent (though hypothetical) 'Points Needed' value.
   if (remaining > 0 && path.contributors[0]) {
     const best = path.contributors[0]
     pointsNeeded += best.directHold
       ? remaining
-      : Math.ceil(remaining * (best.ratioFrom / best.ratioTo))
+      : Math.ceil(remaining * best.walletPointsPerTargetMile)
   }
 
   return pointsNeeded
 }
 
-export function buildTransferChain(path: ReachablePath, airlineProgram: ProgramRow): string | null {
+export function buildTransferChain(path: ReachablePath): string | null {
   if (path.contributors.length === 0) return null
   if (path.contributors.length === 1 && path.contributors[0].directHold) return null
 
   const parts = path.contributors.map((contributor) => {
     if (contributor.directHold) return `${contributor.sourceProgram.name} balance`
-    const ratio =
-      contributor.ratioFrom === contributor.ratioTo
-        ? '1:1'
-        : `${contributor.ratioFrom}:${contributor.ratioTo}`
-    return `${contributor.sourceProgram.name} (${ratio})`
+    const chain = contributor.pathProgramNames.join(' → ')
+    return contributor.hopCount > 1 ? `${chain} (${contributor.hopCount} hops)` : chain
   })
 
-  return `${parts.join(' + ')} → ${airlineProgram.name}`
+  return parts.join(' + ')
 }

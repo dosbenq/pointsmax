@@ -13,6 +13,7 @@ const mockData: Record<string, unknown[]> = {
   ],
   transfer_partners: [
     { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
   ],
   active_bonuses: [],
   redemption_options: [
@@ -75,8 +76,21 @@ const { calculateRedemptions } = await import('./calculate')
 afterEach(() => {
   mockErrors = {}
   simulateProgramsGeographyMissing = false
+  mockData.latest_valuations = [
+    { program_id: 'chase-ur', cpp_cents: 2.0, program_name: 'Chase Ultimate Rewards', program_slug: 'chase-ur', program_type: 'transferable_points' },
+    { program_id: 'hyatt', cpp_cents: 1.8, program_name: 'World of Hyatt', program_slug: 'hyatt', program_type: 'hotel_points' },
+    { program_id: 'cash-only', cpp_cents: 1.0, program_name: 'Cash Only', program_slug: 'cash-only', program_type: 'cashback' },
+    { program_id: 'united', cpp_cents: 1.2, program_name: 'United MileagePlus', program_slug: 'united', program_type: 'airline_miles' },
+  ]
   mockData.transfer_partners = [
     { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+  ]
+  mockData.programs = [
+    { id: 'chase-ur', name: 'Chase Ultimate Rewards', short_name: 'Chase UR', slug: 'chase-ur', color_hex: '#1c4d8c', type: 'transferable_points' },
+    { id: 'hyatt', name: 'World of Hyatt', short_name: 'Hyatt', slug: 'hyatt', color_hex: '#b49970', type: 'hotel_points' },
+    { id: 'cash-only', name: 'Cash Only', short_name: 'Cash', slug: 'cash-only', color_hex: '#22aa44', type: 'cashback' },
+    { id: 'united', name: 'United MileagePlus', short_name: 'United', slug: 'united', color_hex: '#002244', type: 'airline_miles' },
   ]
 })
 
@@ -90,7 +104,7 @@ describe('calculateRedemptions', () => {
     expect(result.value_left_on_table_cents).toBe(8000)
     expect(result.cash_baseline_available).toBe(true)
 
-    expect(result.results.length).toBe(3)
+    expect(result.results.length).toBe(4)
     expect(result.results[0].label).toBe('Transfer to World of Hyatt')
     expect(result.results[0].is_best).toBe(true)
     expect(result.results[0].cpp_cents).toBeCloseTo(1.8, 5)
@@ -136,6 +150,40 @@ describe('calculateRedemptions', () => {
     expect(result.cash_baseline_available).toBe(true)
     expect(result.results[0].category).toBe('cashback')
     expect(result.results[0].is_best).toBe(true)
+  })
+
+  it('finds higher-value multi-hop transfer paths', async () => {
+    mockData.latest_valuations = [
+      { program_id: 'chase-ur', cpp_cents: 2.0, program_name: 'Chase Ultimate Rewards', program_slug: 'chase-ur', program_type: 'transferable_points' },
+      { program_id: 'hyatt', cpp_cents: 1.8, program_name: 'World of Hyatt', program_slug: 'hyatt', program_type: 'hotel_points' },
+      { program_id: 'cash-only', cpp_cents: 1.0, program_name: 'Cash Only', program_slug: 'cash-only', program_type: 'cashback' },
+      { program_id: 'united', cpp_cents: 1.2, program_name: 'United MileagePlus', program_slug: 'united', program_type: 'airline_miles' },
+      { program_id: 'ana', cpp_cents: 2.6, program_name: 'ANA Mileage Club', program_slug: 'ana', program_type: 'airline_miles' },
+    ]
+    mockData.transfer_partners = [
+      { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+      { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+      { id: 'tp-chase-aeroplan', from_program_id: 'chase-ur', to_program_id: 'aeroplan', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+      { id: 'tp-aeroplan-ana', from_program_id: 'aeroplan', to_program_id: 'ana', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 24, is_instant: false },
+    ]
+    mockData.programs = [
+      { id: 'chase-ur', name: 'Chase Ultimate Rewards', short_name: 'Chase UR', slug: 'chase-ur', color_hex: '#1c4d8c', type: 'transferable_points' },
+      { id: 'hyatt', name: 'World of Hyatt', short_name: 'Hyatt', slug: 'hyatt', color_hex: '#b49970', type: 'hotel_points' },
+      { id: 'cash-only', name: 'Cash Only', short_name: 'Cash', slug: 'cash-only', color_hex: '#22aa44', type: 'cashback' },
+      { id: 'united', name: 'United MileagePlus', short_name: 'United', slug: 'united', color_hex: '#002244', type: 'airline_miles' },
+      { id: 'aeroplan', name: 'Air Canada Aeroplan', short_name: 'Aeroplan', slug: 'aeroplan', color_hex: '#ff0000', type: 'airline_miles' },
+      { id: 'ana', name: 'ANA Mileage Club', short_name: 'ANA', slug: 'ana', color_hex: '#003399', type: 'airline_miles' },
+    ]
+
+    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
+    const result = await calculateRedemptions(balances)
+    const best = result.results[0]
+
+    expect(best.label).toBe('Transfer to ANA Mileage Club via Air Canada Aeroplan')
+    expect(best.is_instant).toBe(false)
+    expect(best.transfer_time_max_hrs).toBe(24)
+    expect(best.total_value_cents).toBe(26000)
+    expect(best.is_best).toBe(true)
   })
 
   it('returns null cash baseline totals when a balance has no direct cash option', async () => {
