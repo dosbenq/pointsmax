@@ -6,6 +6,7 @@ import { StubProvider } from '@/lib/award-search/stub-provider'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest, internalError } from '@/lib/error-utils'
+import { canUseFeature, getUserTier } from '@/lib/subscription'
 import {
   ESTIMATES_ONLY_MESSAGE,
   MAX_AWARD_SEARCH_BODY_BYTES,
@@ -78,6 +79,50 @@ export async function POST(req: NextRequest) {
   }
 
   const params = validated
+  const tier = await getUserTier()
+  const canUseLive = canUseFeature(tier, 'live_award_search')
+
+  if (!canUseLive) {
+    try {
+      const client = createServerDbClient()
+      const provider = new StubProvider()
+      const warnings = await buildSearchWarnings(
+        client,
+        params.balances.map((balance) => balance.program_id),
+      )
+      const results = sortAwardResultsByPoints(await provider.search(params, client))
+      const ai_narrative = includeNarrative
+        ? await generateNarrative(params, pickNarrativeOptions(results))
+        : null
+
+      logInfo('award_search_success', {
+        requestId,
+        provider: provider.name,
+        result_count: results.length,
+        ai_narrative_included: includeNarrative,
+        latency_ms: Date.now() - startedAt,
+        user_tier: tier,
+      })
+
+      return NextResponse.json({
+        provider: provider.name,
+        params,
+        results,
+        ai_narrative,
+        warnings,
+        searched_at: new Date().toISOString(),
+        user_tier: tier,
+      })
+    } catch (err) {
+      logError('award_search_failed', {
+        requestId,
+        error: err instanceof Error ? err.message : 'Search failed',
+        latency_ms: Date.now() - startedAt,
+        user_tier: tier,
+      })
+      return internalError('Search failed')
+    }
+  }
 
   try {
     const client = createServerDbClient()
@@ -100,6 +145,7 @@ export async function POST(req: NextRequest) {
       result_count: results.length,
       ai_narrative_included: includeNarrative,
       latency_ms: Date.now() - startedAt,
+      user_tier: tier,
     })
 
     return NextResponse.json({
@@ -109,6 +155,7 @@ export async function POST(req: NextRequest) {
       ai_narrative,
       warnings,
       searched_at: new Date().toISOString(),
+      user_tier: tier,
     })
   } catch (err) {
     if (err instanceof AwardProviderUnavailableError) {
@@ -139,6 +186,7 @@ export async function POST(req: NextRequest) {
           error: 'real_availability_unavailable',
           message: ESTIMATES_ONLY_MESSAGE,
           estimates_only: true,
+          user_tier: tier,
         })
       } catch (fallbackErr) {
         logError('award_search_fallback_failed', {

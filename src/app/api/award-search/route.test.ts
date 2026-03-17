@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import * as awardSearch from '@/lib/award-search'
 import type { AwardProvider } from '@/lib/award-search'
 import { createServerDbClient } from '@/lib/supabase'
+import { getUserTier } from '@/lib/subscription'
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-anon-key'
@@ -30,6 +31,14 @@ vi.mock('@/lib/supabase', () => {
     createServerDbClient: vi.fn().mockReturnValue(mockQuery),
   }
 })
+
+vi.mock('@/lib/subscription', () => ({
+  getUserTier: vi.fn().mockResolvedValue('premium'),
+  canUseFeature: vi.fn((tier: 'free' | 'premium', feature: string) => {
+    if (feature === 'live_award_search') return tier === 'premium'
+    return false
+  }),
+}))
 
 vi.mock('./helpers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./helpers')>()
@@ -92,6 +101,7 @@ function makeValidBody() {
 describe('POST /api/award-search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getUserTier).mockResolvedValue('premium')
     vi.mocked(createServerDbClient).mockReturnValue({
       from: vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
@@ -207,6 +217,7 @@ describe('POST /api/award-search', () => {
       expect(body.error).toBe('real_availability_unavailable')
       expect(body.message).toBeDefined()
       expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      expect(body.user_tier).toBe('premium')
     })
 
     it('verifies successful response contract structure', async () => {
@@ -229,6 +240,7 @@ describe('POST /api/award-search', () => {
       expect(body.params.destination).toBe('LHR')
       expect(Array.isArray(body.results)).toBe(true)
       expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+      expect(body.user_tier).toBe('premium')
     })
 
     it('includes a Delta warning when a Delta balance is in the wallet', async () => {
@@ -254,6 +266,18 @@ describe('POST /api/award-search', () => {
       expect(body.warnings).toContain(
         'Delta SkyMiles uses dynamic pricing, so PointsMax does not show static Delta estimates. Check delta.com directly for live pricing.',
       )
+    })
+
+    it('returns stub results for unauthenticated free-tier search without calling the live provider', async () => {
+      vi.mocked(getUserTier).mockResolvedValue('free')
+
+      const res = await POST(makeRequest(makeValidBody()))
+      const body = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(body.provider).toBe('stub')
+      expect(body.user_tier).toBe('free')
+      expect(awardSearch.createAwardProvider).not.toHaveBeenCalled()
     })
   })
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
+import { canUseFeature, getUserTier } from '@/lib/subscription'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -31,7 +32,12 @@ async function getAuthenticatedContext() {
     .eq('auth_id', user.id)
     .single()
 
-  return { supabase, authUserId: user.id, userId: userRow?.id ?? null }
+  const userId =
+    typeof (userRow as { id?: unknown } | null)?.id === 'string'
+      ? (userRow as { id: string }).id
+      : null
+
+  return { supabase, authUserId: user.id, userId }
 }
 
 function parseMaxPoints(raw: unknown): number | null | 'invalid' {
@@ -104,6 +110,14 @@ export async function POST(req: NextRequest) {
   const context = await getAuthenticatedContext()
   if (!context.authUserId || !context.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const tier = await getUserTier(context.userId)
+  if (!canUseFeature(tier, 'flight_watches')) {
+    return NextResponse.json(
+      { error: 'Flight watches require a Premium subscription', code: 'PREMIUM_REQUIRED' },
+      { status: 403 },
+    )
   }
 
   let body: CreateWatchPayload
