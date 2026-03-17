@@ -1,0 +1,101 @@
+region,program_name,short_name_candidate,program_kind,operator,program_slug_candidate,geography,catalog_status,source_confidence,seed_readiness
+IN,HDFC SmartBuy Rewards,HDFC SmartBuy Rewards,bank_rewards,HDFC Bank,hdfc-smartbuy-rewards,IN,active_public,high,ready_for_program_seed
+IN,HDFC Diners Club Rewards,HDFC Diners Club Rewards,bank_rewards,HDFC Bank,hdfc-diners-club-rewards,IN,active_public,high,ready_for_program_seed
+IN,HDFC Regalia Rewards,HDFC Regalia Rewards,bank_rewards,HDFC Bank,hdfc-regalia-rewards,IN,active_public,high,ready_for_program_seed
+IN,HDFC Millennia CashPoints,HDFC Millennia CashPoints,bank_rewards,HDFC Bank,hdfc-millennia-cashpoints,IN,active_public,high,ready_for_program_seed
+IN,HDFC Reward Points,HDFC Reward Points,bank_rewards,HDFC Bank,hdfc-reward-points,IN,active_public,medium,ready_for_program_seed
+IN,HDFC Pixel Cashback,HDFC Pixel Cashback,bank_rewards,HDFC Bank,hdfc-pixel-cashback,IN,active_public,high,ready_for_program_seed
+IN,Paytm Cashback,Paytm Cashback,bank_rewards,HDFC Bank,paytm-cashback,IN,active_public,high,ready_for_program_seed
+IN,Swiggy Cashback,Swiggy Cashback,bank_rewards,HDFC Bank,swiggy-cashback,IN,active_public,high,ready_for_program_seed
+IN,NeuCoins,NeuCoins,bank_rewards,Tata Neu / HDFC Bank / SBI Card,neucoins,IN,active_public,high,ready_for_program_seed
+IN,IndianOil Fuel Points,IndianOil Fuel Points,bank_rewards,IndianOil and issuing banks,indianoil-fuel-points,IN,active_public,medium,ready_for_program_seed
+IN,IRCTC Reward Points,IRCTC Reward Points,bank_rewards,IRCTC and issuing banks,irctc-reward-points,IN,active_public,medium,ready_for_program_seed
+IN,Axis EDGE Rewards,Axis EDGE Rewards,bank_rewards,Axis Bank,axis-edge-rewards,IN,active_public,high,ready_for_program_seed
+IN,Axis EDGE Miles,Axis EDGE Miles,bank_rewards,Axis Bank,axis-edge-miles,IN,active_public,high,ready_for_program_seed
+IN,Axis Reward Points,Axis Reward Points,bank_rewards,Axis Bank,axis-reward-points,IN,active_public,medium,ready_for_program_seed
+IN,Airtel Cashback,Airtel Cashback,bank_rewards,Axis Bank and Airtel,airtel-axis-cashback,IN,active_public,high,ready_for_program_seed
+IN,Flipkart SuperCoins,Flipkart SuperCoins,bank_rewards,Flipkart and partner banks,flipkart-supercoins,IN,active_public,medium,ready_for_program_seed
+IN,SpiceClub,SpiceClub,airline,SpiceJet,spiceclub,IN,active_public,high,ready_for_program_seed
+IN,Freecharge Cashback,Freecharge Cashback,bank_rewards,Axis Bank and Freecharge,freecharge-cashback,IN,active_public,high,ready_for_program_seed
+IN,Miles and More,Miles and More,airline,Lufthansa Group,miles-and-more,IN,active_public,high,ready_for_program_seed
+IN,Amex Membership Rewards India,Amex Membership Rewards Indi,bank_rewards,American Express India,amex-membership-rewards-india,IN,active_public,high,ready_for_program_seed
+IN,SBI Reward Points,SBI Reward Points,bank_rewards,SBI Card,sbi-reward-points,IN,active_public,high,ready_for_program_seed
+IN,SBI Travel Credits,SBI Travel Credits,bank_rewards,SBI Card,sbi-travel-credits,IN,active_public,high,ready_for_program_seed
+IN,SBI Cashback,SBI Cashback,bank_rewards,SBI Card,sbi-cashback,IN,active_public,high,ready_for_program_seed
+IN,PhonePe Cashback,PhonePe Cashback,bank_rewards,SBI Card and PhonePe,phonepe-cashback,IN,active_public,high,ready_for_program_seed
+IN,OLA Cashback,OLA Cashback,bank_rewards,SBI Card and OLA,ola-cashback,IN,active_public,high,ready_for_program_seed
+IN,Apollo Rewards,Apollo Rewards,bank_rewards,SBI Card and Apollo,apollo-rewards,IN,active_public,high,ready_for_program_seed
+IN,Landmark Rewards,Landmark Rewards,bank_rewards,SBI Card and Landmark,landmark-rewards,IN,active_public,high,ready_for_program_seed
+IN,Titan Rewards,Titan Rewards,bank_rewards,SBI Card and Titan,titan-rewards,IN,active_public,high,ready_for_program_seed
+IN,Reliance Rewards,Reliance Rewards,bank_rewards,SBI Card and Reliance,reliance-rewards,IN,active_public,medium,ready_for_program_seed
+IN,BPCL PetroBonus,BPCL PetroBonus,bank_rewards,BPCL and SBI Card,bpcl-petrobonus,IN,active_public,high,ready_for_program_seed
+IN,Club Vistara,Club Vistara,airline,Tata SIA / Air India migration,club-vistara,IN,legacy_verify,high,hold_for_verification
+IN,Air India Maharaja Club,Air India Maharaja Club,airline,Air India,air-india-maharaja-club,IN,active_public,high,ready_for_program_seed
+IN,IndiGo BluChip,IndiGo BluChip,airline,IndiGo,indigo-bluchip,IN,active_public,high,ready_for_program_seed
+IN,Singapore Airlines KrisFlyer,Singapore Airlines KrisFlyer,airline,Singapore Airlines,krisflyer,IN,active_public,high,ready_for_program_seed
+IN,Etihad Guest,Etihad Guest,airline,Etihad Airways,etihad-guest,IN,active_public,high,ready_for_program_seed
+IN,ICICI Rewards,ICICI Rewards,bank_rewards,ICICI Bank,icici-rewards,IN,active_public,high,ready_for_program_seed
+IN,Adani One Rewards,Adani One Rewards,bank_rewards,Adani One and ICICI Bank,adani-one-rewards,IN,active_public,high,ready_for_program_seed
+IN,MakeMyTrip Rewards,MakeMyTrip Rewards,bank_rewards,MakeMyTrip and ICICI Bank,makemytrip-rewards,IN,active_public,high,ready_for_program_seed
+IN,Emirates Skywards,Emirates Skywards,airline,Emirates,emirates-skywards,IN,active_public,high,ready_for_program_seed
+IN,Amazon Pay Cashback,Amazon Pay Cashback,bank_rewards,Amazon Pay and ICICI Bank,amazon-pay-cashback,IN,active_public,high,ready_for_program_seed
+IN,HPCL Rewards,HPCL Rewards,bank_rewards,HPCL and ICICI Bank,hpcl-rewards,IN,active_public,high,ready_for_program_seed
+IN,Manchester United Rewards,Manchester United Rewards,bank_rewards,ICICI Bank,manchester-united-rewards,IN,active_public,medium,ready_for_program_seed
+IN,CSK Rewards,CSK Rewards,bank_rewards,ICICI Bank,csk-rewards,IN,active_public,medium,ready_for_program_seed
+IN,Standard Chartered 360 Rewards,Standard Chartered 360 Rewar,bank_rewards,Standard Chartered India,standard-chartered-360-rewards,IN,active_public,high,ready_for_program_seed
+IN,Standard Chartered Cashback,Standard Chartered Cashback,bank_rewards,Standard Chartered India,standard-chartered-cashback,IN,active_public,high,ready_for_program_seed
+IN,EaseMyTrip Rewards,EaseMyTrip Rewards,bank_rewards,EaseMyTrip and Standard Chartered,easemytrip-rewards,IN,active_public,high,ready_for_program_seed
+IN,HSBC Rewards,HSBC Rewards,bank_rewards,HSBC India,hsbc-rewards-india,IN,active_public,high,ready_for_program_seed
+IN,HSBC TravelOne Rewards,HSBC TravelOne Rewards,bank_rewards,HSBC India,hsbc-travelone-rewards,IN,active_public,high,ready_for_program_seed
+IN,HSBC Cashback,HSBC Cashback,bank_rewards,HSBC India,hsbc-cashback-india,IN,active_public,high,ready_for_program_seed
+IN,IDFC FIRST Rewards,IDFC FIRST Rewards,bank_rewards,IDFC FIRST Bank,idfc-first-rewards,IN,active_public,high,ready_for_program_seed
+IN,IndusMoments,IndusMoments,bank_rewards,IndusInd Bank,indusmoments,IN,active_public,high,ready_for_program_seed
+IN,Federal Rewards,Federal Rewards,bank_rewards,Federal Bank,federal-rewards,IN,active_public,medium,ready_for_program_seed
+IN,YES Rewardz,YES Rewardz,bank_rewards,YES BANK,yes-rewardz,IN,active_public,high,ready_for_program_seed
+IN,Kotak Reward Points,Kotak Reward Points,bank_rewards,Kotak Mahindra Bank,kotak-reward-points,IN,active_public,medium,ready_for_program_seed
+IN,Kotak Royale Rewards,Kotak Royale Rewards,bank_rewards,Kotak Mahindra Bank,kotak-royale-rewards,IN,active_public,medium,ready_for_program_seed
+IN,Kotak Mojo Points,Kotak Mojo Points,bank_rewards,Kotak Mahindra Bank,kotak-mojo-points,IN,active_public,high,ready_for_program_seed
+IN,Kotak Zen Points,Kotak Zen Points,bank_rewards,Kotak Mahindra Bank,kotak-zen-points,IN,active_public,medium,ready_for_program_seed
+IN,PVR INOX Rewards,PVR INOX Rewards,bank_rewards,Kotak Mahindra Bank,pvr-inox-rewards,IN,active_public,high,ready_for_program_seed
+IN,RBL Rewards,RBL Rewards,bank_rewards,RBL Bank,rbl-rewards,IN,active_public,high,ready_for_program_seed
+IN,RBL Cashback,RBL Cashback,bank_rewards,RBL Bank,rbl-cashback,IN,active_public,high,ready_for_program_seed
+IN,IndianOil XTRA Rewards,IndianOil XTRA Rewards,bank_rewards,RBL Bank and IndianOil,indianoil-xtra-rewards,IN,active_public,high,ready_for_program_seed
+IN,Tata Neu Hotel Layer,Tata Neu Hotel Layer,hotel,Tata Neu / IHCL,tata-neu-hotels,IN,active_public,high,ready_for_program_seed
+IN,Marriott Bonvoy,Marriott Bonvoy,hotel,Marriott,marriott-bonvoy,IN,active_public,high,ready_for_program_seed
+IN,Accor ALL,Accor ALL,hotel,Accor,accor-all,IN,active_public,high,ready_for_program_seed
+IN,IHG One Rewards,IHG One Rewards,hotel,IHG,ihg-one-rewards,IN,active_public,high,ready_for_program_seed
+IN,Hilton Honors,Hilton Honors,hotel,Hilton,hilton-honors,IN,active_public,high,ready_for_program_seed
+IN,World of Hyatt,World of Hyatt,hotel,Hyatt,world-of-hyatt,IN,active_public,high,ready_for_program_seed
+US,Chase Ultimate Rewards,Chase Ultimate Rewards,bank_rewards,Chase,chase-ultimate-rewards,US,active_public,high,ready_for_program_seed
+US,Amex Membership Rewards,Amex Membership Rewards,bank_rewards,American Express,amex-membership-rewards,US,active_public,high,ready_for_program_seed
+US,Capital One Miles,Capital One Miles,bank_rewards,Capital One,capital-one-miles,US,active_public,high,ready_for_program_seed
+US,Citi ThankYou Rewards,Citi ThankYou Rewards,bank_rewards,Citi,citi-thankyou-rewards,US,active_public,high,ready_for_program_seed
+US,Bilt Rewards,Bilt Rewards,bank_rewards,Bilt,bilt-rewards,US,active_public,high,ready_for_program_seed
+US,Wells Fargo Rewards,Wells Fargo Rewards,bank_rewards,Wells Fargo,wells-fargo-rewards,US,active_public,medium,ready_for_program_seed
+US,Bank of America Rewards,Bank of America Rewards,bank_rewards,Bank of America,bank-of-america-rewards,US,active_public,medium,ready_for_program_seed
+US,Bank of America Cashback,Bank of America Cashback,bank_rewards,Bank of America,bank-of-america-cashback,US,active_public,medium,ready_for_program_seed
+US,U.S. Bank Altitude Rewards,U.S. Bank Altitude Rewards,bank_rewards,U.S. Bank,us-bank-altitude-rewards,US,active_public,high,ready_for_program_seed
+US,U.S. Bank Cashback,U.S. Bank Cashback,bank_rewards,U.S. Bank,us-bank-cashback,US,active_public,high,ready_for_program_seed
+US,U.S. Bank Rewards,U.S. Bank Rewards,bank_rewards,U.S. Bank,us-bank-rewards,US,active_public,medium,ready_for_program_seed
+US,Capital One Cashback,Capital One Cashback,bank_rewards,Capital One,capital-one-cashback,US,active_public,high,ready_for_program_seed
+US,Statement Credit,Statement Credit,cashback,Multiple issuers,statement-credit,US,active_public,medium,ready_for_program_seed
+US,Amex Cashback,Amex Cashback,bank_rewards,American Express,amex-cashback,US,active_public,high,ready_for_program_seed
+US,Amazon Rewards,Amazon Rewards,bank_rewards,Amazon and Chase,amazon-rewards,US,active_public,high,ready_for_program_seed
+US,Costco Cashback,Costco Cashback,bank_rewards,Costco and Citi,costco-cashback,US,active_public,high,ready_for_program_seed
+US,Disney Rewards,Disney Rewards,bank_rewards,Disney and Chase,disney-rewards,US,active_public,high,ready_for_program_seed
+US,Discover Cashback,Discover Cashback,bank_rewards,Discover,discover-cashback,US,active_public,high,ready_for_program_seed
+US,United MileagePlus,United MileagePlus,airline,United,united-mileageplus,US,active_public,high,ready_for_program_seed
+US,Southwest Rapid Rewards,Southwest Rapid Rewards,airline,Southwest,southwest-rapid-rewards,US,active_public,high,ready_for_program_seed
+US,Delta SkyMiles,Delta SkyMiles,airline,Delta,delta-skymiles,US,active_public,high,ready_for_program_seed
+US,Air Canada Aeroplan,Air Canada Aeroplan,airline,Air Canada,aeroplan,US,active_public,high,ready_for_program_seed
+US,Alaska Mileage Plan,Alaska Mileage Plan,airline,Alaska Airlines,alaska-mileage-plan,US,active_public,high,ready_for_program_seed
+US,American AAdvantage,American AAdvantage,airline,American Airlines,american-aadvantage,US,active_public,high,ready_for_program_seed
+US,JetBlue TrueBlue,JetBlue TrueBlue,airline,JetBlue,jetblue-trueblue,US,active_public,high,ready_for_program_seed
+US,Frontier Miles,Frontier Miles,airline,Frontier,frontier-miles,US,active_public,high,ready_for_program_seed
+US,HawaiianMiles,HawaiianMiles,airline,Hawaiian Airlines,hawaiianmiles,US,legacy_verify,medium,hold_for_verification
+US,Marriott Bonvoy,Marriott Bonvoy,hotel,Marriott,marriott-bonvoy,US,active_public,high,ready_for_program_seed
+US,IHG One Rewards,IHG One Rewards,hotel,IHG,ihg-one-rewards,US,active_public,high,ready_for_program_seed
+US,World of Hyatt,World of Hyatt,hotel,Hyatt,world-of-hyatt,US,active_public,high,ready_for_program_seed
+US,Hilton Honors,Hilton Honors,hotel,Hilton,hilton-honors,US,active_public,high,ready_for_program_seed
+US,Wyndham Rewards,Wyndham Rewards,hotel,Wyndham,wyndham-rewards,US,active_public,high,ready_for_program_seed
+US,Choice Privileges,Choice Privileges,hotel,Choice Hotels,choice-privileges,US,active_public,high,ready_for_program_seed

@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { readLocalBalanceCache, writeLocalBalanceCache } from '@/lib/local-balance-cache'
 
 const AIRLINE_OPTIONS = [
   'Aer Lingus', 'Aeromexico', 'Air Canada', 'Air France', 'Air New Zealand',
@@ -263,19 +264,18 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
     } else {
       // Guest: read local balances
       try {
-        const localBalancesRaw = localStorage.getItem('pm_local_balances')
-        if (localBalancesRaw) {
-          const parsed = JSON.parse(localBalancesRaw)
+        const cached = readLocalBalanceCache()
+        if (cached) {
+          const parsed = cached.balances
           // Format them to match UnifiedBalance structure
-          // pm_local_balances is an array: [{ program_id: string, balance: number }]
-          const formattedBals = (Array.isArray(parsed) ? (parsed as Array<{ program_id: string; balance: number }>) : []).map((b) => ({
+          const formattedBals = (Array.isArray(parsed) ? parsed : []).map((b: { program_id: string; balance: number }) => ({
             program_id: b.program_id,
             balance: b.balance as number,
             source: 'manual' as const,
-            as_of: new Date().toISOString(),
+            as_of: cached.cachedAt ?? new Date().toISOString(),
             confidence: 'high' as const,
             sync_status: null,
-            is_stale: false,
+            is_stale: cached.isExpired,
             connected_account_id: null,
           }))
           setBalances(formattedBals)
@@ -363,21 +363,19 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
 
     setSavingManual(true)
     try {
-      
       if (isGuest) {
         // Save to local storage for guests
-        const existingRaw = localStorage.getItem('pm_local_balances')
-        let localBalances: Array<{ program_id: string; balance: number }> = []
-        try { localBalances = existingRaw ? JSON.parse(existingRaw) : [] } catch (e) { console.error(e) }
+        const existing = readLocalBalanceCache()
+        const localBalances: { program_id: string; balance: number }[] = [...(existing?.balances ?? [])]
         
-        const existingIdx = localBalances.findIndex((b) => b.program_id === manualProgramId)
+        const existingIdx = localBalances.findIndex((b: { program_id: string; balance: number }) => b.program_id === manualProgramId)
         if (existingIdx >= 0) {
           localBalances[existingIdx].balance = num
         } else {
           localBalances.push({ program_id: manualProgramId, balance: num })
         }
         
-        localStorage.setItem('pm_local_balances', JSON.stringify(localBalances))
+        writeLocalBalanceCache(localBalances)
         
         // Update current state
         setBalances(prev => {

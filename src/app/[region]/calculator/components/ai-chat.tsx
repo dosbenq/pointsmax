@@ -59,7 +59,7 @@ export function AIChat({
       <div className="px-5 sm:px-6 py-4 border-b border-pm-border flex items-center gap-2 flex-wrap">
         <span className="text-xl">✨</span>
         <h2 className="pm-heading text-base">AI Points Advisor</h2>
-        <span className="pm-pill">Powered by Gemini</span>
+        <span className="pm-pill">Powered by PointsMax AI</span>
         {canUseAdvisor && chatMessages.length > 0 && user && (
           <button
             onClick={onClearChat}

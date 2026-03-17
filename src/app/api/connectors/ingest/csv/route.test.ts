@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mockInsert = vi.fn()
-const mockFrom = vi.fn(() => ({ insert: mockInsert }))
+const mockUpsert = vi.fn()
+const mockFrom = vi.fn()
 const mockGetUser = vi.fn()
 
 vi.mock('@/lib/supabase-server', () => ({
@@ -18,7 +19,59 @@ vi.mock('@/lib/logger', () => ({
   logWarn: vi.fn(),
 }))
 
-const { POST, GET, __testing } = await import('./route')
+const { POST, GET } = await import('./route')
+const { resetIngestJobs } = await import('./state')
+
+function makeSelectChain(table: string) {
+  return {
+    eq(column: string, value: string) {
+      if (table === 'users' && column === 'auth_id') {
+        return {
+          single: async () => ({ data: { id: `internal-${value}` }, error: null }),
+        }
+      }
+
+      if (table === 'programs' && column === 'is_active') {
+        return Promise.resolve({
+          data: [
+            { id: 'prog-chase', name: 'Chase Ultimate Rewards', short_name: 'Chase UR', slug: 'chase-ur' },
+            { id: 'prog-amex', name: 'American Express Membership Rewards', short_name: 'Amex MR', slug: 'amex-mr' },
+            { id: 'prog-citi', name: 'Citi ThankYou', short_name: 'Citi TY', slug: 'citi-thankyou' },
+          ],
+          error: null,
+        })
+      }
+
+      if (table === 'connected_accounts' && column === 'id') {
+        return {
+          eq() {
+            return {
+              single: async () => ({ data: { id: value }, error: null }),
+            }
+          },
+        }
+      }
+
+      return {
+        single: async () => ({ data: null, error: null }),
+      }
+    },
+  }
+}
+
+function installDefaultMockFrom() {
+  mockFrom.mockImplementation((table: string) => ({
+    insert: (payload: unknown) => {
+      const result = mockInsert(table, payload)
+      return result === undefined ? Promise.resolve({ error: null }) : result
+    },
+    upsert: (payload: unknown, options?: unknown) => {
+      const result = mockUpsert(table, payload, options)
+      return result === undefined ? Promise.resolve({ error: null }) : result
+    },
+    select: () => makeSelectChain(table),
+  }))
+}
 
 function createFormRequest(formData: FormData, userId = 'test-user'): NextRequest {
   mockGetUser.mockResolvedValue({ data: { user: { id: userId } } })
@@ -36,9 +89,10 @@ function createGetRequest(url: string, userId = 'test-user'): NextRequest {
 describe('POST /api/connectors/ingest/csv', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
-    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
+    resetIngestJobs()
+    installDefaultMockFrom()
     mockInsert.mockResolvedValue({ error: null })
+    mockUpsert.mockResolvedValue({ error: null })
   })
 
   it('requires authentication', async () => {
@@ -115,7 +169,7 @@ Amex MR,50000`
     expect(body.summary.validRows).toBe(2)
     expect(body.summary.importedBalances).toBe(2)
     expect(body.jobId).toBeDefined()
-    expect(mockInsert).toHaveBeenCalled()
+    expect(mockUpsert).toHaveBeenCalled()
   })
 
   it('handles CSV with parse errors', async () => {
@@ -160,7 +214,7 @@ Amex,invalid`
   })
 
   it('handles database insert errors', async () => {
-    mockInsert.mockResolvedValue({ error: { message: 'Database constraint violation' } })
+    mockUpsert.mockImplementationOnce(() => Promise.resolve({ error: { message: 'Database constraint violation' } }))
     
     const csvContent = `Program,Balance\nChase,100000`
     
@@ -191,9 +245,8 @@ Amex,invalid`
     const res = await POST(req)
     
     expect(res.status).toBe(200)
-    // The snapshots should use the provided account ID
-    const insertCall = mockInsert.mock.calls[0]
-    expect(insertCall[0][0].connected_account_id).toBe('account-123')
+    const snapshotInsertCall = mockInsert.mock.calls.find(([table]) => table === 'balance_snapshots')
+    expect(snapshotInsertCall?.[1][0].connected_account_id).toBe('account-123')
   })
 
   it('handles empty CSV file', async () => {
@@ -250,9 +303,10 @@ Chase,100000
 describe('GET /api/connectors/ingest/csv', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
-    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
+    resetIngestJobs()
+    installDefaultMockFrom()
     mockInsert.mockResolvedValue({ error: null })
+    mockUpsert.mockResolvedValue({ error: null })
   })
 
   it('requires authentication', async () => {
@@ -358,9 +412,10 @@ describe('GET /api/connectors/ingest/csv', () => {
 describe('CSV Ingestion edge cases', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __testing.resetIngestJobs()
-    mockFrom.mockImplementation(() => ({ insert: mockInsert }))
+    resetIngestJobs()
+    installDefaultMockFrom()
     mockInsert.mockResolvedValue({ error: null })
+    mockUpsert.mockResolvedValue({ error: null })
   })
 
   it('handles CSV with special characters in program names', async () => {

@@ -183,7 +183,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
     } catch {
       setViewState({ type: 'error', message: 'Failed to load connected wallets. Please try again.' })
     }
-  }, [])
+  }, [isGuest])
 
   useEffect(() => {
     fetchAccounts()
@@ -279,7 +279,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
 
     setViewState({
       type: 'error',
-      message: 'Balance entry is unavailable right now. Please reload and try again.',
+      message: 'New provider connections are not live yet. Manual balance entry is the available path right now.',
     })
   }
 
@@ -349,7 +349,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
           <div className="text-3xl mb-2">👛</div>
           <p className="text-sm text-pm-ink-700 mb-1">{isGuest ? 'Sign in to connect live sources' : 'No balance sources added yet'}</p>
           <p className="text-xs text-pm-ink-500 mb-4 max-w-sm mx-auto">
-            {isGuest ? 'Guests can only enter balances manually. Sign in to seamlessly sync your airline and hotel accounts.' : 'Connect your accounts to live-sync your balances, or enter them manually.'}
+            {isGuest ? 'Guests can only enter balances manually. Sign in to view synced sources when provider onboarding goes live.' : 'Manual balance entry is available now. Existing linked sources will still sync here, but new provider onboarding is not exposed in the UI yet.'}
           </p>
           <div className="flex gap-2 justify-center">
             {!isGuest && (
@@ -358,7 +358,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
                 className="pm-button text-xs px-4 py-2"
                 data-testid="connect-wallet-btn"
               >
-                Add Balances
+                Add Manual Balance
               </button>
             )}
             {onManualEntry && (
@@ -378,12 +378,12 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
 
   // Connected State
   const { accounts, balances } = viewState
-  return (
+      return (
     <div className={`pm-card p-6 ${className}`} data-testid="connected-wallets-connected">
         <div className="flex items-center justify-between mb-4">
           <div>
           <h2 className="pm-heading text-base">Wallet Sources</h2>
-          <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources.</p>
+          <p className="text-xs text-pm-ink-500 mt-0.5">Manage imported and synced balance sources. Existing linked accounts can sync here; new provider onboarding is not yet exposed in the UI.</p>
           </div>
         <div className="flex gap-2">
           {onManualEntry && (
@@ -400,7 +400,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
             className="pm-button text-xs px-3 py-1.5"
             data-testid="connect-wallet-btn"
           >
-            Add Balances
+            Add Manual Balance
           </button>
         </div>
       </div>

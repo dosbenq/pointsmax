@@ -5,29 +5,122 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { parseBalanceCsv, validateCsvFile, createIngestStatus, mapToSnapshots } from '@/lib/connectors/csv-parser'
+import { parseBalanceCsv, validateCsvFile, createIngestStatus } from '@/lib/connectors/csv-parser'
 import { logError, logInfo } from '@/lib/logger'
-import type { IngestStatus } from '@/lib/connectors/csv-parser'
-
-// Track ingestion jobs in memory (in production, use Redis/DB)
-type IngestJob = {
-  id: string
-  userId: string
-  status: IngestStatus['status']
-  startedAt: string
-  completedAt?: string
-  result?: {
-    totalRows: number
-    validRows: number
-    invalidRows: number
-    errors: string[]
-  }
-}
-
-const ingestJobs = new Map<string, IngestJob>()
+import type { CsvRow } from '@/lib/connectors/csv-parser'
+import { ingestJobs } from './state'
+import type { IngestJob } from './state'
 
 // Maximum concurrent jobs per user
 const MAX_CONCURRENT_JOBS = 3
+
+type ProgramRow = {
+  id: string
+  name: string | null
+  short_name: string | null
+  slug: string | null
+}
+
+type ConnectedAccountRow = {
+  id: string
+}
+
+function normalizeProgramKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function matchesProgramFuzzy(search: string, keys: string[]): boolean {
+  return keys.some((key) => (
+    key.includes(search)
+    || search.includes(key)
+    || key.split(' ')[0] === search.split(' ')[0]
+  ))
+}
+
+async function getCurrentUserRowId(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  authId: string,
+): Promise<string | null> {
+  const { data: userRecord } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', authId)
+    .single()
+
+  const id = (userRecord as { id?: unknown } | null)?.id
+  return typeof id === 'string' ? id : null
+}
+
+async function resolvePrograms(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  rows: CsvRow[],
+) {
+  const { data, error } = await supabase
+    .from('programs')
+    .select('id, name, short_name, slug')
+    .eq('is_active', true)
+
+  if (error) {
+    throw new Error(`Failed to load programs: ${error.message}`)
+  }
+
+  const rowsById = new Map<string, ProgramRow>()
+  const rowsByKey = new Map<string, ProgramRow>()
+  const allPrograms: Array<{ row: ProgramRow; keys: string[] }> = []
+  for (const row of ((data as ProgramRow[] | null) ?? [])) {
+    rowsById.set(row.id, row)
+    const keys: string[] = []
+    for (const raw of [row.id, row.name, row.short_name, row.slug]) {
+      if (typeof raw !== 'string' || raw.trim().length === 0) continue
+      const normalized = normalizeProgramKey(raw)
+      rowsByKey.set(normalized, row)
+      keys.push(normalized)
+    }
+    allPrograms.push({ row, keys })
+  }
+
+  const resolved: Array<CsvRow & { resolved_program_id: string }> = []
+  const unresolvedErrors: string[] = []
+
+  for (const row of rows) {
+    const explicitId = typeof row.program_id === 'string' ? row.program_id.trim() : ''
+    const byId = explicitId ? rowsById.get(explicitId) : null
+    const normalizedSearch = normalizeProgramKey(explicitId || row.program_name)
+    const byKey = rowsByKey.get(normalizedSearch)
+    const fuzzy = allPrograms.find(({ keys }) => matchesProgramFuzzy(normalizedSearch, keys))?.row
+    const match = byId ?? byKey ?? fuzzy ?? null
+
+    if (!match) {
+      unresolvedErrors.push(`Program not recognized: ${row.program_name}`)
+      continue
+    }
+
+    resolved.push({
+      ...row,
+      resolved_program_id: match.id,
+    })
+  }
+
+  return { resolved, unresolvedErrors }
+}
+
+async function validateConnectedAccountOwnership(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  connectedAccountId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('connected_accounts')
+    .select('id')
+    .eq('id', connectedAccountId)
+    .eq('user_id', userId)
+    .single()
+
+  return !error && !!(data as ConnectedAccountRow | null)?.id
+}
 
 // ─────────────────────────────────────────────
 // POST /api/connectors/ingest/csv
@@ -49,13 +142,21 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const userId = user.id
+  const authUserId = user.id
 
   try {
     // Parse multipart form data
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const connectedAccountId = formData.get('connectedAccountId') as string | null
+
+    const userId = await getCurrentUserRowId(supabase, authUserId)
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User record not found' },
+        { status: 404 }
+      )
+    }
 
     if (!file) {
       return NextResponse.json(
@@ -88,7 +189,7 @@ export async function POST(req: NextRequest) {
     const jobId = crypto.randomUUID()
     const job: IngestJob = {
       id: jobId,
-      userId,
+      userId: authUserId,
       status: 'processing',
       startedAt: new Date().toISOString(),
     }
@@ -157,14 +258,74 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Map to snapshots
-    const targetAccountId = connectedAccountId || 'manual-import'
-    const snapshots = mapToSnapshots(parseResult.rows, userId, targetAccountId)
+    const { resolved, unresolvedErrors } = await resolvePrograms(supabase, parseResult.rows)
+    if (resolved.length === 0) {
+      job.status = 'failed'
+      job.completedAt = new Date().toISOString()
+      job.result = {
+        totalRows: parseResult.totalRows,
+        validRows: 0,
+        invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+        errors: [
+          ...parseResult.errors.map(e => `Row ${e.row}: ${e.message}`),
+          ...unresolvedErrors,
+        ],
+      }
 
-    // Insert snapshots into database
-    const { error: insertError } = await supabase
-      .from('balance_snapshots')
-      .insert(snapshots)
+      return NextResponse.json(
+        {
+          error: 'No importable rows found in CSV',
+          jobId,
+          status: createIngestStatus('failed', {
+            customMessage: 'Import failed: all rows were invalid or unmatched.',
+            errors: job.result.errors,
+          }),
+        },
+        { status: 422 }
+      )
+    }
+
+    let insertError: { message: string } | null = null
+    let importedCount = 0
+    if (connectedAccountId && connectedAccountId.trim().length > 0) {
+      const isOwned = await validateConnectedAccountOwnership(supabase, connectedAccountId, userId)
+      if (!isOwned) {
+        return NextResponse.json(
+          { error: 'Connected account not found' },
+          { status: 404 }
+        )
+      }
+
+      const fetchedAt = new Date().toISOString()
+      const snapshots = resolved.map((row) => ({
+        connected_account_id: connectedAccountId,
+        user_id: userId,
+        program_id: row.resolved_program_id,
+        balance: row.balance,
+        source: 'manual' as const,
+        raw_payload: row.notes ? { notes: row.notes, import_source: 'csv' } : { import_source: 'csv' },
+        fetched_at: fetchedAt,
+      }))
+
+      const result = await supabase
+        .from('balance_snapshots')
+        .insert(snapshots)
+      insertError = result.error
+      importedCount = snapshots.length
+    } else {
+      const manualRows = resolved.map((row) => ({
+        user_id: userId,
+        program_id: row.resolved_program_id,
+        balance: row.balance,
+        updated_at: new Date().toISOString(),
+      }))
+
+      const result = await supabase
+        .from('user_balances')
+        .upsert(manualRows, { onConflict: 'user_id,program_id' })
+      insertError = result.error
+      importedCount = manualRows.length
+    }
 
     if (insertError) {
       job.status = 'failed'
@@ -172,8 +333,8 @@ export async function POST(req: NextRequest) {
       job.result = {
         totalRows: parseResult.totalRows,
         validRows: 0,
-        invalidRows: parseResult.validRows,
-        errors: [insertError.message],
+        invalidRows: parseResult.validRows + unresolvedErrors.length,
+        errors: [insertError.message, ...unresolvedErrors],
       }
 
       logError('csv_ingest_db_failed', {
@@ -197,9 +358,12 @@ export async function POST(req: NextRequest) {
     job.completedAt = new Date().toISOString()
     job.result = {
       totalRows: parseResult.totalRows,
-      validRows: parseResult.validRows,
-      invalidRows: parseResult.invalidRows,
-      errors: parseResult.errors.map(e => `Row ${e.row}: ${e.message}`),
+      validRows: importedCount,
+      invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+      errors: [
+        ...parseResult.errors.map(e => `Row ${e.row}: ${e.message}`),
+        ...unresolvedErrors,
+      ],
     }
 
     const duration = Date.now() - startedAt
@@ -210,27 +374,27 @@ export async function POST(req: NextRequest) {
       userId,
       durationMs: duration,
       totalRows: parseResult.totalRows,
-      validRows: parseResult.validRows,
-      invalidRows: parseResult.invalidRows,
+      validRows: importedCount,
+      invalidRows: parseResult.invalidRows + unresolvedErrors.length,
     })
 
     // Return success response
     return NextResponse.json({
       jobId,
       status: createIngestStatus('completed', {
-        processedRows: parseResult.validRows,
+        processedRows: importedCount,
         totalRows: parseResult.totalRows,
-        errors: parseResult.errors.length > 0 
-          ? parseResult.errors.map(e => `Row ${e.row}: ${e.message}`)
+        errors: job.result.errors.length > 0 
+          ? job.result.errors
           : undefined,
       }),
       summary: {
         totalRows: parseResult.totalRows,
-        validRows: parseResult.validRows,
-        invalidRows: parseResult.invalidRows,
-        importedBalances: snapshots.length,
+        validRows: importedCount,
+        invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+        importedBalances: importedCount,
       },
-      warnings: parseResult.errors.length > 0 ? parseResult.errors : undefined,
+      warnings: job.result.errors.length > 0 ? job.result.errors : undefined,
     })
 
   } catch (error) {
@@ -238,7 +402,7 @@ export async function POST(req: NextRequest) {
     
     logError('csv_ingest_unexpected_error', {
       requestId,
-      userId,
+      userId: authUserId,
       error: errorMessage,
     })
 

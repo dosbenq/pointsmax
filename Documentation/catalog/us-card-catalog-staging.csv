@@ -1,0 +1,118 @@
+region,issuer,card_name,reward_program,source_url,source_scope,source_confidence,status,notes
+US,Chase,Chase Sapphire Reserve,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Core premium transferable-points card
+US,Chase,Chase Sapphire Preferred,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Core mainstream transferable-points card
+US,Chase,Chase Freedom Flex,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,No-fee cash/UR ecosystem card
+US,Chase,Chase Freedom Unlimited,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,No-fee cash/UR ecosystem card
+US,Chase,Slate Edge,Statement Credit,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Balance-transfer product
+US,Chase,Prime Visa,Amazon Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Amazon co-brand
+US,Chase,Amazon Visa,Amazon Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Amazon co-brand
+US,Chase,Prime Store Card,Amazon Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Amazon store product
+US,Chase,Southwest Rapid Rewards Priority Credit Card,Southwest Rapid Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,Southwest Rapid Rewards Premier Credit Card,Southwest Rapid Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,Southwest Rapid Rewards Plus Credit Card,Southwest Rapid Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,United Explorer Card,United MileagePlus,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,United Gateway Card,United MileagePlus,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,United Quest Card,United MileagePlus,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,United Club Card,United MileagePlus,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Premium airline co-brand
+US,Chase,Marriott Bonvoy Boundless Card,Marriott Bonvoy,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,Marriott Bonvoy Bold Card,Marriott Bonvoy,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,Marriott Bonvoy Bountiful Card,Marriott Bonvoy,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,IHG One Rewards Premier Credit Card,IHG One Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,IHG One Rewards Traveler Credit Card,IHG One Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,World of Hyatt Credit Card,World of Hyatt,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand
+US,Chase,World of Hyatt Business Credit Card,World of Hyatt,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Hotel co-brand business card
+US,Chase,Aeroplan Credit Card,Air Canada Aeroplan,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Chase,Disney Visa Card,Disney Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Entertainment co-brand
+US,Chase,Disney Premier Visa Card,Disney Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Entertainment co-brand
+US,Chase,Ink Business Preferred Credit Card,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Business transferable-points card
+US,Chase,Ink Business Unlimited Credit Card,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Business cash/UR ecosystem card
+US,Chase,Ink Business Cash Credit Card,Chase Ultimate Rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Business cash/UR ecosystem card
+US,American Express,The Platinum Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Flagship charge card
+US,American Express,American Express Gold Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Core transferable-points card
+US,American Express,American Express Green Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Travel card
+US,American Express,American Express EveryDay Preferred Credit Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,medium,active_public,Product remains listed in official US card portfolio
+US,American Express,American Express EveryDay Credit Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,medium,active_public,Product remains listed in official US card portfolio
+US,American Express,Blue Cash Preferred Card,Amex Cashback,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Cashback card
+US,American Express,Blue Cash Everyday Card,Amex Cashback,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Cashback card
+US,American Express,Cash Magnet Card,Amex Cashback,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Cashback card
+US,American Express,Hilton Honors American Express Card,Hilton Honors,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Hotel co-brand
+US,American Express,Hilton Honors American Express Surpass Card,Hilton Honors,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Hotel co-brand
+US,American Express,Hilton Honors American Express Aspire Card,Hilton Honors,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Premium hotel co-brand
+US,American Express,Delta SkyMiles Gold American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,American Express,Delta SkyMiles Platinum American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,American Express,Delta SkyMiles Reserve American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Premium airline co-brand
+US,American Express,Marriott Bonvoy Bevy American Express Card,Marriott Bonvoy,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Hotel co-brand
+US,American Express,Marriott Bonvoy Brilliant American Express Card,Marriott Bonvoy,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Premium hotel co-brand
+US,American Express,American Express Business Platinum Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business transferable-points card
+US,American Express,American Express Business Gold Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business transferable-points card
+US,American Express,Blue Business Plus Credit Card,Amex Membership Rewards,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business transferable-points card
+US,American Express,Delta SkyMiles Gold Business American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business airline co-brand
+US,American Express,Delta SkyMiles Platinum Business American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business airline co-brand
+US,American Express,Delta SkyMiles Reserve Business American Express Card,Delta SkyMiles,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business airline co-brand
+US,American Express,Hilton Honors American Express Business Card,Hilton Honors,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business hotel co-brand
+US,American Express,Marriott Bonvoy Business American Express Card,Marriott Bonvoy,https://www.americanexpress.com/us/credit-cards/business/business-credit-cards/,official_portfolio_page,high,active_public,Business hotel co-brand
+US,Capital One,Capital One Venture X Rewards Credit Card,Capital One Miles,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Flagship travel card
+US,Capital One,Capital One Venture Rewards Credit Card,Capital One Miles,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Mainstream travel card
+US,Capital One,Capital One VentureOne Rewards Credit Card,Capital One Miles,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,No-fee travel card
+US,Capital One,Capital One Savor Rewards Credit Card,Capital One Cashback,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Cashback/dining card
+US,Capital One,Capital One Quicksilver Cash Rewards Credit Card,Capital One Cashback,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Flat-rate cashback card
+US,Capital One,Capital One Quicksilver Secured Cash Rewards Credit Card,Capital One Cashback,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Secured cashback card
+US,Capital One,Capital One Platinum Mastercard,Statement Credit,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Credit-building card
+US,Capital One,Capital One Venture X Business,Capital One Miles,https://www.capitalone.com/small-business/credit-cards/,official_portfolio_page,high,active_public,Business travel card
+US,Capital One,Capital One Spark Cash Plus,Capital One Cashback,https://www.capitalone.com/small-business/credit-cards/,official_portfolio_page,high,active_public,Business charge card
+US,Capital One,Capital One Spark Miles for Business,Capital One Miles,https://www.capitalone.com/small-business/credit-cards/,official_portfolio_page,high,active_public,Business travel card
+US,Capital One,Capital One Spark Cash Select,Capital One Cashback,https://www.capitalone.com/small-business/credit-cards/,official_portfolio_page,high,active_public,Business cashback card
+US,Capital One,Capital One Spark 1 Percent Classic,Capital One Cashback,https://www.capitalone.com/small-business/credit-cards/,official_portfolio_page,high,active_public,Business credit-building card
+US,Citi,Citi Strata Premier Card,Citi ThankYou Rewards,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Core transferable-points card
+US,Citi,Citi Double Cash Card,Citi ThankYou Rewards,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,No-fee ThankYou card
+US,Citi,Citi Custom Cash Card,Citi ThankYou Rewards,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Category-based cashback/ThankYou card
+US,Citi,Citi Rewards+ Card,Citi ThankYou Rewards,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,ThankYou ecosystem card
+US,Citi,Citi Diamond Preferred Card,Statement Credit,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Balance-transfer product
+US,Citi,Citi Simplicity Card,Statement Credit,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Balance-transfer product
+US,Citi,Costco Anywhere Visa Card by Citi,Costco Cashback,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Retail co-brand
+US,Citi,Citi AAdvantage Platinum Select World Elite Mastercard,American AAdvantage,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Airline co-brand
+US,Citi,Citi AAdvantage Executive World Elite Mastercard,American AAdvantage,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Premium airline co-brand
+US,Citi,Citi AAdvantage MileUp Card,American AAdvantage,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,No-fee airline co-brand
+US,Bank of America,Bank of America Premium Rewards Elite Credit Card,Bank of America Rewards,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Premium travel/rewards card
+US,Bank of America,Bank of America Premium Rewards Credit Card,Bank of America Rewards,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Travel/rewards card
+US,Bank of America,Bank of America Travel Rewards Credit Card,Bank of America Rewards,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,No-fee travel card
+US,Bank of America,Bank of America Unlimited Cash Rewards Credit Card,Bank of America Cashback,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Flat-rate cashback card
+US,Bank of America,Bank of America Customized Cash Rewards Credit Card,Bank of America Cashback,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Category cashback card
+US,Bank of America,BankAmericard Credit Card,Statement Credit,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Balance-transfer product
+US,Bank of America,Alaska Airlines Visa Signature Credit Card,Alaska Mileage Plan,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,Bank of America,Alaska Airlines Visa Business Card,Alaska Mileage Plan,https://www.bankofamerica.com/smallbusiness/credit-cards/,official_portfolio_page,high,active_public,Business airline co-brand
+US,Bank of America,Business Advantage Customized Cash Rewards Mastercard,Bank of America Cashback,https://www.bankofamerica.com/smallbusiness/credit-cards/,official_portfolio_page,high,active_public,Business cashback card
+US,Bank of America,Business Advantage Unlimited Cash Rewards Mastercard,Bank of America Cashback,https://www.bankofamerica.com/smallbusiness/credit-cards/,official_portfolio_page,high,active_public,Business cashback card
+US,Bank of America,Business Advantage Travel Rewards World Mastercard,Bank of America Rewards,https://www.bankofamerica.com/smallbusiness/credit-cards/,official_portfolio_page,high,active_public,Business travel card
+US,Wells Fargo,Wells Fargo Autograph Journey Card,Wells Fargo Rewards,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Premium travel card
+US,Wells Fargo,Wells Fargo Autograph Card,Wells Fargo Rewards,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Core rewards card
+US,Wells Fargo,Wells Fargo Active Cash Card,Wells Fargo Cashback,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Flat-rate cashback card
+US,Wells Fargo,Wells Fargo Reflect Card,Statement Credit,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Balance-transfer product
+US,Wells Fargo,Wells Fargo Attune Card,Wells Fargo Cashback,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Lifestyle cashback card
+US,Wells Fargo,Choice Privileges Select Mastercard,Choice Privileges,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Hotel co-brand
+US,Wells Fargo,Choice Privileges Mastercard,Choice Privileges,https://creditcards.wellsfargo.com/,official_portfolio_page,high,active_public,Hotel co-brand
+US,Wells Fargo,Signify Business Cash Card,Wells Fargo Cashback,https://creditcards.wellsfargo.com/business-credit/,official_portfolio_page,high,active_public,Business cashback card
+US,U.S. Bank,U.S. Bank Altitude Reserve Visa Infinite Card,U.S. Bank Altitude Rewards,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Premium travel card
+US,U.S. Bank,U.S. Bank Altitude Connect Visa Signature Card,U.S. Bank Altitude Rewards,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Travel card
+US,U.S. Bank,U.S. Bank Altitude Go Visa Signature Card,U.S. Bank Altitude Rewards,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Dining card
+US,U.S. Bank,U.S. Bank Cash Plus Visa Signature Card,U.S. Bank Cashback,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Category cashback card
+US,U.S. Bank,U.S. Bank Shopper Cash Rewards Visa Signature Card,U.S. Bank Cashback,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Retail cashback card
+US,U.S. Bank,U.S. Bank Smartly Visa Signature Card,U.S. Bank Cashback,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Cashback card
+US,U.S. Bank,U.S. Bank Triple Cash Rewards Visa Business Card,U.S. Bank Cashback,https://www.usbank.com/business-banking/business-credit-cards.html,official_portfolio_page,high,active_public,Business cashback card
+US,U.S. Bank,U.S. Bank Business Leverage Visa Signature Card,U.S. Bank Rewards,https://www.usbank.com/business-banking/business-credit-cards.html,official_portfolio_page,high,active_public,Business category card
+US,Barclays,AAdvantage Aviator Red World Elite Mastercard,American AAdvantage,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,Barclays,JetBlue Card,JetBlue TrueBlue,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,Barclays,JetBlue Plus Card,JetBlue TrueBlue,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,Barclays,JetBlue Business Card,JetBlue TrueBlue,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Business airline co-brand
+US,Barclays,Wyndham Rewards Earner Card,Wyndham Rewards,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Hotel co-brand
+US,Barclays,Wyndham Rewards Earner Plus Card,Wyndham Rewards,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Hotel co-brand
+US,Barclays,Wyndham Rewards Earner Business Card,Wyndham Rewards,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Business hotel co-brand
+US,Barclays,Frontier Airlines World Mastercard,Frontier Miles,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,high,active_public,Airline co-brand
+US,Barclays,Hawaiian Airlines World Elite Mastercard,HawaiianMiles,https://cards.barclaycardus.com/banking/cards/,official_portfolio_page,medium,legacy_verify,Program and issuer status should be re-verified after Alaska integration
+US,Bilt,Bilt Mastercard,Bilt Rewards,https://www.bilt.com/card,official_product_page,high,active_public,Core rent and travel transferable-points card
+US,Discover,Discover it Cash Back,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,high,active_public,Core rotating-category cashback card
+US,Discover,Discover it Miles,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,high,active_public,Travel-marketed cashback card
+US,Discover,Discover it Chrome,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,medium,active_public,Gas and restaurant cashback card
+US,Discover,Discover it Student Cash Back,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,high,active_public,Student cashback card
+US,Discover,Discover it Student Chrome,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,medium,active_public,Student gas and restaurant cashback card
+US,Discover,Discover it Secured Credit Card,Discover Cashback,https://www.discover.com/credit-cards/,official_portfolio_page,high,active_public,Secured credit-building card

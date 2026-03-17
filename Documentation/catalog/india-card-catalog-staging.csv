@@ -1,0 +1,254 @@
+region,issuer,card_name,reward_program,source_url,source_scope,source_confidence,status,notes
+IN,HDFC Bank,HDFC Bank Infinia Metal Edition,HDFC SmartBuy Rewards,https://www.hdfcbank.com/personal/pay/cards/credit-cards/travel,official_search_snippet,high,active_public,Premium flagship travel card
+IN,HDFC Bank,HDFC Bank Diners Club Black Metal Edition,HDFC Diners Club Rewards,https://www.hdfcbank.com/personal/pay/cards/credit-cards/travel,official_search_snippet,high,active_public,Premium Diners metal card
+IN,HDFC Bank,HDFC Bank Regalia Gold Credit Card,HDFC Regalia Rewards,https://www.hdfcbank.com/personal/pay/cards/credit-cards/travel,official_search_snippet,high,active_public,Core travel card
+IN,HDFC Bank,HDFC Bank Millennia Credit Card,HDFC Millennia CashPoints,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,Mainstream cashback card
+IN,HDFC Bank,HDFC Bank MoneyBack+ Credit Card,HDFC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,Entry rewards card
+IN,HDFC Bank,HDFC Bank Freedom Credit Card,HDFC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,Spend-category card
+IN,HDFC Bank,HDFC Bank UPI RuPay Credit Card,HDFC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,UPI-linked RuPay card
+IN,HDFC Bank,HDFC Bank UPI RuPay Credit Card Mega Saver,HDFC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,UPI-linked RuPay variant
+IN,HDFC Bank,Swiggy HDFC Bank Credit Card,Swiggy Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Co-brand cashback card
+IN,HDFC Bank,Paytm HDFC Bank Credit Card,Paytm Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Co-brand cashback card
+IN,HDFC Bank,Paytm HDFC Bank Select Credit Card,Paytm Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Premium Paytm co-brand
+IN,HDFC Bank,Paytm HDFC Bank Mobile Credit Card,Paytm Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,medium,active_public,Variant family visible via official snippet
+IN,HDFC Bank,Paytm HDFC Bank Digital Credit Card,Paytm Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,medium,active_public,Variant family visible via official snippet
+IN,HDFC Bank,EasyEMI HDFC Bank Credit Card,HDFC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,EMI-focused card
+IN,HDFC Bank,Tata Neu Infinity HDFC Bank Credit Card,NeuCoins,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Important Tata ecosystem card
+IN,HDFC Bank,Tata Neu Plus HDFC Bank Credit Card,NeuCoins,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Mass-premium Tata ecosystem card
+IN,HDFC Bank,IndianOil HDFC Bank Credit Card,IndianOil Fuel Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Fuel co-brand
+IN,HDFC Bank,IRCTC HDFC Bank Credit Card,IRCTC Reward Points,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cobranded,official_search_snippet,high,active_public,Rail co-brand
+IN,HDFC Bank,PIXEL Play Credit Card,HDFC Pixel Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,Digital-first card
+IN,HDFC Bank,PIXEL Go Credit Card,HDFC Pixel Cashback,https://www.hdfcbank.com/personal/pay/cards/credit-cards/cashback,official_search_snippet,high,active_public,Digital-first card
+IN,HDFC Bank,HDFC Bank Diners Club Privilege Credit Card,HDFC Diners Club Rewards,https://www.hdfcbank.com/personal/pay/cards/credit-cards/travel,official_search_snippet,high,active_public,Mid-premium Diners card
+IN,HDFC Bank,HDFC Bank Diners Club Rewardz Credit Card,HDFC Diners Club Rewards,https://www.hdfcbank.com/personal/pay/cards/credit-cards/travel,official_search_snippet,medium,active_public,Visible via official snippet
+IN,Axis Bank,Axis Bank Neo Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Mass-market rewards card
+IN,Axis Bank,Axis Bank Rewards Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Core rewards card
+IN,Axis Bank,Airtel Axis Bank Credit Card,Airtel Cashback,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Important cashback co-brand
+IN,Axis Bank,Axis Bank ACE Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Popular cashback card
+IN,Axis Bank,Axis Bank SELECT Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Mid-premium lifestyle card
+IN,Axis Bank,Axis Bank MAGNUS Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Premium rewards card
+IN,Axis Bank,Axis Bank HORIZON Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Travel-oriented card
+IN,Axis Bank,IndianOil Axis Bank Credit Card,IndianOil Fuel Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Fuel co-brand
+IN,Axis Bank,Pride Platinum Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Accessibility-focused product
+IN,Axis Bank,Pride Signature Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Accessibility-focused product
+IN,Axis Bank,Buzz Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Student/entry card
+IN,Axis Bank,super.money RuPay Credit Card,super.money Cashback,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Fintech co-brand
+IN,Axis Bank,Axis Bank Reserve Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Ultra-premium card
+IN,Axis Bank,MY Zone Easy Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Secured/easy variant
+IN,Axis Bank,IndianOil Easy Credit Card,IndianOil Fuel Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Secured/easy variant
+IN,Axis Bank,Privilege Easy Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Secured/easy variant
+IN,Axis Bank,Axis Bank Atlas Credit Card,Axis EDGE Miles,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Important travel card
+IN,Axis Bank,Axis Bank AURA Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Wellness card
+IN,Axis Bank,Axis Bank Signature Credit Card with Lifestyle Benefits,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Lifestyle card
+IN,Axis Bank,Axis Bank Platinum Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Classic product
+IN,Axis Bank,Axis Bank Titanium Smart Traveler Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Travel-focused product
+IN,Axis Bank,Flipkart Axis Bank Super Elite Credit Card,Flipkart SuperCoins,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Premium Flipkart co-brand
+IN,Axis Bank,SpiceJet Axis Bank Voyage Black Credit Card,SpiceClub,https://www.axisbank.com/retail/cards/credit-card/spicejet-axis-bank-voyage-black-credit-card,official_product_page,high,active_public,Live Axis product page confirms ongoing public availability
+IN,Axis Bank,Samsung Axis Bank Infinite Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Electronics co-brand
+IN,Axis Bank,Samsung Axis Bank Signature Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Electronics co-brand
+IN,Axis Bank,Miles and More Axis Bank Credit Card,Miles and More,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Lufthansa ecosystem card
+IN,Axis Bank,Axis Bank Freecharge Credit Card,Freecharge Cashback,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Fintech co-brand
+IN,Axis Bank,Axis Bank Freecharge Plus Credit Card,Freecharge Cashback,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Fintech co-brand
+IN,Axis Bank,LIC Axis Bank Signature Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Insurance co-brand
+IN,Axis Bank,LIC Axis Bank Platinum Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Insurance co-brand
+IN,Axis Bank,Axis Bank Vistara Signature Credit Card,Club Vistara,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,legacy_verify,Legacy Vistara/Air India migration state
+IN,Axis Bank,Axis Bank Vistara Credit Card,Club Vistara,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,legacy_verify,Legacy Vistara/Air India migration state
+IN,Axis Bank,Kwik Axis Bank Credit Card,Axis Reward Points,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,UPI/quick-pay product
+IN,Axis Bank,Axis Bank Vistara Infinite Credit Card,Club Vistara,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,legacy_verify,Legacy Vistara/Air India migration state
+IN,Axis Bank,Axis Bank Privilege Credit Card,Axis EDGE Rewards,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Core mid-tier card
+IN,Axis Bank,Flipkart Axis Bank Credit Card,Flipkart SuperCoins,https://www.axisbank.com/retail/cards/credit-card,official_portfolio_page,high,active_public,Important co-brand
+IN,SBI Card,CASHBACK SBI Card,SBI Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Popular cashback card
+IN,SBI Card,Flipkart SBI Card,Flipkart SuperCoins,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Important e-commerce co-brand
+IN,SBI Card,IndiGo SBI Card,IndiGo BluChip,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,SimplyCLICK SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Online-spend card
+IN,SBI Card,Tata Neu Infinity SBI Card,NeuCoins,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Tata ecosystem card
+IN,SBI Card,SBI Card Miles Elite,SBI Travel Credits,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Travel card
+IN,SBI Card,SBI Card ELITE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Premium lifestyle card
+IN,SBI Card,SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Core premium card
+IN,SBI Card,SBI Card PULSE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Health and wellness card
+IN,SBI Card,Tata Neu Plus SBI Card,NeuCoins,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Tata ecosystem card
+IN,SBI Card,Doctor's SBI Card in association with IMA,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Professional segment card
+IN,SBI Card,SBI Card ELITE Advantage,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Variant of ELITE family
+IN,SBI Card,PhonePe SBI Card SELECT BLACK,PhonePe Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fintech co-brand
+IN,SBI Card,PhonePe SBI Card PURPLE,PhonePe Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fintech co-brand
+IN,SBI Card,OLA Money SBI Card,OLA Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fintech co-brand
+IN,SBI Card,Apollo SBI Card SELECT,Apollo Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Healthcare co-brand
+IN,SBI Card,Apollo SBI Card,Apollo Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Healthcare co-brand
+IN,SBI Card,Tata Card SELECT,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Tata group co-brand
+IN,SBI Card,Tata Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Tata group co-brand
+IN,SBI Card,Paytm SBI Card SELECT,Paytm Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fintech co-brand
+IN,SBI Card,Paytm SBI Card,Paytm Cashback,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fintech co-brand
+IN,SBI Card,Landmark Rewards SBI Card PRIME,Landmark Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail co-brand
+IN,SBI Card,Landmark Rewards SBI Card SELECT,Landmark Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail co-brand
+IN,SBI Card,Landmark Rewards SBI Card,Landmark Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail co-brand
+IN,SBI Card,Titan SBI Card,Titan Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail/jewellery co-brand
+IN,SBI Card,Reliance SBI Card,Reliance Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail co-brand
+IN,SBI Card,Reliance SBI Card PRIME,Reliance Rewards,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Retail co-brand
+IN,SBI Card,SBI Card Unnati,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Entry/secured-style product
+IN,SBI Card,SimplyCLICK Advantage SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Variant of SimplyCLICK
+IN,SBI Card,SimplySAVE Advantage SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Variant of SimplySAVE
+IN,SBI Card,Shaurya SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Defence segment card
+IN,SBI Card,Shaurya Select SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Defence segment card
+IN,SBI Card,SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Mainstream shopping card
+IN,SBI Card,IndiGo SBI Card ELITE,IndiGo BluChip,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Premium airline co-brand
+IN,SBI Card,KrisFlyer SBI Card,Singapore Airlines KrisFlyer,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,KrisFlyer SBI Card Apex,Singapore Airlines KrisFlyer,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Premium airline co-brand
+IN,SBI Card,SBI Card Miles PRIME,SBI Travel Credits,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Travel card
+IN,SBI Card,SBI Card Miles,SBI Travel Credits,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Travel card
+IN,SBI Card,BPCL SBI Card OCTANE,BPCL PetroBonus,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fuel co-brand
+IN,SBI Card,IRCTC SBI Card Premier,IRCTC Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Rail travel card
+IN,SBI Card,Etihad Guest SBI Premier Card,Etihad Guest,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,Etihad Guest SBI Card,Etihad Guest,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,BPCL SBI Card,BPCL PetroBonus,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Fuel co-brand
+IN,SBI Card,Club Vistara SBI Card PRIME,Club Vistara,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,legacy_verify,Legacy Vistara/Air India migration state
+IN,SBI Card,Club Vistara SBI Card,Club Vistara,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,legacy_verify,Legacy Vistara/Air India migration state
+IN,SBI Card,Air India SBI Signature Card,Air India Maharaja Club,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,Air India SBI Platinum Card,Air India Maharaja Club,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Airline co-brand
+IN,SBI Card,IRCTC SBI Platinum Card,IRCTC Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Rail travel card
+IN,SBI Card,Bank of Maharashtra SBI Card ELITE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Bank of Maharashtra SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Bank of Maharashtra SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,PSB SBI Card ELITE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,PSB SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,PSB SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,UCO Bank SBI Card ELITE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,UCO Bank SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,UCO Bank SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Central Bank of India SBI Card ELITE,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Central Bank of India SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Central Bank of India SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,City Union Bank SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,City Union Bank SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Karnataka Bank SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,Karnataka Bank SimplySAVE SBI Card,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,SBI Card,South Indian Bank SBI Card PRIME,SBI Reward Points,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,official_portfolio_page,high,active_public,Bank partner card
+IN,ICICI Bank,Emeralde Private Metal Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Ultra-premium card
+IN,ICICI Bank,Times Black Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Premium co-brand
+IN,ICICI Bank,Emeralde Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Premium lifestyle card
+IN,ICICI Bank,Sapphiro Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Premium card
+IN,ICICI Bank,Rubyx Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Mid-premium card
+IN,ICICI Bank,Coral Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Mass premium card
+IN,ICICI Bank,Platinum Chip Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Entry rewards card
+IN,ICICI Bank,Adani One Signature Credit Card,Adani One Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Travel/airport co-brand
+IN,ICICI Bank,Adani One Platinum Credit Card,Adani One Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Travel/airport co-brand
+IN,ICICI Bank,MakeMyTrip Credit Card,MakeMyTrip Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Travel co-brand family
+IN,ICICI Bank,Emirates Emeralde Credit Card,Emirates Skywards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Airline co-brand
+IN,ICICI Bank,Emirates Sapphiro Credit Card,Emirates Skywards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Airline co-brand
+IN,ICICI Bank,Emirates Skywards Rubyx Credit Card,Emirates Skywards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Airline co-brand
+IN,ICICI Bank,MakeMyTrip Signature Credit Card,MakeMyTrip Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Travel co-brand
+IN,ICICI Bank,MakeMyTrip Platinum Credit Card,MakeMyTrip Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Travel co-brand
+IN,ICICI Bank,Amazon Pay Credit Card,Amazon Pay Cashback,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Important e-commerce card
+IN,ICICI Bank,HPCL Super Saver Credit Card,HPCL Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Fuel co-brand
+IN,ICICI Bank,HPCL Coral Credit Card,HPCL Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Fuel co-brand
+IN,ICICI Bank,Expression Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Custom card-art product
+IN,ICICI Bank,Manchester United Signature Credit Card,Manchester United Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Sports co-brand
+IN,ICICI Bank,Manchester United Platinum Credit Card,Manchester United Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Sports co-brand
+IN,ICICI Bank,Chennai Super Kings Credit Card,CSK Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Sports co-brand
+IN,ICICI Bank,Parakram Select Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Defence segment card
+IN,ICICI Bank,Parakram Credit Card,ICICI Rewards,https://www.icicibank.com/personal-banking/cards/consumer-cards/credit-card/all-cards.html,official_portfolio_page,high,active_public,Defence segment card
+IN,American Express India,American Express Platinum Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Charge card
+IN,American Express India,American Express Platinum Travel Credit Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Travel-focused card
+IN,American Express India,American Express Membership Rewards Credit Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Core MR card
+IN,American Express India,American Express SmartEarn Credit Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Entry digital rewards card
+IN,American Express India,American Express Gold Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Gold charge card family
+IN,American Express India,American Express Platinum Reserve Credit Card,Amex Membership Rewards India,https://www.americanexpress.com/in/credit-cards/all-cards/,official_portfolio_page,high,active_public,Reserve variant
+IN,Standard Chartered India,Ultimate Credit Card,Standard Chartered Rewards,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Premium travel card
+IN,Standard Chartered India,Smart Credit Card,Standard Chartered Cashback,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Mass-market cashback card
+IN,Standard Chartered India,DigiSmart Credit Card,Standard Chartered Cashback,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Digital lifestyle card
+IN,Standard Chartered India,Rewards Credit Card,Standard Chartered 360 Rewards,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Core rewards card
+IN,Standard Chartered India,Super Value Titanium Credit Card,Standard Chartered Cashback,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Fuel and utility card
+IN,Standard Chartered India,Platinum Rewards Credit Card,Standard Chartered 360 Rewards,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Mass-market rewards card
+IN,Standard Chartered India,Manhattan Platinum Credit Card,Standard Chartered Cashback,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Shopping card
+IN,Standard Chartered India,EaseMyTrip Credit Card,EaseMyTrip Rewards,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Travel co-brand
+IN,Standard Chartered India,Titanium Credit Card,Standard Chartered Rewards,https://www.sc.com/in/credit-cards/,official_portfolio_page,high,active_public,Entry card
+IN,HSBC India,HSBC TravelOne Credit Card,HSBC TravelOne Rewards,https://www.hsbc.co.in/credit-cards/products/travelone/,official_product_page,high,active_public,Important transfer card
+IN,HSBC India,HSBC Live+ Credit Card,HSBC Cashback,https://www.hsbc.co.in/credit-cards/products/live-plus/,official_product_page,high,active_public,Cashback product
+IN,HSBC India,HSBC Premier Credit Card,HSBC Rewards,https://www.hsbc.co.in/credit-cards/products/premier/,official_product_page,high,active_public,Premium transfer-capable card
+IN,HSBC India,HSBC Visa Platinum Credit Card,HSBC Rewards,https://www.hsbc.co.in/credit-cards/products/visa-platinum/,official_product_page,high,active_public,No-fee rewards card
+IN,HSBC India,HSBC RuPay Cashback Credit Card,HSBC Cashback,https://www.hsbc.co.in/credit-cards/products/rupay-cashback-credit-card/,official_product_page,high,active_public,UPI cashback card
+IN,HSBC India,HSBC RuPay Platinum Credit Card,HSBC Rewards,https://www.hsbc.co.in/credit-cards/products/rupay-platinum-credit-card/,official_product_page,high,active_public,UPI rewards card
+IN,IDFC FIRST Bank,FIRST WOW! Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/wow/self-employed,official_product_page,high,active_public,Secured/FD-backed flagship
+IN,IDFC FIRST Bank,FIRST Select Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/select,official_product_page,high,active_public,Core premium card
+IN,IDFC FIRST Bank,FIRST Wealth Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/premium-credit-card,official_search_snippet,medium,active_public,Visible on official comparison content
+IN,IDFC FIRST Bank,Ashva Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/premium-credit-card,official_search_snippet,high,active_public,Metal travel card
+IN,IDFC FIRST Bank,Mayura Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/metal-credit-card/mayura,official_product_page,high,active_public,Metal lifestyle card
+IN,IDFC FIRST Bank,FIRST Private Credit Card,IDFC FIRST Rewards,https://www.idfcfirstbank.com/credit-card/FIRSTPrivateCreditCard,official_product_page,high,active_public,Private banking card
+IN,IndusInd Bank,Pinnacle Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card.html,official_portfolio_page,high,active_public,Premium travel card
+IN,IndusInd Bank,Nexxt Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card.html,official_portfolio_page,high,active_public,Interactive card
+IN,IndusInd Bank,Samman RuPay Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card.html,official_portfolio_page,high,active_public,Government employee segment
+IN,IndusInd Bank,Tiger Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card.html,official_portfolio_page,high,active_public,Lifestyle/travel product
+IN,IndusInd Bank,Legend Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card/legend-credit-card.html,official_product_page,high,active_public,Long-running card
+IN,IndusInd Bank,Indulge Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/cards/credit-card/indulge-credit-card.html,official_product_page,high,active_public,Ultra-premium product
+IN,IndusInd Bank,Crest Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Signature Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Iconia Visa Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Iconia Amex Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Platinum RuPay Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Platinum Aura Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Platinum Aura Edge Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,IndusInd Bank,Platinum Select Credit Card,IndusMoments,https://www.indusind.com/in/en/personal/credit-card-related/important-updates-reward-points-program.html,official_program_pdf,medium,active_public,Confirmed in official rewards program update
+IN,Federal Bank,Visa Signet Credit Card,Federal Rewards,https://www.federalbank.co.in/-/credit-cards,official_portfolio_page,high,active_public,Core public product
+IN,Federal Bank,RuPay Signet Credit Card,Federal Rewards,https://www.federalbank.co.in/-/celesta-credit-card-product-features.,official_product_page,medium,active_public,RuPay public product
+IN,Federal Bank,Imperio Credit Card,Federal Rewards,https://www.federalbank.co.in/federal-bank-debit-cards-credit-cards-airport-lounge-program,official_program_page,medium,active_public,Confirmed in lounge program document
+IN,Federal Bank,Celesta Credit Card,Federal Rewards,https://www.federalbank.co.in/federal-bank-debit-cards-credit-cards-airport-lounge-program,official_program_page,medium,active_public,Confirmed in lounge program document
+IN,YES BANK,MARQUEE Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Confirmed in retail card key fact statement
+IN,YES BANK,RESERV Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Confirmed in retail card key fact statement
+IN,YES BANK,ELITE+ Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Confirmed in retail card key fact statement
+IN,YES BANK,SELECT Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Confirmed in retail card key fact statement
+IN,YES BANK,ACE Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Confirmed in retail card key fact statement
+IN,YES BANK,YES First Business Credit Card,YES Rewardz,https://applycc.yesbank.in/creditCardTemplates/yesFirstBusiness.html,official_product_page,high,active_public,Business premium card
+IN,YES BANK,YES First Preferred Credit Card,YES Rewardz,https://applycc.yesbank.in/creditCardTemplates/yesFirstPreffered.html,official_product_page,high,active_public,Preferred banking card
+IN,YES BANK,YES First Exclusive Credit Card,YES Rewardz,https://applycc.yesbank.in/creditCardTemplates/creditCardTemplates/yesFirstExclusive.html,official_product_page,high,active_public,Live public product page remains available though RESERV-family normalization is still needed
+IN,YES BANK,Wellness Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Health and wellness card
+IN,YES BANK,Wellness Plus Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Premium wellness variant
+IN,YES BANK,BYOC Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Build-your-own card family
+IN,YES BANK,EMI Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Installment product
+IN,YES BANK,AI Inside Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Newer product family
+IN,YES BANK,AI Inside RuPay Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Newer product family
+IN,YES BANK,YES Private Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Private banking card
+IN,YES BANK,YES BANK ANQ Phi Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Fintech co-brand
+IN,YES BANK,YES BANK ANQ Pi Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Fintech co-brand
+IN,YES BANK,YES BANK Finbooster Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Fintech co-brand
+IN,YES BANK,YES BANK Paisabazaar PaisaSave Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Fintech co-brand
+IN,YES BANK,YES BANK POP-CLUB Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Lifestyle/fintech co-brand
+IN,YES BANK,Rio Credit Card,YES Rewardz,https://www.yesbank.in/content/published/api/v1.1/assets/CONT07A77C257C7A4BDD85DB97E51D2B5B8F/native/yesbank_key_fact_statement.pdf?channelToken=21f7ccfa2fc3401091938f541a6f8f2a&download=false,official_pdf,high,active_public,Fintech co-brand
+IN,Kotak Mahindra Bank,Kotak White Credit Card,Kotak Reward Points,https://www.kotak.com/en/personal-banking/cards/credit-cards/white-credit-card.html,official_product_page,high,active_public,Premium card
+IN,Kotak Mahindra Bank,PVR INOX Kotak Credit Card,PVR INOX Rewards,https://www.kotak.com/en/personal-banking/cards/credit-cards/pvr-inox-kotak-credit-card.html,official_product_page,high,active_public,Entertainment co-brand
+IN,Kotak Mahindra Bank,Kotak 811 Credit Card,Kotak Reward Points,https://www.kotak.com/en/personal-banking/cards/credit-cards/kotak-811-credit-card.html,official_product_page,high,active_public,Digital/secured product
+IN,Kotak Mahindra Bank,Kotak Mojo Platinum Credit Card,Kotak Mojo Points,https://www.kotak.com/en/personal-banking/cards/credit-cards/mojo-platinum-credit-card.html,official_product_page,high,active_public,Shopping and rewards card
+IN,Kotak Mahindra Bank,Myntra Kotak Credit Card,Kotak Reward Points,https://www.kotak.com/en/gsfc.html,official_fee_schedule,medium,active_public,Confirmed in official GSFC
+IN,Kotak Mahindra Bank,Royale Signature Credit Card,Kotak Royale Rewards,https://www.kotak.com/en/gsfc.html,official_fee_schedule,medium,active_public,Confirmed in official GSFC
+IN,Kotak Mahindra Bank,Zen Signature Credit Card,Kotak Zen Points,https://www.kotak.com/en/gsfc.html,official_fee_schedule,medium,active_public,Confirmed in official GSFC
+IN,Kotak Mahindra Bank,Kotak IndiGo Ka-ching 6E Rewards XL Credit Card,IndiGo BluChip,https://www.kotak.com/en/gsfc.html,official_fee_schedule,medium,active_public,IndiGo co-brand family
+IN,Kotak Mahindra Bank,Kotak IndiGo Ka-ching 6E Rewards Credit Card,IndiGo BluChip,https://www.kotak.com/en/gsfc.html,official_fee_schedule,medium,active_public,IndiGo co-brand family
+IN,RBL Bank,IRCTC RBL Bank Credit Card,IRCTC Reward Points,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Rail travel card
+IN,RBL Bank,IndianOil RBL Bank XTRA Credit Card,IndianOil XTRA Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Fuel co-brand
+IN,RBL Bank,IndianOil RBL Bank Credit Card,IndianOil XTRA Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Fuel co-brand
+IN,RBL Bank,Icon Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Premium lifestyle card
+IN,RBL Bank,World Safari Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Zero-forex travel card
+IN,RBL Bank,RBL Bank QuickPay Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,UPI-linked product
+IN,RBL Bank,RBL Bank iGlobe Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Travel card
+IN,RBL Bank,Platinum Maxima Plus Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Premium rewards card
+IN,RBL Bank,Platinum Maxima Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Rewards card
+IN,RBL Bank,Platinum Delight Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Rewards card
+IN,RBL Bank,Shoprite Credit Card,RBL Cashback,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Grocery cashback card
+IN,RBL Bank,Cookies Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Online shopping card
+IN,RBL Bank,RBL Bank Play Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Entertainment card
+IN,RBL Bank,RBL Bank SalarySe UP Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,UPI card
+IN,RBL Bank,TVS Credit RBL Bank Gold Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Co-brand card
+IN,RBL Bank,RBL Bank MoneyTap Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Fintech co-brand
+IN,RBL Bank,RBL Bank Paisabazaar Duet Credit Card,RBL Cashback,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Fintech co-brand
+IN,RBL Bank,RBL Bank Paisabazaar Duet Plus Credit Card,RBL Cashback,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Fintech co-brand
+IN,RBL Bank,Insignia Preferred Banking Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Preferred banking premium card
+IN,RBL Bank,Monthly Treats Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Online/lifestyle card
+IN,RBL Bank,RBL Bank Popcorn Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Entertainment card
+IN,RBL Bank,RBL Bank Movies and More Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Entertainment card
+IN,RBL Bank,RBL Bank Blockbuster Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Lifestyle card
+IN,RBL Bank,Titanium Delight Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Rewards card
+IN,RBL Bank,RBL Bank Fun+ Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Entertainment card
+IN,RBL Bank,MoCash Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Legacy fintech-style product still listed
+IN,RBL Bank,Platinum LifeEasy Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Utility/fuel card
+IN,RBL Bank,Platinum Edge Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Premium rewards card
+IN,RBL Bank,Platinum ShopDaily Credit Card,RBL Cashback,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Shopping card
+IN,RBL Bank,Platinum Plus Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/category,official_portfolio_page,high,active_public,Base card
+IN,RBL Bank,World Prime Credit Card,RBL Rewards,https://www.rblbank.com/personal-banking/cards/credit-cards/world-prime-credit-card,official_product_page,high,active_public,Premium travel card

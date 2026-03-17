@@ -28,6 +28,8 @@ jobs:
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     concurrency:
       group: database-migrations-main
       cancel-in-progress: false
@@ -36,7 +38,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.workflow_run.head_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate migration policy
+        run: node scripts/check-migration-policy.mjs
 
       - name: Validate Supabase SQL API access
         env:

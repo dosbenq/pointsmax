@@ -149,8 +149,8 @@ export function detectRouteRegion(origin: string, destination: string): RouteReg
   if (DOMESTIC_US.has(o) && DOMESTIC_US.has(d)) return 'domestic_us'
   if (INDIA.has(o) && INDIA.has(d)) return 'domestic_india'
 
-  // US to India routes typically map to Middle East / South Asia charts
-  if ((DOMESTIC_US.has(o) && INDIA.has(d)) || (INDIA.has(o) && DOMESTIC_US.has(d))) return 'middle_east'
+  // India ↔ US long-haul pricing varies too much across programs to force into one fallback bucket.
+  if ((DOMESTIC_US.has(o) && INDIA.has(d)) || (INDIA.has(o) && DOMESTIC_US.has(d))) return 'other'
 
   // Region primarily based on destination, with domestic overrides above.
   if (CANADA_MEXICO.has(d)) return 'canada_mexico'

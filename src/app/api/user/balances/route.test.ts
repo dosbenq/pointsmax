@@ -49,63 +49,70 @@ describe('/api/user/balances', () => {
         }
       }
       if (table === 'user_balances') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  program_id: 'chase-ur',
-                  balance: 120000,
-                  updated_at: '2026-03-06T11:30:00.000Z',
-                },
-              ],
-              error: null,
-            }),
+        const userBalancesQuery = {
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                user_id: 'user-1',
+                program_id: 'chase-ur',
+                balance: 120000,
+                updated_at: '2026-03-06T11:30:00.000Z',
+              },
+            ],
+            error: null,
           }),
+        }
+        return {
+          select: vi.fn().mockReturnValue(userBalancesQuery),
         }
       }
       if (table === 'connected_accounts') {
+        const connectedAccountsQuery = {
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'acct-1',
+                user_id: 'user-1',
+                status: 'active',
+                sync_status: 'ok',
+                last_synced_at: '2026-03-06T11:00:00.000Z',
+              },
+            ],
+            error: null,
+          }),
+        }
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
+          select: vi.fn().mockReturnValue(connectedAccountsQuery),
+        }
+      }
+      if (table === 'balance_snapshots') {
+        const balanceSnapshotsQuery = {
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
               data: [
                 {
-                  id: 'acct-1',
-                  status: 'active',
-                  sync_status: 'ok',
-                  last_synced_at: '2026-03-06T11:00:00.000Z',
+                  user_id: 'user-1',
+                  connected_account_id: 'acct-1',
+                  program_id: 'amex-mr',
+                  balance: 90000,
+                  source: 'connector',
+                  fetched_at: '2026-03-06T10:00:00.000Z',
+                },
+                {
+                  user_id: 'user-1',
+                  connected_account_id: 'acct-1',
+                  program_id: 'chase-ur',
+                  balance: 100000,
+                  source: 'connector',
+                  fetched_at: '2026-03-06T09:00:00.000Z',
                 },
               ],
               error: null,
             }),
           }),
         }
-      }
-      if (table === 'balance_snapshots') {
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    connected_account_id: 'acct-1',
-                    program_id: 'amex-mr',
-                    balance: 90000,
-                    source: 'connector',
-                    fetched_at: '2026-03-06T10:00:00.000Z',
-                  },
-                  {
-                    connected_account_id: 'acct-1',
-                    program_id: 'chase-ur',
-                    balance: 100000,
-                    source: 'connector',
-                    fetched_at: '2026-03-06T09:00:00.000Z',
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          }),
+          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
         }
       }
       throw new Error(`Unexpected table: ${table}`)
@@ -156,69 +163,76 @@ describe('/api/user/balances', () => {
         }
       }
       if (table === 'user_balances') {
+        const userBalancesQuery = {
+          in: vi.fn().mockResolvedValue({
+            data: [
+              {
+                user_id: 'user-1',
+                program_id: 'chase-ur',
+                balance: 120000,
+                updated_at: '2026-03-06T11:30:00.000Z',
+              },
+            ],
+            error: null,
+          }),
+        }
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
+          select: vi.fn().mockReturnValue(userBalancesQuery),
+        }
+      }
+      if (table === 'connected_accounts') {
+        const connectedAccountsQuery = {
+          in: vi.fn().mockResolvedValue({
+            data: [{ id: 'acct-1', user_id: 'user-1', status: 'active', sync_status: 'ok', last_synced_at: null }],
+            error: null,
+          }),
+        }
+        return {
+          select: vi.fn().mockReturnValue(connectedAccountsQuery),
+        }
+      }
+      if (table === 'balance_snapshots') {
+        const balanceSnapshotsQuery = {
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
               data: [
                 {
-                  program_id: 'chase-ur',
-                  balance: 120000,
-                  updated_at: '2026-03-06T11:30:00.000Z',
+                  user_id: 'user-1',
+                  connected_account_id: 'acct-1',
+                  program_id: 'amex-mr',
+                  balance: 90000,
+                  source: 'connector',
+                  fetched_at: '2026-03-06T10:00:00.000Z',
+                },
+                {
+                  user_id: 'user-1',
+                  connected_account_id: 'acct-1',
+                  program_id: 'air-india',
+                  balance: 10000,
+                  source: 'connector',
+                  fetched_at: '2026-03-06T10:00:00.000Z',
                 },
               ],
               error: null,
             }),
           }),
         }
-      }
-      if (table === 'connected_accounts') {
         return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'acct-1', status: 'active', sync_status: 'ok', last_synced_at: null }],
-              error: null,
-            }),
-          }),
-        }
-      }
-      if (table === 'balance_snapshots') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    connected_account_id: 'acct-1',
-                    program_id: 'amex-mr',
-                    balance: 90000,
-                    source: 'connector',
-                    fetched_at: '2026-03-06T10:00:00.000Z',
-                  },
-                  {
-                    connected_account_id: 'acct-1',
-                    program_id: 'air-india',
-                    balance: 10000,
-                    source: 'connector',
-                    fetched_at: '2026-03-06T10:00:00.000Z',
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          }),
+          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
         }
       }
       if (table === 'programs') {
-        return {
-          select: vi.fn().mockReturnValue({
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { id: 'air-india', geography: 'IN' },
-                { id: 'taj-innercircle', geography: 'global' },
-              ],
-              error: null,
-            }),
+        const programsQuery = {
+          in: vi.fn().mockResolvedValue({
+            data: [
+              { id: 'air-india', geography: 'IN' },
+              { id: 'taj-innercircle', geography: 'global' },
+            ],
+            error: null,
           }),
+        }
+        return {
+          select: vi.fn().mockReturnValue(programsQuery),
         }
       }
       throw new Error(`Unexpected table: ${table}`)

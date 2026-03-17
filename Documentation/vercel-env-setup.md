@@ -21,6 +21,10 @@ Replace placeholders first:
 ```bash
 export RESEND_API_KEY="re_xxx"
 export RESEND_FROM_EMAIL="alerts@yourdomain.com"
+export NEXT_PUBLIC_APP_URL="https://pointsmax.com"
+export NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="ey..."
+export SUPABASE_SERVICE_ROLE_KEY="ey..."
 export STRIPE_SECRET_KEY="sk_live_xxx"
 export NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_xxx"
 export STRIPE_WEBHOOK_SECRET="whsec_xxx"
@@ -46,6 +50,10 @@ These commands overwrite existing values safely by removing then re-adding:
 for key in \
   RESEND_API_KEY \
   RESEND_FROM_EMAIL \
+  NEXT_PUBLIC_APP_URL \
+  NEXT_PUBLIC_SUPABASE_URL \
+  NEXT_PUBLIC_SUPABASE_ANON_KEY \
+  SUPABASE_SERVICE_ROLE_KEY \
   STRIPE_SECRET_KEY \
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY \
   STRIPE_WEBHOOK_SECRET \
@@ -71,6 +79,8 @@ vercel env ls production
 ```
 
 Expected: all required keys above are listed.
+
+PointsMax now pins Node `20.x` in `package.json`, so Vercel should use the same major version as GitHub Actions.
 
 ## 5) Redeploy to Apply
 

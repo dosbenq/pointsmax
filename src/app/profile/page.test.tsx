@@ -212,14 +212,18 @@ describe('Profile Page - Region-aware Alert Program Scoping', () => {
   })
 
   describe('authentication states', () => {
-    it('shows a sign-in state instead of redirecting when no user is present', async () => {
+    it('shows the guest wallet state instead of redirecting when no user is present', async () => {
       mockAuthState.user = null
       mockAuthState.userRecord = null
 
       render(<ProfilePage />)
 
-      expect(screen.getByText('Sign in required')).toBeInTheDocument()
-      expect(screen.getByText('Your wallet only works when it knows who you are.')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('Guest Wallet')).toBeInTheDocument()
+      })
+      expect(
+        screen.getByText(/You are viewing your Wallet as a guest\./),
+      ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
     })
 

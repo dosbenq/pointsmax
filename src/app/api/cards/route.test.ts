@@ -33,8 +33,11 @@ function makeDbClient(options: {
       }
 
       if (table === 'latest_valuations') {
+        const valuationsQuery = {
+          in: vi.fn(async () => options.valuations),
+        }
         return {
-          select: vi.fn(async () => options.valuations),
+          select: vi.fn(() => valuationsQuery),
         }
       }
 
@@ -56,7 +59,7 @@ describe('GET /api/cards', () => {
     vi.clearAllMocks()
   })
 
-  it('returns 500 when base card or valuation queries fail', async () => {
+  it('returns 500 when the base cards query fails', async () => {
     createPublicClientMock.mockReturnValue(
       makeDbClient({
         cards: { data: [], error: { message: 'cards failed' } },
@@ -76,7 +79,7 @@ describe('GET /api/cards', () => {
     )
   })
 
-  it('returns 500 when earning-rates query fails', async () => {
+  it('returns 500 when the earning-rates query fails', async () => {
     createPublicClientMock.mockReturnValue(
       makeDbClient({
         cards: {
@@ -119,8 +122,8 @@ describe('GET /api/cards', () => {
     expect(res.status).toBe(500)
     expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
-      'cards_repository_rates_fetch_failed',
-      expect.objectContaining({ error: 'rates failed' })
+      'cards_repository_fetch_failed',
+      expect.objectContaining({ rates_error: 'rates failed' })
     )
   })
 

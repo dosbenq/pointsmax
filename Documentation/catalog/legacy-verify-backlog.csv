@@ -1,0 +1,9 @@
+entity_type,region,owner,name,slug_candidate,current_status,source_url,reason
+card,IN,Axis Bank,Axis Bank Vistara Signature Credit Card,axis-bank-vistara-signature-credit-card,legacy_verify,https://www.axisbank.com/retail/cards/credit-card,Legacy Vistara/Air India migration state
+card,IN,Axis Bank,Axis Bank Vistara Credit Card,axis-bank-vistara-credit-card,legacy_verify,https://www.axisbank.com/retail/cards/credit-card,Legacy Vistara/Air India migration state
+card,IN,Axis Bank,Axis Bank Vistara Infinite Credit Card,axis-bank-vistara-infinite-credit-card,legacy_verify,https://www.axisbank.com/retail/cards/credit-card,Legacy Vistara/Air India migration state
+card,IN,SBI Card,Club Vistara SBI Card PRIME,club-vistara-sbi-card-prime,legacy_verify,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,Legacy Vistara/Air India migration state
+card,IN,SBI Card,Club Vistara SBI Card,club-vistara-sbi-card,legacy_verify,https://www.sbicard.com/en/personal/credit-cards/all-cards.page,Legacy Vistara/Air India migration state
+card,US,Barclays,Hawaiian Airlines World Elite Mastercard,hawaiian-airlines-world-elite-mastercard,legacy_verify,https://cards.barclaycardus.com/banking/cards/,Program and issuer status should be re-verified after Alaska integration
+program,IN,Tata SIA / Air India migration,Club Vistara,club-vistara,legacy_verify,https://www.airindia.com/in/en/maharaja-club/updates.html,Existing co-brands remain but loyalty migration status must be modeled
+program,US,Hawaiian Airlines,HawaiianMiles,hawaiianmiles,legacy_verify,https://www.hawaiianairlines.com/hawaiianmiles2,Program state should be re-verified after Alaska integration

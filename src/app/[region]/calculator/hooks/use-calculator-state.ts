@@ -11,6 +11,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
+import { readLocalBalanceCache, writeLocalBalanceCache } from '@/lib/local-balance-cache'
 import { extractJsonObject } from './ai-response'
 
 // ─────────────────────────────────────────────
@@ -398,9 +399,9 @@ export function useCalculatorState() {
   useEffect(() => {
     if (!user) {
       try {
-        const localBalancesRaw = localStorage.getItem('pm_local_balances')
-        if (localBalancesRaw) {
-          const parsed = JSON.parse(localBalancesRaw)
+        const cached = readLocalBalanceCache()
+        if (cached) {
+          const parsed = cached.balances
           if (Array.isArray(parsed) && parsed.length > 0) {
              setRows(parsed.map((b: { program_id: string; balance: number }, i: number) => ({
                id: String(i + 1),
@@ -514,7 +515,7 @@ export function useCalculatorState() {
           program_id: b.program_id,
           balance: b.amount
         }))
-        localStorage.setItem('pm_local_balances', JSON.stringify(toSave))
+        writeLocalBalanceCache(toSave)
         setSaveToast(true)
         setTimeout(() => setSaveToast(false), 3000)
       } catch (e) {
@@ -899,7 +900,7 @@ export function useCalculatorState() {
     if (panel === 'advisor') {
       trackEvent('advisor_opened', { source, region, hasActionableOutput })
     }
-  }, [hasActionableOutput, region])
+  }, [region])
 
   // ── Return ──────────────────────────────────────────────────
   return {

@@ -2,6 +2,9 @@
   "name": "pointsmax",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:revamp": "next dev -p 3001",
@@ -13,6 +16,9 @@
     "check:launch-env": "node scripts/check-launch-env.mjs",
     "check:links": "node scripts/check-outbound-links.mjs",
     "check:rls-indexes": "node scripts/check-rls-indexes.mjs",
+    "catalog:build": "node scripts/catalog/generate-catalog-artifacts.mjs",
+    "catalog:sql": "node scripts/catalog/generate-catalog-staging-sql.mjs",
+    "catalog:images": "node scripts/catalog/fetch-official-card-images.mjs",
     "smoke:http": "node scripts/smoke-http.mjs",
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "ops:watchdog": "node scripts/automation-watchdog.mjs",
@@ -29,7 +35,8 @@
     "quality:no-hardcoded": "node scripts/quality/check-no-hardcoded-prod-urls.mjs",
     "quality:test-policy": "node scripts/quality/check-changed-test-policy.mjs",
     "quality:pm-dossier": "npm run pm:dossier:check",
-    "quality:gates": "npm run quality:docs && npm run quality:boundaries && npm run quality:no-new-any && npm run quality:no-hardcoded && npm run quality:test-policy && npm run quality:pm-dossier",
+    "quality:migrations": "node scripts/check-migration-policy.mjs",
+    "quality:gates": "npm run quality:docs && npm run quality:boundaries && npm run quality:no-new-any && npm run quality:no-hardcoded && npm run quality:test-policy && npm run quality:pm-dossier && npm run quality:migrations",
     "launch:autopilot": "node scripts/launch-autopilot.mjs",
     "launch:autopilot:quick": "node scripts/launch-autopilot.mjs --quick",
     "launch:autopilot:apply": "node scripts/launch-autopilot.mjs --apply-migrations",

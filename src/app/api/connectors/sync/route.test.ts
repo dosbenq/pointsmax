@@ -10,6 +10,8 @@ let mockUser: { id: string } | null = { id: 'auth-uid-1' }
 let mockUserRow: { id: string } | null = { id: 'user-row-1' }
 let mockAccount: Record<string, unknown> | null = null
 let mockSupabaseUpdateError: { message: string } | null = null
+const mockBalanceSnapshotsInsert = vi.fn().mockResolvedValue({ error: null })
+const mockConnectorAuditInsert = vi.fn().mockResolvedValue({ error: null })
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServerClient: async () => ({
@@ -38,6 +40,22 @@ vi.mock('@/lib/supabase-server', () => ({
   }),
 }))
 
+vi.mock('@/lib/supabase', () => ({
+  createAdminClient: () => ({
+    from: (table: string) => ({
+      insert: (payload: unknown) => {
+        if (table === 'balance_snapshots') {
+          return mockBalanceSnapshotsInsert(payload)
+        }
+        if (table === 'connector_audit_log') {
+          return mockConnectorAuditInsert(payload)
+        }
+        return Promise.resolve({ error: null })
+      },
+    }),
+  }),
+}))
+
 vi.mock('@/lib/connectors/token-vault', () => ({
   decryptToken: vi.fn().mockReturnValue('decrypted-token-123'),
 }))
@@ -45,7 +63,30 @@ vi.mock('@/lib/connectors/token-vault', () => ({
 let mockSyncOutcome: Record<string, unknown> = { status: 'ok', result: { balances: {}, cursor: null } }
 
 vi.mock('@/lib/connectors/sync-orchestrator', () => ({
-  runAccountSync: vi.fn().mockImplementation(async () => mockSyncOutcome),
+  runAccountSync: vi.fn().mockImplementation(async (_adapter, context, persistence) => {
+    const accountId = (context as { account: { id: string } }).account.id
+    await persistence.markSyncing(accountId)
+
+    if (mockSyncOutcome.status === 'ok') {
+      await persistence.markSuccess(
+        accountId,
+        (mockSyncOutcome as { result: { balances: Record<string, number>; cursor: string | null; rawPayload?: Record<string, unknown> } }).result,
+      )
+      return mockSyncOutcome
+    }
+
+    if (mockSyncOutcome.status === 'auth_error') {
+      await persistence.markAuthError(accountId)
+      return mockSyncOutcome
+    }
+
+    await persistence.markError(
+      accountId,
+      (mockSyncOutcome as { errorCode: 'provider_error' | 'rate_limit' | 'unknown' | 'auth_error'; message: string }).errorCode,
+      (mockSyncOutcome as { message: string }).message,
+    )
+    return mockSyncOutcome
+  }),
   isAccountStale: vi.fn().mockReturnValue(false),
   SYNC_POLICY: {
     maxAttempts: 3,
@@ -109,6 +150,10 @@ beforeEach(() => {
   mockAccount = makeActiveAccount()
   mockSupabaseUpdateError = null
   mockSyncOutcome = { status: 'ok', result: { balances: { 'prog-amex-mr': 50000 }, cursor: null } }
+  mockBalanceSnapshotsInsert.mockClear()
+  mockBalanceSnapshotsInsert.mockResolvedValue({ error: null })
+  mockConnectorAuditInsert.mockClear()
+  mockConnectorAuditInsert.mockResolvedValue({ error: null })
 })
 
 // ─────────────────────────────────────────────
@@ -193,7 +238,11 @@ describe('POST /api/connectors/sync — sync success', () => {
   it('returns 200 with status ok on successful sync', async () => {
     mockSyncOutcome = {
       status: 'ok',
-      result: { balances: { 'prog-amex-mr': 75000 }, cursor: null },
+      result: {
+        balances: { 'prog-amex-mr': 75000, 'prog-chase-ur': 125000 },
+        cursor: 'cursor-123',
+        rawPayload: { provider: 'amex' },
+      },
     }
 
     const res = await POST(postRequest({ account_id: 'acct-001' }))
@@ -201,7 +250,29 @@ describe('POST /api/connectors/sync — sync success', () => {
     const body = await res.json()
     expect(body.status).toBe('ok')
     expect(body.result).toBeDefined()
-    expect(body.result.balances).toEqual({ 'prog-amex-mr': 75000 })
+    expect(body.result.balances).toEqual({ 'prog-amex-mr': 75000, 'prog-chase-ur': 125000 })
+
+    expect(mockBalanceSnapshotsInsert).toHaveBeenCalledTimes(1)
+    expect(mockBalanceSnapshotsInsert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        connected_account_id: 'acct-001',
+        user_id: 'user-row-1',
+        program_id: 'prog-amex-mr',
+        balance: 75000,
+        source: 'connector',
+        provider_cursor: 'cursor-123',
+        raw_payload: { provider: 'amex' },
+      }),
+      expect.objectContaining({
+        connected_account_id: 'acct-001',
+        user_id: 'user-row-1',
+        program_id: 'prog-chase-ur',
+        balance: 125000,
+        source: 'connector',
+        provider_cursor: 'cursor-123',
+        raw_payload: { provider: 'amex' },
+      }),
+    ])
   })
 })
 

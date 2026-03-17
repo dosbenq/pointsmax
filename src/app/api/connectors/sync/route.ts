@@ -23,7 +23,7 @@ import { decryptToken } from '@/lib/connectors/token-vault'
 import { runAccountSync, type SyncPersistence } from '@/lib/connectors/sync-orchestrator'
 import { isAccountStale } from '@/lib/connectors/sync-orchestrator'
 import { logInfo, logError } from '@/lib/logger'
-import type { ConnectedAccount, SyncErrorCode } from '@/types/connectors'
+import type { ConnectedAccount, FetchBalanceResult, SyncErrorCode } from '@/types/connectors'
 import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
 import { createAdminClient } from '@/lib/supabase'
 import { ensureConnectorRegistryInitialized } from '@/lib/connectors/adapters'
@@ -34,48 +34,134 @@ import { ensureConnectorRegistryInitialized } from '@/lib/connectors/adapters'
 
 function buildPersistence(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  account: ConnectedAccount,
 ): SyncPersistence {
+  const getSnapshotClient = () => {
+    try {
+      return createAdminClient()
+    } catch {
+      return supabase
+    }
+  }
+
+  const buildSnapshotRows = (result: FetchBalanceResult) => {
+    const fetchedAt = new Date().toISOString()
+    return Object.entries(result.balances)
+      .filter(([programId, balance]) => {
+        return (
+          typeof programId === 'string'
+          && programId.length > 0
+          && Number.isFinite(balance)
+          && balance >= 0
+        )
+      })
+      .map(([programId, balance]) => ({
+        connected_account_id: account.id,
+        user_id: account.user_id,
+        program_id: programId,
+        balance: Math.floor(balance),
+        source: 'connector' as const,
+        provider_cursor: result.cursor,
+        raw_payload: result.rawPayload ?? null,
+        fetched_at: fetchedAt,
+      }))
+  }
+
   return {
     async markSyncing(accountId) {
-      await supabase
-        .from('connected_accounts')
-        .update({ sync_status: 'syncing' })
-        .eq('id', accountId)
+      try {
+        await supabase
+          .from('connected_accounts')
+          .update({ sync_status: 'syncing' })
+          .eq('id', accountId)
+      } catch (error) {
+        logError('connector_sync_mark_syncing_failed', {
+          accountId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
     },
 
-    async markSuccess(accountId) {
-      await supabase
-        .from('connected_accounts')
-        .update({
-          sync_status: 'ok',
-          last_synced_at: new Date().toISOString(),
-          last_error: null,
-          error_code: null,
+    async markSuccess(accountId, result) {
+      const snapshotRows = buildSnapshotRows(result)
+
+      if (snapshotRows.length > 0) {
+        try {
+          const snapshotClient = getSnapshotClient()
+          const { error: snapshotError } = await snapshotClient
+            .from('balance_snapshots')
+            .insert(snapshotRows)
+
+          if (snapshotError) {
+            logError('connector_sync_snapshot_insert_failed', {
+              accountId,
+              error: snapshotError.message,
+              snapshotCount: snapshotRows.length,
+            })
+          }
+        } catch (error) {
+          logError('connector_sync_snapshot_insert_failed', {
+            accountId,
+            error: error instanceof Error ? error.message : String(error),
+            snapshotCount: snapshotRows.length,
+          })
+        }
+      }
+
+      try {
+        await supabase
+          .from('connected_accounts')
+          .update({
+            sync_status: 'ok',
+            last_synced_at: new Date().toISOString(),
+            last_error: null,
+            error_code: null,
+          })
+          .eq('id', accountId)
+      } catch (error) {
+        logError('connector_sync_mark_success_failed', {
+          accountId,
+          error: error instanceof Error ? error.message : String(error),
         })
-        .eq('id', accountId)
+      }
     },
 
     async markError(accountId, errorCode: SyncErrorCode, errorMessage: string) {
-      await supabase
-        .from('connected_accounts')
-        .update({
-          sync_status: 'error',
-          last_error: errorMessage,
-          error_code: errorCode,
+      try {
+        await supabase
+          .from('connected_accounts')
+          .update({
+            sync_status: 'error',
+            last_error: errorMessage,
+            error_code: errorCode,
+          })
+          .eq('id', accountId)
+      } catch (error) {
+        logError('connector_sync_mark_error_failed', {
+          accountId,
+          errorCode,
+          error: error instanceof Error ? error.message : String(error),
         })
-        .eq('id', accountId)
+      }
     },
 
     async markAuthError(accountId) {
-      await supabase
-        .from('connected_accounts')
-        .update({
-          status: 'expired',
-          sync_status: 'error',
-          error_code: 'auth_error',
-          last_error: 'Credentials expired or revoked — re-authorisation required',
+      try {
+        await supabase
+          .from('connected_accounts')
+          .update({
+            status: 'expired',
+            sync_status: 'error',
+            error_code: 'auth_error',
+            last_error: 'Credentials expired or revoked — re-authorisation required',
+          })
+          .eq('id', accountId)
+      } catch (error) {
+        logError('connector_sync_mark_auth_error_failed', {
+          accountId,
+          error: error instanceof Error ? error.message : String(error),
         })
-        .eq('id', accountId)
+      }
     },
   }
 }
@@ -188,7 +274,7 @@ export async function POST(req: NextRequest) {
   }
 
   const context = { accessToken, userId, account }
-  const persistence = buildPersistence(supabase)
+  const persistence = buildPersistence(supabase, account)
 
   const stale = isAccountStale(account)
   logInfo('sync_triggered', {

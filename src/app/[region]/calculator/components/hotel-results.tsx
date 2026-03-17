@@ -5,6 +5,7 @@
 
 'use client'
 
+import { useState } from 'react'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -18,10 +19,21 @@ interface HotelResultsProps {
   setHotelParams: React.Dispatch<React.SetStateAction<HotelParams>>
 }
 
+function closeDatePopover(setOpen: (open: boolean) => void) {
+  window.setTimeout(() => {
+    setOpen(false)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, 0)
+}
+
 export function HotelResults({
   hotelParams,
   setHotelParams,
 }: HotelResultsProps) {
+  const [checkInOpen, setCheckInOpen] = useState(false)
+  const [checkOutOpen, setCheckOutOpen] = useState(false)
   return (
     <div className="flex flex-col">
       {/* Top: Form Inputs */}
@@ -65,7 +77,7 @@ export function HotelResults({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="pm-label block mb-1.5">Check In</label>
-            <Popover>
+            <Popover open={checkInOpen} onOpenChange={setCheckInOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -93,6 +105,7 @@ export function HotelResults({
                           end_date: shouldClearEnd ? '' : p.end_date,
                         }
                       })
+                      closeDatePopover(setCheckInOpen)
                     }
                   }}
                   disabled={(date) => isBefore(date, startOfToday())}
@@ -103,7 +116,7 @@ export function HotelResults({
           </div>
           <div>
             <label className="pm-label block mb-1.5">Check Out</label>
-            <Popover>
+            <Popover open={checkOutOpen} onOpenChange={setCheckOutOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -123,6 +136,7 @@ export function HotelResults({
                   onSelect={(date) => {
                     if (date) {
                       setHotelParams((p) => ({ ...p, end_date: format(date, 'yyyy-MM-dd') }))
+                      closeDatePopover(setCheckOutOpen)
                     }
                   }}
                   disabled={(date) => {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Sparkles, MapPin, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -10,6 +9,25 @@ import { AirportAutocomplete } from '@/components/AirportAutocomplete'
 import { createBrowserClient } from '@supabase/ssr'
 
 type OnboardingStep = 0 | 1 | 2
+
+function ProgramBadge({
+  name,
+  monogram,
+  gradient,
+}: {
+  name: string
+  monogram: string
+  gradient: string
+}) {
+  return (
+    <div
+      className={`w-10 h-10 rounded-xl border border-white/20 shadow-sm ${gradient} flex items-center justify-center text-white font-bold text-xs tracking-[0.18em]`}
+      aria-label={name}
+    >
+      {monogram}
+    </div>
+  )
+}
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -36,8 +54,10 @@ export default function OnboardingPage() {
   const card2Slug = region === 'in' ? 'axis_edge' : 'amex_mr'
   const card1Name = region === 'in' ? 'HDFC Reward Points' : 'Chase Ultimate Rewards'
   const card2Name = region === 'in' ? 'Axis Edge Rewards' : 'Amex Membership Rewards'
-  const card1Url = region === 'in' ? 'https://www.hdfcbank.com/content/api/contentstream-id/723fb80a-2dde-42a3-9793-7ae1be57c87f/c6f7b11d-28b9-4467-9aa2-ecb79f22849b?' : 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/sapphire_preferred.png'
-  const card2Url = region === 'in' ? 'https://www.axisbank.com/images/default-source/revamp_new/cards/credit-cards/axis-bank-atlas-credit-card/axis-bank-atlas-credit-card.png' : 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/Gold.png'
+  const card1Monogram = region === 'in' ? 'HR' : 'UR'
+  const card2Monogram = region === 'in' ? 'AE' : 'MR'
+  const card1Gradient = region === 'in' ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-700' : 'bg-gradient-to-br from-slate-900 via-blue-800 to-indigo-600'
+  const card2Gradient = region === 'in' ? 'bg-gradient-to-br from-rose-500 via-red-500 to-orange-500' : 'bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500'
 
   // Check if we should skip
   useEffect(() => {
@@ -206,7 +226,7 @@ export default function OnboardingPage() {
                      
                      <div className="p-4 rounded-2xl border border-pm-border bg-pm-surface-soft flex items-center gap-4 focus-within:border-pm-accent transition-colors">
                         <div className="w-10 h-10 rounded overflow-hidden">
-                           <Image src={card1Url} alt="Card 1" width={60} height={40} className="w-full h-full object-cover" />
+                           <ProgramBadge name={card1Name} monogram={card1Monogram} gradient={card1Gradient} />
                         </div>
                         <div className="flex-1">
                            <p className="font-semibold pm-heading text-sm">{card1Name}</p>
@@ -223,7 +243,7 @@ export default function OnboardingPage() {
 
                      <div className="p-4 rounded-2xl border border-pm-border bg-pm-surface-soft flex items-center gap-4 focus-within:border-pm-accent transition-colors">
                         <div className="w-10 h-10 rounded overflow-hidden">
-                           <Image src={card2Url} alt="Card 2" width={60} height={40} className="w-full h-full object-cover" />
+                           <ProgramBadge name={card2Name} monogram={card2Monogram} gradient={card2Gradient} />
                         </div>
                         <div className="flex-1">
                            <p className="font-semibold pm-heading text-sm">{card2Name}</p>

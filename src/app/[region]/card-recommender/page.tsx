@@ -2,20 +2,27 @@
 
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Check, Sparkles, ChevronLeft, Loader2, ArrowLeft } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import { CompareGrid } from '@/components/ui/compare/CompareGrid'
+import { WinnerBar } from '@/components/ui/compare/WinnerBar'
 import type { CardWithRates, SpendCategory } from '@/types/database'
+import type { CardComparePayload } from '@/features/card-recommender/domain/ui-contract'
 import {
   formatCurrencyRounded,
   getCategoriesForRegion,
   spendInputPrefix,
   CARD_ART_MAP,
 } from '@/lib/card-tools'
-import { trackEvent } from '@/lib/analytics'
 import { REGIONS, type Region } from '@/lib/regions'
+import { openAffiliateLink } from '@/lib/affiliate-client'
+import { getCanonicalCardSlug, getSafeExternalUrl } from '@/lib/card-surfaces'
+import { readLocalBalanceCache } from '@/lib/local-balance-cache'
+import { buildCardComparePayloads } from '@/lib/card-compare'
 import {
   useCardScorer,
   useSpendOnlyRanking,
@@ -34,6 +41,11 @@ type WalletBalanceSummary = {
   is_stale: boolean
   connected_account_id: string | null
 }
+
+type WalletCacheNotice = {
+  state: 'cached' | 'stale'
+  cachedAt: string | null
+} | null
 
 const FallbackCard = ({ name, type }: { name: string, type: string }) => {
   // Generate consistent hues based on characters and length
@@ -65,17 +77,20 @@ const FallbackCard = ({ name, type }: { name: string, type: string }) => {
   )
 }
 
-function safeApplyUrl(url: string | null | undefined): string | null {
-  if (!url) return null
-  const trimmed = url.trim()
-  if (!trimmed) return null
-  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-  try {
-    const parsed = new URL(candidate)
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.toString() : null
-  } catch {
-    return null
-  }
+function toWalletBalanceSummaries(
+  balances: Array<{ program_id: string; balance: number }>,
+  asOf: string | null,
+  isStale: boolean,
+): WalletBalanceSummary[] {
+  return balances.map((balance) => ({
+    program_id: balance.program_id,
+    balance: balance.balance,
+    source: 'manual',
+    as_of: asOf,
+    synergy_status: null,
+    is_stale: isStale,
+    connected_account_id: null,
+  }))
 }
 
 export default function CardRecommenderPage() {
@@ -101,6 +116,8 @@ export default function CardRecommenderPage() {
 
   const [cards, setCards] = useState<CardWithRates[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  
   // Recommender Inputs
   const [spend, setSpend] = useState<SpendInputs>(config.defaultSpend as SpendInputs)
   const [travelGoals, setTravelGoals] = useState<Set<string>>(new Set())
@@ -108,9 +125,9 @@ export default function CardRecommenderPage() {
   const [mode, setMode] = useState<RecommendationMode>('next_best_card')
   const [annualFeeTolerance, setAnnualFeeTolerance] = useState<AnnualFeeTolerance>('medium')
   const [recentOpenAccounts24m, setRecentOpenAccounts24m] = useState('0')
-  const [targetGoalValue] = useState('')
   
   const [walletBalances, setWalletBalances] = useState<WalletBalanceSummary[]>([])
+  const [walletCacheNotice, setWalletCacheNotice] = useState<WalletCacheNotice>(null)
   const [activeView, setActiveView] = useState<'strategy' | 'earnings'>(initialView)
   const [redirectingCardId, setRedirectingCardId] = useState<string | null>(null)
 
@@ -154,34 +171,33 @@ export default function CardRecommenderPage() {
         return response.json()
       })
       .then(payload => {
-        if ((!payload.balances || payload.balances.length === 0) && typeof window !== 'undefined') {
-          try {
-             const raw = localStorage.getItem('pm_local_balances')
-             if (raw) {
-                const parsed = JSON.parse(raw)
-                if (Array.isArray(parsed)) {
-                  setWalletBalances(parsed)
-                  return
-                }
-             }
-          } catch(err) { console.error(err) }
+        const balances = Array.isArray(payload.balances) ? payload.balances : []
+        if (balances.length > 0) {
+          setWalletBalances(balances)
+          setWalletCacheNotice(null)
+          return
         }
-        setWalletBalances(payload.balances ?? [])
+
+        const cached = readLocalBalanceCache()
+        if (cached && !cached.isExpired) {
+          setWalletBalances(toWalletBalanceSummaries(cached.balances, cached.cachedAt, false))
+          setWalletCacheNotice({ state: 'cached', cachedAt: cached.cachedAt })
+          return
+        }
+
+        setWalletBalances([])
+        setWalletCacheNotice(cached ? { state: 'stale', cachedAt: cached.cachedAt } : null)
       })
       .catch(() => {
-        if (typeof window !== 'undefined') {
-          try {
-             const raw = localStorage.getItem('pm_local_balances')
-             if (raw) {
-                const parsed = JSON.parse(raw)
-                if (Array.isArray(parsed)) {
-                  setWalletBalances(parsed)
-                  return
-                }
-             }
-          } catch(err) { console.error(err) }
+        const cached = readLocalBalanceCache()
+        if (cached && !cached.isExpired) {
+          setWalletBalances(toWalletBalanceSummaries(cached.balances, cached.cachedAt, false))
+          setWalletCacheNotice({ state: 'cached', cachedAt: cached.cachedAt })
+          return
         }
+
         setWalletBalances([])
+        setWalletCacheNotice(cached ? { state: 'stale', cachedAt: cached.cachedAt } : null)
       })
   }, [regionCode])
 
@@ -196,7 +212,7 @@ export default function CardRecommenderPage() {
     mode,
     recentOpenAccounts24m: Number.parseInt(recentOpenAccounts24m || '0', 10) || 0,
     walletBalances,
-    targetGoalValue: Number.parseInt(targetGoalValue || '0', 10) || null,
+    targetGoalValue: null,
     showResults: step === 6 && activeView === 'strategy',
   })
   
@@ -216,31 +232,18 @@ export default function CardRecommenderPage() {
   }
 
   const handleApplyClick = async (card: CardWithRates, rank: number, firstYearValue: number) => {
-    const fallbackUrl = safeApplyUrl(card.apply_url)
+    const fallbackUrl = getSafeExternalUrl(card.apply_url)
     if (!fallbackUrl) return
     setRedirectingCardId(card.id)
     try {
-      const response = await fetch('/api/analytics/affiliate-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          card_id: card.id,
-          program_id: card.program_id,
-          source_page: 'card-recommender',
-          rank,
-          region: regionCode,
-          recommendation_mode: mode,
-        }),
+      await openAffiliateLink({
+        card,
+        sourcePage: 'card-recommender',
+        rank,
+        region: regionCode,
+        recommendationMode: mode,
+        firstYearValue,
       })
-      const payload = await response.json().catch(() => ({}))
-      const trackedUrl = typeof payload.redirect_url === 'string' ? safeApplyUrl(payload.redirect_url) : null
-      const redirectUrl = trackedUrl ?? fallbackUrl
-      trackEvent('card_apply_click', { card_name: card.name, rank, first_year_value: Math.round(firstYearValue), region: regionCode })
-      const popup = window.open(redirectUrl, '_blank', 'noopener,noreferrer')
-      if (!popup) window.location.assign(redirectUrl)
-    } catch {
-      const popup = window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
-      if (!popup) window.location.assign(fallbackUrl)
     } finally {
       setRedirectingCardId(null)
     }
@@ -301,7 +304,7 @@ export default function CardRecommenderPage() {
                    </div>
                 </div>
                 <div className="md:w-1/2">
-                   <div className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-2">Step 01</div>
+                   <div className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-2">Scoring Lens</div>
                    <h2 className="text-4xl font-bold mb-6">Built for actual travelers.</h2>
                    <p className="text-lg text-pm-ink-500">Traditional sites push cards based on affiliate payouts. We push cards based on math and synergy with the points you already have.</p>
                 </div>
@@ -319,7 +322,7 @@ export default function CardRecommenderPage() {
                    </div>
                 </div>
                 <div className="md:w-1/2">
-                   <div className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-2">Step 02</div>
+                   <div className="text-sm font-semibold uppercase tracking-widest text-pm-accent mb-2">Guardrail Layer</div>
                    <h2 className="text-4xl font-bold mb-6">Smart Constraints.</h2>
                    <p className="text-lg text-pm-ink-500">Tell us what you already hold and how fee-tolerant you are. The engine handles the complex overlapping rules of major issuers instantly.</p>
                 </div>
@@ -339,11 +342,8 @@ export default function CardRecommenderPage() {
                     key={goal.key}
                     onClick={() => setTravelGoals(prev => {
                       const next = new Set(prev)
-                      if (next.has(goal.key)) {
-                        next.delete(goal.key)
-                      } else {
-                        next.add(goal.key)
-                      }
+                      if (next.has(goal.key)) next.delete(goal.key)
+                      else next.add(goal.key)
                       return next
                     })}
                     className={`flex items-center justify-between p-5 rounded-[20px] text-left border-2 transition-all duration-200 shadow-sm ${
@@ -440,11 +440,8 @@ export default function CardRecommenderPage() {
                       key={card.id}
                       onClick={() => setOwnedCards(prev => {
                         const next = new Set(prev)
-                        if (next.has(card.id)) {
-                          next.delete(card.id)
-                        } else {
-                          next.add(card.id)
-                        }
+                        if (next.has(card.id)) next.delete(card.id)
+                        else next.add(card.id)
                         return next
                       })}
                       className={`text-sm px-4 py-2.5 rounded-full border-2 transition-all font-medium shadow-sm ${
@@ -486,18 +483,10 @@ export default function CardRecommenderPage() {
   }
 
   // WRAPPER FOR WIZARD STEPS
-  interface WizardLayoutProps {
-    title: string
-    subtitle?: string
-    children: React.ReactNode
-    onNext: () => void
-    nextTabLabel?: string
-  }
-
-  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: WizardLayoutProps) => (
+  const WizardLayout = ({ title, subtitle, children, onNext, nextTabLabel = "Continue" }: React.PropsWithChildren<{ title: string; subtitle?: string; onNext: () => void; nextTabLabel?: string }>) => (
     <motion.div 
       initial={reduceMotion ? false : { opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-      className="max-w-4xl mx-auto w-full flex flex-col min-h-[65vh]"
+      className="max-w-5xl mx-auto w-full flex flex-col min-h-[65vh]"
     >
       <button onClick={() => setStep(s => Math.max(0, s - 1))} className="text-sm text-pm-ink-500 hover:text-pm-ink-900 flex items-center gap-1 mb-8 transition-colors shrink-0">
         <ArrowLeft className="w-4 h-4" /> Back
@@ -565,7 +554,7 @@ export default function CardRecommenderPage() {
                       </div>
                    </div>
                    
-                   {safeApplyUrl(card.apply_url) ? (
+                   {getSafeExternalUrl(card.apply_url) ? (
                       <button
                          onClick={() => handleApplyClick(card, index + 1, netValue)}
                          className="pm-button w-full py-3 shadow-md transition-all hover:-translate-y-1 hover:shadow-pm-accent/20"
@@ -587,7 +576,7 @@ export default function CardRecommenderPage() {
     const runnerUps = visibleResults.slice(1)
 
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-5xl mx-auto w-full pb-20 mt-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto w-full pb-20 mt-4">
         <div className="flex justify-between items-center mb-10">
            <button onClick={() => setStep(0)} className="text-sm font-medium text-pm-ink-500 hover:text-pm-ink-900 flex flex-row items-center gap-2">
              <ChevronLeft className="w-4 h-4" /> Start Over
@@ -599,6 +588,20 @@ export default function CardRecommenderPage() {
            </div>
         </div>
 
+        {loadError && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+            {loadError}
+          </div>
+        )}
+
+        {walletCacheNotice && (
+          <div className="mb-6 rounded-2xl border border-pm-border bg-pm-surface-soft px-5 py-4 text-sm text-pm-ink-700">
+            {walletCacheNotice.state === 'cached'
+              ? `Using locally cached balances${walletCacheNotice.cachedAt ? ` from ${new Date(walletCacheNotice.cachedAt).toLocaleDateString('en-US')}` : ''}. Sign in or refresh your wallet to update them.`
+              : `Local wallet balances were found${walletCacheNotice.cachedAt ? ` from ${new Date(walletCacheNotice.cachedAt).toLocaleDateString('en-US')}` : ''}, but they are too old to trust for recommendations.`}
+          </div>
+        )}
+
         {bestMatch ? (
           <div className="mb-12">
             <div className="rounded-[32px] overflow-hidden shadow-card border border-pm-border bg-pm-surface flex flex-col lg:flex-row relative">
@@ -608,12 +611,14 @@ export default function CardRecommenderPage() {
                 
                 <h3 className="text-sm font-bold tracking-widest text-pm-ink-500 uppercase mb-8 z-10 w-full text-center">Your Perfect Match</h3>
                 
-                <div className="w-full max-w-[280px] drop-shadow-2xl hover:-translate-y-2 transition-transform duration-500 z-10 rounded-[12px] overflow-hidden border border-pm-border/50">
-                   {(CARD_ART_MAP[bestMatch.card.name] || bestMatch.card.image_url) ? (
-                      <Image src={CARD_ART_MAP[bestMatch.card.name] || bestMatch.card.image_url!} alt={`${bestMatch.card.name} card art`} width={640} height={404} className="w-full h-auto" />
-                    ) : (
-                      <FallbackCard name={bestMatch.card.name} type={'CREDIT'} />
-                    )}
+                <div className="w-full max-w-[320px] drop-shadow-2xl hover:-translate-y-2 transition-transform duration-500 z-10 rounded-[12px] overflow-hidden border border-pm-border/50">
+                    <Link href={`/${regionCode}/cards/${getCanonicalCardSlug(bestMatch.card)}`}>
+                      {(CARD_ART_MAP[bestMatch.card.name] || bestMatch.card.image_url) ? (
+                          <Image src={CARD_ART_MAP[bestMatch.card.name] || bestMatch.card.image_url!} alt={`${bestMatch.card.name} card art`} width={640} height={404} className="w-full h-auto" />
+                        ) : (
+                          <FallbackCard name={bestMatch.card.name} type={'CREDIT'} />
+                        )}
+                    </Link>
                 </div>
                 
                 <h2 className="text-3xl font-extrabold text-pm-ink-900 mt-8 mb-2 z-10 text-center balance">{bestMatch.card.name}</h2>
@@ -650,25 +655,31 @@ export default function CardRecommenderPage() {
                     </ul>
                   </div>
 
-                  {/* Math Breakdown grid */}
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="bg-pm-surface-soft p-4 rounded-2xl border border-pm-border">
-                       <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Annual Rewards</p>
-                       <p className="text-xl font-bold text-pm-ink-900">{formatCurrencyRounded(bestMatch.annualRewardsValue, bestMatch.card.currency)}</p>
-                     </div>
-                     <div className="bg-pm-surface-soft p-4 rounded-2xl border border-pm-border">
-                       <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Signup Bonus</p>
-                       <p className="text-xl font-bold text-pm-ink-900">{bestMatch.card.signup_bonus_pts > 0 ? formatCurrencyRounded(bestMatch.signupValueEligible, bestMatch.card.currency) : 'None'}</p>
-                     </div>
-                     <div className="bg-pm-surface-soft p-4 rounded-2xl border border-pm-border">
-                       <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Synergy Boosts</p>
-                       <p className="text-xl font-bold text-pm-accent-strong">{formatCurrencyRounded(bestMatch.breakdown.goalAlignmentBonus + bestMatch.breakdown.walletSynergyBonus, bestMatch.card.currency)}</p>
-                     </div>
-                     <div className="bg-pm-surface-soft p-4 rounded-2xl border border-pm-border">
-                       <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Annual Fee</p>
-                       <p className="text-xl font-bold text-pm-ink-900">{bestMatch.card.annual_fee_usd === 0 ? 'Free' : formatCurrencyRounded(bestMatch.card.annual_fee_usd, bestMatch.card.currency)}</p>
-                     </div>
-                  </div>
+                  {/* Math Breakdown grid (Expandable Math) */}
+                  <details className="group mb-4 bg-pm-surface-soft rounded-2xl border border-pm-border overflow-hidden">
+                    <summary className="font-bold text-pm-ink-900 flex justify-between items-center p-4 cursor-pointer hover:bg-pm-surface transition-colors focus:outline-none list-none text-sm">
+                      <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-pm-accent" /> Show the Math</span>
+                      <span className="text-pm-ink-400 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div className="grid grid-cols-2 gap-px bg-pm-border p-px">
+                       <div className="bg-pm-surface-soft p-4">
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Annual Rewards</p>
+                         <p className="text-xl font-bold text-pm-ink-900">{formatCurrencyRounded(bestMatch.annualRewardsValue, bestMatch.card.currency)}</p>
+                       </div>
+                       <div className="bg-pm-surface-soft p-4">
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Signup Bonus</p>
+                         <p className="text-xl font-bold text-pm-ink-900">{bestMatch.card.signup_bonus_pts > 0 ? formatCurrencyRounded(bestMatch.signupValueEligible, bestMatch.card.currency) : 'None'}</p>
+                       </div>
+                       <div className="bg-pm-surface-soft p-4">
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Synergy Boosts</p>
+                         <p className="text-xl font-bold text-pm-accent-strong">{formatCurrencyRounded(bestMatch.breakdown.goalAlignmentBonus + bestMatch.breakdown.walletSynergyBonus, bestMatch.card.currency)}</p>
+                       </div>
+                       <div className="bg-pm-surface-soft p-4">
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-pm-ink-500 mb-1">Annual Fee</p>
+                         <p className="text-xl font-bold text-pm-ink-900 text-red-600/80">-{bestMatch.card.annual_fee_usd === 0 ? 'Free' : formatCurrencyRounded(bestMatch.card.annual_fee_usd, bestMatch.card.currency)}</p>
+                       </div>
+                    </div>
+                  </details>
 
                   {/* Goal Alignment visual */}
                   {travelGoals.size > 0 && (
@@ -686,18 +697,29 @@ export default function CardRecommenderPage() {
                   )}
                 </div>
 
-                <div className="mt-8 pt-8 border-t border-pm-border">
-                  {safeApplyUrl(bestMatch.card.apply_url) ? (
+                <div className="mt-8 pt-6 border-t border-pm-border flex flex-col sm:flex-row gap-4">
+                  {getSafeExternalUrl(bestMatch.card.apply_url) ? (
                     <button
                       type="button"
                       onClick={() => handleApplyClick(bestMatch.card, bestMatch.rank, bestMatch.firstYearValue)}
                       disabled={redirectingCardId === bestMatch.card.id}
-                      className="pm-button w-full py-4 text-lg shadow-xl shadow-pm-accent/20 transition-all hover:-translate-y-1 hover:shadow-pm-accent/30"
+                      className="pm-button flex-1 py-4 text-lg shadow-xl shadow-pm-accent/20 transition-all hover:-translate-y-1 hover:shadow-pm-accent/30"
                     >
                       {redirectingCardId === bestMatch.card.id ? <Loader2 className="animate-spin w-5 h-5 mx-auto" /> : 'Apply Now →'}
                     </button>
                   ) : (
-                    <button disabled className="pm-button-secondary w-full py-4 cursor-not-allowed opacity-50">Offer link unavailable</button>
+                    <button disabled className="pm-button-secondary flex-1 py-4 cursor-not-allowed opacity-50">Offer unavailable</button>
+                  )}
+                  <Link href={`/${regionCode}/cards/${getCanonicalCardSlug(bestMatch.card)}`} className="pm-button-secondary flex-1 py-4 text-lg text-center bg-pm-surface-soft hover:bg-pm-surface hover:border-pm-accent/40">
+                    Read Review
+                  </Link>
+                  {runnerUps.length > 0 && (
+                    <Link
+                      href={`/${regionCode}/cards/compare?cards=${[bestMatch.card, ...runnerUps.slice(0, 2).map((entry) => entry.card)].map((card) => getCanonicalCardSlug(card)).join(',')}`}
+                      className="pm-button-secondary flex-1 py-4 text-lg text-center bg-pm-surface-soft hover:bg-pm-surface hover:border-pm-accent/40"
+                    >
+                      Compare
+                    </Link>
                   )}
                 </div>
               </div>
@@ -711,39 +733,36 @@ export default function CardRecommenderPage() {
           </div>
         )}
 
-        {/* Runner ups block */}
-        {runnerUps.length > 0 && (
-          <div className="mt-8">
-            <h3 className="text-xl font-bold text-pm-ink-900 mb-6 px-2">Top Alternatives</h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              {runnerUps.slice(0, 4).map(runner => (
-                <div key={runner.card.id} className="bg-pm-surface rounded-2xl p-5 border border-pm-border shadow-sm flex gap-5 hover:border-pm-accent/50 transition-colors">
-                  <div className="w-[80px] shrink-0">
-                    <div className="w-full rounded-lg overflow-hidden border border-pm-border/50 drop-shadow-sm">
-                      {(CARD_ART_MAP[runner.card.name] || runner.card.image_url) ? (
-                        <Image src={CARD_ART_MAP[runner.card.name] || runner.card.image_url!} alt="" width={640} height={404} className="w-full h-auto" />
-                      ) : (
-                        <FallbackCard name={runner.card.name} type={'CREDIT'} />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-pm-ink-900 truncate leading-snug mb-1">{runner.card.name}</p>
-                    <p className="text-xs text-pm-ink-500 mb-2 truncate">#{runner.rank} · {runner.card.issuer}</p>
-                    <div className="flex items-center justify-between">
-                       <span className="text-sm font-extrabold text-pm-success">+{formatCurrencyRounded(runner.firstYearValue, runner.card.currency)}</span>
-                       {safeApplyUrl(runner.card.apply_url) && (
-                         <button onClick={() => handleApplyClick(runner.card, runner.rank, runner.firstYearValue)} className="text-xs font-bold text-pm-accent hover:underline">
-                           Apply →
-                         </button>
-                       )}
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {/* Compare / Alternatives block */}
+        {runnerUps.length > 0 && (() => {
+          const compareCandidates = [bestMatch, ...runnerUps].slice(0, 4)
+          const compareCards = buildCardComparePayloads(
+            compareCandidates.map((entry) => entry.card),
+            regionCode,
+          ).map((payload, index) => ({
+            ...payload,
+            rank: compareCandidates[index]?.rank ?? payload.rank,
+            quickVerdict: compareCandidates[index]?.explanation.whyThisCard[0] ?? payload.quickVerdict,
+          })) as CardComparePayload[]
+          const compareHref = `/${regionCode}/cards/compare?cards=${compareCandidates.map((entry) => getCanonicalCardSlug(entry.card)).join(',')}`
+          return (
+            <div className="mt-16">
+              <div className="flex items-center justify-between gap-4 px-2 mb-8">
+                <h3 className="text-3xl font-bold text-pm-ink-900">Compare the Contenders</h3>
+                <Link href={compareHref} className="pm-button-secondary px-4 py-2 text-sm">
+                  Open Full Compare
+                </Link>
+              </div>
+              <WinnerBar cards={compareCards} />
+              <CompareGrid
+                cards={compareCards}
+                region={regionCode}
+                sourcePage="card-recommender-compare"
+                recommendationMode={mode}
+              />
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {blockedResults.length > 0 && (
           <div className="mt-12 px-6 py-6 bg-pm-surface-soft border border-pm-border rounded-[24px]">

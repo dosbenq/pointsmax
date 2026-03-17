@@ -1,11 +1,12 @@
-# Supabase Automation (Low-Intervention)
+# Supabase Automation
 
-This project now includes non-interactive helpers to apply and verify migrations via `psql`.
-It also includes a one-command launch autopilot for full CLI control.
+Repo SQL files under `supabase/migrations/` are the source of truth.
+Production migration application is handled by GitHub Actions through the Supabase Management API after `CI` succeeds on `main`.
+Local scripts remain useful for verification, audits, and targeted manual work.
 
 ## Prerequisites
 
-1. Install `psql` (PostgreSQL client tools).
+1. Install `psql` (PostgreSQL client tools) for local verify/apply helpers.
 2. Add `SUPABASE_DB_URL` to `.env.local`:
 
 ```bash
@@ -98,8 +99,24 @@ node scripts/launch-autopilot.mjs --skip-smoke
 node scripts/launch-autopilot.mjs --help
 ```
 
+## GitHub Pipeline
+
+- `ci.yml` runs `npm run quality:migrations` on every push and PR.
+- New migration files must continue from the current max ordinal with no gaps or duplicate ordinals.
+- `migrate.yml` runs after successful `CI` on `main` or via manual dispatch.
+- `migrate.yml` uses `scripts/supabase-management-migrate.py` with:
+  - `SUPABASE_ACCESS_TOKEN`
+  - `SUPABASE_PROJECT_REF`
+
+## Recommended Operating Model
+
+- Make schema changes only via new files in `supabase/migrations/`.
+- Do not treat Supabase dashboard SQL edits as the normal deployment path.
+- Let GitHub apply production migrations; use local commands for audit/debugging.
+- Keep separate Supabase projects for staging and production when you split environments.
+
 ## Safety Notes
 
-1. `supabase:apply` intentionally defaults to migrations `009` and `010` only.
+1. `supabase:apply` is a local/manual helper, not the canonical production rollout path.
 2. Older migrations are not guaranteed to be idempotent; apply them explicitly only when needed.
-3. Keep `SUPABASE_DB_URL` in local/Vercel secrets only.
+3. Keep `SUPABASE_DB_URL` in local secrets only.

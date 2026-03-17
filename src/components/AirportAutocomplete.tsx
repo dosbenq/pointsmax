@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Check, ChevronsUpDown, PlaneTakeoff, Search } from 'lucide-react'
+import { Check, ChevronsUpDown, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -83,8 +83,9 @@ export function AirportAutocomplete({
         }}>
           <CommandInput placeholder="Search city or airport code..." className="h-12 border-none ring-0 focus:ring-0" />
           <CommandList className="max-h-[300px] overflow-y-auto p-1">
-            <CommandEmpty className="p-4 text-center text-sm text-pm-ink-500">
-               No airports found. Try a major city like &quot;New York&quot; or &quot;LHR&quot;.
+            <CommandEmpty className="py-6 text-center text-sm relative z-10">
+              <p className="text-pm-ink-900 font-medium mb-1">No airports found.</p>
+              <p className="text-pm-ink-500 text-xs">Try searching by city or airport code (e.g., &quot;JFK&quot; or &quot;London&quot;).</p>
             </CommandEmpty>
             <CommandGroup>
               {airports.map((airport) => (
@@ -92,7 +93,7 @@ export function AirportAutocomplete({
                   key={airport.iata}
                   // We shove all searchable text into the generated value string for the filter func
                   value={`${airport.iata} ${airport.city} ${airport.name}`}
-                  onSelect={(currentValue) => {
+                  onSelect={() => {
                     onChange(airport.iata)
                     setOpen(false)
                   }}

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest } from '@/lib/error-utils'
+import { getSafeExternalUrl } from '@/lib/card-surfaces'
 
 const MAX_BODY_BYTES = 8_000
 const CREATOR_REF_COOKIE = 'pm_creator_ref'
@@ -19,19 +20,6 @@ type Payload = {
 type CreatorSlugRow = { slug: string }
 type CardRow = { id: string; apply_url: string | null }
 type UserIdRow = { id: string }
-
-function getSafeRedirectUrl(value: string | null | undefined): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  try {
-    const parsed = new URL(trimmed)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
-    return parsed.toString()
-  } catch {
-    return null
-  }
-}
 
 function normalizeSourcePage(value: unknown): string {
   if (typeof value !== 'string') return 'unknown'
@@ -160,7 +148,7 @@ async function trackAndReturn(
     return badRequest('Unknown card_id')
   }
 
-  const redirectUrl = getSafeRedirectUrl(card.apply_url)
+  const redirectUrl = getSafeExternalUrl(card.apply_url)
   if (!redirectUrl) {
     return badRequest('No valid apply_url configured for card')
   }

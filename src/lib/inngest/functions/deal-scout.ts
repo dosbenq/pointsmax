@@ -5,6 +5,7 @@ import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-
 import { StubProvider } from '@/lib/award-search/stub-provider'
 import type { CabinClass } from '@/lib/award-search/types'
 import type { AwardProvider } from '@/lib/award-search'
+import { loadUnifiedBalancesByUser } from '@/lib/user-balances'
 
 type WatchRow = {
   id: string
@@ -17,12 +18,6 @@ type WatchRow = {
   max_points: number | null
   last_checked_at: string | null
   users: unknown
-}
-
-type BalanceRow = {
-  user_id: string
-  program_id: string
-  balance: number
 }
 
 function normalizeWatchRow(value: unknown): WatchRow | null {
@@ -52,19 +47,6 @@ function normalizeWatchRow(value: unknown): WatchRow | null {
     max_points: maxPoints,
     last_checked_at: lastChecked,
     users: row.users,
-  }
-}
-
-function normalizeBalanceRow(value: unknown): BalanceRow | null {
-  if (!value || typeof value !== 'object') return null
-  const row = value as Record<string, unknown>
-  if (typeof row.user_id !== 'string' || typeof row.program_id !== 'string') return null
-  const numericBalance = Number(row.balance)
-  if (!Number.isFinite(numericBalance)) return null
-  return {
-    user_id: row.user_id,
-    program_id: row.program_id,
-    balance: numericBalance,
   }
 }
 
@@ -122,22 +104,18 @@ export const dealScout = inngest.createFunction(
     }
 
     const uniqueUserIds = [...new Set(dueWatches.map((watch) => watch.user_id))]
-    const { data: balances } = await db
-      .from('user_balances')
-      .select('user_id, program_id, balance')
-      .in('user_id', uniqueUserIds)
-
     const balancesByUser = new Map<string, Array<{ program_id: string; amount: number }>>()
-    const normalizedBalances = ((balances ?? []) as unknown[])
-      .map(normalizeBalanceRow)
-      .filter((row): row is BalanceRow => row !== null)
-    for (const row of normalizedBalances) {
-      const next = balancesByUser.get(row.user_id) ?? []
-      next.push({
-        program_id: row.program_id,
-        amount: Math.max(0, Math.round(Number(row.balance) || 0)),
-      })
-      balancesByUser.set(row.user_id, next)
+    const unifiedBalancesByUser = await loadUnifiedBalancesByUser(db, uniqueUserIds)
+    for (const [userId, balances] of unifiedBalancesByUser.entries()) {
+      balancesByUser.set(
+        userId,
+        balances
+          .map((balance) => ({
+            program_id: balance.program_id,
+            amount: Math.max(0, Math.round(Number(balance.balance) || 0)),
+          }))
+          .filter((balance) => balance.amount > 0),
+      )
     }
 
     let provider: AwardProvider = new StubProvider()

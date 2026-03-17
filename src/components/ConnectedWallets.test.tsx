@@ -52,7 +52,11 @@ describe('ConnectedWallets', () => {
       })
       
       expect(screen.getByText('No balance sources added yet')).toBeInTheDocument()
-      expect(screen.getByText('Connect your accounts to live-sync your balances, or enter them manually.')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'Manual balance entry is available now. Existing linked sources will still sync here, but new provider onboarding is not exposed in the UI yet.',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('shows connect wallet button in empty state', async () => {
@@ -67,7 +71,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connect-wallet-btn')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Balances')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Manual Balance')
     })
 
     it('shows manual entry button in empty state when onManualEntry provided', async () => {
@@ -350,7 +354,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-connected')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Balances')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Manual Balance')
     })
 
     it('shows manual entry button in connected state when onManualEntry provided', async () => {

@@ -5,6 +5,7 @@
 
 'use client'
 
+import { useState } from 'react'
 import { format, parseISO, isBefore, startOfToday } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -33,6 +34,15 @@ const CABIN_LABELS: Record<AwardParams['cabin'], string> = {
   first: 'First',
 }
 
+function closeDatePopover(setOpen: (open: boolean) => void) {
+  window.setTimeout(() => {
+    setOpen(false)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, 0)
+}
+
 export function AwardResults({
   awardParams,
   setAwardParams,
@@ -42,6 +52,8 @@ export function AwardResults({
   onSearch,
   region,
 }: AwardResultsProps) {
+  const [startDateOpen, setStartDateOpen] = useState(false)
+  const [endDateOpen, setEndDateOpen] = useState(false)
   const reachable = awardResult?.results.filter(r => r.is_reachable) ?? []
   const unreachable = awardResult?.results.filter(r => !r.is_reachable) ?? []
   const narrative = awardResult?.ai_narrative ?? null
@@ -88,7 +100,7 @@ export function AwardResults({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="pm-label block mb-1.5">Earliest Date</label>
-            <Popover>
+            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -116,6 +128,7 @@ export function AwardResults({
                           end_date: shouldClearEnd ? '' : p.end_date,
                         }
                       })
+                      closeDatePopover(setStartDateOpen)
                     }
                   }}
                   disabled={(date) => isBefore(date, startOfToday())}
@@ -126,7 +139,7 @@ export function AwardResults({
           </div>
           <div>
             <label className="pm-label block mb-1.5">Latest Date</label>
-            <Popover>
+            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -146,6 +159,7 @@ export function AwardResults({
                   onSelect={(date) => {
                     if (date) {
                       setAwardParams((p) => ({ ...p, end_date: format(date, 'yyyy-MM-dd') }))
+                      closeDatePopover(setEndDateOpen)
                     }
                   }}
                   disabled={(date) => {

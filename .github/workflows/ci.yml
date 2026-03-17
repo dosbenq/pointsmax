@@ -69,22 +69,8 @@ jobs:
       - name: PM dossier freshness
         run: npm run quality:pm-dossier
 
-      - name: Migration naming check
-        # Enforce sequential numbering — catch mistakes like duplicate or skipped numbers
-        run: |
-          files=$(ls supabase/migrations/*.sql | xargs -I{} basename {} | sort)
-          prev=0
-          for f in $files; do
-            num=$(echo "$f" | grep -o '^[0-9]\+' | sed 's/^0*//')
-            if [ -z "$num" ]; then continue; fi
-            expected=$((prev + 1))
-            if [ "$num" -ne "$expected" ] && [ "$prev" -ne 0 ]; then
-              echo "Migration numbering gap or duplicate: expected ${expected}, got ${num} (file: $f)"
-              exit 1
-            fi
-            prev=$num
-          done
-          echo "Migration sequence OK (${prev} files)"
+      - name: Migration policy check
+        run: npm run quality:migrations
 
   quality-gate:
     runs-on: ubuntu-latest

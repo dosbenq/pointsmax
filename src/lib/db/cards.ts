@@ -1,7 +1,5 @@
 // ============================================================
-// Cards Repository — Sprint 17
-// All database access for card-related queries
-// Replaces direct Supabase calls in API routes
+// Cards Repository — DB-backed card catalog access
 // ============================================================
 
 import { createPublicClient } from '@/lib/supabase'
@@ -15,7 +13,6 @@ interface CardRow {
   id: string
   name: string
   issuer: string
-  image_url?: unknown
   annual_fee_usd: number
   signup_bonus_pts: number
   signup_bonus_spend: number
@@ -23,6 +20,7 @@ interface CardRow {
   is_active: boolean
   display_order: number
   created_at: string
+  image_url?: unknown
   currency?: unknown
   earn_unit?: unknown
   geography?: unknown
@@ -53,17 +51,57 @@ const defaultRates: Record<SpendCategory, number> = {
   other: 1,
 }
 
-/**
- * Normalize geography string to valid Geography type
- */
+function buildCardWithRates(
+  card: CardRow,
+  valuation: ValuationRow | undefined,
+  earningRates: Record<SpendCategory, number> | undefined,
+): CardWithRates {
+  const currency = card.currency === 'INR' ? 'INR' : 'USD'
+  const rates = earningRates ?? { ...defaultRates }
+
+  if (!Number.isFinite(rates.shopping) || rates.shopping <= 0) {
+    rates.shopping = rates.other
+  }
+
+  return {
+    ...card,
+    currency,
+    earn_unit: typeof card.earn_unit === 'string'
+      ? card.earn_unit
+      : (currency === 'INR' ? '100_inr' : '1_dollar'),
+    geography: card.geography === 'IN' ? 'IN' : 'US',
+    apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
+    image_url: typeof card.image_url === 'string' ? card.image_url : null,
+    program_name: valuation?.program_name ?? 'Unknown',
+    program_slug: valuation?.program_slug ?? '',
+    cpp_cents: resolveCppCents(valuation?.cpp_cents, valuation?.program_type),
+    earning_rates: rates,
+  }
+}
+
+function buildRatesByCard(rates: RateRow[]): Map<string, Record<SpendCategory, number>> {
+  const ratesByCard = new Map<string, Record<SpendCategory, number>>()
+
+  for (const rate of rates) {
+    if (!ratesByCard.has(rate.card_id)) {
+      ratesByCard.set(rate.card_id, { ...defaultRates })
+    }
+
+    const existing = ratesByCard.get(rate.card_id)!
+    const category = rate.category as SpendCategory
+    if (category in existing) {
+      existing[category] = Number(rate.earn_multiplier)
+    }
+  }
+
+  return ratesByCard
+}
+
 export function normalizeGeography(value: string | null): Geography {
   if (!value) return 'US'
   return value.toUpperCase() === 'IN' ? 'IN' : 'US'
 }
 
-/**
- * Fetch all active cards with earning rates and valuations for a geography
- */
 export async function getActiveCards(geography: Geography): Promise<CardWithRates[]> {
   const db = createPublicClient()
 
@@ -74,7 +112,6 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
     .eq('geography', geography)
     .order('display_order')
 
-  // Backward compatibility: if geography column doesn't exist yet
   const cardsTableMissingGeography = cardsRes.error?.code === '42703'
   if (cardsTableMissingGeography) {
     cardsRes = await db
@@ -87,94 +124,52 @@ export async function getActiveCards(geography: Geography): Promise<CardWithRate
   if (cardsRes.error) {
     logError('cards_repository_fetch_failed', {
       geography,
-      cards_error: cardsRes.error?.message ?? null,
+      cards_error: cardsRes.error.message,
       valuations_error: null,
+      rates_error: null,
     })
-    throw new Error('Failed to fetch cards data')
+    throw new Error('Failed to fetch cards')
   }
 
   const cardsRaw = (cardsRes.data ?? []) as unknown as CardRow[]
   const cards = cardsTableMissingGeography
-    ? geography === 'US' ? cardsRaw : []
+    ? (geography === 'US' ? cardsRaw : [])
     : cardsRaw
 
-  const activeCardIds = cards.map(card => card.id)
+  if (cards.length === 0) return []
+
+  const activeCardIds = cards.map((card) => card.id)
   const activeProgramIds = [...new Set(cards.map((card) => card.program_id))]
 
-  let valuations: ValuationRow[] = []
-  let rates: RateRow[] = []
-  if (activeProgramIds.length > 0 && activeCardIds.length > 0) {
-    const [valuationsRes, ratesRes] = await Promise.all([
-      db
-        .from('latest_valuations')
-        .select('program_id, cpp_cents, program_name, program_slug, program_type')
-        .in('program_id', activeProgramIds),
-      db
-        .from('card_earning_rates')
-        .select('*')
-        .in('card_id', activeCardIds),
-    ])
+  const [valuationsRes, ratesRes] = await Promise.all([
+    db
+      .from('latest_valuations')
+      .select('program_id, cpp_cents, program_name, program_slug, program_type')
+      .in('program_id', activeProgramIds),
+    db
+      .from('card_earning_rates')
+      .select('*')
+      .in('card_id', activeCardIds),
+  ])
 
-    if (valuationsRes.error || ratesRes.error) {
-      logError('cards_repository_fetch_failed', {
-        geography,
-        cards_error: null,
-        valuations_error: valuationsRes.error?.message ?? null,
-        rates_error: ratesRes.error?.message ?? null,
-      })
-      throw new Error('Failed to fetch cards data')
-    }
-
-    valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
-    rates = (ratesRes.data ?? []) as unknown as RateRow[]
+  if (valuationsRes.error || ratesRes.error) {
+    logError('cards_repository_fetch_failed', {
+      geography,
+      cards_error: null,
+      valuations_error: valuationsRes.error?.message ?? null,
+      rates_error: ratesRes.error?.message ?? null,
+    })
+    throw new Error('Failed to fetch card metadata')
   }
 
-  // Build lookup maps
-  const valuationByProgram = new Map(valuations.map(v => [v.program_id, v]))
-  const ratesByCard = new Map<string, Record<SpendCategory, number>>()
+  const valuationByProgram = new Map(
+    (((valuationsRes.data ?? []) as unknown as ValuationRow[]).map((row) => [row.program_id, row])),
+  )
+  const ratesByCard = buildRatesByCard((ratesRes.data ?? []) as unknown as RateRow[])
 
-  for (const rate of rates) {
-    if (!ratesByCard.has(rate.card_id)) {
-      ratesByCard.set(rate.card_id, { ...defaultRates })
-    }
-    const existing = ratesByCard.get(rate.card_id)!
-    const category = rate.category as SpendCategory
-    if (category in existing) {
-      existing[category] = Number(rate.earn_multiplier)
-    }
-  }
-
-  const result: CardWithRates[] = cards.map(card => {
-    const val = valuationByProgram.get(card.program_id)
-    const currency = card.currency === 'INR' ? 'INR' : 'USD'
-    const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-    const cardRates = ratesByCard.get(card.id) ?? { ...defaultRates }
-    if (!Number.isFinite(cardRates.shopping) || cardRates.shopping <= 0) {
-      cardRates.shopping = cardRates.other
-    }
-
-    return {
-      ...card,
-      currency,
-      earn_unit: typeof card.earn_unit === 'string'
-        ? card.earn_unit
-        : (currency === 'INR' ? '100_inr' : '1_dollar'),
-      geography: card.geography === 'IN' ? 'IN' : 'US',
-      apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
-      image_url: typeof card.image_url === 'string' ? card.image_url : null,
-      program_name: val?.program_name ?? 'Unknown',
-      program_slug: val?.program_slug ?? '',
-      cpp_cents: resolvedCppCents,
-      earning_rates: cardRates,
-    }
-  })
-
-  return result
+  return cards.map((card) => buildCardWithRates(card, valuationByProgram.get(card.program_id), ratesByCard.get(card.id)))
 }
 
-/**
- * Fetch a single card by ID
- */
 export async function getCardById(cardId: string): Promise<CardWithRates | null> {
   const db = createPublicClient()
 
@@ -185,55 +180,39 @@ export async function getCardById(cardId: string): Promise<CardWithRates | null>
     .eq('is_active', true)
     .single()
 
-  if (cardRes.error || !cardRes.data) {
-    return null
+  if (cardRes.error) {
+    logError('cards_repository_card_fetch_failed', {
+      card_id: cardId,
+      error: cardRes.error.message,
+    })
+    throw new Error('Failed to fetch card')
   }
 
-  const card = cardRes.data as unknown as CardRow
-  const geography = normalizeGeography(card.geography as string)
+  if (!cardRes.data) return null
 
+  const card = cardRes.data as unknown as CardRow
   const [valuationsRes, ratesRes] = await Promise.all([
     db
       .from('latest_valuations')
       .select('program_id, cpp_cents, program_name, program_slug, program_type')
       .eq('program_id', card.program_id),
-    db.from('card_earning_rates').select('*').eq('card_id', cardId),
+    db
+      .from('card_earning_rates')
+      .select('*')
+      .eq('card_id', cardId),
   ])
 
-  if (valuationsRes.error) {
-    logError('cards_repository_valuation_fetch_failed', { card_id: cardId, error: valuationsRes.error.message })
-    throw new Error('Failed to fetch card valuation')
+  if (valuationsRes.error || ratesRes.error) {
+    logError('cards_repository_card_metadata_fetch_failed', {
+      card_id: cardId,
+      valuations_error: valuationsRes.error?.message ?? null,
+      rates_error: ratesRes.error?.message ?? null,
+    })
+    throw new Error('Failed to fetch card metadata')
   }
 
-  const valuations = (valuationsRes.data ?? []) as unknown as ValuationRow[]
-  const rates = (ratesRes.data ?? []) as unknown as RateRow[]
-  const val = valuations[0]
+  const valuation = ((valuationsRes.data ?? []) as unknown as ValuationRow[])[0]
+  const ratesByCard = buildRatesByCard((ratesRes.data ?? []) as unknown as RateRow[])
 
-  const currency = card.currency === 'INR' ? 'INR' : 'USD'
-  const resolvedCppCents = resolveCppCents(val?.cpp_cents, val?.program_type)
-  const cardRates: Record<SpendCategory, number> = { ...defaultRates }
-  for (const rate of rates) {
-    const category = rate.category as SpendCategory
-    if (category in cardRates) {
-      cardRates[category] = Number(rate.earn_multiplier)
-    }
-  }
-  if (!Number.isFinite(cardRates.shopping) || cardRates.shopping <= 0) {
-    cardRates.shopping = cardRates.other
-  }
-
-  return {
-    ...card,
-    currency,
-    earn_unit: typeof card.earn_unit === 'string'
-      ? card.earn_unit
-      : (currency === 'INR' ? '100_inr' : '1_dollar'),
-    geography,
-    apply_url: typeof card.apply_url === 'string' ? card.apply_url : null,
-    image_url: typeof card.image_url === 'string' ? card.image_url : null,
-    program_name: val?.program_name ?? 'Unknown',
-    program_slug: val?.program_slug ?? '',
-    cpp_cents: resolvedCppCents,
-    earning_rates: cardRates,
-  }
+  return buildCardWithRates(card, valuation, ratesByCard.get(cardId))
 }

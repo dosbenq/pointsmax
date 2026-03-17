@@ -1,0 +1,34 @@
+region,program_name,program_kind,operator,canonical_slug_candidate,source_url,source_scope,source_confidence,status,notes
+US,Chase Ultimate Rewards,bank_rewards,Chase,chase-ultimate-rewards,https://creditcards.chase.com/rewards-credit-cards,official_program_page,high,active_public,Canonical Chase transferable currency
+US,Amex Membership Rewards,bank_rewards,American Express,amex-membership-rewards,https://www.americanexpress.com/us/rewards/membership-rewards/,official_program_page,high,active_public,Canonical Amex transferable currency
+US,Capital One Miles,bank_rewards,Capital One,capital-one-miles,https://www.capitalone.com/learn-grow/money-management/capital-one-miles/,official_program_page,high,active_public,Canonical Capital One transfer currency
+US,Citi ThankYou Rewards,bank_rewards,Citi,citi-thankyou-rewards,https://www.citi.com/credit-cards/citi-strata-premier-credit-card,official_product_page,high,active_public,Canonical Citi transferable currency
+US,Bilt Rewards,bank_rewards,Bilt,bilt-rewards,https://www.bilt.com/rewards,official_program_page,high,active_public,Canonical Bilt transfer currency
+US,Wells Fargo Rewards,bank_rewards,Wells Fargo,wells-fargo-rewards,https://creditcards.wellsfargo.com/,official_portfolio_page,medium,active_public,Use as umbrella for Autograph/Journey points
+US,Bank of America Rewards,bank_rewards,Bank of America,bank-of-america-rewards,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,medium,active_public,Travel rewards family
+US,Bank of America Cashback,bank_rewards,Bank of America,bank-of-america-cashback,https://www.bankofamerica.com/credit-cards/,official_portfolio_page,medium,active_public,Cashback family
+US,U.S. Bank Altitude Rewards,bank_rewards,U.S. Bank,us-bank-altitude-rewards,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Altitude points family
+US,U.S. Bank Cashback,bank_rewards,U.S. Bank,us-bank-cashback,https://www.usbank.com/credit-cards.html,official_portfolio_page,high,active_public,Cashback family
+US,U.S. Bank Rewards,bank_rewards,U.S. Bank,us-bank-rewards,https://www.usbank.com/business-banking/business-credit-cards.html,official_portfolio_page,medium,active_public,Generic business rewards family
+US,Capital One Cashback,bank_rewards,Capital One,capital-one-cashback,https://www.capitalone.com/credit-cards/,official_portfolio_page,high,active_public,Cashback family
+US,Statement Credit,cashback,Multiple issuers,statement-credit,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,medium,active_public,Use for balance-transfer or non-loyalty cards
+US,Amex Cashback,bank_rewards,American Express,amex-cashback,https://www.americanexpress.com/us/credit-cards/,official_portfolio_page,high,active_public,Cashback family
+US,Amazon Rewards,bank_rewards,Amazon and Chase,amazon-rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Amazon co-brand family
+US,Costco Cashback,bank_rewards,Costco and Citi,costco-cashback,https://www.citi.com/credit-cards/all-credit-cards,official_portfolio_page,high,active_public,Retail co-brand family
+US,Disney Rewards,bank_rewards,Disney and Chase,disney-rewards,https://creditcards.chase.com/all-credit-cards,official_portfolio_page,high,active_public,Entertainment co-brand family
+US,Discover Cashback,bank_rewards,Discover,discover-cashback,https://www.discover.com/credit-cards/,official_portfolio_page,high,active_public,Discover cashback family
+US,United MileagePlus,airline,United,united-mileageplus,https://www.united.com/en/us/fly/mileageplus.html,official_program_page,high,active_public,Canonical United program
+US,Southwest Rapid Rewards,airline,Southwest,southwest-rapid-rewards,https://www.southwest.com/rapidrewards/,official_program_page,high,active_public,Canonical Southwest program
+US,Delta SkyMiles,airline,Delta,delta-skymiles,https://www.delta.com/us/en/skymiles/overview,official_program_page,high,active_public,Canonical Delta program
+US,Air Canada Aeroplan,airline,Air Canada,aeroplan,https://www.aircanada.com/aeroplan/us/en/home.html,official_program_page,high,active_public,Canonical Aeroplan program
+US,Alaska Mileage Plan,airline,Alaska Airlines,alaska-mileage-plan,https://www.alaskaair.com/content/mileage-plan,official_program_page,high,active_public,Canonical Alaska program
+US,American AAdvantage,airline,American Airlines,american-aadvantage,https://www.aa.com/aadvantage-program/,official_program_page,high,active_public,Canonical AA program
+US,JetBlue TrueBlue,airline,JetBlue,jetblue-trueblue,https://www.jetblue.com/trueblue,official_program_page,high,active_public,Canonical JetBlue program
+US,Frontier Miles,airline,Frontier,frontier-miles,https://www.flyfrontier.com/myfrontier/frontier-miles/,official_program_page,high,active_public,Canonical Frontier program
+US,HawaiianMiles,airline,Hawaiian Airlines,hawaiianmiles,https://www.hawaiianairlines.com/hawaiianmiles2,official_program_page,medium,legacy_verify,Program state should be re-verified after Alaska integration
+US,Marriott Bonvoy,hotel,Marriott,marriott-bonvoy,https://www.marriott.com/loyalty.mi,official_program_page,high,active_public,Canonical Marriott program
+US,IHG One Rewards,hotel,IHG,ihg-one-rewards,https://www.ihg.com/rewardsclub/content/us/en/home,official_program_page,high,active_public,Canonical IHG program
+US,World of Hyatt,hotel,Hyatt,world-of-hyatt,https://world.hyatt.com/content/gp/en/rewards.html,official_program_page,high,active_public,Canonical Hyatt program
+US,Hilton Honors,hotel,Hilton,hilton-honors,https://www.hilton.com/en/hilton-honors/,official_program_page,high,active_public,Canonical Hilton program
+US,Wyndham Rewards,hotel,Wyndham,wyndham-rewards,https://www.wyndhamhotels.com/wyndham-rewards,official_program_page,high,active_public,Canonical Wyndham program
+US,Choice Privileges,hotel,Choice Hotels,choice-privileges,https://www.choicehotels.com/choice-privileges,official_program_page,high,active_public,Canonical Choice program

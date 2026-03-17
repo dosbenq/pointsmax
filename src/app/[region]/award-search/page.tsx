@@ -62,6 +62,15 @@ function formatCpp(cppCents: number | null | undefined, region: Region): string 
   return `${cppCents.toFixed(2)}¢/pt`
 }
 
+function closeDatePopover(setOpen: (open: boolean) => void) {
+  window.setTimeout(() => {
+    setOpen(false)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, 0)
+}
+
 function AwardResultCard({ result, topSlug, region }: { result: AwardSearchResult; topSlug?: string; region: Region }) {
   const isTopPick = result.program_slug === topSlug
   const resultClass = isTopPick
@@ -146,6 +155,8 @@ export default function AwardSearchPage() {
   const [narrativeLoading, setNarrativeLoading] = useState(false)
   const [watchSaving, setWatchSaving] = useState(false)
   const [watchStatus, setWatchStatus] = useState<string | null>(null)
+  const [startDateOpen, setStartDateOpen] = useState(false)
+  const [endDateOpen, setEndDateOpen] = useState(false)
 
   // Clear balances when region changes
   useEffect(() => {
@@ -431,7 +442,7 @@ export default function AwardSearchPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="pm-label block mb-1.5">Earliest date</label>
-                <Popover>
+                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -459,6 +470,7 @@ export default function AwardSearchPage() {
                             const clearEnd = Boolean(p.end_date && p.end_date < isoDate)
                             return { ...p, start_date: isoDate, end_date: clearEnd ? '' : p.end_date }
                           })
+                          closeDatePopover(setStartDateOpen)
                         }
                       }}
                       disabled={(date) => isBefore(date, startOfToday())}
@@ -473,7 +485,7 @@ export default function AwardSearchPage() {
               </div>
               <div>
                 <label className="pm-label block mb-1.5">Latest date</label>
-                <Popover>
+                <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -497,6 +509,7 @@ export default function AwardSearchPage() {
                       onSelect={(date) => {
                         if (date) {
                           setParams((p) => ({ ...p, end_date: format(date, 'yyyy-MM-dd') }))
+                          closeDatePopover(setEndDateOpen)
                         }
                       }}
                       disabled={(date) => {

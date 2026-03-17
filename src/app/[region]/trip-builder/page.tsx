@@ -100,6 +100,15 @@ function getGoogleFlightsUrl(origin: string, destination: string): string {
   return `https://www.google.com/travel/flights?q=${query}`
 }
 
+function closeDatePopover(setOpen: (open: boolean) => void) {
+  window.setTimeout(() => {
+    setOpen(false)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+  }, 0)
+}
+
 export default function TripBuilderPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
@@ -118,6 +127,8 @@ export default function TripBuilderPage() {
   const [flexMonth, setFlexMonth] = useState(getDefaultFlexMonth(2))
   const [departDate, setDepartDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
+  const [departDateOpen, setDepartDateOpen] = useState(false)
+  const [returnDateOpen, setReturnDateOpen] = useState(false)
   const [travelers, setTravelers] = useState(1)
   const [cabin, setCabin] = useState('business')
   const [hotelNights, setHotelNights] = useState(3)
@@ -479,7 +490,7 @@ export default function TripBuilderPage() {
                   {/* K12: Departure Date Picker */}
                   <div>
                     <label className="pm-label block mb-1.5">Departure Date *</label>
-                    <Popover>
+                    <Popover open={departDateOpen} onOpenChange={setDepartDateOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -505,6 +516,7 @@ export default function TripBuilderPage() {
                               const isoDate = format(date, 'yyyy-MM-dd')
                               setDepartDate(isoDate)
                               if (returnDate && returnDate <= isoDate) setReturnDate('')
+                              closeDatePopover(setDepartDateOpen)
                             }
                           }}
                           disabled={(date) => isBefore(date, startOfToday())}
@@ -522,7 +534,7 @@ export default function TripBuilderPage() {
                   {tripType === 'round_trip' && (
                     <div>
                       <label className="pm-label block mb-1.5">Return Date *</label>
-                      <Popover>
+                      <Popover open={returnDateOpen} onOpenChange={setReturnDateOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -546,6 +558,7 @@ export default function TripBuilderPage() {
                             onSelect={(date) => {
                               if (date) {
                                 setReturnDate(format(date, 'yyyy-MM-dd'))
+                                closeDatePopover(setReturnDateOpen)
                               }
                             }}
                             disabled={(date) => {
