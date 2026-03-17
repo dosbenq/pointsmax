@@ -12,6 +12,8 @@ type Creator = {
 
 type CreatorStats = {
   clicks: number
+  conversions: number
+  conversion_rate: number
   unique_cards_clicked: number
   estimated_revenue_usd: number
 }
@@ -109,6 +111,8 @@ export default function AdminCreatorsPage() {
               <th className="px-4 py-2 text-left">Creator</th>
               <th className="px-4 py-2 text-left">Ref Link</th>
               <th className="px-4 py-2 text-left">Clicks (30d)</th>
+              <th className="px-4 py-2 text-left">Conversions</th>
+              <th className="px-4 py-2 text-left">Conv. rate</th>
               <th className="px-4 py-2 text-left">Est. revenue</th>
             </tr>
           </thead>
@@ -125,13 +129,15 @@ export default function AdminCreatorsPage() {
                     <code>{`/?ref=${creator.slug}`}</code>
                   </td>
                   <td className="px-4 py-2">{loading ? '—' : (rowStats?.clicks ?? 0)}</td>
+                  <td className="px-4 py-2">{loading ? '—' : (rowStats?.conversions ?? 0)}</td>
+                  <td className="px-4 py-2">{loading ? '—' : `${rowStats?.conversion_rate ?? 0}%`}</td>
                   <td className="px-4 py-2">${loading ? '—' : (rowStats?.estimated_revenue_usd ?? 0)}</td>
                 </tr>
               )
             })}
             {!loading && creators.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">No creators configured yet.</td>
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">No creators configured yet.</td>
               </tr>
             )}
           </tbody>

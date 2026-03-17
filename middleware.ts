@@ -5,7 +5,7 @@ import { applySecurityHeaders } from '@/lib/security-headers'
 const CORS_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
 const CORS_HEADERS = 'Content-Type, Authorization, X-Requested-With, X-Request-Id'
 const CREATOR_REF_COOKIE = 'pm_creator_ref'
-const CREATOR_REF_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+const CREATOR_REF_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
 
 function toOrigin(value: string): string | null {
   try {
@@ -48,7 +48,7 @@ function applyCreatorRefCookie(response: NextResponse, creatorSlug: string | nul
   response.cookies.set({
     name: CREATOR_REF_COOKIE,
     value: creatorSlug,
-    httpOnly: false,
+    httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',

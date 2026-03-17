@@ -46,6 +46,17 @@ async function insertSubscriptionEvent(
   })
 }
 
+async function insertCreatorConversion(
+  db: ReturnType<typeof createAdminClient>,
+  input: { creatorSlug: string; userId: string | null; revenueUsd?: number | null },
+) {
+  await db.from('creator_conversions').insert({
+    creator_slug: input.creatorSlug,
+    user_id: input.userId,
+    revenue_usd: input.revenueUsd ?? 999,
+  })
+}
+
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const webhookSecret = getStripeWebhookSecret()
@@ -115,6 +126,7 @@ export async function POST(req: NextRequest) {
       const metadata = isRecord(object.metadata) ? object.metadata : {}
       const userId = getString(metadata.user_id) ?? getString(object.client_reference_id)
       const customerId = getString(object.customer)
+      const refSlug = getString(metadata.ref_slug)
 
       if (userId) {
         const { data: existingUserRow } = await db
@@ -138,8 +150,16 @@ export async function POST(req: NextRequest) {
           eventType: 'checkout.session.completed',
           previousTier,
           newTier: 'premium',
-          metadata: { stripe_customer_id: customerId },
+          metadata: { stripe_customer_id: customerId, ref_slug: refSlug },
         })
+
+        if (refSlug) {
+          await insertCreatorConversion(db, {
+            creatorSlug: refSlug,
+            userId,
+            revenueUsd: 999,
+          })
+        }
 
         logInfo('stripe_webhook_checkout_completed', { requestId, user_id: userId })
       }

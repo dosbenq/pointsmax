@@ -22,6 +22,7 @@ type MockState = {
   processedEventIds: Set<string>
   usersById: Map<string, MockUser>
   subscriptionEvents: Array<Record<string, unknown>>
+  creatorConversions: Array<Record<string, unknown>>
   updates: Array<Record<string, unknown>>
 }
 
@@ -69,6 +70,11 @@ function createDbMock(state: MockState) {
 
           if (table === 'subscription_events') {
             state.subscriptionEvents.push(payload)
+            return Promise.resolve({ error: null })
+          }
+
+          if (table === 'creator_conversions') {
+            state.creatorConversions.push(payload)
             return Promise.resolve({ error: null })
           }
 
@@ -137,6 +143,7 @@ describe('POST /api/stripe/webhook', () => {
         ['user-2', { id: 'user-2', tier: 'premium', stripe_customer_id: 'cus_premium' }],
       ]),
       subscriptionEvents: [],
+      creatorConversions: [],
       updates: [],
     }
     vi.mocked(createAdminClient).mockReturnValue(createDbMock(state) as never)
@@ -149,7 +156,7 @@ describe('POST /api/stripe/webhook', () => {
       mode: 'subscription',
       customer: 'cus_new',
       client_reference_id: 'user-1',
-      metadata: { user_id: 'user-1' },
+      metadata: { user_id: 'user-1', ref_slug: 'creator-a' },
     })))
 
     expect(res.status).toBe(200)
@@ -157,6 +164,8 @@ describe('POST /api/stripe/webhook', () => {
     expect(state.usersById.get('user-1')?.stripe_customer_id).toBe('cus_new')
     expect(state.subscriptionEvents).toHaveLength(1)
     expect(state.subscriptionEvents[0].event_type).toBe('checkout.session.completed')
+    expect(state.creatorConversions).toHaveLength(1)
+    expect(state.creatorConversions[0].creator_slug).toBe('creator-a')
   })
 
   it('downgrades a user on customer.subscription.deleted', async () => {
