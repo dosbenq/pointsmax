@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { GeistMono, GeistSans } from 'geist/font'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
-import { assertServerEnv } from '@/lib/env'
+import { assertServerEnv, shouldAssertServerEnvAtStartup } from '@/lib/env'
 import MonitoringBoot from '@/components/MonitoringBoot'
 import PostHogProvider from '@/components/PostHogProvider'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -10,7 +10,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 
-if (process.env.NODE_ENV === 'production') {
+if (shouldAssertServerEnvAtStartup()) {
   assertServerEnv()
 }
 
