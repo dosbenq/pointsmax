@@ -266,10 +266,22 @@ Amex,50000`
   })
 
   describe('mapToSnapshots', () => {
-    it('maps rows to snapshot format', () => {
+    it('skips rows without a resolved program_id', () => {
       const rows = [
         { program_name: 'Chase UR', balance: 100000 },
         { program_name: 'Amex MR', balance: 50000, notes: 'Business' },
+      ]
+
+      const snapshots = mapToSnapshots(rows, 'user-123', 'account-456')
+
+      // Rows without program_id are filtered out — callers must resolve IDs first
+      expect(snapshots).toHaveLength(0)
+    })
+
+    it('maps rows with resolved program_id to snapshot format', () => {
+      const rows = [
+        { program_name: 'Chase UR', balance: 100000, program_id: 'chase-ultimate-rewards' },
+        { program_name: 'Amex MR', balance: 50000, program_id: 'amex-membership-rewards', notes: 'Business' },
       ]
 
       const snapshots = mapToSnapshots(rows, 'user-123', 'account-456')
@@ -278,7 +290,7 @@ Amex,50000`
       expect(snapshots[0]).toMatchObject({
         connected_account_id: 'account-456',
         user_id: 'user-123',
-        program_id: 'unknown',
+        program_id: 'chase-ultimate-rewards',
         balance: 100000,
         source: 'manual',
         raw_payload: { import_source: 'csv' },
