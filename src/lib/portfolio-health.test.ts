@@ -53,10 +53,28 @@ describe('analyzePortfolioHealth', () => {
         expect.objectContaining({
           type: 'stranded_miles',
           program_name: 'Delta SkyMiles',
-          minimum_redemption: 10000,
+          minimum_redemption: 7500,
         }),
       ]),
     )
     expect(report.grade).toBe('D')
+  })
+
+  it('does not mark programs with effectively no minimum award threshold as stranded', () => {
+    const report = analyzePortfolioHealth(
+      [{ program_id: 'delta', amount: 500 }],
+      [
+        { id: 'amex', name: 'Amex MR', type: 'transferable_points' },
+        { id: 'delta', name: 'United MileagePlus', type: 'airline_miles' },
+        { id: 'hyatt', name: 'World of Hyatt', type: 'hotel_points' },
+      ],
+      [],
+    )
+
+    expect(report.flags).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'stranded_miles' }),
+      ]),
+    )
   })
 })

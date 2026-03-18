@@ -37,7 +37,7 @@ describe('seo-structured-data', () => {
       region: 'us',
     }, 'https://pointsmax.com') as { '@type': string; name: string; brand: { name: string } }
 
-    expect(result['@type']).toBe('Product')
+    expect(result['@type']).toBe('FinancialProduct')
     expect(result.name).toBe('Chase Sapphire Reserve')
     expect(result.brand.name).toBe('Chase')
   })

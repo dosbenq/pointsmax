@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { PlaneTakeoff, CreditCard, Wallet } from 'lucide-react'
+import { PlaneTakeoff, CreditCard, Wallet, Compass } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { type Region } from '@/lib/regions'
@@ -46,7 +46,7 @@ export default function LandingPage() {
               Turn your credit card points into <span className="text-transparent bg-clip-text bg-gradient-to-r from-pm-accent to-blue-500">dream flights.</span>
             </h1>
             <p className="mt-8 text-xl sm:text-2xl text-pm-ink-500 max-w-2xl mx-auto font-medium leading-relaxed tracking-[-0.02em]">
-              The only platform designed to extract maximum value from your credit card points. Find the best transfer partners and flight redemptions to unlock 3‑7x more value.
+              See what your points can actually book, compare the smartest transfer paths, and get a clear next-step plan for turning your wallet into real trips.
             </p>
           </motion.div>
 
@@ -61,7 +61,7 @@ export default function LandingPage() {
               href={`/${region}/calculator`}
               className="w-full sm:w-auto px-8 py-4 bg-pm-ink-900 hover:bg-pm-accent text-pm-bg rounded-2xl text-lg font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.1)] hover:shadow-glow flex items-center justify-center gap-2 group"
             >
-              Plan a Trip
+              See What You Can Book
               <PlaneTakeoff className="w-5 h-5 transition-transform group-hover:scale-110" />
             </Link>
             <Link 
@@ -85,7 +85,7 @@ export default function LandingPage() {
                   {region === 'in' ? '1 point is not always ₹1.' : '1 point is not always 1 cent.'}
                 </h2>
                 <p className="text-pm-ink-500 text-lg sm:text-xl max-w-2xl mx-auto">
-                  Airlines hide their best prices in their loyalty programs. PointsMax finds the exact transfer path to unlock 3‑7x more value.
+                  Airlines hide their best value inside loyalty programs. PointsMax helps you compare reachable transfer paths, modeled value, and live availability when it is available.
                 </p>
              </div>
 
@@ -140,6 +140,44 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="relative z-10 border-t border-pm-border bg-pm-surface">
+          <div className="pm-shell py-16 sm:py-20">
+            <div className="max-w-3xl">
+              <span className="pm-pill mb-4">Built for four jobs</span>
+              <h2 className="pm-display text-3xl sm:text-4xl text-pm-ink-900">
+                One platform, four launch-critical workflows
+              </h2>
+              <p className="mt-4 text-base sm:text-lg text-pm-ink-500 max-w-2xl">
+                PointsMax should feel like a real operating system for points: know what your wallet is worth, what it can book,
+                which cards move you forward, and which sweet spots are actually worth chasing.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Link href={`/${region}/profile`} className="pm-card p-6 transition-transform hover:-translate-y-0.5">
+                <p className="pm-label text-pm-accent">Wallet concierge</p>
+                <h3 className="pm-heading text-xl mt-3">Track the balances you can really use</h3>
+                <p className="mt-3 text-sm leading-6 text-pm-ink-700">Manual balances and imports keep every downstream recommendation grounded in the wallet you actually have.</p>
+              </Link>
+              <Link href={`/${region}/award-search`} className="pm-card p-6 transition-transform hover:-translate-y-0.5">
+                <p className="pm-label text-pm-accent">Award search</p>
+                <h3 className="pm-heading text-xl mt-3">Search live when possible, estimate honestly when not</h3>
+                <p className="mt-3 text-sm leading-6 text-pm-ink-700">See live versus modeled trust labels, transfer friction, and wallet reachability before you move a point.</p>
+              </Link>
+              <Link href={`/${region}/card-recommender`} className="pm-card p-6 transition-transform hover:-translate-y-0.5">
+                <p className="pm-label text-pm-accent">Card strategy</p>
+                <h3 className="pm-heading text-xl mt-3">Choose cards by redemption outcomes</h3>
+                <p className="mt-3 text-sm leading-6 text-pm-ink-700">Use your region, spend, and goals to choose cards that feed the right programs instead of generic top-10 lists.</p>
+              </Link>
+              <Link href={`/${region}/inspire`} className="pm-card p-6 transition-transform hover:-translate-y-0.5">
+                <p className="pm-label text-pm-accent">Playbooks</p>
+                <h3 className="pm-heading text-xl mt-3">Study sweet spots before you commit</h3>
+                <p className="mt-3 text-sm leading-6 text-pm-ink-700">Use route inspiration and redemption examples to focus on the opportunities that actually create outsized value.</p>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Supported Programs Marquee */}
         <div className="py-10 border-t border-pm-border overflow-hidden bg-pm-surface-soft relative">
            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-pm-surface-soft to-transparent z-10" />
@@ -156,13 +194,13 @@ export default function LandingPage() {
 
         {/* Feature Teasers - Clean visual grid below the fold */}
         <div className="relative z-10 bg-pm-surface border-t border-pm-border-strong mt-auto">
-          <div className="pm-shell py-16 sm:py-24 grid sm:grid-cols-3 gap-12 sm:gap-8">
+          <div className="pm-shell py-16 sm:py-24 grid sm:grid-cols-2 xl:grid-cols-4 gap-12 sm:gap-8">
             <Link href={`/${region}/profile`} className="group flex flex-col items-center text-center">
               <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
                 <Wallet className="w-6 h-6 stroke-[1.5]" />
               </div>
               <h3 className="pm-heading text-xl mb-3">Premium Wallet</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Securely track all your points and cards in one gorgeous portfolio. Let the magic happen.</p>
+              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Track balances, import statements, and build a wallet you can actually use for trip decisions.</p>
             </Link>
 
             <Link href={`/${region}/calculator`} className="group flex flex-col items-center text-center">
@@ -170,7 +208,7 @@ export default function LandingPage() {
                 <PlaneTakeoff className="w-6 h-6 stroke-[1.5]" />
               </div>
               <h3 className="pm-heading text-xl mb-3">Live Award Search</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">We scan live databases to find business class flights you can book with your *exact* wallet balances.</p>
+              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Search award options with clear live-versus-estimated labeling, wallet reachability, and transfer guidance.</p>
             </Link>
 
             <Link href={`/${region}/card-recommender`} className="group flex flex-col items-center text-center">
@@ -178,7 +216,15 @@ export default function LandingPage() {
                 <CreditCard className="w-6 h-6 stroke-[1.5]" />
               </div>
               <h3 className="pm-heading text-xl mb-3">Card Matcher</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Answer a few questions and we will dramatically reveal the perfect next credit card for your travel goals.</p>
+              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Find the next card that fits your region, spend, and redemption goals instead of chasing generic rankings.</p>
+            </Link>
+
+            <Link href={`/${region}/inspire`} className="group flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
+                <Compass className="w-6 h-6 stroke-[1.5]" />
+              </div>
+              <h3 className="pm-heading text-xl mb-3">Award Playbooks</h3>
+              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Study sweet spots, route examples, and inspiration pages that feed directly back into search and booking workflows.</p>
             </Link>
           </div>
         </div>

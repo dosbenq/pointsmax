@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { TrustState } from '@/lib/result-trust'
 
 export type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first'
 
@@ -60,7 +61,7 @@ export interface AwardNarrative {
   booking_tips: string[]
 }
 
-export interface AwardSearchResponse {
+export interface AwardSearchResponse extends TrustState {
   provider: 'stub' | 'seats_aero'
   params: AwardSearchParams
   results: AwardSearchResult[]
@@ -69,6 +70,9 @@ export interface AwardSearchResponse {
   searched_at: string
   error?: 'real_availability_unavailable'
   message?: string
+  estimates_only?: boolean
+  live_availability?: boolean
+  user_tier?: 'free' | 'premium'
 }
 
 export interface AwardProvider {

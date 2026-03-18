@@ -12,13 +12,14 @@ import { buildReviewSnapshotFromCard, getCanonicalCardSlug } from '@/lib/card-su
 import { matchesCardRouteSlug } from '@/lib/card-slugs'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
-import { buildBreadcrumbJsonLd, buildCardProductJsonLd, buildFaqJsonLd } from '@/lib/seo-structured-data'
+import { REGIONS } from '@/lib/regions'
+import { buildBreadcrumbJsonLd, buildCardProductJsonLd } from '@/lib/seo-structured-data'
 import { getComparisonPagesForCard } from '@/lib/programmatic-content'
 import {
   getCardFeatureProfile,
   getSoftBenefits,
   SOFT_BENEFIT_COPY,
-} from '@/features/card-recommender/domain/metadata'
+} from '@/features/card-recommender'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 
 type PageProps = {
@@ -166,30 +167,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-function buildCardFaqs(card: CardWithRates, rates: Array<{ label: string; value: string }>): Array<{ question: string; answer: string }> {
-  const topRate = rates[0]
-  return [
-    {
-      question: `Is the annual fee on ${card.name} worth it?`,
-      answer: card.annual_fee_usd === 0
-        ? `${card.name} has no annual fee, so the decision comes down to whether you value its rewards ecosystem and category bonuses.`
-        : `${card.name} can justify its annual fee when you actively use ${card.program_name} and its strongest earning categories instead of treating it as a passive keeper card.`,
-    },
-    {
-      question: `What categories does ${card.name} earn the most on?`,
-      answer: topRate
-        ? `The strongest mapped category on ${card.name} is ${topRate.label.toLowerCase()} at ${topRate.value}. The rest of the value depends on how that earning pattern fits your actual spend mix.`
-        : `${card.name} does not yet have a dominant published earn category in the current catalog mapping, so review the issuer terms before treating it as category-led.`,
-    },
-    {
-      question: `Can ${card.name} points transfer to airlines or hotels?`,
-      answer: `${card.name} earns into ${card.program_name}. Whether that translates into airline or hotel transfer flexibility depends on the transfer partners attached to that rewards program rather than the card alone.`,
-    },
-  ]
-}
-
 export default async function CardReviewPage({ params }: PageProps) {
   const resolvedParams = await params
+  const region = resolvedParams.region === 'in' ? 'in' : 'us'
   const allCards = await getActiveCards(normalizeGeography(resolvedParams.region))
   const card = findCardByRouteSlug(allCards, resolvedParams.slug)
 
@@ -203,12 +183,12 @@ export default async function CardReviewPage({ params }: PageProps) {
   const featureProfile = getCardFeatureProfile(card)
   const softBenefits = getSoftBenefits(card).map((benefit) => SOFT_BENEFIT_COPY[benefit])
   const alternatives = buildAlternatives(card, allCards)
-  const relevantComparisons = await getComparisonPagesForCard(getCanonicalCardSlug(card), resolvedParams.region === 'in' ? 'in' : 'us')
+  const relevantComparisons = await getComparisonPagesForCard(getCanonicalCardSlug(card), region)
   const compareHref = alternatives.length > 0
     ? `/${resolvedParams.region}/cards/compare?cards=${[card, ...alternatives.slice(0, 2)].map((entry) => getCanonicalCardSlug(entry)).join(',')}`
     : `/${resolvedParams.region}/cards/compare?cards=${getCanonicalCardSlug(card)}`
   const baseUrl = getConfiguredAppOrigin()
-  const faqJsonLd = buildFaqJsonLd(buildCardFaqs(card, rates))
+  const regionConfig = REGIONS[region]
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: `/${resolvedParams.region}` },
     { name: 'Cards', url: `/${resolvedParams.region}/cards` },
@@ -222,6 +202,26 @@ export default async function CardReviewPage({ params }: PageProps) {
     imageUrl: CARD_ART_MAP[card.name] || card.image_url,
     region: resolvedParams.region,
   }, baseUrl)
+  const actionPlan = [
+    {
+      href: `/${resolvedParams.region}/profile`,
+      title: 'Track this rewards currency',
+      description: `Save your ${card.program_name} balance in Wallet so future searches reflect what you can really reach.`,
+    },
+    {
+      href: `/${resolvedParams.region}/calculator`,
+      title: 'See what this card helps you book',
+      description: 'Check whether the modeled value survives once you compare real programs, routes, and transfer friction.',
+    },
+    {
+      href: `/${resolvedParams.region}/trip-builder`,
+      title: 'Build a booking plan',
+      description: 'Move from card and program theory into the exact next transfer and booking steps.',
+    },
+  ]
+  const regionAngle = region === 'in'
+    ? `In ${regionConfig.label}, this card only wins if it improves your HDFC / Axis / Amex-style transfer options or gives you a better local earn story than simpler cashback cards.`
+    : `In the ${regionConfig.label}, this card only wins if it improves your transfer optionality or meaningfully outperforms simpler cashback alternatives for your actual spend.`
 
   return (
     <div className="min-h-screen flex flex-col bg-pm-bg">
@@ -315,6 +315,37 @@ export default async function CardReviewPage({ params }: PageProps) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto w-full px-6 -mt-6 relative z-20">
+        <section className="pm-card-soft p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div>
+              <p className="pm-label text-pm-accent">Make this card useful</p>
+              <h2 className="pm-heading text-2xl mt-3">Treat {card.name} as part of a booking workflow, not just a review page</h2>
+              <p className="mt-4 text-sm leading-7 text-pm-ink-700">{regionAngle}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {actionPlan.map((item) => (
+                  <Link key={item.href} href={item.href} className="rounded-2xl border border-pm-border bg-pm-surface px-4 py-4 transition-transform hover:-translate-y-0.5">
+                    <p className="text-sm font-semibold text-pm-ink-900">{item.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-pm-ink-500">{item.description}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="pm-card p-5">
+              <h3 className="pm-heading text-lg mb-3">Execution summary</h3>
+              <ul className="space-y-3 text-sm leading-6 text-pm-ink-700">
+                <li>Rewards currency: {card.program_name}</li>
+                <li>Modeled point value: {formatCpp(card.cpp_cents)}</li>
+                <li>Primary decision: whether the earning power and transfer ecosystem beat a simpler card in your wallet.</li>
+              </ul>
+              <Link href={`/${resolvedParams.region}/programs/${card.program_slug}`} className="mt-5 inline-flex text-sm font-semibold text-pm-accent hover:underline">
+                Review the {card.program_name} program →
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
 
       <div className="sticky top-0 z-40 bg-pm-surface/90 backdrop-blur-md border-b border-pm-border shadow-sm">
@@ -451,9 +482,17 @@ export default async function CardReviewPage({ params }: PageProps) {
               Treat this card as a {card.program_name}-building tool. If you already like that ecosystem, this card can compound nicely. If you do not, the headline earn rates may look better than the real realized value.
             </div>
 
-            <Link href={`/${resolvedParams.region}/programs/${card.program_slug}`} className="pm-button-secondary inline-flex px-5 py-3">
-              Explore the {card.program_name} program
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link href={`/${resolvedParams.region}/programs/${card.program_slug}`} className="pm-button-secondary inline-flex px-5 py-3">
+                Explore the {card.program_name} program
+              </Link>
+              <Link href={`/${resolvedParams.region}/calculator`} className="pm-button-secondary inline-flex px-5 py-3">
+                Check wallet reachability
+              </Link>
+              <Link href={`/${resolvedParams.region}/trip-builder`} className="pm-button inline-flex px-5 py-3">
+                Build a booking plan
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -520,7 +559,6 @@ export default async function CardReviewPage({ params }: PageProps) {
         </section>
       </div>
       <Footer />
-      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(faqJsonLd)} />
       <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(breadcrumbJsonLd)} />
       <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(productJsonLd)} />
     </div>

@@ -94,6 +94,9 @@ export function createAdminClient(): GenericSupabaseClient {
 // Best-effort server DB client:
 // prefer service-role for internal APIs, fallback to anon for environments
 // where SUPABASE_SERVICE_ROLE_KEY is intentionally not configured.
-export function createServerDbClient(): GenericSupabaseClient {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : createPublicClient()
+export function createServerDbClient(options?: { useServiceRole?: boolean }): GenericSupabaseClient {
+  if (options?.useServiceRole) {
+    return createAdminClient()
+  }
+  return createPublicClient()
 }

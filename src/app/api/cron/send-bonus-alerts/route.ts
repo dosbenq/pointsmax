@@ -2,7 +2,7 @@
 // GET /api/cron/send-bonus-alerts
 // Vercel cron job: runs daily at 09:00 UTC
 // Finds unalerted active bonuses, sends emails via Resend
-// Auth: Authorization: Bearer CRON_SECRET or ?secret=CRON_SECRET
+// Auth: Authorization: Bearer CRON_SECRET
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,6 +10,7 @@ import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
 import { getSafeAppOrigin } from '@/lib/app-origin'
+import { isAuthorizedCronRequest } from '@/lib/cron-auth'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
 type BonusRow = {
@@ -48,15 +49,6 @@ function isPartnerRow(value: unknown): value is PartnerRow {
     typeof row.from_program_id === 'string' &&
     typeof row.to_program_id === 'string'
   )
-}
-
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const header = req.headers.get('authorization')
-  if (header === `Bearer ${secret}`) return true
-  const param = req.nextUrl.searchParams.get('secret')
-  return param === secret
 }
 
 function buildUnsubscribeLink(email: string): string {
@@ -136,7 +128,7 @@ export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
   const startedAt = Date.now()
 
-  if (!isAuthorized(req)) {
+  if (!isAuthorizedCronRequest(req)) {
     logWarn('cron_bonus_alerts_unauthorized', { requestId })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

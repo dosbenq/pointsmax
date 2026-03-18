@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase'
+import { isAuthorizedCronRequest } from '@/lib/cron-auth'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
 const TPG_VALUATIONS_URL = 'https://thepointsguy.com/points-miles-valuations/'
@@ -95,14 +96,6 @@ const PROGRAM_MAPPINGS: ProgramMapping[] = [
   },
 ]
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const header = req.headers.get('authorization')
-  if (header === `Bearer ${secret}`) return true
-  return req.nextUrl.searchParams.get('secret') === secret
-}
-
 function normalizeText(value: string): string {
   return value
     .toLowerCase()
@@ -186,7 +179,7 @@ export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
   const startedAt = Date.now()
 
-  if (!isAuthorized(req)) {
+  if (!isAuthorizedCronRequest(req)) {
     logWarn('cron_update_valuations_unauthorized', { requestId })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

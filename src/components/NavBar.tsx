@@ -54,9 +54,26 @@ export default function NavBar() {
   }, [region])
 
   const navLinks = useMemo(() => ([
-    { href: `/${region}/calculator`, label: 'Planner' },
-    { href: `/${region}/card-recommender`, label: 'Card Strategy' },
-    { href: `/${region}/profile`, label: 'Wallet' },
+    {
+      href: `/${region}/calculator`,
+      label: 'See What You Can Book',
+      activePrefixes: [`/${region}/calculator`, `/${region}/award-search`, `/${region}/inspire`],
+    },
+    {
+      href: `/${region}/trip-builder`,
+      label: 'Build My Plan',
+      activePrefixes: [`/${region}/trip-builder`, `/${region}/trips`],
+    },
+    {
+      href: `/${region}/card-recommender`,
+      label: 'Card Strategy',
+      activePrefixes: [`/${region}/card-recommender`, `/${region}/cards`],
+    },
+    {
+      href: `/${region}/profile`,
+      label: 'Wallet',
+      activePrefixes: [`/${region}/profile`],
+    },
   ]), [region])
 
   const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
@@ -80,12 +97,15 @@ export default function NavBar() {
             <PMLogoMark />
             <div className="hidden sm:block">
               <span className="block text-[1.1rem] font-bold tracking-[-0.04em] transition-colors group-hover:text-pm-accent">PointsMax</span>
+              <span className="hidden text-[0.63rem] font-semibold uppercase tracking-[0.2em] text-pm-ink-500 lg:block">
+                Wallet-aware booking execution
+              </span>
             </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href
+              const isActive = link.activePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
               return (
                 <Link
                   key={link.href}
@@ -150,7 +170,7 @@ export default function NavBar() {
                 )}
               </div>
             ) : (
-              <button onClick={signInWithGoogle} className="pm-button px-5 py-2 text-sm" type="button">
+              <button onClick={() => signInWithGoogle()} className="pm-button px-5 py-2 text-sm" type="button">
                 Login
               </button>
             )}
@@ -195,7 +215,7 @@ export default function NavBar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className={`block rounded-[20px] px-4 py-3 text-sm font-medium ${pathname === link.href ? 'bg-pm-ink-900 text-pm-bg shadow-sm' : 'bg-pm-surface-soft text-pm-ink-700 hover:bg-pm-surface-raised hover:text-pm-ink-900 hover:shadow-sm transition-all'}`}
+                className={`block rounded-[20px] px-4 py-3 text-sm font-medium ${link.activePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) ? 'bg-pm-ink-900 text-pm-bg shadow-sm' : 'bg-pm-surface-soft text-pm-ink-700 hover:bg-pm-surface-raised hover:text-pm-ink-900 hover:shadow-sm transition-all'}`}
               >
                 {link.label}
               </Link>
@@ -225,7 +245,7 @@ export default function NavBar() {
                   </button>
                 </div>
               ) : (
-                <button onClick={signInWithGoogle} className="pm-button w-full justify-center px-4 py-3 text-sm" type="button">
+                <button onClick={() => signInWithGoogle()} className="pm-button w-full justify-center px-4 py-3 text-sm" type="button">
                   Login
                 </button>
               )}

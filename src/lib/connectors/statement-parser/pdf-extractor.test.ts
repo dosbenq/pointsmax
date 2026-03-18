@@ -60,4 +60,19 @@ describe('extractFromPdf', () => {
     })
     expect(mockPdfParse).not.toHaveBeenCalled()
   })
+
+  it('returns a scanned-pdf guidance error when extracted text is too thin', async () => {
+    mockPdfParse.mockResolvedValue({
+      text: '    \n  \n  ',
+      numpages: 1,
+    })
+
+    const result = await extractFromPdf(Buffer.from('scanned-pdf'), programs)
+
+    expect(result).toEqual({
+      ok: false,
+      error:
+        'This PDF appears to be image-based or has no selectable text. OCR is not supported yet. Use CSV import or paste statement text instead.',
+    })
+  })
 })

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from './supabase-server'
 import { createAdminClient } from './supabase'
 import { enforceRateLimit } from './api-security'
+import { getAllowedAdminEmailsForServer, isServerAdminEmail } from './admin-emails'
 
 const ADMIN_RATE_LIMIT = {
   namespace: 'admin_route_ip',
@@ -21,9 +22,8 @@ export async function requireAdmin(req: Request): Promise<NextResponse | null> {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const adminEmail = process.env.ADMIN_EMAIL
   const emailVerified = Boolean(user?.email_confirmed_at)
-  if (!user || !adminEmail || user.email !== adminEmail || !emailVerified) {
+  if (!user || !emailVerified || !isServerAdminEmail(user.email)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   return null
@@ -37,7 +37,8 @@ export async function logAdminAction(
 ): Promise<void> {
   try {
     const db = createAdminClient()
-    const resolvedEmail = (adminEmail ?? process.env.ADMIN_EMAIL ?? 'unknown').trim() || 'unknown'
+    const fallbackAdmin = getAllowedAdminEmailsForServer()[0] ?? 'unknown'
+    const resolvedEmail = (adminEmail ?? fallbackAdmin).trim() || 'unknown'
     await db.from('admin_audit_log').insert({
       admin_email: resolvedEmail,
       action,

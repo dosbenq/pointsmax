@@ -37,6 +37,7 @@
     "quality:pm-dossier": "npm run pm:dossier:check",
     "quality:migrations": "node scripts/check-migration-policy.mjs",
     "quality:gates": "npm run quality:docs && npm run quality:boundaries && npm run quality:no-new-any && npm run quality:no-hardcoded && npm run quality:test-policy && npm run quality:pm-dossier && npm run quality:migrations",
+    "launch:gate": "node scripts/launch-candidate.mjs",
     "launch:autopilot": "node scripts/launch-autopilot.mjs",
     "launch:autopilot:quick": "node scripts/launch-autopilot.mjs --quick",
     "launch:autopilot:apply": "node scripts/launch-autopilot.mjs --apply-migrations",

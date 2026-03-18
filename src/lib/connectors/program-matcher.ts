@@ -1,3 +1,5 @@
+import { PROGRAM_ALIAS_TARGETS, normalizeAliasValue } from '@/lib/program-aliases'
+
 type ProgramRow = {
   id: string
   name: string
@@ -15,120 +17,10 @@ export type ProgramMatchResult = {
   confidence: 'exact' | 'alias' | 'fuzzy'
 }
 
-type AliasTarget = {
-  slugs: string[]
-  aliases: string[]
-}
-
-const ALIAS_TARGETS: AliasTarget[] = [
-  {
-    slugs: ['chase-ultimate-rewards'],
-    aliases: ['chase ur', 'chase ultimate rewards', 'chase sapphire', 'chase points', 'chase'],
-  },
-  {
-    slugs: ['amex-membership-rewards'],
-    aliases: ['amex mr', 'amex membership rewards', 'american express membership rewards', 'american express', 'amex'],
-  },
-  {
-    slugs: ['citi-thankyou-rewards', 'citi-thankyou'],
-    aliases: ['citi thankyou', 'citi thank you', 'thankyou points', 'citi ty', 'citi'],
-  },
-  {
-    slugs: ['capital-one-miles'],
-    aliases: ['capital one', 'capital one miles', 'venture miles', 'venture'],
-  },
-  {
-    slugs: ['bilt-rewards'],
-    aliases: ['bilt', 'bilt rewards'],
-  },
-  {
-    slugs: ['wells-fargo-rewards'],
-    aliases: ['wells fargo', 'wells fargo rewards', 'autograph rewards'],
-  },
-  {
-    slugs: ['united-mileageplus', 'united-mileage-plus'],
-    aliases: ['united', 'mileageplus', 'united mileage plus'],
-  },
-  {
-    slugs: ['delta-skymiles', 'delta'],
-    aliases: ['delta', 'delta skymiles', 'skymiles'],
-  },
-  {
-    slugs: ['american-airlines-aadvantage', 'aadvantage'],
-    aliases: ['american airlines', 'aadvantage', 'aa miles', 'american aadvantage'],
-  },
-  {
-    slugs: ['southwest-rapid-rewards'],
-    aliases: ['southwest', 'rapid rewards'],
-  },
-  {
-    slugs: ['alaska-mileage-plan'],
-    aliases: ['alaska', 'alaska airlines', 'mileage plan'],
-  },
-  {
-    slugs: ['jetblue-trueblue'],
-    aliases: ['jetblue', 'trueblue'],
-  },
-  {
-    slugs: ['british-airways-avios'],
-    aliases: ['avios', 'british airways', 'ba avios', 'british airways avios'],
-  },
-  {
-    slugs: ['aeroplan', 'air-canada-aeroplan'],
-    aliases: ['aeroplan', 'air canada aeroplan', 'air canada'],
-  },
-  {
-    slugs: ['krisflyer', 'singapore-krisflyer'],
-    aliases: ['krisflyer', 'singapore airlines', 'singapore krisflyer', 'singapore'],
-  },
-  {
-    slugs: ['flying-blue'],
-    aliases: ['flying blue', 'air france klm', 'air france', 'klm'],
-  },
-  {
-    slugs: ['world-of-hyatt'],
-    aliases: ['hyatt', 'world of hyatt'],
-  },
-  {
-    slugs: ['marriott-bonvoy'],
-    aliases: ['marriott', 'bonvoy', 'marriott bonvoy'],
-  },
-  {
-    slugs: ['hilton-honors'],
-    aliases: ['hilton', 'hilton honors'],
-  },
-  {
-    slugs: ['hdfc-reward-points', 'hdfc-rewards', 'hdfc-smartbuy-rewards', 'hdfc-diners-club-rewards', 'hdfc-regalia-rewards'],
-    aliases: ['hdfc', 'hdfc rewards', 'hdfc bank', 'hdfc smartbuy', 'hdfc diners', 'hdfc regalia'],
-  },
-  {
-    slugs: ['axis-edge-rewards', 'axis-edge-miles', 'axis-edge'],
-    aliases: ['axis', 'axis bank', 'axis edge', 'axis edge rewards', 'axis miles'],
-  },
-  {
-    slugs: ['icici-rewards', 'icici-payback'],
-    aliases: ['icici', 'icici bank', 'payback', 'icici rewards', 'icici payback'],
-  },
-  {
-    slugs: ['air-india-maharaja-club', 'air-india'],
-    aliases: ['air india', 'maharaja club', 'flying returns', 'air india maharaja club'],
-  },
-  {
-    slugs: ['indigo-bluchip', 'indigo-6e-rewards', 'indigo-6e'],
-    aliases: ['indigo', '6e rewards', 'indigo bluchip', 'bluchip'],
-  },
-  {
-    slugs: ['amex-membership-rewards-india', 'amex-india-mr'],
-    aliases: ['amex india', 'amex india mr', 'american express india'],
-  },
-]
-
 const STOP_TOKENS = new Set([
   'bank',
   'card',
   'club',
-  'express',
-  'india',
   'miles',
   'points',
   'program',
@@ -136,12 +28,39 @@ const STOP_TOKENS = new Set([
   'the',
 ])
 
+const PROGRAM_SPECIFIC_ALIAS_TOKENS = new Set([
+  'aadvantage',
+  'aeroplan',
+  'avios',
+  'bluchip',
+  'bonvoy',
+  'edge',
+  'flying',
+  'hilton',
+  'honors',
+  'hyatt',
+  'krisflyer',
+  'maharaja',
+  'mileageplus',
+  'miles',
+  'points',
+  'rapid',
+  'regalia',
+  'rewards',
+  'skymiles',
+  'smartbuy',
+  'thankyou',
+  'trueblue',
+])
+
+const aliasMapCache = new WeakMap<ProgramRow[], Map<ProgramAliasRow[] | '__default__', Map<string, ProgramRow>>>()
+
 function normalizeValue(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/®/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
+  return normalizeAliasValue(value)
+}
+
+function stripDecorativeQualifiers(value: string): string {
+  return value.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function slugifyValue(value: string): string {
@@ -168,12 +87,18 @@ function findProgramByTargetSlugs(targetSlugs: string[], programsBySlug: Map<str
 }
 
 function buildAliasMap(
+  programs: ProgramRow[],
   programsBySlug: Map<string, ProgramRow>,
   aliasRows: ProgramAliasRow[],
 ): Map<string, ProgramRow> {
+  const aliasRowsKey = aliasRows.length === 0 ? '__default__' : aliasRows
+  const cachedByPrograms = aliasMapCache.get(programs)
+  const cached = cachedByPrograms?.get(aliasRowsKey)
+  if (cached) return cached
+
   const aliasMap = new Map<string, ProgramRow>()
 
-  for (const target of ALIAS_TARGETS) {
+  for (const target of PROGRAM_ALIAS_TARGETS) {
     const program = findProgramByTargetSlugs(target.slugs, programsBySlug)
     if (!program) continue
     for (const alias of target.aliases) {
@@ -184,14 +109,26 @@ function buildAliasMap(
   for (const row of aliasRows) {
     const program = programsBySlug.get(slugifyValue(row.program_slug))
     if (!program) continue
+    if (aliasMap.has(normalizeValue(row.alias))) continue
     aliasMap.set(normalizeValue(row.alias), program)
   }
+
+  const nextCachedByPrograms =
+    cachedByPrograms ?? new Map<ProgramAliasRow[] | '__default__', Map<string, ProgramRow>>()
+  nextCachedByPrograms.set(aliasRowsKey, aliasMap)
+  aliasMapCache.set(programs, nextCachedByPrograms)
 
   return aliasMap
 }
 
 function buildProgramSearchStrings(program: ProgramRow): string[] {
   return [program.name, program.slug]
+}
+
+function aliasHasProgramSpecificToken(alias: string): boolean {
+  return alias
+    .split(' ')
+    .some((token) => PROGRAM_SPECIFIC_ALIAS_TOKENS.has(token))
 }
 
 function scoreProgramFuzzyMatch(inputTokens: string[], program: ProgramRow): number {
@@ -201,8 +138,14 @@ function scoreProgramFuzzyMatch(inputTokens: string[], program: ProgramRow): num
   )
   if (inputTokens.length === 0 || programTokens.size === 0) return 0
 
-  const overlap = inputTokens.filter((token) => programTokens.has(token))
-  return overlap.length / inputTokens.length
+  const overlapCount = inputTokens.filter((token) => programTokens.has(token)).length
+  if (overlapCount === 0) return 0
+
+  const precision = overlapCount / inputTokens.length
+  const recall = overlapCount / programTokens.size
+  if (precision + recall === 0) return 0
+
+  return (2 * precision * recall) / (precision + recall)
 }
 
 export function matchProgramByName(
@@ -213,8 +156,9 @@ export function matchProgramByName(
   const trimmed = input.trim()
   if (!trimmed) return null
 
-  const normalized = normalizeValue(trimmed)
-  const slugified = slugifyValue(trimmed)
+  const cleaned = stripDecorativeQualifiers(trimmed)
+  const normalized = normalizeValue(cleaned)
+  const slugified = slugifyValue(cleaned)
   const programsBySlug = buildProgramBySlug(programs)
 
   const exactBySlug = programsBySlug.get(slugified)
@@ -235,7 +179,7 @@ export function matchProgramByName(
     }
   }
 
-  const aliasMap = buildAliasMap(programsBySlug, aliasRows)
+  const aliasMap = buildAliasMap(programs, programsBySlug, aliasRows)
   const aliasMatch = aliasMap.get(normalized)
   if (aliasMatch) {
     return {
@@ -245,11 +189,15 @@ export function matchProgramByName(
     }
   }
 
-  const normalizedTokenCount = tokenize(trimmed).length
+  const inputTokens = tokenize(cleaned)
+  if (inputTokens.length < 2) return null
+
+  const normalizedTokenCount = inputTokens.length
   const partialAliasMatch = [...aliasMap.entries()]
     .filter(([alias]) => {
       const aliasTokenCount = alias.split(' ').filter(Boolean).length
       if (aliasTokenCount < 2 && normalizedTokenCount > 2) return false
+      if (normalizedTokenCount > aliasTokenCount + 1 && !aliasHasProgramSpecificToken(alias)) return false
       return normalized.includes(alias) || alias.includes(normalized)
     })
     .sort((left, right) => right[0].length - left[0].length)[0]?.[1]
@@ -262,7 +210,6 @@ export function matchProgramByName(
     }
   }
 
-  const inputTokens = tokenize(trimmed)
   let bestMatch: ProgramRow | null = null
   let bestScore = 0
 

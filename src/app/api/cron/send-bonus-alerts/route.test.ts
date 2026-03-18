@@ -114,9 +114,11 @@ describe('GET /api/cron/send-bonus-alerts', () => {
 
     const unauthorized = await GET(makeRequest())
     const wrongSecret = await GET(makeRequest({ authHeader: 'Bearer nope' }))
+    const queryParamOnly = await GET(makeRequest({ secretParam: 'cron-secret' }))
 
     expect(unauthorized.status).toBe(401)
     expect(wrongSecret.status).toBe(401)
+    expect(queryParamOnly.status).toBe(401)
   })
 
   it('returns success with no work when there are no active bonuses', async () => {

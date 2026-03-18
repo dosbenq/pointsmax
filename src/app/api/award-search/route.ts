@@ -6,6 +6,7 @@ import { StubProvider } from '@/lib/award-search/stub-provider'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest, internalError } from '@/lib/error-utils'
+import { buildAwardSearchTrustState } from '@/lib/result-trust'
 import { canUseFeature, getUserTier } from '@/lib/subscription'
 import {
   ESTIMATES_ONLY_MESSAGE,
@@ -104,6 +105,12 @@ export async function POST(req: NextRequest) {
         user_tier: tier,
       })
 
+      const trustState = buildAwardSearchTrustState({
+        liveAvailability: false,
+        estimatesOnly: true,
+        resultCount: results.length,
+      })
+
       return NextResponse.json({
         provider: provider.name,
         params,
@@ -115,6 +122,7 @@ export async function POST(req: NextRequest) {
         live_availability: false,
         message: ESTIMATES_ONLY_MESSAGE,
         user_tier: tier,
+        ...trustState,
       })
     } catch (err) {
       logError('award_search_failed', {
@@ -151,6 +159,12 @@ export async function POST(req: NextRequest) {
       user_tier: tier,
     })
 
+    const trustState = buildAwardSearchTrustState({
+      liveAvailability: true,
+      estimatesOnly: false,
+      resultCount: results.length,
+    })
+
     return NextResponse.json({
       provider: provider.name,
       params,
@@ -159,6 +173,7 @@ export async function POST(req: NextRequest) {
       warnings,
       searched_at: new Date().toISOString(),
       user_tier: tier,
+      ...trustState,
     })
   } catch (err) {
     if (err instanceof AwardProviderUnavailableError) {
@@ -179,6 +194,13 @@ export async function POST(req: NextRequest) {
           ? await generateNarrative(params, pickNarrativeOptions(results))
           : null
 
+        const trustState = buildAwardSearchTrustState({
+          liveAvailability: false,
+          estimatesOnly: true,
+          resultCount: results.length,
+          providerUnavailable: true,
+        })
+
         return NextResponse.json({
           provider: fallbackProvider.name,
           params,
@@ -191,6 +213,7 @@ export async function POST(req: NextRequest) {
           estimates_only: true,
           live_availability: false,
           user_tier: tier,
+          ...trustState,
         })
       } catch (fallbackErr) {
         logError('award_search_fallback_failed', {

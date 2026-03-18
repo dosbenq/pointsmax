@@ -40,6 +40,8 @@ async function requestJson(label, url, init = {}) {
 }
 
 async function run() {
+  const cronHeaders = { authorization: `Bearer ${CRON_SECRET}` }
+
   await requestJson('Health', `${BASE_URL}/api/health`)
   await requestJson('Cards US', `${BASE_URL}/api/cards?geography=US`)
   await requestJson('Cards IN', `${BASE_URL}/api/cards?geography=IN`)
@@ -87,8 +89,8 @@ async function run() {
     }),
   })
 
-  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations?secret=${encodeURIComponent(CRON_SECRET)}`)
-  await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts?secret=${encodeURIComponent(CRON_SECRET)}`)
+  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations`, { headers: cronHeaders })
+  await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts`, { headers: cronHeaders })
 
   console.log('Production smoke checks completed successfully.')
 }

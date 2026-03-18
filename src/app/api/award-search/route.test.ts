@@ -218,6 +218,8 @@ describe('POST /api/award-search', () => {
       expect(body.message).toBeDefined()
       expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
       expect(body.user_tier).toBe('premium')
+      expect(body.availability_mode).toBe('degraded')
+      expect(body.next_action).toBeDefined()
     })
 
     it('verifies successful response contract structure', async () => {
@@ -241,6 +243,8 @@ describe('POST /api/award-search', () => {
       expect(Array.isArray(body.results)).toBe(true)
       expect(body.searched_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
       expect(body.user_tier).toBe('premium')
+      expect(body.availability_mode).toBe('live')
+      expect(body.actionability).toBe('high')
     })
 
     it('includes a Delta warning when a Delta balance is in the wallet', async () => {

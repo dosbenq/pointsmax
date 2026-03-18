@@ -12,6 +12,7 @@ export interface HotelSearchParams {
   destination_region: HotelDestinationRegion
   check_in: string
   check_out: string
+  hotel_name?: string | null
   balances: Array<{ program_id: string; amount: number }>
 }
 

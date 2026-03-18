@@ -6,7 +6,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format, parseISO, isBefore, startOfToday } from 'date-fns'
+import { addDays, format, parseISO, isBefore, startOfToday } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,28 @@ const DESTINATION_REGION_KEYWORDS: Array<{ region: HotelDestinationRegion; keywo
   { region: 'europe', keywords: ['london', 'paris', 'rome', 'madrid', 'amsterdam', 'zurich', 'europe'] },
   { region: 'middle_east_africa', keywords: ['dubai', 'abu dhabi', 'doha', 'cairo', 'nairobi', 'africa', 'middle east'] },
   { region: 'latin_america', keywords: ['cancun', 'mexico city', 'buenos aires', 'rio', 'sao paulo', 'latin america'] },
+]
+
+const DESTINATION_SUGGESTIONS: Array<{ label: string; region: HotelDestinationRegion }> = [
+  { label: 'Tokyo, Japan', region: 'asia_pacific' },
+  { label: 'Singapore', region: 'asia_pacific' },
+  { label: 'London, UK', region: 'europe' },
+  { label: 'Paris, France', region: 'europe' },
+  { label: 'Dubai, UAE', region: 'middle_east_africa' },
+  { label: 'New York, USA', region: 'north_america' },
+  { label: 'Goa, India', region: 'india' },
+  { label: 'Mumbai, India', region: 'india' },
+]
+
+const HOTEL_NAME_SUGGESTIONS = [
+  'Park Hyatt',
+  'Grand Hyatt',
+  'St. Regis',
+  'JW Marriott',
+  'Ritz-Carlton',
+  'Waldorf Astoria',
+  'Conrad',
+  'Hilton',
 ]
 
 function resolveDestinationRegion(destination: string): HotelDestinationRegion {
@@ -65,6 +87,7 @@ export function HotelResults({
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<HotelSearchResult[]>([])
   const [destinationRegion, setDestinationRegion] = useState<HotelDestinationRegion | null>(null)
+  const [selectedRegion, setSelectedRegion] = useState<HotelDestinationRegion | ''>('')
 
   const walletBalances = rows
     .filter((row) => row.program_id && row.amount)
@@ -74,13 +97,16 @@ export function HotelResults({
     }))
     .filter((balance) => balance.amount > 0)
 
+  const resolvedRegion = selectedRegion || resolveDestinationRegion(hotelParams.destination)
+  const checkOutMinDate = hotelParams.start_date
+    ? addDays(parseISO(hotelParams.start_date), 1)
+    : addDays(startOfToday(), 1)
+
   async function handleSearch() {
     if (!hotelParams.destination || !hotelParams.start_date || !hotelParams.end_date) {
       setError('Choose a destination and dates before searching.')
       return
     }
-
-    const resolvedRegion = resolveDestinationRegion(hotelParams.destination)
     setDestinationRegion(resolvedRegion)
     setSearching(true)
     setError(null)
@@ -93,6 +119,7 @@ export function HotelResults({
           destination_region: resolvedRegion,
           check_in: hotelParams.start_date,
           check_out: hotelParams.end_date,
+          hotel_name: hotelParams.hotel_name || null,
           balances: walletBalances,
         }),
       })
@@ -131,12 +158,27 @@ export function HotelResults({
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pm-ink-500" />
               <input
                 type="text"
-                placeholder="City, landmark, or region"
+                list="hotel-destination-suggestions"
+                placeholder="Choose a destination city"
                 value={hotelParams.destination}
-                onChange={(e) => setHotelParams(p => ({ ...p, destination: e.target.value }))}
+                onChange={(e) => {
+                  const nextDestination = e.target.value
+                  setHotelParams((p) => ({ ...p, destination: nextDestination }))
+                  if (!selectedRegion) {
+                    setDestinationRegion(resolveDestinationRegion(nextDestination))
+                  }
+                }}
                 className="pm-input w-full pl-10"
               />
             </div>
+            <datalist id="hotel-destination-suggestions">
+              {DESTINATION_SUGGESTIONS.map((suggestion) => (
+                <option key={`${suggestion.region}-${suggestion.label}`} value={suggestion.label} />
+              ))}
+            </datalist>
+            <p className="mt-2 text-xs text-pm-ink-500">
+              We use the destination plus region to rank hotel award charts, so pick a real city or region.
+            </p>
           </div>
           <div>
             <label className="pm-label block mb-1.5">Hotel Name (Optional)</label>
@@ -144,13 +186,41 @@ export function HotelResults({
               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pm-ink-500" />
               <input
                 type="text"
-                placeholder="e.g. Park Hyatt Tokyo"
+                list="hotel-name-suggestions"
+                placeholder="e.g. Park Hyatt or St. Regis"
                 value={hotelParams.hotel_name}
                 onChange={(e) => setHotelParams(p => ({ ...p, hotel_name: e.target.value }))}
                 className="pm-input w-full pl-10"
               />
             </div>
+            <datalist id="hotel-name-suggestions">
+              {HOTEL_NAME_SUGGESTIONS.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+            <p className="mt-2 text-xs text-pm-ink-500">
+              This narrows results by likely chain. Exact property-level inventory is not live yet.
+            </p>
           </div>
+        </div>
+
+        <div>
+          <label className="pm-label block mb-1.5">Destination Region</label>
+          <select
+            value={selectedRegion || resolvedRegion}
+            onChange={(event) => setSelectedRegion(event.target.value as HotelDestinationRegion)}
+            className="pm-input"
+          >
+            <option value="north_america">North America</option>
+            <option value="europe">Europe</option>
+            <option value="middle_east_africa">Middle East & Africa</option>
+            <option value="asia_pacific">Asia Pacific</option>
+            <option value="latin_america">Latin America</option>
+            <option value="india">India</option>
+          </select>
+          <p className="mt-2 text-xs text-pm-ink-500">
+            Auto-detected from your destination, but you can override it if needed.
+          </p>
         </div>
 
         {/* Date Pickers */}
@@ -178,7 +248,8 @@ export function HotelResults({
                     if (date) {
                       const isoDate = format(date, 'yyyy-MM-dd')
                       setHotelParams((p) => {
-                        const shouldClearEnd = !!p.end_date && p.end_date <= isoDate
+                        const minCheckout = format(addDays(date, 1), 'yyyy-MM-dd')
+                        const shouldClearEnd = !!p.end_date && p.end_date < minCheckout
                         return {
                           ...p,
                           start_date: isoDate,
@@ -213,16 +284,14 @@ export function HotelResults({
                 <Calendar
                   mode="single"
                   selected={hotelParams.end_date ? parseISO(hotelParams.end_date) : undefined}
+                  defaultMonth={hotelParams.end_date ? parseISO(hotelParams.end_date) : checkOutMinDate}
                   onSelect={(date) => {
                     if (date) {
                       setHotelParams((p) => ({ ...p, end_date: format(date, 'yyyy-MM-dd') }))
                       closeDatePopover(setCheckOutOpen)
                     }
                   }}
-                  disabled={(date) => {
-                    const minDate = hotelParams.start_date ? parseISO(hotelParams.start_date) : startOfToday()
-                    return isBefore(date, minDate)
-                  }}
+                  disabled={(date) => isBefore(date, checkOutMinDate)}
                   initialFocus
                 />
               </PopoverContent>

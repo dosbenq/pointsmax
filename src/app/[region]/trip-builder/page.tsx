@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
+import type { ActionabilityLevel, AvailabilityMode, ResultConfidence } from '@/lib/result-trust'
 
 type UIState = 'form' | 'loading' | 'results'
 type DateMode = 'exact' | 'flexible_month'
@@ -111,6 +112,87 @@ function closeDatePopover(setOpen: (open: boolean) => void) {
       document.activeElement.blur()
     }
   }, 0)
+}
+
+function getAvailabilityModeMeta(mode: AvailabilityMode): {
+  label: string
+  containerClass: string
+  badgeClass: string
+  summary: string
+} {
+  switch (mode) {
+    case 'live':
+      return {
+        label: 'Live plan',
+        containerClass: 'border-pm-success-border bg-pm-success-soft',
+        badgeClass: 'border-pm-success-border bg-pm-success-soft text-pm-success',
+        summary: 'PointsMax produced a live booking plan with reachable flight options and booking steps.',
+      }
+    case 'estimated':
+      return {
+        label: 'Modeled plan',
+        containerClass: 'border-pm-accent-border bg-pm-accent-soft',
+        badgeClass: 'border-pm-accent-border bg-pm-accent-soft text-pm-accent',
+        summary: 'This plan is still useful, but you should verify live availability before moving points.',
+      }
+    case 'degraded':
+      return {
+        label: 'Degraded plan',
+        containerClass: 'border-pm-warning-border bg-pm-warning-soft',
+        badgeClass: 'border-pm-warning-border bg-pm-warning-soft text-pm-warning',
+        summary: 'Provider or AI coverage fell back, so PointsMax preserved the flight shortlist and a deterministic booking sequence.',
+      }
+    case 'unavailable':
+    default:
+      return {
+        label: 'Unavailable',
+        containerClass: 'border-pm-border bg-pm-surface-soft',
+        badgeClass: 'border-pm-border bg-pm-surface-soft text-pm-ink-500',
+        summary: 'This trip brief did not turn into a usable booking plan yet.',
+      }
+  }
+}
+
+function getConfidenceLabel(confidence: ResultConfidence): string {
+  switch (confidence) {
+    case 'high':
+      return 'High confidence'
+    case 'medium':
+      return 'Medium confidence'
+    case 'low':
+    default:
+      return 'Low confidence'
+  }
+}
+
+function getActionabilityLabel(actionability: ActionabilityLevel): string {
+  switch (actionability) {
+    case 'high':
+      return 'Ready to act'
+    case 'medium':
+      return 'Needs verification'
+    case 'low':
+    default:
+      return 'Use as a draft'
+  }
+}
+
+function getTransferTimingLabel(flight: TripBuilderResponse['top_flights'][number]): string {
+  if (!flight.transfer_chain) return 'No transfer required'
+  return flight.transfer_is_instant ? 'Transfer timing: usually instant' : 'Transfer timing: may take time'
+}
+
+function getFlightNextAction(
+  flight: TripBuilderResponse['top_flights'][number],
+  availabilityMode: AvailabilityMode,
+): string {
+  if (!flight.is_reachable) {
+    return 'Use this as a benchmark and improve balances or dates before you transfer.'
+  }
+  if (availabilityMode === 'live' && flight.has_real_availability) {
+    return 'Open the booking link or start the booking guide while the route is still available.'
+  }
+  return 'Verify live space on the booking site before transferring points into this program.'
 }
 
 export default function TripBuilderPage() {
@@ -333,6 +415,7 @@ export default function TripBuilderPage() {
   const googleFlightsUrl = origin && dest
     ? getGoogleFlightsUrl(origin.toUpperCase(), dest.toUpperCase())
     : null
+  const trustMeta = result ? getAvailabilityModeMeta(result.availability_mode) : null
 
   const startBookingGuide = async (flight: TripBuilderResponse['top_flights'][number]) => {
     if (!user) {
@@ -420,13 +503,13 @@ export default function TripBuilderPage() {
           <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
               <span className="inline-flex rounded-full border border-pm-accent-border bg-pm-accent-soft px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-accent">
-                Planner subflow {config.flag}
+                Trip execution {config.flag}
               </span>
               <h1 className="mt-5 pm-display text-[3.15rem] leading-[0.93] sm:text-[4.5rem]">
-                Build the booking path, not just the idea.
+                Build the booking path, not just the trip idea.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-pm-ink-700">
-                Use this once Planner has already narrowed the opportunity. Trip Builder turns a route and wallet into a concrete booking sequence.
+                Use this once Planner has narrowed the opportunity. Trip Builder turns a route and wallet into a concrete booking sequence and now labels whether the plan is live, modeled, or degraded.
               </p>
               <Link
                 href={`/${region}/calculator`}
@@ -867,7 +950,7 @@ export default function TripBuilderPage() {
                   onClick={buildPlan}
                   className="pm-button mt-5 w-full py-3"
                 >
-                  Build trip plan
+                  Build my plan
                 </button>
 
                 <Link
@@ -910,6 +993,31 @@ export default function TripBuilderPage() {
           >
 
             {/* AI Summary */}
+            {trustMeta && (
+              <div className={`rounded-2xl border p-6 ${trustMeta.containerClass}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${trustMeta.badgeClass}`}>
+                    {trustMeta.label}
+                  </span>
+                  <span className="rounded-full border border-pm-border bg-pm-surface px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-pm-ink-500">
+                    {getConfidenceLabel(result.confidence)}
+                  </span>
+                  <span className="rounded-full border border-pm-border bg-pm-surface px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-pm-ink-500">
+                    {getActionabilityLabel(result.actionability)}
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-medium text-pm-ink-900">{trustMeta.summary}</p>
+                <p className="mt-2 text-sm text-pm-ink-700">
+                  <span className="font-semibold text-pm-ink-900">Next action:</span> {result.next_action}
+                </p>
+                {result.degraded_reason && (
+                  <p className="mt-2 text-xs text-pm-ink-500">
+                    Reason: {result.degraded_reason.replace(/_/g, ' ')}
+                  </p>
+                )}
+              </div>
+            )}
+
             {result.ai_summary && (
               <div className="rounded-2xl border border-pm-success-border bg-pm-success-soft p-6">
                 <p className="text-xs font-semibold text-pm-success uppercase tracking-wider mb-2">✨ Trip Summary</p>
@@ -952,12 +1060,29 @@ export default function TripBuilderPage() {
                           ) : (
                             <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Need more points</span>
                           )}
+                          {flight.has_real_availability ? (
+                            <span className="text-xs bg-pm-success-soft text-pm-success border border-pm-success-border px-2 py-0.5 rounded-full font-medium">Live</span>
+                          ) : (
+                            <span className="text-xs bg-pm-surface-soft text-pm-ink-500 border border-pm-border px-2 py-0.5 rounded-full">Modeled</span>
+                          )}
                         </div>
                         <p className="text-xs text-pm-ink-500 mt-0.5">
                           ~{flight.estimated_miles.toLocaleString()} miles
                           {' · '}
                           ~{flight.points_needed_from_wallet.toLocaleString()} points from wallet
                           {flight.transfer_chain && ` · via ${flight.transfer_chain}`}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-pm-ink-500">
+                          <span className="rounded-full border border-pm-border bg-pm-surface-soft px-2 py-0.5">
+                            {getTransferTimingLabel(flight)}
+                          </span>
+                          <span className="rounded-full border border-pm-border bg-pm-surface-soft px-2 py-0.5">
+                            {flight.is_reachable ? 'Wallet can cover this' : 'Wallet cannot cover this yet'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs leading-6 text-pm-ink-700">
+                          <span className="font-semibold text-pm-ink-900">Next action:</span>{' '}
+                          {getFlightNextAction(flight, result.availability_mode)}
                         </p>
                       </div>
                       <a

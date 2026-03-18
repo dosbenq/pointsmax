@@ -7,6 +7,7 @@ import {
   normalizeMaxVideos,
   resolveChannelId,
 } from '@/lib/knowledge/channel-ingest'
+import { isAllowedYouTubeChannelUrl } from '@/lib/knowledge/youtube'
 import { getRequestId, logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
@@ -32,6 +33,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: 'YOUTUBE_KNOWLEDGE_CHANNEL_URL is missing. Configure a default channel or provide channel_url.' },
       { status: 503 },
+    )
+  }
+
+  if (!isAllowedYouTubeChannelUrl(channelUrl)) {
+    return NextResponse.json(
+      { error: 'channel_url must be a valid YouTube channel URL on youtube.com' },
+      { status: 400 },
     )
   }
 

@@ -34,11 +34,28 @@ describe('matchProgramByName', () => {
     })
   })
 
-  it('matches India aliases', () => {
-    expect(matchProgramByName('HDFC Bank', [...programs])).toEqual({
+  it('matches India program aliases', () => {
+    expect(matchProgramByName('HDFC SmartBuy', [...programs])).toEqual({
       program_id: 'prog-hdfc',
       program_name: 'HDFC Reward Points',
       confidence: 'alias',
+    })
+  })
+
+  it('does not fuzzy-match ambiguous one-word issuer inputs', () => {
+    expect(matchProgramByName('Chase', [...programs])).toBeNull()
+    expect(matchProgramByName('Citi', [...programs])).toBeNull()
+  })
+
+  it('does not partially alias-match issuer card names into program balances', () => {
+    expect(matchProgramByName('American Express Blue Business Plus', [...programs])).toBeNull()
+  })
+
+  it('preserves India and Express tokens in fuzzy matching', () => {
+    expect(matchProgramByName('Air India Maharaja Club', [...programs])).toEqual({
+      program_id: 'prog-air-india',
+      program_name: 'Air India Maharaja Club',
+      confidence: 'exact',
     })
   })
 

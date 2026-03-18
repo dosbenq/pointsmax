@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { matchProgram, normalizeProgramName } from './valuation-refresh'
+import { matchProgram } from './valuation-refresh'
 
 describe('valuation-refresh helpers', () => {
-  it('normalizes program names for fuzzy matching', () => {
-    expect(normalizeProgramName('British Airways Avios')).toBe('british airways avios')
-  })
-
   it('matches extracted names to live program rows', () => {
     const match = matchProgram(
       [

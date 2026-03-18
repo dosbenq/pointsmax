@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase'
 import { inngest } from '../client'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { logError, logInfo, logWarn } from '@/lib/logger'
+import { matchProgramByName } from '@/lib/connectors/program-matcher'
+import { revalidateTag } from 'next/cache'
 
 const TPG_VALUATIONS_URL = 'https://thepointsguy.com/points-miles-valuations/'
 
@@ -17,33 +19,10 @@ type ProgramRow = {
   slug: string
 }
 
-export function normalizeProgramName(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
-}
-
 export function matchProgram(programs: ProgramRow[], extractedName: string): ProgramRow | null {
-  const normalizedTarget = normalizeProgramName(extractedName)
-  const aliases: Record<string, string[]> = {
-    'chase ultimate rewards': ['chase ur', 'chase ultimate rewards'],
-    'american express membership rewards': ['amex membership rewards', 'amex mr'],
-    'capital one miles': ['capital one miles', 'capital one'],
-    'citi thankyou points': ['citi thankyou', 'citi thankyou points'],
-    'british airways avios': ['british airways', 'avios'],
-    'singapore krisflyer': ['singapore airlines', 'krisflyer', 'singapore'],
-    'etihad guest': ['etihad'],
-    'world of hyatt': ['hyatt', 'world of hyatt'],
-    'marriott bonvoy': ['marriott bonvoy', 'marriott'],
-    'hilton honors': ['hilton honors', 'hilton'],
-  }
-
-  return programs.find((program) => {
-    const normalizedName = normalizeProgramName(program.name)
-    const normalizedSlug = normalizeProgramName(program.slug)
-    const candidateTokens = new Set([normalizedName, normalizedSlug, ...(aliases[normalizedName] ?? [])])
-    return [...candidateTokens].some((candidate) =>
-      candidate.includes(normalizedTarget) || normalizedTarget.includes(candidate),
-    )
-  }) ?? null
+  const match = matchProgramByName(extractedName, programs)
+  if (!match) return null
+  return programs.find((program) => program.id === match.program_id) ?? null
 }
 
 export async function extractValuationsWithGemini(html: string): Promise<ExtractedValuation[]> {
@@ -134,6 +113,12 @@ export const valuationRefresh = inngest.createFunction(
       )
       if (error) throw new Error(error.message)
       return { inserted: updates.length }
+    })
+
+    await step.run('revalidate-valuation-caches', async () => {
+      revalidateTag('valuations', 'max')
+      revalidateTag('programmatic-cards', 'max')
+      return { ok: true }
     })
 
     await step.run('log-audit-entries', async () => {

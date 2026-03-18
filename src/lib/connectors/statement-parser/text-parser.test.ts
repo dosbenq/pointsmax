@@ -65,4 +65,18 @@ describe('parseStatementText', () => {
 
     expect(candidates).toEqual([])
   })
+
+  it('prefers balance-context numbers over larger spend totals', () => {
+    const candidates = parseStatementText(
+      'HDFC Diners reward points balance: 1,23,456 points (₹ 3,42,000 spend this year)',
+      [...programs],
+    )
+
+    expect(candidates[0]).toEqual(
+      expect.objectContaining({
+        balance: 123456,
+        program_id: 'prog-hdfc',
+      }),
+    )
+  })
 })

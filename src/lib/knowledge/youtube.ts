@@ -6,6 +6,12 @@ const YOUTUBE_HOSTS = new Set([
   'www.youtu.be',
 ])
 
+const YOUTUBE_CHANNEL_HOSTS = new Set([
+  'youtube.com',
+  'www.youtube.com',
+  'm.youtube.com',
+])
+
 const YOUTUBE_ID_RE = /^[a-zA-Z0-9_-]{11}$/
 
 export function parseYouTubeVideoId(input: string): string | null {
@@ -48,6 +54,26 @@ export function parseYouTubeVideoId(input: string): string | null {
 
 export function canonicalYouTubeWatchUrl(videoId: string): string {
   return `https://www.youtube.com/watch?v=${videoId}`
+}
+
+export function isAllowedYouTubeChannelUrl(input: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(input)
+  } catch {
+    return false
+  }
+
+  if (parsed.protocol !== 'https:') return false
+  if (!YOUTUBE_CHANNEL_HOSTS.has(parsed.hostname)) return false
+
+  const path = parsed.pathname.replace(/\/+$/, '')
+  return (
+    path.startsWith('/@')
+    || path.startsWith('/channel/')
+    || path.startsWith('/c/')
+    || path.startsWith('/user/')
+  )
 }
 
 export function chunkText(input: string, maxChars = 1200): string[] {

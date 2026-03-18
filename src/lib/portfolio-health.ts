@@ -55,6 +55,19 @@ function buildRecommendations(flags: PortfolioFlag[]): string[] {
   })
 }
 
+function getMinimumRedemption(program: PortfolioProgram): number | null {
+  const normalizedName = program.name.toLowerCase()
+
+  if (program.type === 'transferable_points') return null
+  if (program.type === 'hotel_points') return 15000
+
+  if (normalizedName.includes('southwest rapid rewards')) return 1
+  if (normalizedName.includes('united mileageplus')) return 1
+  if (normalizedName.includes('jetblue trueblue')) return 1
+
+  return 7500
+}
+
 export function analyzePortfolioHealth(
   balances: PortfolioBalance[],
   programs: PortfolioProgram[],
@@ -120,7 +133,8 @@ export function analyzePortfolioHealth(
     if (!program) continue
     if (program.type === 'transferable_points') continue
 
-    const minimumRedemption = program.type === 'hotel_points' ? 15000 : 10000
+    const minimumRedemption = getMinimumRedemption(program)
+    if (minimumRedemption === null) continue
     const hasOutboundPath = transferPartners.some((partner) => partner.from_program_id === balance.program_id)
     if (balance.amount < minimumRedemption && !hasOutboundPath) {
       score -= 10

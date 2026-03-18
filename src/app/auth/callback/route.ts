@@ -1,15 +1,21 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // GET /auth/callback
 // Exchanges OAuth code for a session, then redirects to /calculator
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const nextParam = searchParams.get('next') ?? '/calculator'
+  const nextParam = searchParams.get('next') ?? '/us/calculator'
   const next = nextParam.startsWith('/') && !nextParam.startsWith('//')
     ? nextParam
-    : '/calculator'
+    : '/us/calculator'
+
+  // Use the canonical app origin from env, not the request URL origin.
+  // request.url can reflect internal Vercel routing URLs on some deployments,
+  // causing redirects to go to the wrong host.
+  const appOrigin = getConfiguredAppOrigin()
 
   if (code) {
     const supabase = await createSupabaseServerClient()
@@ -23,19 +29,19 @@ export async function GET(request: NextRequest) {
            .select('home_airport')
            .eq('id', user.id)
            .single()
-           
+
          if (!prefs?.home_airport) {
            // Extract region from 'next' path (e.g. /in/calculator -> in)
            const pathParts = next.split('/').filter(Boolean)
            const region = pathParts[0] === 'in' ? 'in' : 'us'
-           return NextResponse.redirect(`${origin}/${region}/onboarding`)
+           return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
          }
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(`${appOrigin}${next}`)
     }
   }
 
   // Something went wrong — redirect to calculator with error flag
-  return NextResponse.redirect(`${origin}/calculator?auth_error=1`)
+  return NextResponse.redirect(`${appOrigin}/us/calculator?auth_error=1`)
 }

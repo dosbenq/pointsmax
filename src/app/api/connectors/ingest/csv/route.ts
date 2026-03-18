@@ -153,6 +153,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const connectedAccountId = formData.get('connectedAccountId') as string | null
+    const previewOnly =
+      String(formData.get('previewOnly') ?? '').trim().toLowerCase() === 'true'
 
     const userId = await getCurrentUserRowId(supabase, authUserId)
     if (!userId) {
@@ -288,6 +290,42 @@ export async function POST(req: NextRequest) {
         },
         { status: 422 }
       )
+    }
+
+    if (previewOnly) {
+      job.status = 'completed'
+      job.completedAt = new Date().toISOString()
+      job.result = {
+        totalRows: parseResult.totalRows,
+        validRows: matchedRows.length,
+        invalidRows: parseResult.invalidRows + unmatchedRows.length,
+        errors: [
+          ...parseResult.errors.map((e) => `Row ${e.row}: ${e.message}`),
+          ...unmatchedRows.map((row) => `Program not recognized: ${row.program_name}`),
+        ],
+      }
+
+      return NextResponse.json({
+        jobId,
+        preview_only: true,
+        status: createIngestStatus('completed', {
+          processedRows: matchedRows.length,
+          totalRows: parseResult.totalRows,
+          errors: job.result.errors.length > 0 ? job.result.errors : undefined,
+        }),
+        summary: {
+          totalRows: parseResult.totalRows,
+          validRows: matchedRows.length,
+          invalidRows: parseResult.invalidRows + unmatchedRows.length,
+          importedBalances: 0,
+        },
+        matched_rows: matchedRows.map(({ resolved_program_id, ...rest }) => {
+          void resolved_program_id
+          return rest
+        }),
+        unmatched_rows: unmatchedRows,
+        warnings: job.result.errors.length > 0 ? job.result.errors : undefined,
+      })
     }
 
     let insertError: { message: string } | null = null

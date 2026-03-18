@@ -20,9 +20,38 @@ function calculateNights(checkIn: string, checkOut: string): number {
   return Math.max(1, Math.ceil(diffMs / (24 * 60 * 60 * 1000)))
 }
 
+function normalizeHotelHint(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase()
+}
+
+function matchesHotelHint(chain: string, programName: string, hotelHint: string): boolean {
+  if (!hotelHint) return true
+
+  const candidates = [chain, programName]
+    .map((value) => value.toLowerCase())
+
+  if (candidates.some((value) => value.includes(hotelHint) || hotelHint.includes(value))) {
+    return true
+  }
+
+  const keywordMap: Array<{ keywords: string[]; matches: string[] }> = [
+    { keywords: ['hyatt', 'park hyatt', 'grand hyatt', 'andaz', 'alila', 'caption by hyatt'], matches: ['hyatt', 'world of hyatt'] },
+    { keywords: ['marriott', 'jw marriott', 'st. regis', 'ritz-carlton', 'w hotel', 'edition', 'sheraton', 'westin', 'le meridien'], matches: ['marriott', 'bonvoy'] },
+    { keywords: ['hilton', 'waldorf', 'conrad', 'curio', 'canopy', 'doubletree', 'hampton'], matches: ['hilton', 'honors'] },
+  ]
+
+  const inferredMatches = keywordMap.find((entry) => entry.keywords.some((keyword) => hotelHint.includes(keyword)))
+  if (!inferredMatches) return false
+
+  return inferredMatches.matches.some((match) =>
+    candidates.some((value) => value.includes(match)),
+  )
+}
+
 export class ChartHotelProvider {
   async search(params: HotelSearchParams, client: SupabaseClient): Promise<HotelSearchResult[]> {
     const nights = calculateNights(params.check_in, params.check_out)
+    const hotelHint = normalizeHotelHint(params.hotel_name)
 
     const [{ data: hotelPrograms, error: hotelProgramError }, { data: charts, error: chartError }] = await Promise.all([
       client
@@ -80,6 +109,7 @@ export class ChartHotelProvider {
     const results: HotelSearchResult[] = chartRows.flatMap((chart) => {
       const hotelProgram = hotelProgramById.get(chart.program_id)
       if (!hotelProgram) return []
+      if (!matchesHotelHint(hotelProgram.chain, hotelProgram.name, hotelHint)) return []
 
       const path = reachablePaths.get(hotelProgram.slug)
       const pointsStandardTotal = chart.points_standard * nights

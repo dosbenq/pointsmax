@@ -1,5 +1,6 @@
 import {
   extractYouTubeChannelId,
+  isAllowedYouTubeChannelUrl,
   parseYouTubeFeedVideoUrls,
 } from '@/lib/knowledge/youtube'
 
@@ -14,7 +15,8 @@ export function normalizeMaxVideos(value: unknown): number {
 
 export function getConfiguredKnowledgeChannelUrl(): string | null {
   const value = process.env.YOUTUBE_KNOWLEDGE_CHANNEL_URL?.trim()
-  return value && value.length > 0 ? value : null
+  if (!value || value.length === 0) return null
+  return isAllowedYouTubeChannelUrl(value) ? value : null
 }
 
 export function getKnowledgeChannelLabel(channelUrl?: string | null): string | null {
@@ -43,6 +45,7 @@ function channelFeedUrl(channelId: string): string {
 }
 
 export async function resolveChannelId(channelUrl: string): Promise<string | null> {
+  if (!isAllowedYouTubeChannelUrl(channelUrl)) return null
   const response = await fetch(channelUrl, {
     method: 'GET',
     headers: {

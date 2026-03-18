@@ -55,7 +55,7 @@ export function buildBreadcrumbJsonLd(
 export function buildCardProductJsonLd(card: CardProductInput, baseUrl: string): object {
   return {
     '@context': 'https://schema.org',
-    '@type': 'Product',
+    '@type': 'FinancialProduct',
     name: card.name,
     brand: {
       '@type': 'Brand',
@@ -63,6 +63,10 @@ export function buildCardProductJsonLd(card: CardProductInput, baseUrl: string):
     },
     description: card.description,
     category: `Credit card (${card.region.toUpperCase()})`,
+    feesAndCommissionsSpecification: {
+      '@type': 'PriceSpecification',
+      priceCurrency: card.region.toUpperCase() === 'IN' ? 'INR' : 'USD',
+    },
     image: card.imageUrl ? absolutizeUrl(card.imageUrl, baseUrl) : undefined,
     url: card.applyUrl ? absolutizeUrl(card.applyUrl, baseUrl) : undefined,
   }

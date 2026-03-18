@@ -54,6 +54,11 @@ describe('GET /api/cron/ingest-youtube-knowledge', () => {
     expect(res.status).toBe(401)
   })
 
+  it('rejects query-param auth even when the secret matches', async () => {
+    const res = await GET(makeRequest({ secretParam: 'cron-secret' }))
+    expect(res.status).toBe(401)
+  })
+
   it('returns 503 when GEMINI_API_KEY is missing', async () => {
     delete process.env.GEMINI_API_KEY
     const res = await GET(makeRequest({ authHeader: 'Bearer cron-secret' }))

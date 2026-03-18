@@ -10,6 +10,31 @@ describe('ConnectedWallets', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockReset()
+    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+
+      if (url === '/api/programs') {
+        return {
+          ok: true,
+          json: async () => [
+            { id: 'prog-chase', name: 'Chase Ultimate Rewards', type: 'transferable_points' },
+            { id: 'prog-amex', name: 'Amex Membership Rewards', type: 'transferable_points' },
+          ],
+        }
+      }
+
+      if (url === '/api/connectors') {
+        return {
+          ok: true,
+          json: async () => ({ accounts: [] }),
+        }
+      }
+
+      return {
+        ok: true,
+        json: async () => ({}),
+      }
+    })
   })
 
   afterEach(() => {
@@ -25,7 +50,7 @@ describe('ConnectedWallets', () => {
       
       expect(screen.getByTestId('connected-wallets-loading')).toBeInTheDocument()
       expect(screen.getByText('Wallet Sources')).toBeInTheDocument()
-      expect(screen.getByText('Manage imported and synced balance sources.')).toBeInTheDocument()
+      expect(screen.getByText('Manual balances, imports, and synced sources all land here.')).toBeInTheDocument()
     })
 
     it('shows loading animation while fetching accounts', () => {
@@ -51,12 +76,13 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-empty')).toBeInTheDocument()
       })
       
-      expect(screen.getByText('No balance sources added yet')).toBeInTheDocument()
+      expect(screen.getByText('No wallet sources added yet')).toBeInTheDocument()
       expect(
         screen.getByText(
-          'Manual balance entry is available now. Existing linked sources will still sync here, but new provider onboarding is not exposed in the UI yet.',
+          'Start with CSV import, statement text, or manual entry. Existing linked sources still sync here, but new provider onboarding is not exposed broadly yet.',
         ),
       ).toBeInTheDocument()
+      expect(screen.getByText('Manual balances, CSV import, statement parsing, and PDF review')).toBeInTheDocument()
     })
 
     it('shows connect wallet button in empty state', async () => {
@@ -71,7 +97,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connect-wallet-btn')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Manual Balance')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Import Balances')
     })
 
     it('shows manual entry button in empty state when onManualEntry provided', async () => {
@@ -123,20 +149,57 @@ describe('ConnectedWallets', () => {
       expect(onManualEntry).toHaveBeenCalledTimes(1)
     })
 
-    it('imports a CSV file and shows success status', async () => {
-      mockFetch
-        .mockResolvedValueOnce({
+    it('reviews a CSV file before saving and then confirms the import', async () => {
+      mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+
+        if (url === '/api/programs') {
+          return {
+            ok: true,
+            json: async () => [
+              { id: 'prog-chase', name: 'Chase Ultimate Rewards', type: 'transferable_points' },
+              { id: 'prog-amex', name: 'Amex Membership Rewards', type: 'transferable_points' },
+            ],
+          }
+        }
+
+        if (url === '/api/connectors') {
+          return {
+            ok: true,
+            json: async () => ({ accounts: [] }),
+          }
+        }
+
+        if (url === '/api/connectors/ingest/csv') {
+          return {
+            ok: true,
+            json: async () => ({
+              matched_rows: [
+                {
+                  program_name: 'Chase UR',
+                  balance: 100000,
+                  program_id: 'prog-chase',
+                  program_matched_name: 'Chase Ultimate Rewards',
+                  confidence: 'alias',
+                },
+              ],
+              unmatched_rows: [],
+            }),
+          }
+        }
+
+        if (url === '/api/connectors/ingest/confirm') {
+          return {
+            ok: true,
+            json: async () => ({ ok: true, saved_count: 1 }),
+          }
+        }
+
+        return {
           ok: true,
-          json: async () => ({ accounts: [] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ summary: { importedBalances: 2 } }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ accounts: [] }),
-        })
+          json: async () => ({}),
+        }
+      })
 
       render(<ConnectedWallets />)
 
@@ -151,10 +214,21 @@ describe('ConnectedWallets', () => {
       fireEvent.click(screen.getByTestId('csv-import-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('csv-import-status')).toHaveTextContent('Imported 2 balances from CSV.')
+        expect(screen.getByTestId('csv-import-status')).toHaveTextContent('Review 1 imported row before saving.')
       })
 
-      expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/connectors/ingest/csv', expect.objectContaining({
+      expect(screen.getByTestId('import-review-section')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByText('Save selected balances'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('import-confirm-status')).toHaveTextContent('Saved 1 balance to your wallet.')
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/connectors/ingest/csv', expect.objectContaining({
+        method: 'POST',
+      }))
+      expect(mockFetch).toHaveBeenCalledWith('/api/connectors/ingest/confirm', expect.objectContaining({
         method: 'POST',
       }))
     })
@@ -229,7 +303,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-empty')).toBeInTheDocument()
       })
       
-      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch).toHaveBeenCalledTimes(3)
     })
 
     it('shows manual entry button in error state when onManualEntry provided', async () => {
@@ -389,7 +463,7 @@ describe('ConnectedWallets', () => {
       expect(screen.getByTestId(`delete-btn-${mockAccount.id}`)).toBeInTheDocument()
     })
 
-    it('shows add button in connected state', async () => {
+    it('shows import button in connected state', async () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -406,7 +480,7 @@ describe('ConnectedWallets', () => {
         expect(screen.getByTestId('connected-wallets-connected')).toBeInTheDocument()
       })
       
-      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Add Manual Balance')
+      expect(screen.getByTestId('connect-wallet-btn')).toHaveTextContent('Import Balances')
     })
 
     it('shows manual entry button in connected state when onManualEntry provided', async () => {
@@ -654,19 +728,24 @@ describe('ConnectedWallets', () => {
     }
 
     it('handles sync error gracefully', async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ accounts: [mockAccount] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockBalances,
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          json: async () => ({ error: 'Sync failed due to rate limit' }),
-        })
+      mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+
+        if (url === '/api/programs') {
+          return { ok: true, json: async () => [] }
+        }
+        if (url === '/api/connectors') {
+          return { ok: true, json: async () => ({ accounts: [mockAccount] }) }
+        }
+        if (url === `/api/connectors/${mockAccount.id}/balances?limit=1`) {
+          return { ok: true, json: async () => mockBalances }
+        }
+        if (url === '/api/connectors/sync') {
+          return { ok: false, json: async () => ({ error: 'Sync failed due to rate limit' }) }
+        }
+
+        return { ok: true, json: async () => ({}) }
+      })
       
       render(<ConnectedWallets />)
       
@@ -678,21 +757,29 @@ describe('ConnectedWallets', () => {
       
       // Component updates local state to show error instead of calling alert
       await waitFor(() => {
-        expect(screen.getByText('• Sync failed due to rate limit')).toBeInTheDocument()
+        expect(screen.getByText((content) => content.includes('Sync failed due to rate limit'))).toBeInTheDocument()
       })
     })
 
     it('shows syncing state during sync operation', async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ accounts: [mockAccount] }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockBalances,
-        })
-        .mockImplementationOnce(() => new Promise(() => {})) // Never resolve to keep loading
+      mockFetch.mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+
+        if (url === '/api/programs') {
+          return Promise.resolve({ ok: true, json: async () => [] })
+        }
+        if (url === '/api/connectors') {
+          return Promise.resolve({ ok: true, json: async () => ({ accounts: [mockAccount] }) })
+        }
+        if (url === `/api/connectors/${mockAccount.id}/balances?limit=1`) {
+          return Promise.resolve({ ok: true, json: async () => mockBalances })
+        }
+        if (url === '/api/connectors/sync') {
+          return new Promise(() => {})
+        }
+
+        return Promise.resolve({ ok: true, json: async () => ({}) })
+      })
       
       render(<ConnectedWallets />)
       

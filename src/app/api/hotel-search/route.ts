@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerDbClient } from '@/lib/supabase'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { badRequest, internalError } from '@/lib/error-utils'
+import { badRequest, internalError, serviceUnavailable } from '@/lib/error-utils'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { createHotelSearchProvider, type HotelDestinationRegion, type HotelSearchParams } from '@/lib/hotel-search'
 
@@ -58,6 +58,10 @@ function validateSearchParams(body: unknown): HotelSearchParams | { error: strin
     destination_region: candidate.destination_region as HotelDestinationRegion,
     check_in: checkIn,
     check_out: checkOut,
+    hotel_name:
+      typeof candidate.hotel_name === 'string' && candidate.hotel_name.trim().length > 0
+        ? candidate.hotel_name.trim().slice(0, 120)
+        : null,
     balances,
   }
 }
@@ -111,11 +115,21 @@ export async function POST(req: NextRequest) {
       searched_at: new Date().toISOString(),
     })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Hotel search failed'
     logError('hotel_search_failed', {
       requestId,
-      error: error instanceof Error ? error.message : 'Hotel search failed',
+      error: message,
       latency_ms: Date.now() - startedAt,
     })
+
+    if (message.startsWith('Failed to load hotel programs') || message.startsWith('Failed to load hotel award charts')) {
+      return serviceUnavailable('Hotel catalog is unavailable right now. Please try again later.')
+    }
+
+    if (message.startsWith('Failed to load programs') || message.startsWith('Failed to load transfer partners')) {
+      return serviceUnavailable('Hotel search data is temporarily unavailable. Please try again later.')
+    }
+
     return internalError('Hotel search failed')
   }
 }

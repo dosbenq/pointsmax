@@ -26,7 +26,7 @@ type AuthContextValue = {
   userRecord: UserRecord | null
   preferences: Preferences | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
+  signInWithGoogle: (next?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshPreferences: () => Promise<void>
 }
@@ -177,15 +177,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
   }, [user])
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (next?: string) => {
     if (!isSupabaseConfigured) {
       console.error('Supabase not configured - cannot sign in')
       return
     }
+    // Use the canonical app URL from env, not window.location.origin.
+    // window.location.origin is dynamic and on Vercel preview deployments
+    // produces a URL not in Supabase's allowlist, causing "Redirect URL not allowed".
+    const appOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim() || window.location.origin
+    const callbackUrl = new URL('/auth/callback', appOrigin)
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      callbackUrl.searchParams.set('next', next)
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl.toString(),
       },
     })
   }

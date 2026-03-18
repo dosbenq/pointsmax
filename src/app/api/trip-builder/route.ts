@@ -16,6 +16,7 @@ import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUna
 import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
 import { getTripBuilderPromptSections } from '@/lib/booking-urls'
 import { extractJsonObject } from '@/lib/json-extract'
+import { buildTripBuilderTrustState } from '@/lib/result-trust'
 
 const IATA_RE = /^[A-Z]{3}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -124,6 +125,41 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   }
 }
 
+function buildDeterministicFallbackSteps(
+  flights: TripBuilderFlightOption[],
+  estimatesOnly: boolean,
+): TripBuilderResponse['booking_steps'] {
+  const topFlight = flights[0]
+  if (!topFlight) return []
+
+  const steps: TripBuilderResponse['booking_steps'] = [
+    {
+      step: 1,
+      action: topFlight.transfer_chain ? 'Check transfer path' : 'Review flight option',
+      detail: topFlight.transfer_chain
+        ? `Use ${topFlight.transfer_chain} to reach ${topFlight.program_name} before booking.`
+        : `Review the ${topFlight.program_name} option and confirm the itinerary fits your dates.`,
+      url: topFlight.deep_link_url,
+    },
+    {
+      step: 2,
+      action: 'Verify availability',
+      detail: estimatesOnly
+        ? 'Verify live award space before transferring any points.'
+        : 'Verify the best itinerary and total points before moving forward.',
+      url: topFlight.deep_link_url,
+    },
+    {
+      step: 3,
+      action: 'Book flight',
+      detail: `Complete the booking through ${topFlight.deep_link_label}.`,
+      url: topFlight.deep_link_url,
+    },
+  ]
+
+  return steps
+}
+
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
   const startedAt = Date.now()
@@ -205,14 +241,22 @@ export async function POST(req: NextRequest) {
         requestId,
         reason: geminiDisabled ? 'safe_mode' : 'missing_api_key',
       })
+      const booking_steps = buildDeterministicFallbackSteps(top_flights, estimatesOnly)
+      const trustState = buildTripBuilderTrustState({
+        estimatesOnly,
+        hasFlights: top_flights.length > 0,
+        hasBookingSteps: booking_steps.length > 0,
+        aiAvailable: false,
+      })
       return NextResponse.json({
         top_flights,
         hotel: null,
-        booking_steps: [],
+        booking_steps,
         ai_summary: geminiDisabled
           ? 'AI planning is in safe mode. Flight options are still available below.'
           : 'AI planning unavailable — GEMINI_API_KEY not configured.',
         points_summary: '',
+        ...trustState,
       } as TripBuilderResponse)
     }
 
@@ -298,12 +342,20 @@ Rules:
         requestId,
         error: lastModelErr instanceof Error ? lastModelErr.message : String(lastModelErr),
       })
+      const booking_steps = buildDeterministicFallbackSteps(top_flights, estimatesOnly)
+      const trustState = buildTripBuilderTrustState({
+        estimatesOnly,
+        hasFlights: top_flights.length > 0,
+        hasBookingSteps: booking_steps.length > 0,
+        aiAvailable: false,
+      })
       return NextResponse.json({
         top_flights,
         hotel: null,
-        booking_steps: [],
+        booking_steps,
         ai_summary: 'AI planning unavailable right now. Flight options are still ready below.',
         points_summary: '',
+        ...trustState,
       } as TripBuilderResponse)
     }
 
@@ -341,14 +393,25 @@ Rules:
       latency_ms: Date.now() - startedAt,
     })
 
+    const booking_steps = aiData.booking_steps?.length
+      ? aiData.booking_steps
+      : buildDeterministicFallbackSteps(top_flights, estimatesOnly)
+    const trustState = buildTripBuilderTrustState({
+      estimatesOnly,
+      hasFlights: top_flights.length > 0,
+      hasBookingSteps: booking_steps.length > 0,
+      aiAvailable: true,
+    })
+
     return NextResponse.json({
       top_flights,
       hotel: hotel_nights > 0 ? aiData.hotel : null,
-      booking_steps: aiData.booking_steps ?? [],
+      booking_steps,
       ai_summary: estimatesOnly
         ? `${aiData.ai_summary ?? 'Flight and hotel planning is based on static estimates right now.'} Live award availability was unavailable, so PointsMax used fallback estimates.`
         : (aiData.ai_summary ?? ''),
       points_summary: aiData.points_summary ?? '',
+      ...trustState,
     } as TripBuilderResponse)
 
   } catch (err) {

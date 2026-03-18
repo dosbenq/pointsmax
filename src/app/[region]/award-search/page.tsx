@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
+import type { ActionabilityLevel, AvailabilityMode, ResultConfidence } from '@/lib/result-trust'
 
 type ProgramOption = Pick<Program, 'id' | 'name' | 'short_name' | 'type' | 'color_hex'>
 type BalanceRow = { id: string; program_id: string; amount: string }
@@ -95,6 +96,84 @@ function closeDatePopover(setOpen: (open: boolean) => void) {
   }, 0)
 }
 
+function getAvailabilityModeMeta(mode: AvailabilityMode): {
+  label: string
+  containerClass: string
+  badgeClass: string
+  summary: string
+} {
+  switch (mode) {
+    case 'live':
+      return {
+        label: 'Live availability',
+        containerClass: 'border-pm-success-border bg-pm-success-soft',
+        badgeClass: 'border-pm-success-border bg-pm-success-soft text-pm-success',
+        summary: 'PointsMax found live availability and ranked the reachable booking paths.',
+      }
+    case 'estimated':
+      return {
+        label: 'Modeled plan',
+        containerClass: 'border-pm-accent-border bg-pm-accent-soft',
+        badgeClass: 'border-pm-accent-border bg-pm-accent-soft text-pm-accent',
+        summary: 'These options are modeled from route and valuation data and still need live verification before transfer.',
+      }
+    case 'degraded':
+      return {
+        label: 'Degraded search',
+        containerClass: 'border-pm-warning-border bg-pm-warning-soft',
+        badgeClass: 'border-pm-warning-border bg-pm-warning-soft text-pm-warning',
+        summary: 'Live provider coverage was unavailable, so PointsMax fell back to estimates and preserved the best shortlist.',
+      }
+    case 'unavailable':
+    default:
+      return {
+        label: 'Unavailable',
+        containerClass: 'border-pm-border bg-pm-surface-soft',
+        badgeClass: 'border-pm-border bg-pm-surface-soft text-pm-ink-500',
+        summary: 'This search did not produce a usable booking path yet.',
+      }
+  }
+}
+
+function getConfidenceLabel(confidence: ResultConfidence): string {
+  switch (confidence) {
+    case 'high':
+      return 'High confidence'
+    case 'medium':
+      return 'Medium confidence'
+    case 'low':
+    default:
+      return 'Low confidence'
+  }
+}
+
+function getActionabilityLabel(actionability: ActionabilityLevel): string {
+  switch (actionability) {
+    case 'high':
+      return 'Ready to act'
+    case 'medium':
+      return 'Needs verification'
+    case 'low':
+    default:
+      return 'Use as a clue'
+  }
+}
+
+function getTransferTimingLabel(result: AwardSearchResult): string {
+  if (!result.transfer_chain) return 'No transfer required'
+  return result.transfer_is_instant ? 'Transfer timing: usually instant' : 'Transfer timing: may take time'
+}
+
+function getResultNextAction(result: AwardSearchResult): string {
+  if (result.has_real_availability && result.is_reachable) {
+    return 'Open the booking link or start the booking guide before transferring.'
+  }
+  if (result.is_reachable) {
+    return 'Verify live space on the booking site, then transfer only if the seat is still there.'
+  }
+  return 'Use this as a benchmark and improve your wallet or dates before transferring.'
+}
+
 function AwardResultCard({
   result,
   topSlug,
@@ -170,6 +249,20 @@ function AwardResultCard({
       {result.transfer_chain && (
         <p className="text-xs text-pm-accent">{result.transfer_chain}</p>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 text-[11px] text-pm-ink-500">
+        <span className="rounded-full border border-pm-border bg-pm-surface-soft px-2 py-0.5">
+          {getTransferTimingLabel(result)}
+        </span>
+        <span className="rounded-full border border-pm-border bg-pm-surface-soft px-2 py-0.5">
+          {result.is_reachable ? 'Wallet can cover this' : 'Wallet cannot cover this yet'}
+        </span>
+      </div>
+
+      <p className="text-xs leading-6 text-pm-ink-700">
+        <span className="font-semibold text-pm-ink-900">Next action:</span>{' '}
+        {getResultNextAction(result)}
+      </p>
 
       <div className="flex flex-wrap gap-2">
         <a
@@ -430,6 +523,7 @@ export default function AwardSearchPage() {
   const topSlug = narrative?.top_pick_slug ?? result?.ai_narrative?.top_pick_slug
   const estimatesOnly = result?.error === 'real_availability_unavailable'
   const searchWarnings = result?.warnings ?? []
+  const trustMeta = result ? getAvailabilityModeMeta(result.availability_mode) : null
 
   const saveWatch = async () => {
     if (!result || !user) return
@@ -542,13 +636,13 @@ export default function AwardSearchPage() {
           <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-end">
             <div>
               <span className="inline-flex rounded-full border border-pm-accent-border bg-pm-accent-soft px-4 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-accent">
-                Planner subflow
+                Booking search
               </span>
               <h1 className="mt-5 pm-display text-[3.15rem] leading-[0.93] sm:text-[4.5rem]">
-                Search award space with a better decision frame.
+                See what your points can actually book on this route.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-8 text-pm-ink-700">
-                Use this when you already know the route. Planner remains the main decision surface; Award Search is the direct verification tool.
+                Use this when you already know the route. Award Search verifies the reachable programs, transfer path, and booking links, and it now labels whether the answer is live or modeled.
               </p>
               <Link
                 href={`/${region}/calculator`}
@@ -592,7 +686,7 @@ export default function AwardSearchPage() {
                 <p className="pm-section-title mb-2">Inputs</p>
                 <h2 className="pm-heading text-lg">Define the route and balances</h2>
                 <p className="mt-2 text-sm leading-7 text-pm-ink-700">
-                  This page works best when you already know the route you want to verify and just need the reachable programs, transfer path, and booking links.
+                  This page works best when you already know the route you want to verify and need the reachable programs, transfer path, booking links, and a clear trust label for the output.
                 </p>
               </div>
               <div className="hidden rounded-full bg-[#0f2747] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[#f4f8ff] sm:inline-flex">
@@ -820,7 +914,7 @@ export default function AwardSearchPage() {
               disabled={loading || !isSearchReady}
               className="pm-button w-full"
             >
-              {loading ? 'Searching award space…' : 'Search awards'}
+              {loading ? 'Searching award space…' : 'See what your points can book'}
             </button>
 
             {error && (
@@ -841,16 +935,16 @@ export default function AwardSearchPage() {
             {!result ? (
               <>
                 <p className="pm-section-title mb-1">Results</p>
-                <h2 className="pm-heading text-lg">Live market view</h2>
+                <h2 className="pm-heading text-lg">Route execution view</h2>
                 <p className="pm-subtle text-sm">
-                  Run a search to see reachable programs, transfer paths, and booking links ranked for this route.
+                  Run a search to see reachable programs, transfer paths, booking links, and whether the result is live or modeled.
                 </p>
                 <div className="rounded-[22px] bg-pm-surface-soft p-4">
                   <p className="text-sm font-semibold text-pm-ink-900">What appears here</p>
                   <ul className="mt-2 space-y-1.5 text-xs leading-6 text-pm-ink-700">
                     <li>• Reachable programs first</li>
                     <li>• Points needed from your wallet</li>
-                    <li>• Transfer path and live/estimated status</li>
+                    <li>• Transfer timing and live or modeled status</li>
                   </ul>
                 </div>
                 <Link
@@ -869,6 +963,31 @@ export default function AwardSearchPage() {
                     {result.params.origin} → {result.params.destination} · {CABIN_LABELS[result.params.cabin]} · {result.params.passengers} pax
                   </p>
                 </div>
+
+                {trustMeta && (
+                  <div className={`rounded-xl border p-4 ${trustMeta.containerClass}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${trustMeta.badgeClass}`}>
+                        {trustMeta.label}
+                      </span>
+                      <span className="rounded-full border border-pm-border bg-pm-surface px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-pm-ink-500">
+                        {getConfidenceLabel(result.confidence)}
+                      </span>
+                      <span className="rounded-full border border-pm-border bg-pm-surface px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-pm-ink-500">
+                        {getActionabilityLabel(result.actionability)}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-pm-ink-900">{trustMeta.summary}</p>
+                    <p className="mt-2 text-sm text-pm-ink-700">
+                      <span className="font-semibold text-pm-ink-900">Next action:</span> {result.next_action}
+                    </p>
+                    {result.degraded_reason && (
+                      <p className="mt-2 text-xs text-pm-ink-500">
+                        Reason: {result.degraded_reason.replace(/_/g, ' ')}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {narrativeLoading && (
                   <div className="rounded-xl p-4 space-y-2 border border-pm-border bg-pm-surface-soft animate-pulse">
@@ -890,7 +1009,7 @@ export default function AwardSearchPage() {
                 {estimatesOnly && (
                   <div className="rounded-xl p-4 border border-pm-warning-border bg-pm-warning-soft">
                     <p className="text-sm text-pm-warning">
-                      {result.message ?? 'Showing chart estimates · Live seat availability requires API configuration.'}
+                      {result.message ?? 'Showing chart estimates. Verify live seat availability before transferring points.'}
                     </p>
                   </div>
                 )}
@@ -993,7 +1112,7 @@ export default function AwardSearchPage() {
                       No award availability found for this route yet.
                     </p>
                     <p className="text-xs text-pm-ink-500 mt-1">
-                      Try flexible dates, nearby airports, or a different cabin to expand options.
+                      {result.next_action}
                     </p>
                   </div>
                 )}

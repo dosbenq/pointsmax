@@ -3,6 +3,8 @@
 // Mirror of the PostgreSQL schema for TypeScript type safety
 // ============================================================
 
+import type { TrustState } from '@/lib/result-trust'
+
 export type ProgramType =
   | 'transferable_points'
   | 'airline_miles'
@@ -258,7 +260,7 @@ export interface TripBuilderBookingStep {
   url: string | null
 }
 
-export interface TripBuilderResponse {
+export interface TripBuilderResponse extends TrustState {
   top_flights: TripBuilderFlightOption[]
   hotel: TripBuilderHotelRecommendation | null
   booking_steps: TripBuilderBookingStep[]

@@ -11,7 +11,7 @@ import Footer from '@/components/Footer'
 import { CompareGrid } from '@/components/ui/compare/CompareGrid'
 import { WinnerBar } from '@/components/ui/compare/WinnerBar'
 import type { CardWithRates, SpendCategory } from '@/types/database'
-import type { CardComparePayload } from '@/features/card-recommender/domain/ui-contract'
+import type { CardComparePayload } from '@/features/card-recommender'
 import {
   formatCurrencyRounded,
   getCategoriesForRegion,

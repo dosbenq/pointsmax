@@ -41,6 +41,10 @@ vi.mock('@/lib/connectors/sync-orchestrator', () => ({
 vi.mock('@/lib/connectors/adapters', () => ({
   ensureConnectorRegistryInitialized: vi.fn(),
 }))
+vi.mock('@/lib/subscription', () => ({
+  getUserTier: vi.fn().mockResolvedValue('premium'),
+  canUseFeature: vi.fn().mockReturnValue(true),
+}))
 vi.mock('@/lib/connectors/connector-registry', () => ({
   connectorRegistry: {
     get: vi.fn().mockReturnValue({ providerId: 'amex', implemented: true }),

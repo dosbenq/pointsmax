@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { inngest } from '@/lib/inngest/client'
+import { isAuthorizedCronRequest } from '@/lib/cron-auth'
 import {
   fetchLatestVideoUrls,
   getConfiguredKnowledgeChannelUrl,
@@ -8,19 +9,10 @@ import {
 } from '@/lib/knowledge/channel-ingest'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const header = req.headers.get('authorization')
-  if (header === `Bearer ${secret}`) return true
-  const url = new URL(req.url)
-  return url.searchParams.get('secret') === secret
-}
-
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
 
-  if (!isAuthorized(req)) {
+  if (!isAuthorizedCronRequest(req)) {
     logWarn('cron_ingest_youtube_knowledge_unauthorized', { requestId })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

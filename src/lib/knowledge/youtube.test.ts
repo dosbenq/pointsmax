@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   chunkText,
   extractYouTubeChannelId,
+  isAllowedYouTubeChannelUrl,
   parseYouTubeFeedVideoUrls,
   parseYouTubeVideoId,
 } from './youtube'
@@ -40,5 +41,13 @@ describe('youtube knowledge helpers', () => {
     const chunks = chunkText(input, 300)
     expect(chunks.length).toBeGreaterThan(1)
     expect(chunks.every((c) => c.length <= 300)).toBe(true)
+  })
+
+  it('only allows youtube channel URLs for channel ingestion', () => {
+    expect(isAllowedYouTubeChannelUrl('https://www.youtube.com/@GreatIndianMiles')).toBe(true)
+    expect(isAllowedYouTubeChannelUrl('https://www.youtube.com/channel/UCabcd1234abcd1234abcd12')).toBe(true)
+    expect(isAllowedYouTubeChannelUrl('https://example.com/@GreatIndianMiles')).toBe(false)
+    expect(isAllowedYouTubeChannelUrl('http://www.youtube.com/@GreatIndianMiles')).toBe(false)
+    expect(isAllowedYouTubeChannelUrl('https://www.youtube.com/watch?v=abcDEF12345')).toBe(false)
   })
 })

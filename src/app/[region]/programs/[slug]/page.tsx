@@ -95,6 +95,35 @@ export default async function ProgramDetailPage({ params }: Props) {
     { name: 'Programs', url: `/${normalized}/programs/${program.slug}`.replace(`/${program.slug}`, '') },
     { name: program.name, url: `/${normalized}/programs/${program.slug}` },
   ], appOrigin)
+  const primaryUse = program.best_uses[0] ?? (
+    normalized === 'in'
+      ? 'Use this program when it gives you better airline, hotel, or transfer outcomes than cashing out locally.'
+      : 'Use this program when it gives you better airline, hotel, or transfer outcomes than simple cash-back.'
+  )
+  const workflowCards = [
+    {
+      href: `/${normalized}/profile`,
+      title: 'Track this program in Wallet',
+      description: 'Save the balance you already have so PointsMax can judge whether this program is reachable.',
+    },
+    {
+      href: `/${normalized}/award-search`,
+      title: 'Search awards before you transfer',
+      description: 'Check live vs estimated availability and compare the transfer friction before you move points.',
+    },
+    {
+      href: `/${normalized}/trip-builder`,
+      title: 'Build a booking plan',
+      description: 'Turn the right program into an execution-ready booking path with concrete next actions.',
+    },
+  ]
+  const executionNotes = [
+    `${program.transfer_in.length} mapped transfer-in source${program.transfer_in.length === 1 ? '' : 's'} feed this program today.`,
+    `${program.transfer_out.length} mapped transfer-out partner${program.transfer_out.length === 1 ? '' : 's'} can extend its value beyond direct redemptions.`,
+    normalized === 'in'
+      ? 'For India, the right program often depends on whether you want premium international value, domestic convenience, or hotel leverage.'
+      : 'For the US, the right program often depends on whether you want flexibility first or a tighter airline or hotel specialization.',
+  ]
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -109,6 +138,32 @@ export default async function ProgramDetailPage({ params }: Props) {
         </div>
       </section>
       <main className="flex-1 pm-shell py-8 space-y-8">
+        <section className="pm-card-soft p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div>
+              <p className="pm-label text-pm-accent">Why this program matters</p>
+              <h2 className="pm-heading text-2xl mt-3">Use {program.name} when the path is actually better than cashing out</h2>
+              <p className="mt-4 text-sm leading-7 text-pm-ink-700">{primaryUse}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {workflowCards.map((card) => (
+                  <Link key={card.href} href={card.href} className="rounded-2xl border border-pm-border bg-pm-surface px-4 py-4 transition-transform hover:-translate-y-0.5">
+                    <p className="text-sm font-semibold text-pm-ink-900">{card.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-pm-ink-500">{card.description}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="pm-card p-5">
+              <h3 className="pm-heading text-lg mb-3">Execution notes</h3>
+              <ul className="space-y-3 text-sm leading-6 text-pm-ink-700">
+                {executionNotes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
 
         <section className="grid md:grid-cols-2 gap-4">
           <div className="pm-card-soft p-5">
@@ -183,6 +238,24 @@ export default async function ProgramDetailPage({ params }: Props) {
                 ))}
               </ul>
             )}
+          </div>
+        </section>
+
+        <section className="pm-card p-6">
+          <h2 className="pm-heading text-2xl">Next moves inside PointsMax</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <Link href={`/${normalized}/calculator`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
+              <p className="text-sm font-semibold text-pm-ink-900">Check wallet reachability</p>
+              <p className="mt-2 text-sm leading-6 text-pm-ink-500">Start with your balances and see whether {program.name} is already in play.</p>
+            </Link>
+            <Link href={`/${normalized}/inspire`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
+              <p className="text-sm font-semibold text-pm-ink-900">Browse sweet spots</p>
+              <p className="mt-2 text-sm leading-6 text-pm-ink-500">Use route inspiration to understand where this kind of value shows up in practice.</p>
+            </Link>
+            <Link href={`/${normalized}/cards`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
+              <p className="text-sm font-semibold text-pm-ink-900">Find earning sources</p>
+              <p className="mt-2 text-sm leading-6 text-pm-ink-500">Review the cards that feed this program before you change your wallet strategy.</p>
+            </Link>
           </div>
         </section>
       </main>

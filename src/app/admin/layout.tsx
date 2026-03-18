@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import NavBar from '@/components/NavBar'
+import { isClientAdminEmail } from '@/lib/admin-emails'
 
 const NAV = [
   { href: '/admin', label: 'Overview' },
@@ -18,14 +19,12 @@ const NAV = [
   { href: '/admin/workflow-health', label: 'Workflow Health' },
 ]
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
-  const isAdmin = !!ADMIN_EMAIL && user?.email === ADMIN_EMAIL
+  const isAdmin = isClientAdminEmail(user?.email)
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {

@@ -73,7 +73,7 @@ export default async function InspirePage({ params }: Props) {
 
         {routes.length === 0 ? (
           <div className="mt-12 rounded-[28px] border border-pm-border bg-pm-surface p-8 text-center text-sm text-pm-ink-500">
-            Inspiration routes are being loaded for this region.
+            No inspiration routes are published for this region yet.
           </div>
         ) : (
           <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -110,13 +110,14 @@ export default async function InspirePage({ params }: Props) {
                       <div className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3">
                         <p className="text-pm-ink-500">Value</p>
                         <p className="mt-1 font-semibold text-pm-success-strong">{route.cpp_cents.toFixed(1)}¢/pt</p>
+                        <p className="mt-1 text-[11px] text-pm-ink-500">Modeled example</p>
                       </div>
                       <div className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3">
                         <p className="text-pm-ink-500">Miles</p>
                         <p className="mt-1 font-semibold text-pm-ink-900">{route.miles_required.toLocaleString()}</p>
                       </div>
                       <div className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3">
-                        <p className="text-pm-ink-500">Est. cash fare</p>
+                        <p className="text-pm-ink-500">Modeled cash fare</p>
                         <p className="mt-1 font-semibold text-pm-ink-900">${route.estimated_cash_value_usd.toLocaleString()}</p>
                       </div>
                       <div className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3">
@@ -126,6 +127,12 @@ export default async function InspirePage({ params }: Props) {
                     </div>
 
                     <p className="mt-5 text-sm leading-6 text-pm-ink-600">{route.description}</p>
+                    <p className="mt-3 text-xs text-pm-ink-500">
+                      Cash fare and value are directional examples, not a live quote for your exact travel date.
+                    </p>
+                    <p className="mt-3 text-xs text-pm-ink-500">
+                      Premium unlocks live availability on the next step. Free users see modeled award estimates.
+                    </p>
 
                     <Link
                       href={`/${normalizedRegion}/award-search?${searchParams.toString()}`}

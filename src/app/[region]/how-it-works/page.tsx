@@ -121,6 +121,29 @@ const getFAQ = (region: Region) => region === 'in' ? [
   },
 ]
 
+const getWorkflowStatus = (region: Region) => [
+  {
+    label: 'Live today',
+    title: 'Wallet import and valuation planning',
+    description: region === 'in'
+      ? 'Manual balances, statement imports, point valuation, and region-specific card/program workflows are available right now.'
+      : 'Manual balances, statement imports, point valuation, and region-specific card/program workflows are available right now.',
+    href: `/${region}/profile`,
+  },
+  {
+    label: 'Live with trust labels',
+    title: 'Award search and trip planning',
+    description: 'Search results and plans call out when data is live, estimated, or degraded so you know how much to trust the next move.',
+    href: `/${region}/award-search`,
+  },
+  {
+    label: 'Use before you apply',
+    title: 'Card strategy tied to redemptions',
+    description: 'Card recommendations, card pages, and program guides are meant to feed the booking workflow, not sit in a separate silo.',
+    href: `/${region}/card-recommender`,
+  },
+]
+
 export default function HowItWorksPage() {
   const params = useParams()
   const region = (params.region as Region) || 'us'
@@ -165,6 +188,7 @@ export default function HowItWorksPage() {
   const valueGap = VALUE_GAP_DATA[region]
   const steps = getSteps(region)
   const faq = getFAQ(region)
+  const workflowStatus = getWorkflowStatus(region)
 
   // Group programs by type
   const programsByType = programs.reduce((acc, p) => {
@@ -264,6 +288,23 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
+        <section>
+          <div className="text-center mb-8">
+            <span className="pm-pill mb-4">What ships today</span>
+            <h2 className="pm-heading text-3xl sm:text-4xl">Public-launch workflows that are already wired together</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {workflowStatus.map((item) => (
+              <Link key={item.href} href={item.href} className="pm-card p-6 transition-transform hover:-translate-y-0.5">
+                <span className="pm-pill text-pm-accent border-pm-accent-border bg-pm-accent-soft">{item.label}</span>
+                <h3 className="pm-heading text-xl mt-4">{item.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-pm-ink-700">{item.description}</p>
+                <p className="mt-4 text-sm font-semibold text-pm-accent">Open this workflow →</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
         {/* Programs We Cover - Dynamic from DB */}
         <section>
           <h2 className="pm-heading text-2xl mb-2">
@@ -335,13 +376,18 @@ export default function HowItWorksPage() {
           <h2 className="pm-heading text-2xl mb-2">Ready to see what you&apos;re missing?</h2>
           <p className="pm-subtle mb-6">
             {region === 'in' 
-              ? 'Enter your HDFC, Axis, or Amex balance and see the value gap in 30 seconds.'
-              : 'Enter your points balances and see the value gap in 30 seconds.'
+              ? 'Enter your HDFC, Axis, or Amex balance, then move into award search or trip planning with the same wallet context.'
+              : 'Enter your balances, then move into award search or trip planning with the same wallet context.'
             }
           </p>
-          <Link href={`/${region}/calculator`} className="pm-button">
-            {region === 'in' ? 'Calculate my points value →' : 'Calculate my points value →'}
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href={`/${region}/calculator`} className="pm-button">
+              Calculate my points value →
+            </Link>
+            <Link href={`/${region}/trip-builder`} className="pm-button-secondary">
+              Build my plan →
+            </Link>
+          </div>
         </section>
       </main>
 

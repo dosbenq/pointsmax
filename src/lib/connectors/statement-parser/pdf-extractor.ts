@@ -17,6 +17,7 @@ export type PdfExtractResult =
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024
 const MAX_PDF_PAGES = 20
+const MIN_EXTRACTED_TEXT_CHARS = 40
 
 export async function extractFromPdf(
   buffer: Buffer,
@@ -36,10 +37,19 @@ export async function extractFromPdf(
 
     const parsed = await parsePdf(buffer, { max: MAX_PDF_PAGES })
     const text = typeof parsed.text === 'string' ? parsed.text : ''
+    const normalizedText = text.replace(/\s+/g, ' ').trim()
+    const candidates = parseStatementText(text, programs, aliasRows)
+
+    if (normalizedText.length < MIN_EXTRACTED_TEXT_CHARS && candidates.length === 0) {
+      return {
+        ok: false,
+        error: 'This PDF appears to be image-based or has no selectable text. OCR is not supported yet. Use CSV import or paste statement text instead.',
+      }
+    }
 
     return {
       ok: true,
-      candidates: parseStatementText(text, programs, aliasRows),
+      candidates,
       page_count: Number(parsed.numpages ?? 0),
       char_count: text.length,
     }

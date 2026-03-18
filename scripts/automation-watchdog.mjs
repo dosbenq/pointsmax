@@ -53,6 +53,8 @@ async function requestJson(label, url, init = {}, options = {}) {
 }
 
 async function run() {
+  const cronHeaders = { authorization: `Bearer ${CRON_SECRET}` }
+
   await requestJson('Health', `${BASE_URL}/api/health`)
 
   await requestJson('Cards US', `${BASE_URL}/api/cards?geography=US`)
@@ -130,10 +132,9 @@ async function run() {
     }),
   })
 
-  const cronSecret = encodeURIComponent(CRON_SECRET)
-  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations?secret=${cronSecret}`)
-  await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts?secret=${cronSecret}`)
-  await requestJson('Cron ingest knowledge', `${BASE_URL}/api/cron/ingest-youtube-knowledge?secret=${cronSecret}`)
+  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations`, { headers: cronHeaders })
+  await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts`, { headers: cronHeaders })
+  await requestJson('Cron ingest knowledge', `${BASE_URL}/api/cron/ingest-youtube-knowledge`, { headers: cronHeaders })
 
   console.log('Automation watchdog checks completed successfully.')
 }

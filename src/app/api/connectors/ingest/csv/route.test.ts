@@ -187,9 +187,41 @@ Amex MR,50000`
     expect(mockUpsert).toHaveBeenCalled()
   })
 
+  it('returns preview candidates without saving when previewOnly is enabled', async () => {
+    const csvContent = `Program,Balance
+Chase UR,100000
+Mystery Miles,50000`
+
+    const formData = new FormData()
+    const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
+    formData.append('file', file)
+    formData.append('previewOnly', 'true')
+
+    const req = createFormRequest(formData)
+    const res = await POST(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.preview_only).toBe(true)
+    expect(body.summary.importedBalances).toBe(0)
+    expect(body.matched_rows).toEqual([
+      expect.objectContaining({
+        program_name: 'Chase UR',
+        program_id: 'prog-chase',
+      }),
+    ])
+    expect(body.unmatched_rows).toEqual([
+      expect.objectContaining({
+        program_name: 'Mystery Miles',
+        program_id: null,
+      }),
+    ])
+    expect(mockUpsert).not.toHaveBeenCalled()
+  })
+
   it('handles CSV with parse errors', async () => {
     const csvContent = `Program,Balance
-Chase,100000
+Chase UR,100000
 ,50000
 Amex,invalid`
     
@@ -256,7 +288,7 @@ Amex,invalid`
   it('handles database insert errors', async () => {
     mockUpsert.mockImplementationOnce(() => Promise.resolve({ error: { message: 'Database constraint violation' } }))
     
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
@@ -273,7 +305,7 @@ Amex,invalid`
   })
 
   it('accepts connectedAccountId parameter', async () => {
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
@@ -305,7 +337,7 @@ Amex,invalid`
 
   it('handles malformed CSV gracefully', async () => {
     const csvContent = `Program,Balance
-Chase,100000
+Chase UR,100000
 [incomplete row`
     
     const formData = new FormData()
@@ -317,12 +349,12 @@ Chase,100000
     const res = await POST(req)
     const body = await res.json()
 
-    // Should handle gracefully (one valid row, one invalid)
-    expect(body.summary.validRows).toBeGreaterThanOrEqual(0)
+    expect(res.status).toBe(200)
+    expect(body.summary.validRows).toBe(1)
   })
 
   it('returns correct job tracking info', async () => {
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
@@ -373,7 +405,7 @@ describe('GET /api/connectors/ingest/csv', () => {
 
   it('returns all jobs for user when no jobId specified', async () => {
     // First create a job via POST
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
     formData.append('file', file)
@@ -396,7 +428,7 @@ describe('GET /api/connectors/ingest/csv', () => {
 
   it('includes job details in response', async () => {
     // Create a job first
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
     formData.append('file', file)
@@ -425,7 +457,7 @@ describe('GET /api/connectors/ingest/csv', () => {
   })
 
   it('returns correct status object structure', async () => {
-    const csvContent = `Program,Balance\nChase,100000`
+    const csvContent = `Program,Balance\nChase UR,100000`
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
     formData.append('file', file)
@@ -474,6 +506,7 @@ describe('CSV Ingestion edge cases', () => {
 
     expect(res.status).toBe(200)
     expect(body.summary.validRows).toBe(2)
+    expect(body.unmatched_rows).toEqual([])
   })
 
   it('handles quoted CSV fields correctly', async () => {
@@ -491,6 +524,12 @@ describe('CSV Ingestion edge cases', () => {
     const body = await res.json()
 
     expect(res.status).toBe(200)
-    expect(body.summary.validRows).toBe(2)
+    expect(body.summary.validRows).toBe(1)
+    expect(body.unmatched_rows).toEqual([
+      expect.objectContaining({
+        program_name: 'Amex Gold',
+        program_id: null,
+      }),
+    ])
   })
 })
