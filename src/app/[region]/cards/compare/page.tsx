@@ -4,7 +4,10 @@ import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { WinnerBar } from '@/components/ui/compare/WinnerBar'
 import { CompareGrid } from '@/components/ui/compare/CompareGrid'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
+import { buildBreadcrumbJsonLd, buildFaqJsonLd } from '@/lib/seo-structured-data'
 import { getCanonicalCardSlug } from '@/lib/card-surfaces'
 import { buildCardComparePayloads } from '@/lib/card-compare'
 import type { Region } from '@/lib/regions'
@@ -44,6 +47,26 @@ export default async function CardComparePage({ params, searchParams }: Props) {
   }).slice(0, 4)
 
   const compareCards = buildCardComparePayloads(selectedCards, normalized)
+  const baseUrl = getConfiguredAppOrigin()
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'Home', url: `/${normalized}` },
+    { name: 'Cards', url: `/${normalized}/cards` },
+    { name: 'Compare', url: `/${normalized}/cards/compare` },
+  ], baseUrl)
+  const faqJsonLd = buildFaqJsonLd([
+    {
+      question: 'How should I compare reward cards?',
+      answer: 'Start with annual fee, strongest earn categories, and the program those points flow into. The right winner depends on how well the card fits your spend and redemption habits, not just one headline perk.',
+    },
+    {
+      question: 'Why do two cards with similar earn rates feel different in value?',
+      answer: 'Because the underlying rewards currency can have very different redemption value, transfer flexibility, and perk depth even when the raw earn rate looks similar.',
+    },
+    {
+      question: 'Should I compare cards from different issuers?',
+      answer: 'Yes. Cross-issuer comparisons are usually the fastest way to see whether you want simplicity, premium perks, or stronger transfer leverage in your wallet.',
+    },
+  ])
 
   return (
     <div className="min-h-screen flex flex-col bg-pm-bg">
@@ -94,6 +117,8 @@ export default async function CardComparePage({ params, searchParams }: Props) {
         </div>
       </main>
       <Footer />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(breadcrumbJsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(faqJsonLd)} />
     </div>
   )
 }

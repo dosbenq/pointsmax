@@ -396,16 +396,18 @@ export function mapToSnapshots(
   raw_payload: Record<string, unknown> | null
 }> {
   const now = new Date().toISOString()
-  
-  return rows.map(row => ({
+
+  return rows
+    .filter((row): row is CsvRow & { program_id: string } => typeof row.program_id === 'string' && row.program_id.length > 0)
+    .map(row => ({
     connected_account_id: connectedAccountId,
     user_id: userId,
-    program_id: row.program_id || 'unknown', // Caller should map program names to IDs
+    program_id: row.program_id,
     balance: row.balance,
     source: 'manual' as BalanceSnapshotSource,
     fetched_at: now,
     raw_payload: row.notes ? { notes: row.notes, import_source: 'csv' } : { import_source: 'csv' },
-  }))
+    }))
 }
 
 // ─────────────────────────────────────────────

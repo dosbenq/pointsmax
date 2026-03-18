@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { parseBalanceCsv, validateCsvFile, createIngestStatus } from '@/lib/connectors/csv-parser'
 import { logError, logInfo } from '@/lib/logger'
 import type { CsvRow } from '@/lib/connectors/csv-parser'
+import { matchProgramByName, type ProgramAliasRow } from '@/lib/connectors/program-matcher'
 import { ingestJobs } from './state'
 import type { IngestJob } from './state'
 
@@ -16,28 +17,22 @@ const MAX_CONCURRENT_JOBS = 3
 
 type ProgramRow = {
   id: string
-  name: string | null
-  short_name: string | null
-  slug: string | null
+  name: string
+  slug: string
 }
 
 type ConnectedAccountRow = {
   id: string
 }
 
-function normalizeProgramKey(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function matchesProgramFuzzy(search: string, keys: string[]): boolean {
-  return keys.some((key) => (
-    key.includes(search)
-    || search.includes(key)
-    || key.split(' ')[0] === search.split(' ')[0]
-  ))
+type IngestRow = {
+  program_name: string
+  balance: number
+  program_id: string | null
+  program_matched_name: string | null
+  confidence: 'exact' | 'alias' | 'fuzzy' | null
+  unmatched: boolean
+  notes?: string
 }
 
 async function getCurrentUserRowId(
@@ -58,53 +53,62 @@ async function resolvePrograms(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   rows: CsvRow[],
 ) {
-  const { data, error } = await supabase
-    .from('programs')
-    .select('id, name, short_name, slug')
-    .eq('is_active', true)
+  const [{ data, error }, { data: aliasesData, error: aliasesError }] = await Promise.all([
+    supabase
+      .from('programs')
+      .select('id, name, slug')
+      .eq('is_active', true),
+    supabase
+      .from('program_name_aliases')
+      .select('alias, program_slug'),
+  ])
 
   if (error) {
     throw new Error(`Failed to load programs: ${error.message}`)
   }
 
-  const rowsById = new Map<string, ProgramRow>()
-  const rowsByKey = new Map<string, ProgramRow>()
-  const allPrograms: Array<{ row: ProgramRow; keys: string[] }> = []
-  for (const row of ((data as ProgramRow[] | null) ?? [])) {
-    rowsById.set(row.id, row)
-    const keys: string[] = []
-    for (const raw of [row.id, row.name, row.short_name, row.slug]) {
-      if (typeof raw !== 'string' || raw.trim().length === 0) continue
-      const normalized = normalizeProgramKey(raw)
-      rowsByKey.set(normalized, row)
-      keys.push(normalized)
-    }
-    allPrograms.push({ row, keys })
-  }
+  const programs = ((data as ProgramRow[] | null) ?? [])
+  const aliases = aliasesError?.code === '42P01'
+    ? []
+    : (((aliasesData ?? []) as ProgramAliasRow[]))
+  const rowsById = new Map(programs.map((program) => [program.id, program]))
 
-  const resolved: Array<CsvRow & { resolved_program_id: string }> = []
-  const unresolvedErrors: string[] = []
+  const matchedRows: Array<IngestRow & { resolved_program_id: string }> = []
+  const unmatchedRows: IngestRow[] = []
 
   for (const row of rows) {
     const explicitId = typeof row.program_id === 'string' ? row.program_id.trim() : ''
-    const byId = explicitId ? rowsById.get(explicitId) : null
-    const normalizedSearch = normalizeProgramKey(explicitId || row.program_name)
-    const byKey = rowsByKey.get(normalizedSearch)
-    const fuzzy = allPrograms.find(({ keys }) => matchesProgramFuzzy(normalizedSearch, keys))?.row
-    const match = byId ?? byKey ?? fuzzy ?? null
+    const explicitMatch = explicitId ? rowsById.get(explicitId) ?? null : null
+    const match = explicitMatch
+      ? {
+          program_id: explicitMatch.id,
+          program_name: explicitMatch.name,
+          confidence: 'exact' as const,
+        }
+      : matchProgramByName(row.program_name, programs, aliases)
 
-    if (!match) {
-      unresolvedErrors.push(`Program not recognized: ${row.program_name}`)
+    const ingestRow: IngestRow = {
+      program_name: row.program_name,
+      balance: row.balance,
+      program_id: match?.program_id ?? null,
+      program_matched_name: match?.program_name ?? null,
+      confidence: match?.confidence ?? null,
+      unmatched: match === null,
+      ...(row.notes ? { notes: row.notes } : {}),
+    }
+
+    if (match) {
+      matchedRows.push({
+        ...ingestRow,
+        resolved_program_id: match.program_id,
+      })
       continue
     }
 
-    resolved.push({
-      ...row,
-      resolved_program_id: match.id,
-    })
+    unmatchedRows.push(ingestRow)
   }
 
-  return { resolved, unresolvedErrors }
+  return { matchedRows, unmatchedRows }
 }
 
 async function validateConnectedAccountOwnership(
@@ -258,17 +262,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { resolved, unresolvedErrors } = await resolvePrograms(supabase, parseResult.rows)
-    if (resolved.length === 0) {
+    const { matchedRows, unmatchedRows } = await resolvePrograms(supabase, parseResult.rows)
+    if (matchedRows.length === 0) {
       job.status = 'failed'
       job.completedAt = new Date().toISOString()
       job.result = {
         totalRows: parseResult.totalRows,
         validRows: 0,
-        invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+        invalidRows: parseResult.invalidRows + unmatchedRows.length,
         errors: [
           ...parseResult.errors.map(e => `Row ${e.row}: ${e.message}`),
-          ...unresolvedErrors,
+          ...unmatchedRows.map((row) => `Program not recognized: ${row.program_name}`),
         ],
       }
 
@@ -280,6 +284,7 @@ export async function POST(req: NextRequest) {
             customMessage: 'Import failed: all rows were invalid or unmatched.',
             errors: job.result.errors,
           }),
+          unmatched_rows: unmatchedRows,
         },
         { status: 422 }
       )
@@ -297,7 +302,7 @@ export async function POST(req: NextRequest) {
       }
 
       const fetchedAt = new Date().toISOString()
-      const snapshots = resolved.map((row) => ({
+      const snapshots = matchedRows.map((row) => ({
         connected_account_id: connectedAccountId,
         user_id: userId,
         program_id: row.resolved_program_id,
@@ -313,7 +318,7 @@ export async function POST(req: NextRequest) {
       insertError = result.error
       importedCount = snapshots.length
     } else {
-      const manualRows = resolved.map((row) => ({
+      const manualRows = matchedRows.map((row) => ({
         user_id: userId,
         program_id: row.resolved_program_id,
         balance: row.balance,
@@ -333,8 +338,11 @@ export async function POST(req: NextRequest) {
       job.result = {
         totalRows: parseResult.totalRows,
         validRows: 0,
-        invalidRows: parseResult.validRows + unresolvedErrors.length,
-        errors: [insertError.message, ...unresolvedErrors],
+        invalidRows: parseResult.validRows + unmatchedRows.length,
+        errors: [
+          insertError.message,
+          ...unmatchedRows.map((row) => `Program not recognized: ${row.program_name}`),
+        ],
       }
 
       logError('csv_ingest_db_failed', {
@@ -359,10 +367,10 @@ export async function POST(req: NextRequest) {
     job.result = {
       totalRows: parseResult.totalRows,
       validRows: importedCount,
-      invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+      invalidRows: parseResult.invalidRows + unmatchedRows.length,
       errors: [
         ...parseResult.errors.map(e => `Row ${e.row}: ${e.message}`),
-        ...unresolvedErrors,
+        ...unmatchedRows.map((row) => `Program not recognized: ${row.program_name}`),
       ],
     }
 
@@ -375,7 +383,7 @@ export async function POST(req: NextRequest) {
       durationMs: duration,
       totalRows: parseResult.totalRows,
       validRows: importedCount,
-      invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+      invalidRows: parseResult.invalidRows + unmatchedRows.length,
     })
 
     // Return success response
@@ -391,9 +399,11 @@ export async function POST(req: NextRequest) {
       summary: {
         totalRows: parseResult.totalRows,
         validRows: importedCount,
-        invalidRows: parseResult.invalidRows + unresolvedErrors.length,
+        invalidRows: parseResult.invalidRows + unmatchedRows.length,
         importedBalances: importedCount,
       },
+      matched_rows: matchedRows.map(({ resolved_program_id: _resolved, ...rest }) => rest),
+      unmatched_rows: unmatchedRows,
       warnings: job.result.errors.length > 0 ? job.result.errors : undefined,
     })
 

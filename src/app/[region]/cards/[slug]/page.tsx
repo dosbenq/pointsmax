@@ -6,17 +6,18 @@ import { Check, Info, Map, RefreshCw, Shield, Sparkles } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { TrackedApplyButton } from '@/components/cards/TrackedApplyButton'
+import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { CARD_ART_MAP, formatCurrencyRounded } from '@/lib/card-tools'
 import { buildReviewSnapshotFromCard, getCanonicalCardSlug } from '@/lib/card-surfaces'
-import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
+import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
+import { buildBreadcrumbJsonLd, buildCardProductJsonLd, buildFaqJsonLd } from '@/lib/seo-structured-data'
+import { getComparisonPagesForCard } from '@/lib/programmatic-content'
 import {
   getCardFeatureProfile,
   getSoftBenefits,
   SOFT_BENEFIT_COPY,
 } from '@/features/card-recommender/domain/metadata'
-import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
-import { generateCardJsonLd } from '@/lib/seo'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 
 type PageProps = {
@@ -164,6 +165,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
+function buildCardFaqs(card: CardWithRates, rates: Array<{ label: string; value: string }>): Array<{ question: string; answer: string }> {
+  const topRate = rates[0]
+  return [
+    {
+      question: `Is the annual fee on ${card.name} worth it?`,
+      answer: card.annual_fee_usd === 0
+        ? `${card.name} has no annual fee, so the decision comes down to whether you value its rewards ecosystem and category bonuses.`
+        : `${card.name} can justify its annual fee when you actively use ${card.program_name} and its strongest earning categories instead of treating it as a passive keeper card.`,
+    },
+    {
+      question: `What categories does ${card.name} earn the most on?`,
+      answer: topRate
+        ? `The strongest mapped category on ${card.name} is ${topRate.label.toLowerCase()} at ${topRate.value}. The rest of the value depends on how that earning pattern fits your actual spend mix.`
+        : `${card.name} does not yet have a dominant published earn category in the current catalog mapping, so review the issuer terms before treating it as category-led.`,
+    },
+    {
+      question: `Can ${card.name} points transfer to airlines or hotels?`,
+      answer: `${card.name} earns into ${card.program_name}. Whether that translates into airline or hotel transfer flexibility depends on the transfer partners attached to that rewards program rather than the card alone.`,
+    },
+  ]
+}
+
 export default async function CardReviewPage({ params }: PageProps) {
   const resolvedParams = await params
   const allCards = await getActiveCards(normalizeGeography(resolvedParams.region))
@@ -179,18 +202,25 @@ export default async function CardReviewPage({ params }: PageProps) {
   const featureProfile = getCardFeatureProfile(card)
   const softBenefits = getSoftBenefits(card).map((benefit) => SOFT_BENEFIT_COPY[benefit])
   const alternatives = buildAlternatives(card, allCards)
+  const relevantComparisons = await getComparisonPagesForCard(getCanonicalCardSlug(card), resolvedParams.region === 'in' ? 'in' : 'us')
   const compareHref = alternatives.length > 0
     ? `/${resolvedParams.region}/cards/compare?cards=${[card, ...alternatives.slice(0, 2)].map((entry) => getCanonicalCardSlug(entry)).join(',')}`
     : `/${resolvedParams.region}/cards/compare?cards=${getCanonicalCardSlug(card)}`
-  const appOrigin = getConfiguredAppOrigin()
-  const jsonLd = generateCardJsonLd({
+  const baseUrl = getConfiguredAppOrigin()
+  const faqJsonLd = buildFaqJsonLd(buildCardFaqs(card, rates))
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'Home', url: `/${resolvedParams.region}` },
+    { name: 'Cards', url: `/${resolvedParams.region}/cards` },
+    { name: card.name, url: `/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}` },
+  ], baseUrl)
+  const productJsonLd = buildCardProductJsonLd({
     name: card.name,
-    description: `${card.name} review with reward value, fee context, and wallet-fit analysis on PointsMax.`,
-    url: `${appOrigin}/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}`,
     issuer: card.issuer,
-    annualFeeAmount: card.annual_fee_usd,
-    annualFeeCurrency: card.currency,
-  })
+    description: overview,
+    applyUrl: card.apply_url ?? `/${resolvedParams.region}/cards/${getCanonicalCardSlug(card)}`,
+    imageUrl: CARD_ART_MAP[card.name] || card.image_url,
+    region: resolvedParams.region,
+  }, baseUrl)
 
   return (
     <div className="min-h-screen flex flex-col bg-pm-bg">
@@ -456,6 +486,21 @@ export default async function CardReviewPage({ params }: PageProps) {
               </div>
             ))}
           </div>
+
+          {relevantComparisons.length > 0 && (
+            <section className="mt-10">
+              <h3 className="pm-label">How this card compares</h3>
+              <ul className="mt-3 space-y-2">
+                {relevantComparisons.map((page) => (
+                  <li key={page.slug}>
+                    <Link href={page.href} className="text-sm font-medium text-pm-accent hover:underline">
+                      {page.title} →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </section>
 
         <section id="updates" className="scroll-mt-24">
@@ -474,7 +519,9 @@ export default async function CardReviewPage({ params }: PageProps) {
         </section>
       </div>
       <Footer />
-      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(faqJsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(breadcrumbJsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(productJsonLd)} />
     </div>
   )
 }

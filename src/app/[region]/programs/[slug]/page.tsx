@@ -7,6 +7,7 @@ import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { getProgramBySlug, listProgramsForRegion } from '@/lib/programmatic-content'
 import { REGIONS, type Region } from '@/lib/regions'
 import { generateProgramJsonLd } from '@/lib/seo'
+import { buildBreadcrumbJsonLd, buildFaqJsonLd } from '@/lib/seo-structured-data'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 
 type Props = {
@@ -75,6 +76,25 @@ export default async function ProgramDetailPage({ params }: Props) {
     description: `${program.name} valuation and transfer partner guide on PointsMax.`,
     url: `${appOrigin}/${normalized}/programs/${program.slug}`,
   })
+  const faqJsonLd = buildFaqJsonLd([
+    {
+      question: `How do I earn ${program.name} points?`,
+      answer: `You typically earn ${program.name} through region-mapped bank cards, issuer promotions, or direct paid activity inside the ${program.type.replace('_', ' ')} ecosystem.`,
+    },
+    {
+      question: `What can I redeem ${program.name} points for?`,
+      answer: `${program.name} can usually be redeemed through its own travel or cash-out channels, and in some cases through transfer partners or award charts where the value materially improves.`,
+    },
+    {
+      question: `Do ${program.name} points expire?`,
+      answer: `Expiry rules vary by program and account activity. Treat the official program terms as the source of truth before leaving a balance idle for long periods.`,
+    },
+  ])
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'Home', url: `/${normalized}` },
+    { name: 'Programs', url: `/${normalized}/programs/${program.slug}`.replace(`/${program.slug}`, '') },
+    { name: program.name, url: `/${normalized}/programs/${program.slug}` },
+  ], appOrigin)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -168,6 +188,8 @@ export default async function ProgramDetailPage({ params }: Props) {
       </main>
       <Footer />
       <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(faqJsonLd)} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={createSafeJsonLdScript(breadcrumbJsonLd)} />
     </div>
   )
 }

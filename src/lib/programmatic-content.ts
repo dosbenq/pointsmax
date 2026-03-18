@@ -329,6 +329,7 @@ export type ProgrammaticComparisonPage = {
   cardSlugs: string[]
   categoryFocus: string | null
   displayOrder: number
+  href: string
 }
 
 async function listComparisonPagesForRegionUncached(region: Region): Promise<ProgrammaticComparisonPage[]> {
@@ -351,6 +352,7 @@ async function listComparisonPagesForRegionUncached(region: Region): Promise<Pro
     cardSlugs: Array.isArray(row.card_slugs) ? row.card_slugs.filter((value): value is string => typeof value === 'string') : [],
     categoryFocus: row.category_focus,
     displayOrder: row.display_order,
+    href: `/${region}/cards/compare?cards=${Array.isArray(row.card_slugs) ? row.card_slugs.join(',') : ''}`,
   }))
 }
 
@@ -373,4 +375,12 @@ export async function getComparisonPageBySlug(
 ): Promise<ProgrammaticComparisonPage | null> {
   const pages = await listComparisonPagesForRegion(region)
   return pages.find((page) => page.slug === slug) ?? null
+}
+
+export async function getComparisonPagesForCard(
+  cardSlug: string,
+  region: Region,
+): Promise<ProgrammaticComparisonPage[]> {
+  const pages = await listComparisonPagesForRegion(region)
+  return pages.filter((page) => page.cardSlugs.includes(cardSlug))
 }

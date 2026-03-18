@@ -34,9 +34,9 @@ function makeSelectChain(table: string) {
       if (table === 'programs' && column === 'is_active') {
         return Promise.resolve({
           data: [
-            { id: 'prog-chase', name: 'Chase Ultimate Rewards', short_name: 'Chase UR', slug: 'chase-ur' },
-            { id: 'prog-amex', name: 'American Express Membership Rewards', short_name: 'Amex MR', slug: 'amex-mr' },
-            { id: 'prog-citi', name: 'Citi ThankYou', short_name: 'Citi TY', slug: 'citi-thankyou' },
+            { id: 'prog-chase', name: 'Chase Ultimate Rewards', slug: 'chase-ultimate-rewards' },
+            { id: 'prog-amex', name: 'American Express Membership Rewards', slug: 'amex-membership-rewards' },
+            { id: 'prog-citi', name: 'Citi ThankYou', slug: 'citi-thankyou' },
           ],
           error: null,
         })
@@ -60,17 +60,31 @@ function makeSelectChain(table: string) {
 }
 
 function installDefaultMockFrom() {
-  mockFrom.mockImplementation((table: string) => ({
-    insert: (payload: unknown) => {
-      const result = mockInsert(table, payload)
-      return result === undefined ? Promise.resolve({ error: null }) : result
-    },
-    upsert: (payload: unknown, options?: unknown) => {
-      const result = mockUpsert(table, payload, options)
-      return result === undefined ? Promise.resolve({ error: null }) : result
-    },
-    select: () => makeSelectChain(table),
-  }))
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'program_name_aliases') {
+      return {
+        select: async () => ({
+          data: [
+            { alias: 'chase ur', program_slug: 'chase-ultimate-rewards' },
+            { alias: 'amex mr', program_slug: 'amex-membership-rewards' },
+          ],
+          error: null,
+        }),
+      }
+    }
+
+    return {
+      insert: (payload: unknown) => {
+        const result = mockInsert(table, payload)
+        return result === undefined ? Promise.resolve({ error: null }) : result
+      },
+      upsert: (payload: unknown, options?: unknown) => {
+        const result = mockUpsert(table, payload, options)
+        return result === undefined ? Promise.resolve({ error: null }) : result
+      },
+      select: () => makeSelectChain(table),
+    }
+  })
 }
 
 function createFormRequest(formData: FormData, userId = 'test-user'): NextRequest {
@@ -168,6 +182,7 @@ Amex MR,50000`
     expect(body.status.status).toBe('completed')
     expect(body.summary.validRows).toBe(2)
     expect(body.summary.importedBalances).toBe(2)
+    expect(body.unmatched_rows).toEqual([])
     expect(body.jobId).toBeDefined()
     expect(mockUpsert).toHaveBeenCalled()
   })
@@ -191,7 +206,32 @@ Amex,invalid`
     expect(res.status).toBe(200)
     expect(body.summary.validRows).toBe(1)
     expect(body.summary.invalidRows).toBe(2)
+    expect(body.unmatched_rows).toEqual([])
     expect(body.warnings).toHaveLength(2)
+  })
+
+  it('returns unmatched rows for unresolved programs', async () => {
+    const csvContent = `Program,Balance
+Mystery Miles,100000
+Chase UR,50000`
+
+    const formData = new FormData()
+    const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
+    formData.append('file', file)
+
+    const req = createFormRequest(formData)
+    const res = await POST(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.summary.validRows).toBe(1)
+    expect(body.unmatched_rows).toEqual([
+      expect.objectContaining({
+        program_name: 'Mystery Miles',
+        unmatched: true,
+        program_id: null,
+      }),
+    ])
   })
 
   it('fails when no valid rows found', async () => {
