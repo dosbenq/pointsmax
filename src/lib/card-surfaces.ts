@@ -1,6 +1,7 @@
 import type { CardWithRates } from '@/types/database'
 import type { CardReviewSnapshot } from '@/features/card-recommender/domain/ui-contract'
 import { getSoftBenefits } from '@/features/card-recommender/domain/metadata'
+import { getCanonicalCardSlug as getSharedCanonicalCardSlug } from '@/lib/card-slugs'
 
 const EARN_RATE_LABELS: Record<string, string> = {
   dining: 'Dining',
@@ -29,8 +30,7 @@ export function getSafeExternalUrl(value: string | null | undefined): string | n
 }
 
 export function getCanonicalCardSlug(card: Pick<CardWithRates, 'id' | 'program_slug'>): string {
-  const slug = typeof card.program_slug === 'string' ? card.program_slug.trim() : ''
-  return slug || card.id
+  return getSharedCanonicalCardSlug(card)
 }
 
 export function buildReviewSnapshotFromCard(card: CardWithRates): CardReviewSnapshot {

@@ -9,6 +9,7 @@ import { TrackedApplyButton } from '@/components/cards/TrackedApplyButton'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { CARD_ART_MAP, formatCurrencyRounded } from '@/lib/card-tools'
 import { buildReviewSnapshotFromCard, getCanonicalCardSlug } from '@/lib/card-surfaces'
+import { matchesCardRouteSlug } from '@/lib/card-slugs'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 import { buildBreadcrumbJsonLd, buildCardProductJsonLd, buildFaqJsonLd } from '@/lib/seo-structured-data'
@@ -25,7 +26,7 @@ type PageProps = {
 }
 
 function findCardByRouteSlug(cards: CardWithRates[], slug: string): CardWithRates | null {
-  return cards.find((entry) => entry.program_slug === slug || entry.id === slug) ?? null
+  return cards.find((entry) => matchesCardRouteSlug(entry, slug)) ?? null
 }
 
 const RATE_LABELS: Record<SpendCategory, string> = {

@@ -10,8 +10,8 @@ describe('buildCardSlugById', () => {
       { id: 'card-3', name: 'Chase Sapphire Preferred Card', issuer: 'Chase' },
     ])
 
-    expect(slugs.get('card-1')).toBe('chase-sapphire-preferred-card')
-    expect(slugs.get('card-2')).toBe('chase-sapphire-preferred-card-chase')
+    expect(slugs.get('card-1')).toBe('chase-sapphire-preferred-card-chase')
+    expect(slugs.get('card-2')).toBe('chase-sapphire-preferred-card-chase-card2')
     expect(slugs.get('card-3')).toBe('chase-sapphire-preferred-card-chase-card3')
   })
 })

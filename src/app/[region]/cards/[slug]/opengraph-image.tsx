@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
+import { matchesCardRouteSlug } from '@/lib/card-slugs'
 
 export const size = {
   width: 1200,
@@ -24,7 +25,7 @@ function formatFee(amount: number, currency: string): string {
 export default async function Image({ params }: Props) {
   const { region, slug } = await params
   const cards = await getActiveCards(normalizeGeography(region))
-  const card = cards.find((entry) => entry.program_slug === slug || entry.id === slug)
+  const card = cards.find((entry) => matchesCardRouteSlug(entry, slug))
 
   const title = card?.name ?? 'PointsMax Card Review'
   const issuer = card?.issuer ?? 'PointsMax'

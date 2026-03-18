@@ -277,6 +277,8 @@ describe('POST /api/award-search', () => {
       expect(res.status).toBe(200)
       expect(body.provider).toBe('stub')
       expect(body.user_tier).toBe('free')
+      expect(body.estimates_only).toBe(true)
+      expect(body.live_availability).toBe(false)
       expect(awardSearch.createAwardProvider).not.toHaveBeenCalled()
     })
   })

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { createServerDbClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import type { CabinClass } from './types'
 import { logWarn } from '@/lib/logger'
 
@@ -66,7 +66,7 @@ export async function fetchCashFareUsd(
   if (!apiKey) return null
 
   const cacheId = buildCacheId(origin, destination, cabin, outboundDate)
-  const db = createServerDbClient()
+  const db = createAdminClient()
 
   try {
     const { data } = await db

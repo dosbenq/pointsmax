@@ -109,8 +109,17 @@ vi.mock('@/lib/connectors/connector-registry', () => ({
   },
 }))
 
+vi.mock('@/lib/subscription', () => ({
+  getUserTier: vi.fn().mockResolvedValue('premium'),
+  canUseFeature: vi.fn((tier: 'free' | 'premium', feature: string) => {
+    if (feature === 'connector_sync') return tier === 'premium'
+    return false
+  }),
+}))
+
 // Import AFTER mocks
 const { POST } = await import('./route')
+const { getUserTier } = await import('@/lib/subscription')
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -150,6 +159,7 @@ beforeEach(() => {
   mockAccount = makeActiveAccount()
   mockSupabaseUpdateError = null
   mockSyncOutcome = { status: 'ok', result: { balances: { 'prog-amex-mr': 50000 }, cursor: null } }
+  vi.mocked(getUserTier).mockResolvedValue('premium')
   mockBalanceSnapshotsInsert.mockClear()
   mockBalanceSnapshotsInsert.mockResolvedValue({ error: null })
   mockConnectorAuditInsert.mockClear()
@@ -175,6 +185,14 @@ describe('POST /api/connectors/sync — auth', () => {
 // ─────────────────────────────────────────────
 
 describe('POST /api/connectors/sync — validation', () => {
+  it('returns 403 when the user lacks premium access', async () => {
+    vi.mocked(getUserTier).mockResolvedValue('free')
+    const res = await POST(postRequest({ account_id: 'acct-001' }))
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error.code).toBe('PREMIUM_REQUIRED')
+  })
+
   it('returns 400 for invalid JSON', async () => {
     const req = new NextRequest('https://pointsmax.com/api/connectors/sync', {
       method: 'POST',

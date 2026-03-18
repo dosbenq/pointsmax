@@ -2,11 +2,36 @@ import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import type { SubscriptionTier } from '@/types/database'
 
-export type GatedFeature = 'live_award_search' | 'flight_watches'
+export type GatedFeature = 'live_award_search' | 'flight_watches' | 'connector_sync'
+type TierCacheEntry = { tier: SubscriptionTier; expiresAt: number }
+
+const TIER_CACHE_TTL_MS = 60_000
+const tierCache = new Map<string, TierCacheEntry>()
+
+function getCachedTier(cacheKey: string): SubscriptionTier | null {
+  const cached = tierCache.get(cacheKey)
+  if (!cached) return null
+  if (cached.expiresAt <= Date.now()) {
+    tierCache.delete(cacheKey)
+    return null
+  }
+  return cached.tier
+}
+
+function setCachedTier(cacheKey: string, tier: SubscriptionTier) {
+  tierCache.set(cacheKey, { tier, expiresAt: Date.now() + TIER_CACHE_TTL_MS })
+}
+
+export function resetSubscriptionTierCache() {
+  tierCache.clear()
+}
 
 export async function getUserTier(userId?: string): Promise<SubscriptionTier> {
   try {
     if (userId) {
+      const cached = getCachedTier(`user:${userId}`)
+      if (cached) return cached
+
       const admin = createAdminClient()
       const { data } = await admin
         .from('users')
@@ -14,7 +39,9 @@ export async function getUserTier(userId?: string): Promise<SubscriptionTier> {
         .eq('id', userId)
         .single()
 
-      return data?.tier === 'premium' ? 'premium' : 'free'
+      const tier = data?.tier === 'premium' ? 'premium' : 'free'
+      setCachedTier(`user:${userId}`, tier)
+      return tier
     }
 
     const supabase = await createSupabaseServerClient()
@@ -24,13 +51,18 @@ export async function getUserTier(userId?: string): Promise<SubscriptionTier> {
 
     if (!user) return 'free'
 
+    const cached = getCachedTier(`auth:${user.id}`)
+    if (cached) return cached
+
     const { data } = await supabase
       .from('users')
       .select('tier')
-      .eq('auth_id', user.id)
-      .single()
+        .eq('auth_id', user.id)
+        .single()
 
-    return data?.tier === 'premium' ? 'premium' : 'free'
+    const tier = data?.tier === 'premium' ? 'premium' : 'free'
+    setCachedTier(`auth:${user.id}`, tier)
+    return tier
   } catch {
     return 'free'
   }
@@ -40,6 +72,7 @@ export function canUseFeature(tier: SubscriptionTier, feature: GatedFeature): bo
   switch (feature) {
     case 'live_award_search':
     case 'flight_watches':
+    case 'connector_sync':
       return tier === 'premium'
   }
 }

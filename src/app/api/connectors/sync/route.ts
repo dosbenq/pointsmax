@@ -27,6 +27,7 @@ import type { ConnectedAccount, FetchBalanceResult, SyncErrorCode } from '@/type
 import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
 import { createAdminClient } from '@/lib/supabase'
 import { ensureConnectorRegistryInitialized } from '@/lib/connectors/adapters'
+import { canUseFeature, getUserTier } from '@/lib/subscription'
 
 // ─────────────────────────────────────────────
 // Persistence: Supabase-backed sync state
@@ -217,6 +218,19 @@ export async function POST(req: NextRequest) {
   const userId = (userRow as { id?: string } | null)?.id
   if (!userId) {
     return NextResponse.json({ error: 'User record not found' }, { status: 404 })
+  }
+
+  const tier = await getUserTier(userId)
+  if (!canUseFeature(tier, 'connector_sync')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PREMIUM_REQUIRED',
+          message: 'Wallet sync requires PointsMax Premium.',
+        },
+      },
+      { status: 403 },
+    )
   }
 
   // Fetch connected account (RLS ensures ownership)

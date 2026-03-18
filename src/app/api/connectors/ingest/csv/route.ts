@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
 
     // Check concurrent job limit
     const userJobs = Array.from(ingestJobs.values()).filter(j => 
-      j.userId === userId && j.status === 'processing'
+      j.userId === authUserId && j.status === 'processing'
     )
     if (userJobs.length >= MAX_CONCURRENT_JOBS) {
       return NextResponse.json(
@@ -402,7 +402,10 @@ export async function POST(req: NextRequest) {
         invalidRows: parseResult.invalidRows + unmatchedRows.length,
         importedBalances: importedCount,
       },
-      matched_rows: matchedRows.map(({ resolved_program_id: _resolved, ...rest }) => rest),
+      matched_rows: matchedRows.map(({ resolved_program_id, ...rest }) => {
+        void resolved_program_id
+        return rest
+      }),
       unmatched_rows: unmatchedRows,
       warnings: job.result.errors.length > 0 ? job.result.errors : undefined,
     })

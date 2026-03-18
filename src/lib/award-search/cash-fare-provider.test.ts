@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createServerDbClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase'
 import { fetchCashFareUsd } from './cash-fare-provider'
 
 vi.mock('@/lib/supabase', () => ({
-  createServerDbClient: vi.fn(),
+  createAdminClient: vi.fn(),
 }))
 
 describe('fetchCashFareUsd', () => {
@@ -25,7 +25,7 @@ describe('fetchCashFareUsd', () => {
   })
 
   it('uses a fresh cache row when available', async () => {
-    vi.mocked(createServerDbClient).mockReturnValue({
+    vi.mocked(createAdminClient).mockReturnValue({
       from: vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -50,7 +50,7 @@ describe('fetchCashFareUsd', () => {
 
   it('fetches and stores a fare from SerpAPI when cache is stale', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null })
-    vi.mocked(createServerDbClient).mockReturnValue({
+    vi.mocked(createAdminClient).mockReturnValue({
       from: vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({

@@ -4,6 +4,7 @@ import type { Region } from '@/lib/regions'
 import type { SpendCategory } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
 import { unstable_cache } from 'next/cache'
+import { getCanonicalCardSlug } from '@/lib/card-slugs'
 
 type ProgramRow = {
   id: string
@@ -72,28 +73,15 @@ export type ProgrammaticProgram = ProgramRow & {
   best_uses: string[]
 }
 
-export function slugifyCardName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
 function buildCardSlug(card: CardIdentityRow, used = new Set<string>()): string {
-  const base = slugifyCardName(card.name)
+  const base = getCanonicalCardSlug(card)
   if (!used.has(base)) {
     used.add(base)
     return base
   }
 
-  const issuerSlug = `${base}-${slugifyCardName(card.issuer)}`
-  if (!used.has(issuerSlug)) {
-    used.add(issuerSlug)
-    return issuerSlug
-  }
-
   const idSuffix = card.id.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(-6)
-  const withId = `${issuerSlug}-${idSuffix}`
+  const withId = `${base}-${idSuffix}`
   used.add(withId)
   return withId
 }
@@ -178,7 +166,7 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
 
   return cardRows.map((card) => ({
     ...card,
-    slug: slugByCardId.get(card.id) ?? slugifyCardName(card.name),
+    slug: slugByCardId.get(card.id) ?? getCanonicalCardSlug(card),
     program: programById.get(card.program_id) ?? null,
     cpp_cents: resolveProgrammaticCppCents(
       valuationByProgramId.get(card.program_id),
@@ -245,7 +233,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
     list.push({
       id: card.id,
       name: card.name,
-      slug: slugByCardId.get(card.id) ?? slugifyCardName(card.name),
+      slug: slugByCardId.get(card.id) ?? getCanonicalCardSlug(card),
       issuer: card.issuer,
       apply_url: card.apply_url,
     })

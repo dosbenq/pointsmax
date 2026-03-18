@@ -126,7 +126,7 @@ export const valuationRefresh = inngest.createFunction(
         updates.map((row) => ({
           program_id: row.program_id,
           cpp_cents: row.cpp_cents,
-          source: 'manual',
+          source: 'tpg',
           source_url: TPG_VALUATIONS_URL,
           effective_date: today,
           notes: 'Auto-refreshed from TPG via valuation-refresh',

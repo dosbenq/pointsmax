@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { canUseFeature, getUserTier } from './subscription'
+import { canUseFeature, getUserTier, resetSubscriptionTierCache } from './subscription'
 
 vi.mock('@/lib/supabase', () => ({
   createAdminClient: vi.fn(),
@@ -14,6 +14,7 @@ vi.mock('@/lib/supabase-server', () => ({
 describe('subscription helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetSubscriptionTierCache()
   })
 
   it('returns free when no session exists', async () => {
@@ -48,7 +49,28 @@ describe('subscription helpers', () => {
   it('allows only premium users to access gated features', () => {
     expect(canUseFeature('free', 'live_award_search')).toBe(false)
     expect(canUseFeature('free', 'flight_watches')).toBe(false)
+    expect(canUseFeature('free', 'connector_sync')).toBe(false)
     expect(canUseFeature('premium', 'live_award_search')).toBe(true)
     expect(canUseFeature('premium', 'flight_watches')).toBe(true)
+    expect(canUseFeature('premium', 'connector_sync')).toBe(true)
+  })
+
+  it('caches tier lookups for a known internal user id', async () => {
+    const single = vi.fn().mockResolvedValue({ data: { tier: 'premium' } })
+
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single,
+          })),
+        })),
+      })),
+    } as never)
+
+    await expect(getUserTier('user-123')).resolves.toBe('premium')
+    await expect(getUserTier('user-123')).resolves.toBe('premium')
+
+    expect(single).toHaveBeenCalledTimes(1)
   })
 })

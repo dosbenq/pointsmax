@@ -7,12 +7,11 @@ import { CompareGrid } from '@/components/ui/compare/CompareGrid'
 import { WinnerBar } from '@/components/ui/compare/WinnerBar'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { buildCardComparePayloads } from '@/lib/card-compare'
-import { getCanonicalCardSlug } from '@/lib/card-surfaces'
+import { getCardRouteCandidates } from '@/lib/card-slugs'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import {
   getComparisonPageBySlug,
   listComparisonPagesForRegion,
-  slugifyCardName,
 } from '@/lib/programmatic-content'
 import type { Region } from '@/lib/regions'
 import type { CardWithRates } from '@/types/database'
@@ -61,14 +60,7 @@ function normalizeRegion(region: string): Region {
 }
 
 function buildComparisonSlugCandidates(card: CardWithRates): Set<string> {
-  const nameSlug = slugifyCardName(card.name)
-  const issuerSlug = slugifyCardName(card.issuer)
-  return new Set([
-    card.id,
-    getCanonicalCardSlug(card),
-    nameSlug,
-    `${nameSlug}-${issuerSlug}`,
-  ])
+  return getCardRouteCandidates(card)
 }
 
 function pickCardsBySlug(cards: CardWithRates[], requestedSlugs: string[]): CardWithRates[] {

@@ -111,6 +111,9 @@ export async function POST(req: NextRequest) {
         ai_narrative,
         warnings,
         searched_at: new Date().toISOString(),
+        estimates_only: true,
+        live_availability: false,
+        message: ESTIMATES_ONLY_MESSAGE,
         user_tier: tier,
       })
     } catch (err) {
@@ -186,6 +189,7 @@ export async function POST(req: NextRequest) {
           error: 'real_availability_unavailable',
           message: ESTIMATES_ONLY_MESSAGE,
           estimates_only: true,
+          live_availability: false,
           user_tier: tier,
         })
       } catch (fallbackErr) {
