@@ -54,3 +54,10 @@ export function assertServerEnv(): void {
   if (missing.length === 0) return
   throw new Error(`Missing required environment variables: ${missing.join(', ')}`)
 }
+
+export function shouldAssertServerEnvAtStartup(): boolean {
+  if (process.env.NODE_ENV !== 'production') return false
+
+  // Skip build-time assertion so Next/Vercel can collect static page config.
+  return process.env.NEXT_PHASE !== 'phase-production-build'
+}
