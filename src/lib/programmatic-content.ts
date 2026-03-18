@@ -1,4 +1,4 @@
-import { createServerDbClient } from '@/lib/supabase'
+import { createServerDbClient, hasConfiguredPublicSupabaseEnv } from '@/lib/supabase'
 import { yearlyPointsFromSpend } from '@/lib/card-tools'
 import type { Region } from '@/lib/regions'
 import type { SpendCategory } from '@/types/database'
@@ -129,6 +129,7 @@ export function estimateEffectiveCashbackPct(card: ProgrammaticCard): number {
 }
 
 async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticCard[]> {
+  if (!hasConfiguredPublicSupabaseEnv()) return []
   const db = createServerDbClient()
   const geography = geographyForRegion(region)
 
@@ -195,6 +196,7 @@ export async function getCardBySlug(region: Region, slug: string): Promise<Progr
 }
 
 async function listProgramsForRegionUncached(region: Region): Promise<ProgrammaticProgram[]> {
+  if (!hasConfiguredPublicSupabaseEnv()) return []
   const db = createServerDbClient()
   const geography = geographyForRegion(region)
 
@@ -321,6 +323,7 @@ export type ProgrammaticComparisonPage = {
 }
 
 async function listComparisonPagesForRegionUncached(region: Region): Promise<ProgrammaticComparisonPage[]> {
+  if (!hasConfiguredPublicSupabaseEnv()) return []
   const db = createServerDbClient()
   const { data, error } = await db
     .from('comparison_pages')

@@ -81,9 +81,13 @@ function pickCardsBySlug(cards: CardWithRates[], requestedSlugs: string[]): Card
 export async function generateStaticParams() {
   const params: Array<{ region: Region; slug: string }> = []
   for (const region of ['us', 'in'] as const) {
-    const pages = await listComparisonPagesForRegion(region)
-    for (const page of pages) {
-      params.push({ region, slug: page.slug })
+    try {
+      const pages = await listComparisonPagesForRegion(region)
+      for (const page of pages) {
+        params.push({ region, slug: page.slug })
+      }
+    } catch {
+      // Keep build resilient when DB-backed comparison pages are unavailable in CI.
     }
   }
   return params

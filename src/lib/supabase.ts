@@ -57,11 +57,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables. Check .env.local - some features will be disabled')
 }
 
+export function hasConfiguredPublicSupabaseEnv(): boolean {
+  return Boolean(supabaseUrl && supabaseAnonKey)
+}
+
 let publicClientSingleton: GenericSupabaseClient | null = null
 let adminClientSingleton: GenericSupabaseClient | null = null
 
 // Server-side public client (anon key, respects RLS)
 export function createPublicClient(): GenericSupabaseClient {
+  if (!hasConfiguredPublicSupabaseEnv()) {
+    throw new Error('Public Supabase client unavailable: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required')
+  }
   if (!publicClientSingleton) {
     publicClientSingleton = createClient<GenericDatabase>(dbUrl, supabaseAnonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
