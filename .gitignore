@@ -28,3 +28,4 @@ agents/outbox/**
 agents/runtime/**
 !agents/runtime/.gitkeep
 .agent-state/
+.vercel
