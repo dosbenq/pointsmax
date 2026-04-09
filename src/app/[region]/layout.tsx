@@ -19,6 +19,10 @@ export async function generateMetadata({ params }: { params: Promise<{ region: s
       : 'Turn your credit card points into dream flights. Compare valuations for Chase UR, Amex MR, and more loyalty programs.',
     alternates: {
       canonical: `/${region}`,
+      languages: {
+        'en-US': '/us',
+        'en-IN': '/in',
+      },
     },
     openGraph: {
       title: `PointsMax ${label}`,

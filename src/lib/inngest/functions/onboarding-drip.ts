@@ -53,6 +53,18 @@ export const onboardingDrip = inngest.createFunction(
     const sent = await step.run('send-onboarding-sequence', async () => {
       let sentCount = 0
       for (const user of users) {
+        // Check if user already received onboarding emails via event-driven flow
+        const { data: existingLog } = await db
+          .from('onboarding_email_log')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('email_type', 'welcome')
+          .maybeSingle()
+        if (existingLog) {
+          // Skip — already handled by event-driven onboarding-emails
+          continue
+        }
+
         const [logsRes, balanceRes, clickRes, bonusRes] = await Promise.all([
           db.from('onboarding_email_log').select('user_id, email_kind').eq('user_id', user.id),
           db.from('user_balances').select('id', { count: 'exact', head: true }).eq('user_id', user.id),

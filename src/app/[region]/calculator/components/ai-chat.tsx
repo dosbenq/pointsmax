@@ -65,7 +65,7 @@ export function AIChat({
         )}
       </div>
 
-      <div className="px-5 sm:px-6 py-5 space-y-4 max-h-[600px] overflow-y-auto bg-pm-surface-soft/30">
+      <div className="px-5 sm:px-6 py-5 space-y-4 max-h-[600px] overflow-y-auto bg-pm-surface-soft/30" aria-live="polite">
         {!hasCalculatorResult && (
           <div className="rounded-xl border border-pm-border bg-pm-surface-soft px-4 py-3">
             <p className="text-pm-ink-700 text-sm">

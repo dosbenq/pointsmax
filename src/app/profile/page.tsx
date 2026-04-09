@@ -97,6 +97,8 @@ function AlertSubscriptionsCard({ userEmail, region }: { userEmail: string; regi
       })
       .catch(() => setPrograms([]))
       .finally(() => setLoading(false))
+    // TODO: Load existing alert subscriptions via GET /api/alerts/subscribe?email=...
+    // to pre-populate selectedIds so users see their current selections on load.
   }, [region])
 
   const toggle = (id: string) => {
