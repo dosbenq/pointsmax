@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const db = createServerDbClient()
     const { data, error } = await db
       .from('latest_valuations')
-      .select('program_id, program_name, cpp_cents, updated_at')
+      .select('program_id, program_name, cpp_cents, source, source_url, notes, updated_at')
       .order('program_name')
 
     if (error) {
