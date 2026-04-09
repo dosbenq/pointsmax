@@ -81,16 +81,16 @@ export async function POST(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { getAll: () => cookieStore.getAll() } },
     )
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      authEmail = session.user.email?.trim().toLowerCase() ?? null
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      authEmail = user.email?.trim().toLowerCase() ?? null
 
       // Look up internal user record
       const db = createAdminClient()
       const { data: userRowData } = await db
         .from('users')
         .select('id')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single()
       const userRow = (userRowData ?? null) as UserIdRow | null
       user_id = userRow?.id ?? null

@@ -127,23 +127,25 @@ export const transferBonusMonitor = inngest.createFunction(
     const db = createAdminClient()
     const today = new Date().toISOString().slice(0, 10)
 
-    const sourceHtml = await step.run('fetch-transfer-bonus-sources', async () => {
+    const sourcePairs = await step.run('fetch-transfer-bonus-sources', async () => {
       const pages = await Promise.all(SOURCE_URLS.map(async (sourceUrl) => {
         const response = await fetch(sourceUrl, {
           headers: { 'User-Agent': 'PointsMaxBonusMonitor/1.0 (+https://pointsmax.com)' },
           cache: 'no-store',
         })
-        if (!response.ok) return ''
-        return response.text()
+        if (!response.ok) return { html: '', sourceUrl }
+        return { html: await response.text(), sourceUrl }
       }))
-      return pages.filter(Boolean)
+      return pages.filter((p) => p.html.length > 0)
     })
+
+    const sourceHtml = sourcePairs.map((p) => p.html)
 
     const extracted = await step.run('extract-transfer-bonus-candidates', async () => {
       const apiKey = process.env.GEMINI_API_KEY?.trim()
       if (apiKey && sourceHtml.length > 0) {
         const genAI = new GoogleGenerativeAI(apiKey)
-        const prompt = `Extract transfer bonus offers from these HTML pages. Return JSON only as an array of objects shaped like {"from":"...", "to":"...", "bonus_pct":25, "end_date":"YYYY-MM-DD"}. Ignore expired offers and rumors.\n\n${sourceHtml.map((html, index) => `SOURCE ${index + 1}\n${html.slice(0, 90000)}`).join('\n\n')}`
+        const prompt = `Extract transfer bonus offers from these HTML pages. Return JSON only as an array of objects shaped like {"from":"...", "to":"...", "bonus_pct":25, "end_date":"YYYY-MM-DD", "source_index":0}. source_index is the 0-based index of the SOURCE the bonus was found in. Ignore expired offers and rumors.\n\n${sourceHtml.map((html, index) => `SOURCE ${index}\n${html.slice(0, 90000)}`).join('\n\n')}`
         const candidates = await getGeminiModelCandidatesForApiKey(apiKey)
 
         for (const candidate of candidates) {
@@ -153,7 +155,7 @@ export const transferBonusMonitor = inngest.createFunction(
             const text = result.response.text()
             const match = text.match(/\[[\s\S]*\]/)
             if (match) {
-              const parsed = JSON.parse(match[0]) as ExtractedBonus[]
+              const parsed = JSON.parse(match[0]) as (ExtractedBonus & { source_index?: number })[]
               const bonuses = parsed.filter((row) => Number.isFinite(row.bonus_pct) && row.bonus_pct > 0)
               if (bonuses.length > 0) return bonuses
             }
@@ -196,14 +198,18 @@ export const transferBonusMonitor = inngest.createFunction(
 
         if (existing?.id) continue
 
+        const sourceIndex = (bonus as ExtractedBonus & { source_index?: number }).source_index
+        const detectedSource = typeof sourceIndex === 'number' && sourceIndex >= 0 && sourceIndex < sourcePairs.length
+          ? sourcePairs[sourceIndex].sourceUrl
+          : undefined
+
         const { error } = await db.from('transfer_bonuses').insert({
           transfer_partner_id: partner.id,
           bonus_pct: bonus.bonus_pct,
           start_date: today,
           end_date: bonus.end_date,
-          source_url: SOURCE_URLS[0],
+          source_url: detectedSource || SOURCE_URLS[0],
           auto_detected: true,
-          verified: false,
           is_verified: false,
           active: true,
           notes: 'Automatically detected by transfer-bonus-monitor',

@@ -33,15 +33,13 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    logError('programs_api_error', {
+    logError('programs_fetch_failed', {
       region,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : String(error),
     })
-    // Return empty array so UI shows a "no programs available" message instead of failing with invalid UUIDs
-    return NextResponse.json([], {
-      headers: {
-        'Cache-Control': 'no-store, private',
-      },
-    })
+    return NextResponse.json(
+      { error: 'Failed to load programs' },
+      { status: 503, headers: { 'Retry-After': '30' } }
+    )
   }
 }

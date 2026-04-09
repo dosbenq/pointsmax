@@ -140,7 +140,7 @@ ${fullText.slice(0, 30000)}
             },
           }, {
             onConflict: 'source_id,content_hash',
-            ignoreDuplicates: false,
+            ignoreDuplicates: true,
           })
         }
       })

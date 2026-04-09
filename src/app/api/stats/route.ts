@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerDbClient } from '@/lib/supabase'
+import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 
 type CachedStats = {
@@ -66,7 +67,14 @@ async function setUpstashCache(payload: CachedStats['payload']): Promise<void> {
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimitResponse = await enforceRateLimit(req, {
+    namespace: 'stats_ip',
+    maxRequests: 60,
+    windowMs: 60 * 1000,
+  })
+  if (rateLimitResponse) return rateLimitResponse
+
   const cache = getCacheStore()
   const now = Date.now()
   const distributed = await getUpstashCache()
@@ -96,15 +104,16 @@ export async function GET() {
     logError('public_stats_fetch_failed', { error: error.message })
     // Return fallback stats so the frontend doesn't crash
     const fallbackPayload = {
-      users: 54120,
-      trackedPoints: 2310000000,
-      pointsOptimized: 4500000,
-      valueUsd: 45000,
-      valueInr: 3735000,
+      users: 0,
+      trackedPoints: 0,
+      pointsOptimized: 0,
+      isFallback: true,
+      valueUsd: 0,
+      valueInr: 0,
     }
     return NextResponse.json(fallbackPayload, {
       headers: {
-        'Cache-Control': 'public, s-maxage=360, stale-while-revalidate=360',
+        'Cache-Control': 'no-store, max-age=0',
       },
     })
   }

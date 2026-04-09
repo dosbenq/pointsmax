@@ -136,6 +136,15 @@ export async function POST(req: NextRequest) {
   }
   const bookingContext: BookingGuideContext | null = sanitizeBookingGuideContext(body.booking_context)
 
+  // Check Inngest configuration FIRST, before creating a session
+  if (!process.env.INNGEST_EVENT_KEY?.trim() && process.env.NODE_ENV === 'production') {
+    logWarn('booking_guide_start_missing_event_key', { requestId, user_id: auth.profileId })
+    return NextResponse.json(
+      { error: 'Booking workflow service is not configured' },
+      { status: 503 },
+    )
+  }
+
   const supabase = await createSupabaseServerClient()
   const { data: sessionData, error: sessionError } = await supabase
     .from('booking_guide_sessions')
@@ -159,14 +168,6 @@ export async function POST(req: NextRequest) {
   }
 
   const session = sessionData as unknown as BookingGuideSessionRow
-
-  if (!process.env.INNGEST_EVENT_KEY?.trim() && process.env.NODE_ENV === 'production') {
-    logWarn('booking_guide_start_missing_event_key', { requestId, user_id: auth.profileId })
-    return NextResponse.json(
-      { error: 'Workflow is not configured. Missing INNGEST_EVENT_KEY.' },
-      { status: 503 },
-    )
-  }
 
   try {
     const result = await inngest.send({

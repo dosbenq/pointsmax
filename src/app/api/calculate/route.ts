@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
     return badRequest('Provide at least one balance')
   }
 
+  if (balances.length > 50) {
+    return badRequest('Too many balances. Maximum 50 allowed.')
+  }
+
   // Validate each balance entry
   for (const b of balances) {
     if (!b.program_id || typeof b.amount !== 'number' || b.amount <= 0) {

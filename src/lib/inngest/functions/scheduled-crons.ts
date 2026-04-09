@@ -37,23 +37,29 @@ async function invokeCronPath(path: string): Promise<{ ok: boolean; status?: num
 export const scheduledBonusAlerts = inngest.createFunction(
   { id: 'scheduled-bonus-alerts', name: 'Scheduled: Bonus Alerts Dispatch' },
   { cron: '0 9 * * *' },
-  async () => {
-    return invokeCronPath('/api/cron/send-bonus-alerts')
+  async ({ step }) => {
+    return await step.run('invoke-bonus-alerts', () =>
+      invokeCronPath('/api/cron/send-bonus-alerts')
+    )
   },
 )
 
 export const scheduledValuationsUpdate = inngest.createFunction(
   { id: 'scheduled-valuations-update', name: 'Scheduled: TPG Valuation Update' },
   { cron: '0 10 1 * *' },
-  async () => {
-    return invokeCronPath('/api/cron/update-valuations')
+  async ({ step }) => {
+    return await step.run('invoke-valuations-update', () =>
+      invokeCronPath('/api/cron/update-valuations')
+    )
   },
 )
 
 export const scheduledYoutubeIngestion = inngest.createFunction(
   { id: 'scheduled-youtube-ingestion', name: 'Scheduled: YouTube Knowledge Ingest' },
   { cron: '0 11 * * 1' },
-  async () => {
-    return invokeCronPath('/api/cron/ingest-youtube-knowledge')
+  async ({ step }) => {
+    return await step.run('invoke-youtube-ingestion', () =>
+      invokeCronPath('/api/cron/ingest-youtube-knowledge')
+    )
   },
 )

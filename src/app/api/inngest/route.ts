@@ -13,6 +13,7 @@ import { indiaValuationsScraper } from "@/lib/inngest/functions/india-valuations
 import { valuationRefresh } from "@/lib/inngest/functions/valuation-refresh";
 import { catalogHealthDigest } from "@/lib/inngest/functions/catalog-health-digest";
 import { weeklyDigest } from "@/lib/inngest/functions/weekly-digest";
+import { onboardingDrip } from "@/lib/inngest/functions/onboarding-drip";
 
 // Create an API route that serves the Inngest functions
 export const { GET, POST, PUT } = serve({
@@ -33,5 +34,6 @@ export const { GET, POST, PUT } = serve({
     valuationRefresh,
     catalogHealthDigest,
     weeklyDigest,
+    onboardingDrip,
   ],
 });

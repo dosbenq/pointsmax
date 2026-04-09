@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getActiveBookingUrls } from '@/lib/db/booking-urls'
+import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 import { isValidBookingUrl } from '@/lib/booking-urls'
 
 export async function GET(request: Request) {
+  const rateLimitResponse = await enforceRateLimit(request, {
+    namespace: 'booking_urls_ip',
+    maxRequests: 60,
+    windowMs: 60 * 1000,
+  })
+  if (rateLimitResponse) return rateLimitResponse
+
   const { searchParams } = new URL(request.url)
   const region = searchParams.get('region') as 'us' | 'in' | null
 
