@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const client = createClient(
