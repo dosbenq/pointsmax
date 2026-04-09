@@ -68,13 +68,14 @@ export async function POST(request: Request) {
   }
 
   const effectiveDate = new Date().toISOString().slice(0, 10)
+  // TODO: Generate Supabase types to replace this cast
   const { error: insertErr } = await db.from('valuations').insert({
     program_id: program.id,
     cpp_cents: cppCents,
     source: 'manual',
     effective_date: effectiveDate,
     notes: notes || null,
-  } as never)
+  } as any)
 
   if (insertErr) {
     logError('admin_valuations_insert_failed', {

@@ -14,7 +14,7 @@ import { ProviderAuthError, ProviderRateLimitError } from './connector-interface
 import type { ProviderAdapter } from './connector-interface'
 import { retryWithBackoff } from '@/lib/queue-durability'
 import { recordDlqEntry } from '@/lib/queue-durability'
-import { logInfo, logError } from '@/lib/logger'
+import { logInfo, logError, logWarn } from '@/lib/logger'
 
 // ─────────────────────────────────────────────
 // POLICY CONSTANTS
@@ -50,6 +50,7 @@ export const SYNC_POLICY = {
  * Tests inject in-memory stubs.
  */
 export interface SyncPersistence {
+  getAccount?(accountId: string): Promise<{ data: { sync_status?: string } | null }>
   markSyncing(accountId: string): Promise<void>
   markSuccess(accountId: string, result: FetchBalanceResult): Promise<void>
   markError(
@@ -116,6 +117,15 @@ export async function runAccountSync(
 ): Promise<SyncOutcome> {
   const { account } = context
   const accountId = account.id
+
+  // Check if already syncing (optimistic lock)
+  if (persistence.getAccount) {
+    const { data: existingAccount } = await persistence.getAccount(accountId)
+    if (existingAccount?.sync_status === 'syncing') {
+      logWarn('sync_already_in_progress', { accountId })
+      return { status: 'error', errorCode: 'unknown' as SyncErrorCode, message: 'Sync already in progress', attempts: 0 }
+    }
+  }
 
   logInfo('sync_started', { accountId, provider: account.provider })
 

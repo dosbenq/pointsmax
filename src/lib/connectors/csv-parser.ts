@@ -230,7 +230,10 @@ function validateRow(
  * @param csvContent Raw CSV string content
  * @returns Parse result with rows or error details
  */
-export function parseBalanceCsv(csvContent: string): CsvParseResult {
+export function parseBalanceCsv(rawCsvContent: string): CsvParseResult {
+  // Strip UTF-8 BOM if present
+  const csvContent = rawCsvContent.startsWith('\uFEFF') ? rawCsvContent.slice(1) : rawCsvContent
+
   // Basic validation
   if (!csvContent || !csvContent.trim()) {
     return { success: false, error: 'CSV content is empty', rows: [] }

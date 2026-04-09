@@ -32,17 +32,17 @@ const TAG_BYTES = 16  // 128-bit authentication tag
 // KEY LOADING
 // ─────────────────────────────────────────────
 
-function loadEncryptionKey(): Buffer {
-  const hex = process.env.CONNECTOR_TOKEN_KEY
+function loadEncryptionKey(envVar = 'CONNECTOR_TOKEN_KEY'): Buffer {
+  const hex = process.env[envVar]?.trim()
   if (!hex) {
     throw new TokenVaultConfigError(
-      'CONNECTOR_TOKEN_KEY environment variable is not set. ' +
+      `${envVar} environment variable is not set. ` +
         'Generate one with: node -e "require(\'crypto\').randomBytes(32).toString(\'hex\')"',
     )
   }
   if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
     throw new TokenVaultConfigError(
-      'CONNECTOR_TOKEN_KEY must be a 64-character hex string (32 bytes)',
+      `${envVar} must be a 64-character hex string (32 bytes)`,
     )
   }
   return Buffer.from(hex, 'hex')
@@ -84,9 +84,7 @@ export function encryptToken(plaintext: string): string {
  * Throws TokenVaultDecryptError if the reference is malformed or if
  * GCM authentication fails (tampered ciphertext or wrong key).
  */
-export function decryptToken(vaultRef: string): string {
-  const key = loadEncryptionKey()
-
+function decryptWithKey(vaultRef: string, key: Buffer): string {
   let entry: VaultEntry
   try {
     entry = JSON.parse(vaultRef) as VaultEntry
@@ -115,6 +113,23 @@ export function decryptToken(vaultRef: string): string {
       'decryption failed — the vault reference may be corrupted or the key is wrong',
       cause instanceof Error ? cause : undefined,
     )
+  }
+}
+
+export function decryptToken(vaultRef: string): string {
+  try {
+    return decryptWithKey(vaultRef, loadEncryptionKey())
+  } catch (primaryErr) {
+    // Try previous key for rotation support
+    const previousKeyHex = process.env.CONNECTOR_TOKEN_KEY_PREVIOUS?.trim()
+    if (previousKeyHex && /^[0-9a-fA-F]{64}$/.test(previousKeyHex)) {
+      try {
+        return decryptWithKey(vaultRef, Buffer.from(previousKeyHex, 'hex'))
+      } catch {
+        // Both keys failed — throw the primary error
+      }
+    }
+    throw primaryErr
   }
 }
 

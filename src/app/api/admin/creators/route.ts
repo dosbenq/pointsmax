@@ -53,12 +53,28 @@ export async function POST(req: Request) {
   if (!slug) return NextResponse.json({ error: 'slug is required (letters, numbers, hyphen)' }, { status: 400 })
 
   const db = createAdminClient()
+
+  // Check slug uniqueness before creating
+  const { data: existing } = await db
+    .from('creators')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (existing) {
+    return NextResponse.json(
+      { error: `Creator with slug "${slug}" already exists` },
+      { status: 409 }
+    )
+  }
+
+  // TODO: Generate Supabase types to replace this cast
   const { error } = await db.from('creators').insert({
     name,
     slug,
     platform,
     profile_url: profileUrl,
-  } as never)
+  } as any)
 
   if (error) {
     logError('admin_creator_create_failed', { error: error.message, slug })

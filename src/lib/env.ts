@@ -64,3 +64,8 @@ export function shouldAssertServerEnvAtStartup(): boolean {
   // Skip build-time assertion so Next/Vercel can collect static page config.
   return process.env.NEXT_PHASE !== 'phase-production-build'
 }
+
+// Log which validation system ran in development
+if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('[env] Lightweight env check passed. Run assertValidEnv() for comprehensive validation.')
+}

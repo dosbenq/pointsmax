@@ -53,7 +53,8 @@ export async function PATCH(
 
   const { error } = await db
     .from('transfer_bonuses')
-    .update(update as never)
+    // TODO: Generate Supabase types to replace this cast
+    .update(update as any)
     .eq('id', id)
   if (error) {
     console.error('admin_bonus_update_failed', { bonus_id: id, action, error: error.message })

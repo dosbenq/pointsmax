@@ -55,12 +55,13 @@ export async function PATCH(request: Request) {
   const db = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
+  // TODO: Generate Supabase types to replace this cast
   const { error } = await db.from('valuations').insert({
     program_id,
     cpp_cents: parsedCpp,
     source: source ?? 'manual',
     effective_date: today,
-  } as never)
+  } as any)
 
   if (error) {
     console.error('admin_programs_valuation_insert_failed', { error: error.message })

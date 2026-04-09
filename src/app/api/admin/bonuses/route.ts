@@ -73,6 +73,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  // Validate dates
+  if (start_date && end_date) {
+    const start = new Date(start_date)
+    const end = new Date(end_date)
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
+    }
+    if (start >= end) {
+      return NextResponse.json({ error: 'start_date must be before end_date' }, { status: 400 })
+    }
+  }
+
   const parsedBonusPct = Number.parseFloat(String(bonus_pct))
   if (!Number.isFinite(parsedBonusPct) || parsedBonusPct <= 0) {
     return NextResponse.json({ error: 'bonus_pct must be a positive number' }, { status: 400 })
@@ -80,6 +92,7 @@ export async function POST(request: Request) {
 
   const db = createAdminClient()
 
+  // TODO: Generate Supabase types to replace this cast
   const { error } = await db.from('transfer_bonuses').insert({
     transfer_partner_id,
     bonus_pct: parsedBonusPct,
@@ -91,7 +104,7 @@ export async function POST(request: Request) {
     is_verified: true,
     active: true,
     auto_detected: false,
-  } as never)
+  } as any)
 
   if (error) {
     console.error('admin_bonuses_insert_failed', { error: error.message })

@@ -1,4 +1,5 @@
 import { Body, Button, Container, Head, Html, Preview, Section, Text } from '@react-email/components'
+import { EMAIL_THEME } from './theme'
 
 type Props = {
   userEmail: string
@@ -12,15 +13,15 @@ export function WelcomeEmail({ userEmail, portfolioValue, recommendations, calcu
     <Html>
       <Head />
       <Preview>Your PointsMax wallet is ready</Preview>
-      <Body style={{ backgroundColor: '#f6f8fb', fontFamily: 'Arial, sans-serif' }}>
-        <Container style={{ backgroundColor: '#ffffff', margin: '24px auto', padding: '32px', borderRadius: '16px' }}>
+      <Body style={{ backgroundColor: EMAIL_THEME.colors.background, fontFamily: EMAIL_THEME.fonts.family }}>
+        <Container style={{ backgroundColor: EMAIL_THEME.colors.surface, margin: '24px auto', padding: '32px', borderRadius: '16px' }}>
           <Section>
-            <Text style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a' }}>Welcome to PointsMax</Text>
-            <Text style={{ color: '#475569' }}>Signed in as {userEmail}. Your current portfolio value looks like <strong>{portfolioValue}</strong>.</Text>
+            <Text style={{ fontSize: '28px', fontWeight: 700, color: EMAIL_THEME.colors.text }}>Welcome to PointsMax</Text>
+            <Text style={{ color: EMAIL_THEME.colors.textSecondary }}>Signed in as {userEmail}. Your current portfolio value looks like <strong>{portfolioValue}</strong>.</Text>
             {recommendations.map((item) => (
-              <Text key={item} style={{ color: '#334155' }}>• {item}</Text>
+              <Text key={item} style={{ color: EMAIL_THEME.colors.text }}>• {item}</Text>
             ))}
-            <Button href={calculatorUrl} style={{ backgroundColor: '#0f172a', color: '#ffffff', padding: '12px 18px', borderRadius: '999px', textDecoration: 'none' }}>
+            <Button href={calculatorUrl} style={{ backgroundColor: EMAIL_THEME.colors.text, color: EMAIL_THEME.colors.surface, padding: '12px 18px', borderRadius: '999px', textDecoration: 'none' }}>
               Open calculator
             </Button>
           </Section>
