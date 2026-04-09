@@ -308,9 +308,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    revalidateTag('valuations')
-    revalidateTag('programmatic-cards')
-    revalidateTag('programmatic-programs')
+    revalidateTag('valuations', 'default')
+    revalidateTag('programmatic-cards', 'default')
+    revalidateTag('programmatic-programs', 'default')
     revalidatePath('/us/cards')
     revalidatePath('/in/cards')
     revalidatePath('/us/programs')

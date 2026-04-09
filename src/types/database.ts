@@ -231,11 +231,15 @@ export interface CardEarningRate {
   earn_multiplier: number
 }
 
-export interface CardWithRates extends Card {
+export interface CardWithRates extends Omit<Card, 'earning_rates'> {
   program_name: string
   program_slug: string
   cpp_cents: number
   earning_rates: Record<SpendCategory, number>
+  /** Optional — not yet stored in DB; used by compare grid */
+  signup_bonus_timeframe_months?: number | null
+  /** Optional — not yet stored in DB; used by compare grid */
+  forex_fee_pct?: number | null
 }
 
 // ─────────────────────────────────────────────
