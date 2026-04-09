@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { Check, Info, Map, RefreshCw, Shield, Sparkles } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
+import { DataFreshness } from '@/components/ui/DataFreshness'
 import { TrackedApplyButton } from '@/components/cards/TrackedApplyButton'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { CARD_ART_MAP, formatCurrencyRounded } from '@/lib/card-tools'
@@ -592,6 +593,7 @@ export default async function CardReviewPage({ params }: PageProps) {
             <p>Annual fee currently modeled at {snapshot.annualFee === 0 ? 'free' : formatCurrencyRounded(snapshot.annualFee, snapshot.currency)}.</p>
             <p>Welcome bonus currently modeled at {snapshot.welcomeBonus ? `${snapshot.welcomeBonus.points.toLocaleString()} points` : 'none'}.</p>
             <p>{card.program_name} valuation currently modeled at {formatCpp(card.cpp_cents)}.</p>
+            <DataFreshness />
           </div>
         </section>
       </div>

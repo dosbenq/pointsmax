@@ -6,6 +6,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { addDays, format, parseISO, isBefore, startOfToday } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -81,6 +82,8 @@ export function HotelResults({
   setHotelParams,
   rows,
 }: HotelResultsProps) {
+  const params = useParams()
+  const region = (params?.region as string) || 'us'
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [checkOutOpen, setCheckOutOpen] = useState(false)
   const [searching, setSearching] = useState(false)
@@ -315,6 +318,13 @@ export function HotelResults({
         <div className="rounded-2xl border border-pm-border bg-pm-surface-soft px-4 py-3 text-xs text-pm-ink-500">
           Hotels are chart-based right now. We rank likely award options from Hyatt, Marriott, and Hilton using the region you search and the balances already in your wallet.
         </div>
+
+        <a
+          href={`/${region}/hotel-search?dest=${encodeURIComponent(hotelParams.destination)}&in=${hotelParams.start_date}&out=${hotelParams.end_date}`}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-pm-accent text-white rounded-xl text-sm font-medium hover:opacity-90"
+        >
+          Search Real Availability →
+        </a>
 
         {walletBalances.length === 0 && (
           <p className="text-xs text-pm-ink-500">

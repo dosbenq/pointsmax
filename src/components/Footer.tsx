@@ -11,6 +11,8 @@ export default function Footer() {
 
   const productLinks = [
     { href: `/${region}/calculator`, label: 'Calculator' },
+    { href: `/${region}/award-search`, label: 'Award Search' },
+    { href: `/${region}/hotel-search`, label: 'Hotel Search' },
     { href: `/${region}/trip-builder`, label: 'Trip Builder' },
     { href: `/${region}/card-recommender`, label: 'Card Strategy' },
     { href: `/${region}/profile`, label: 'Wallet' },
@@ -19,8 +21,7 @@ export default function Footer() {
   const resourceLinks = [
     { href: `/${region}/cards`, label: 'Cards' },
     { href: `/${region}/programs`, label: 'Programs' },
-    { href: `/${region}/hotel-search`, label: 'Hotel Search' },
-    { href: `/${region}/devaluation-tracker`, label: 'Devaluations' },
+    { href: `/${region}/devaluation-tracker`, label: 'Devaluation Tracker' },
     { href: `/${region}/inspire`, label: 'Playbooks' },
     { href: `/${region}/how-it-works`, label: 'How it works' },
   ]

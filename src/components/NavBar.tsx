@@ -91,18 +91,13 @@ export default function NavBar() {
   const navLinks = useMemo(() => ([
     {
       href: `/${region}/calculator`,
-      label: 'See What You Can Book',
-      activePrefixes: [`/${region}/calculator`, `/${region}/award-search`, `/${region}/inspire`],
+      label: 'Calculator',
+      activePrefixes: [`/${region}/calculator`],
     },
     {
-      href: `/${region}/trip-builder`,
-      label: 'Build My Plan',
-      activePrefixes: [`/${region}/trip-builder`, `/${region}/trips`],
-    },
-    {
-      href: `/${region}/card-recommender`,
-      label: 'Card Strategy',
-      activePrefixes: [`/${region}/card-recommender`, `/${region}/cards`],
+      href: `/${region}/award-search`,
+      label: 'Award Search',
+      activePrefixes: [`/${region}/award-search`, `/${region}/inspire`],
     },
     {
       href: `/${region}/hotel-search`,
@@ -110,14 +105,14 @@ export default function NavBar() {
       activePrefixes: [`/${region}/hotel-search`],
     },
     {
-      href: `/${region}/devaluation-tracker`,
-      label: 'Devaluations',
-      activePrefixes: [`/${region}/devaluation-tracker`],
+      href: `/${region}/cards`,
+      label: 'Cards',
+      activePrefixes: [`/${region}/cards`, `/${region}/card-recommender`],
     },
     {
-      href: `/${region}/profile`,
-      label: 'Wallet',
-      activePrefixes: [`/${region}/profile`],
+      href: `/${region}/programs`,
+      label: 'Programs',
+      activePrefixes: [`/${region}/programs`],
     },
   ]), [region])
 
