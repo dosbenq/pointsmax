@@ -14,7 +14,7 @@ type ClickRow = {
 }
 
 export async function GET(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

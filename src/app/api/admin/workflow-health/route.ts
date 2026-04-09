@@ -111,7 +111,7 @@ function mapEventIds(result: unknown): string[] {
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -212,7 +212,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
-  const authError = await requireAdmin(req)
+  const { error: authError, adminEmail } = await requireAdmin(req)
   if (authError) return authError
 
   const eventKey = process.env.INNGEST_EVENT_KEY?.trim()
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
 
     await logAdminAction('workflow.healthcheck_trigger', runId, {
       event_name: 'workflow.healthcheck',
-    })
+    }, adminEmail!)
 
     return NextResponse.json({
       ok: true,

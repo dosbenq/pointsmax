@@ -15,7 +15,7 @@ type ProgramLookupRow = {
 }
 
 export async function GET(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireAdmin(request)
+  const { error: authError, adminEmail } = await requireAdmin(request)
   if (authError) return authError
 
   let body: CreateValuationBody
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     program_slug: programSlug,
     cpp_cents: cppCents,
     notes,
-  })
+  }, adminEmail!)
 
   return NextResponse.json({ ok: true })
 }

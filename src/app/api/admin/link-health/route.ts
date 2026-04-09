@@ -18,7 +18,7 @@ type LatestRunRow = {
 }
 
 export async function GET(req: NextRequest) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()

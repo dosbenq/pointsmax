@@ -45,7 +45,7 @@ function makeRequest(body?: Record<string, unknown>) {
 describe('POST /api/admin/knowledge/ingest-channel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    requireAdminMock.mockResolvedValue(null)
+    requireAdminMock.mockResolvedValue({ error: null, adminEmail: 'admin@test.com' })
     process.env.GEMINI_API_KEY = 'gemini-key'
     process.env.INNGEST_EVENT_KEY = 'event-key'
     process.env.NODE_ENV = 'test'

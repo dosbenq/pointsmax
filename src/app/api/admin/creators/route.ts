@@ -16,7 +16,7 @@ function normalizeSlug(value: unknown): string {
 }
 
 export async function GET(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError, adminEmail } = await requireAdmin(req)
   if (authError) return authError
 
   let body: CreateCreatorBody
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     name,
     platform,
     profile_url: profileUrl,
-  })
+  }, adminEmail!)
 
   return NextResponse.json({ ok: true })
 }

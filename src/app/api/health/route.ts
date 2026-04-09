@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
   const healthSecret = process.env.HEALTHCHECK_SECRET?.trim()
   const requestSecret = req.headers.get('x-health-secret')?.trim()
   const isAuthorized =
-    process.env.NODE_ENV !== 'production' ||
+    process.env.NODE_ENV === 'development' ||
     (healthSecret && requestSecret && requestSecret === healthSecret)
 
   // Database health check with timeout

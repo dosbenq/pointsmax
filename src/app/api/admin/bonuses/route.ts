@@ -21,7 +21,7 @@ type BonusRow = {
 }
 
 export async function GET(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(request: Request) {
-  const authError = await requireAdmin(request)
+  const { error: authError, adminEmail } = await requireAdmin(request)
   if (authError) return authError
 
   const { transfer_partner_id, bonus_pct, start_date, end_date, source_url, notes } =
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     start_date,
     end_date,
     source_url: source_url || null,
-  })
+  }, adminEmail!)
 
   // Fire-and-forget: trigger alert emails if the bonus starts today
   const today = new Date().toISOString().split('T')[0]

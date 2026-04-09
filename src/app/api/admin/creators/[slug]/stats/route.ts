@@ -16,7 +16,7 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
-  const authError = await requireAdmin(request)
+  const { error: authError } = await requireAdmin(request)
   if (authError) return authError
 
   const { slug } = await context.params

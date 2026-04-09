@@ -6,7 +6,7 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireAdmin(request)
+  const { error: authError, adminEmail } = await requireAdmin(request)
   if (authError) return authError
 
   const { id } = await context.params
@@ -17,7 +17,7 @@ export async function DELETE(
     console.error('admin_bonus_delete_failed', { bonus_id: id, error: error.message })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-  await logAdminAction('bonus.delete', id, null)
+  await logAdminAction('bonus.delete', id, {}, adminEmail!)
   return NextResponse.json({ ok: true })
 }
 
@@ -29,7 +29,7 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const authError = await requireAdmin(request)
+  const { error: authError, adminEmail } = await requireAdmin(request)
   if (authError) return authError
 
   const { id } = await context.params
@@ -60,7 +60,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  await logAdminAction(`bonus.${action}`, id, update as Record<string, unknown>)
+  await logAdminAction(`bonus.${action}`, id, update as Record<string, unknown>, adminEmail!)
 
   return NextResponse.json({ ok: true, action })
 }

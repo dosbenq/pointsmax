@@ -5,7 +5,7 @@ import { buildCatalogHealthReport } from '@/lib/catalog-health'
 import { logError } from '@/lib/logger'
 
 export async function GET(request: Request) {
-  const authError = await requireAdmin(request)
+  const { error: authError } = await requireAdmin(request)
   if (authError) return authError
 
   const db = createAdminClient()

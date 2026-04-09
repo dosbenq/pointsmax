@@ -21,7 +21,7 @@ const { GET } = await import('./route')
 describe('GET /api/admin/affiliate-clicks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    requireAdminMock.mockResolvedValue(null)
+    requireAdminMock.mockResolvedValue({ error: null, adminEmail: 'admin@test.com' })
   })
 
   it('returns grouped metrics for the last 30 days', async () => {

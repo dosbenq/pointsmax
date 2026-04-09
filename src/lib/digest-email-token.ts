@@ -1,10 +1,13 @@
 import crypto from 'crypto'
 
 const TOKEN_VERSION = 'v1'
-const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 365
+const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 90 // 90 days
 
 function getSecret(): string {
   const secret = process.env.ALERTS_TOKEN_SECRET ?? process.env.CRON_SECRET
+  if (!process.env.ALERTS_TOKEN_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn('[security] ALERTS_TOKEN_SECRET not set — falling back to CRON_SECRET. Set a separate secret for production.')
+  }
   if (!secret) {
     throw new Error('ALERTS_TOKEN_SECRET or CRON_SECRET must be configured')
   }

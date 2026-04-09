@@ -15,6 +15,7 @@ type Payload = {
   source_page?: unknown
   rank?: unknown
   region?: unknown
+  recommendation_mode?: unknown
 }
 
 type CreatorSlugRow = { slug: string }
@@ -60,6 +61,8 @@ async function insertWithRetry(
     creator_slug: string | null
     rank: number | null
     region: string | null
+    recommendation_mode: string | null
+    program_id: string | null
   },
   maxAttempts = 3,
 ) {
@@ -103,7 +106,9 @@ export async function POST(req: NextRequest) {
   const sourcePage = normalizeSourcePage(body.source_page)
   const rank = normalizeRank(body.rank)
   const region = normalizeRegion(body.region)
-  return trackAndReturn(req, requestId, cardId, sourcePage, false, rank, region)
+  const recommendationMode = typeof body.recommendation_mode === 'string' ? body.recommendation_mode : null
+  const programId = typeof body.program_id === 'string' ? body.program_id : null
+  return trackAndReturn(req, requestId, cardId, sourcePage, false, rank, region, recommendationMode, programId)
 }
 
 async function trackAndReturn(
@@ -114,6 +119,8 @@ async function trackAndReturn(
   redirect: boolean,
   rank: number | null = null,
   region: string | null = null,
+  recommendationMode: string | null = null,
+  programId: string | null = null,
 ) {
   if (!cardId) {
     return badRequest('card_id is required')
@@ -178,6 +185,8 @@ async function trackAndReturn(
     creator_slug: resolvedCreatorSlug,
     rank,
     region,
+    recommendation_mode: recommendationMode,
+    program_id: programId,
   })
   if (!insertResult.ok) {
     logError('affiliate_click_insert_failed', {

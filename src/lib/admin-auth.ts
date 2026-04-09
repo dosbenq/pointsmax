@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from './supabase-server'
 import { createAdminClient } from './supabase'
 import { enforceRateLimit } from './api-security'
-import { getAllowedAdminEmailsForServer, isServerAdminEmail } from './admin-emails'
+import { isServerAdminEmail } from './admin-emails'
 
 const ADMIN_RATE_LIMIT = {
   namespace: 'admin_route_ip',
@@ -15,37 +15,35 @@ const ADMIN_RATE_LIMIT = {
  * Returns a 403/429 NextResponse if the request is not authorized,
  * or null if the check passes.
  */
-export async function requireAdmin(req: Request): Promise<NextResponse | null> {
+export async function requireAdmin(req: Request): Promise<{ error: NextResponse | null; adminEmail?: string }> {
   const rateLimitError = await enforceRateLimit(req, ADMIN_RATE_LIMIT)
-  if (rateLimitError) return rateLimitError
+  if (rateLimitError) return { error: rateLimitError }
 
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const emailVerified = Boolean(user?.email_confirmed_at)
   if (!user || !emailVerified || !isServerAdminEmail(user.email)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
-  return null
+  return { error: null, adminEmail: user.email! }
 }
 
 export async function logAdminAction(
   action: string,
   targetId: string | null,
-  payload?: Record<string, unknown> | null,
-  adminEmail?: string | null,
+  payload: Record<string, unknown>,
+  adminEmail: string,
 ): Promise<void> {
   try {
-    const db = createAdminClient()
-    const fallbackAdmin = getAllowedAdminEmailsForServer()[0] ?? 'unknown'
-    const resolvedEmail = (adminEmail ?? fallbackAdmin).trim() || 'unknown'
-    await db.from('admin_audit_log').insert({
-      admin_email: resolvedEmail,
+    const admin = createAdminClient()
+    await admin.from('admin_audit_log').insert({
+      admin_email: adminEmail,
       action,
       target_id: targetId,
-      payload: payload ?? {},
+      payload,
     } as never)
-  } catch {
-    // Never block admin flows on audit logging failures.
+  } catch (err) {
+    console.error('[admin-audit] Failed to log action:', action, err)
   }
 }

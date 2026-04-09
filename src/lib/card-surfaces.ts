@@ -51,12 +51,20 @@ export function buildReviewSnapshotFromCard(card: CardWithRates): CardReviewSnap
       ? {
           points: card.signup_bonus_pts,
           spendRequirement: card.signup_bonus_spend,
-          timeframeMonths: null,
+          // TODO: These fields need to be populated from the database.
+          // Currently null - the CompareGrid shows "Not listed" for these rows.
+          // To fix: Add signup_bonus_timeframe_months column to the cards table
+          // and populate it during card catalog ingestion.
+          timeframeMonths: card.signup_bonus_timeframe_months ?? null,
           estimatedValue: (card.signup_bonus_pts * card.cpp_cents) / 100,
         }
       : null,
     headlineEarnRates,
-    forexFeePct: null,
+    // TODO: These fields need to be populated from the database.
+    // Currently null - the CompareGrid shows "Not listed" for these rows.
+    // To fix: Add forex_fee_pct column to the cards table
+    // and populate it during card catalog ingestion.
+    forexFeePct: card.forex_fee_pct ?? null,
     loungeAccess: softBenefits.includes('lounge_access')
       ? {
           hasAccess: true,

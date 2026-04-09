@@ -39,7 +39,9 @@ function generateCSP(config: SecurityHeadersConfig): string {
     "default-src 'self'",
 
     // Scripts - allow self and unsafe-inline for Next.js
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    process.env.NODE_ENV === 'production'
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 
     // Styles - allow self and inline styles
     "style-src 'self' 'unsafe-inline'",
@@ -51,7 +53,7 @@ function generateCSP(config: SecurityHeadersConfig): string {
     "font-src 'self' data:",
 
     // Connect - allow API calls and analytics
-    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.sentry.io",
+    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://*.posthog.com",
 
     // Frame ancestors - prevent clickjacking
     "frame-ancestors 'none'",

@@ -46,7 +46,7 @@ describe('Workflow Health API', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(requireAdmin).mockResolvedValue(null)
+    vi.mocked(requireAdmin).mockResolvedValue({ error: null, adminEmail: 'admin@test.com' })
     vi.mocked(createAdminClient).mockReturnValue(mockDb as never)
   })
 

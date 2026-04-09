@@ -12,7 +12,7 @@ import { getRequestId, logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
-  const authError = await requireAdmin(req)
+  const { error: authError, adminEmail } = await requireAdmin(req)
   if (authError) return authError
 
   let body: unknown = null
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     await logAdminAction('knowledge.ingest_channel', channelId, {
       channel_url: channelUrl,
       videos_enqueued: videoUrls.length,
-    })
+    }, adminEmail!)
 
     return NextResponse.json({
       ok: true,

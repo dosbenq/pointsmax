@@ -65,6 +65,4 @@ export async function POST(req: NextRequest) {
   return openPortal(req)
 }
 
-export async function GET(req: NextRequest) {
-  return openPortal(req)
-}
+// GET method removed for security - use POST only

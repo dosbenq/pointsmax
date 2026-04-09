@@ -13,7 +13,7 @@ type LatestValuationRow = {
 }
 
 export async function GET(req: Request) {
-  const authError = await requireAdmin(req)
+  const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const db = createAdminClient()
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 
 // PATCH: insert a new valuation record for a program (keeps history)
 export async function PATCH(request: Request) {
-  const authError = await requireAdmin(request)
+  const { error: authError, adminEmail } = await requireAdmin(request)
   if (authError) return authError
 
   const { program_id, cpp_cents, source } = await request.json()
@@ -44,12 +44,20 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
+  const parsedCpp = parseFloat(cpp_cents)
+  if (typeof parsedCpp !== 'number' || parsedCpp <= 0 || parsedCpp > 100) {
+    return NextResponse.json(
+      { error: 'cpp_cents must be between 0 and 100' },
+      { status: 400 }
+    )
+  }
+
   const db = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
   const { error } = await db.from('valuations').insert({
     program_id,
-    cpp_cents: parseFloat(cpp_cents),
+    cpp_cents: parsedCpp,
     source: source ?? 'manual',
     effective_date: today,
   } as never)
@@ -59,8 +67,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   await logAdminAction('valuation.update', String(program_id), {
-    cpp_cents: parseFloat(cpp_cents),
+    cpp_cents: parsedCpp,
     source: source ?? 'manual',
-  })
+  }, adminEmail!)
   return NextResponse.json({ ok: true })
 }
