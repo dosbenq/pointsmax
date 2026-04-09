@@ -534,8 +534,8 @@ export default function CardRecommenderPage() {
                  </div>
                  <div className="p-6 flex flex-col flex-1">
                    <div className="mb-6 w-full max-w-[240px] mx-auto drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-500">
-                     {card.image_url ? (
-                       <Image src={card.image_url} alt={card.name} width={400} height={252} className="w-full h-auto rounded-xl border border-pm-border/50" />
+                     {(CARD_ART_MAP[card.name] || card.image_url) ? (
+                       <Image src={CARD_ART_MAP[card.name] || card.image_url!} alt={card.name} width={400} height={252} className="w-full h-auto rounded-xl border border-pm-border/50" />
                      ) : (
                        <FallbackCard name={card.name} type={'CREDIT'} />
                      )}

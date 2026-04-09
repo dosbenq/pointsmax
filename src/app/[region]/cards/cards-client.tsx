@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { estimateEffectiveCashbackPct, type ProgrammaticCard } from '@/lib/programmatic-content'
-import { formatCurrencyRounded, spendUnitLabel } from '@/lib/card-tools'
+import { formatCurrencyRounded, spendUnitLabel, CARD_ART_MAP } from '@/lib/card-tools'
 
 interface CardsClientProps {
   cards: ProgrammaticCard[]
@@ -72,16 +72,18 @@ export function CardsClient({ cards, region }: CardsClientProps) {
           return (
             <Link key={card.id} href={`/${region}/cards/${card.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
               <div className="mb-4 overflow-hidden rounded-[18px] border border-pm-border bg-white/80">
-                {card.image_url ? (
+                {(CARD_ART_MAP[card.name] || card.image_url) ? (
                   <Image
-                    src={card.image_url}
+                    src={CARD_ART_MAP[card.name] || card.image_url!}
                     alt={`${card.name} card art`}
                     width={640}
                     height={404}
                     className="h-auto w-full"
                   />
                 ) : (
-                  <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3]" />
+                  <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3] flex items-center justify-center">
+                    <span className="text-white font-bold text-lg text-center px-4">{card.name}</span>
+                  </div>
                 )}
               </div>
               <div className="flex items-center justify-between gap-3">
