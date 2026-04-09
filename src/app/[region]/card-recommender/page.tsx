@@ -541,7 +541,11 @@ export default function CardRecommenderPage() {
                      )}
                    </div>
                    <h3 className="font-bold text-lg text-pm-ink-900 text-center mb-1 leading-tight">{card.name}</h3>
-                   <p className="text-xs text-pm-ink-500 text-center mb-6">{card.issuer} • {card.program_name}</p>
+                   <p className="text-xs text-pm-ink-500 text-center mb-3">{card.issuer} • {card.program_name}</p>
+                   {card.expert_summary && (
+                     <p className="text-xs text-pm-ink-600 text-center mb-6 leading-relaxed line-clamp-3">{card.expert_summary.slice(0, 120)}...</p>
+                   )}
+                   {!card.expert_summary && <div className="mb-6" />}
                    
                    <div className="mt-auto grid grid-cols-2 gap-3 mb-6">
                       <div className="bg-pm-surface-soft p-3 rounded-xl border border-pm-border text-center">
@@ -622,6 +626,9 @@ export default function CardRecommenderPage() {
                 </div>
                 
                 <h2 className="text-3xl font-extrabold text-pm-ink-900 mt-8 mb-2 z-10 text-center balance">{bestMatch.card.name}</h2>
+                {bestMatch.card.expert_summary && (
+                  <p className="text-sm text-pm-ink-600 text-center mt-2 mb-2 z-10 leading-relaxed max-w-[280px]">{bestMatch.card.expert_summary.slice(0, 150)}...</p>
+                )}
                 <div className="flex gap-2 z-10">
                    <span className="text-xs font-semibold px-3 py-1 bg-pm-success-soft text-pm-success rounded-full border border-pm-success-border">
                      {bestMatch.confidence.level} confidence

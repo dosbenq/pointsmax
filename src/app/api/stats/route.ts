@@ -81,14 +81,14 @@ export async function GET(req: Request) {
   if (distributed) {
     return NextResponse.json(distributed, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     })
   }
   if (cache.stats && cache.stats.expiresAt > now) {
     return NextResponse.json(cache.stats.payload, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     })
   }
@@ -140,7 +140,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json(payload, {
     headers: {
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=3600',
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
     },
   })
 }

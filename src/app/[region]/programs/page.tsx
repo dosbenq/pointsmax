@@ -24,6 +24,75 @@ type Props = {
   params: Promise<{ region: string }>
 }
 
+const TRANSFER_PARTNERS_US = [
+  { from: 'Chase UR (2.05\u00A2)', to: 'World of Hyatt', ratio: '1:1' },
+  { from: 'Chase UR', to: 'United', ratio: '1:1' },
+  { from: 'Chase UR', to: 'Southwest', ratio: '1:1' },
+  { from: 'Chase UR', to: 'British Airways', ratio: '1:1' },
+  { from: 'Chase UR', to: 'Singapore KrisFlyer', ratio: '1:1' },
+  { from: 'Chase UR', to: 'Virgin Atlantic', ratio: '1:1' },
+  { from: 'Amex MR (2.00\u00A2)', to: 'ANA', ratio: '1:1' },
+  { from: 'Amex MR', to: 'Avianca LifeMiles', ratio: '1:1' },
+  { from: 'Amex MR', to: 'British Airways', ratio: '1:1' },
+  { from: 'Amex MR', to: 'Delta', ratio: '1:1' },
+  { from: 'Amex MR', to: 'Singapore KrisFlyer', ratio: '1:1' },
+  { from: 'Amex MR', to: 'Hilton', ratio: '1:2' },
+  { from: 'Bilt (2.20\u00A2)', to: 'World of Hyatt', ratio: '1:1' },
+  { from: 'Bilt', to: 'AA AAdvantage', ratio: '1:1' },
+  { from: 'Bilt', to: 'United', ratio: '1:1' },
+  { from: 'Bilt', to: 'Turkish', ratio: '1:1' },
+  { from: 'Capital One (1.85\u00A2)', to: 'Turkish Airlines', ratio: '1:1' },
+  { from: 'Capital One', to: 'Air Canada', ratio: '1:1' },
+  { from: 'Capital One', to: 'Emirates', ratio: '1:1' },
+  { from: 'Capital One', to: 'Wyndham', ratio: '1:1' },
+  { from: 'Citi TY (1.90\u00A2)', to: 'Turkish Airlines', ratio: '1:1' },
+  { from: 'Citi TY', to: 'JetBlue', ratio: '1:1' },
+  { from: 'Citi TY', to: 'Singapore KrisFlyer', ratio: '1:1' },
+]
+
+const TRANSFER_PARTNERS_IN = [
+  { from: 'HDFC RP (\u20B91/pt)', to: 'Singapore KrisFlyer (SmartBuy)', ratio: '2:1' },
+  { from: 'HDFC RP', to: 'InterMiles', ratio: '2:1' },
+  { from: 'Axis EDGE', to: 'Air India', ratio: '1:2 (Atlas)' },
+  { from: 'Axis EDGE', to: 'Singapore KrisFlyer', ratio: '5:2' },
+  { from: 'Amex MR India', to: 'Marriott Bonvoy', ratio: '1:1' },
+]
+
+function TransferPartnerGuide({ region }: { region: 'us' | 'in' }) {
+  const partners = region === 'in' ? TRANSFER_PARTNERS_IN : TRANSFER_PARTNERS_US
+  return (
+    <section className="pm-card p-6 sm:p-8 space-y-4">
+      <div>
+        <p className="pm-label text-pm-accent">Transfer Partner Guide</p>
+        <h2 className="pm-heading text-2xl mt-2">All transfer relationships in one place</h2>
+        <p className="pm-subtle mt-2 max-w-2xl text-sm">
+          Know exactly where your points can go before you move them. Ratios reflect current published rates.
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-pm-border text-left">
+              <th className="py-2 pr-4 font-semibold text-pm-ink-700">Source Currency</th>
+              <th className="py-2 pr-4 font-semibold text-pm-ink-700">Transfer To</th>
+              <th className="py-2 font-semibold text-pm-ink-700">Ratio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {partners.map((p, i) => (
+              <tr key={i} className="border-b border-pm-border/50">
+                <td className="py-2 pr-4 text-pm-ink-700">{p.from}</td>
+                <td className="py-2 pr-4 text-pm-ink-900 font-medium">{p.to}</td>
+                <td className="py-2 font-mono text-pm-accent text-xs">{p.ratio}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
 export default async function ProgramsIndexPage({ params }: Props) {
   const { region } = await params
   const normalized = (region === 'in' ? 'in' : 'us') as Region
@@ -144,6 +213,8 @@ export default async function ProgramsIndexPage({ params }: Props) {
             </div>
           </section>
         ))}
+
+        <TransferPartnerGuide region={normalized} />
 
         <section className="pm-card-soft p-8 sm:p-10">
           <h2 className="pm-heading text-2xl">Programs are only useful when they lead to bookings</h2>

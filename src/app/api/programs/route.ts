@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     // region-specific data is never mixed. Client-side caching is handled by React Query/SWR if needed.
     return NextResponse.json(programs, {
       headers: {
-        'Cache-Control': 'no-store, private',
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
         'Vary': 'Accept-Encoding',
       },
     })

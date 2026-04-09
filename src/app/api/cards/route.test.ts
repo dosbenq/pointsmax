@@ -170,7 +170,7 @@ describe('GET /api/cards', () => {
     const body = await res.json()
 
     expect(res.status).toBe(200)
-    expect(res.headers.get('Cache-Control')).toContain('s-maxage=300')
+    expect(res.headers.get('Cache-Control')).toContain('s-maxage=3600')
     expect(body.cards).toHaveLength(1)
     expect(body.cards[0]).toEqual(
       expect.objectContaining({

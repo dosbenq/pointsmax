@@ -156,6 +156,16 @@ export default async function ProgramDetailPage({ params }: Props) {
           </p>
         </div>
       </section>
+      {/* Valuation highlight */}
+      {program.cpp_cents > 0 && (
+        <div className="pm-shell">
+          <div className="mt-6 p-4 bg-pm-surface rounded-xl border border-pm-border text-center">
+            <div className="text-3xl font-bold text-pm-accent">{program.cpp_cents.toFixed(2)}¢</div>
+            <div className="text-sm text-pm-ink-500 mt-1">per point/mile</div>
+            {program.valuation_notes && <p className="text-xs text-pm-ink-400 mt-2">{program.valuation_notes}</p>}
+          </div>
+        </div>
+      )}
       <main className="flex-1 pm-shell py-8 space-y-8">
         <section className="pm-card-soft p-6 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

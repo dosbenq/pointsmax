@@ -129,7 +129,8 @@ describe('POST /api/calculate', () => {
       expect(res.headers.get('X-Calculate-Latency-Ms')).toMatch(/^\d+$/)
 
       const payload = await res.json()
-      expect(payload).toEqual(mockResult)
+      expect(payload).toMatchObject(mockResult)
+      expect(payload.valuation_source).toBe('TPG April 2026')
     })
 
     it('returns error contract for internal errors', async () => {

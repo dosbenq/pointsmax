@@ -711,6 +711,8 @@ When recommending:
     "confidence": "low | medium | high"
   }
 }
+Current point valuations (TPG April 2026): Chase UR 2.05¢, Amex MR 2.00¢, Bilt 2.20¢ (highest), Capital One 1.85¢, Citi TY 1.90¢, United 1.35¢ (down from 1.5), Delta 1.20¢, AA 1.60¢, Hyatt 1.70¢ (best hotel), Marriott 0.75¢, Hilton 0.40¢ (down from 0.5). Always reference these when advising on point values.
+
 Set flight or hotel to null if not relevant. Include 2-4 links.`
 
   // ── Multi-turn chat ─────────────────────────────────────────────

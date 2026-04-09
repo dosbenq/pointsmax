@@ -31,6 +31,100 @@ export type { TravelGoalKey, RecommendationMode, AnnualFeeTolerance, Recommendat
 export type { WalletBalanceInput, ScoringInputs, RecommendationScoreBreakdown, RecommendationConfidence }
 export type { RecommendationExplanation, EligibilityAssessment, CardRecommendation }
 
+// --- Ecosystem synergy ---
+
+export const ECOSYSTEM_BOOST: Record<string, { cards: string[]; boost: number; note: string }> = {
+  'Chase Trifecta': { cards: ['Chase'], boost: 1.2, note: 'UR points pool across Chase cards. Pair with Freedom for 5% categories.' },
+  'Amex Trifecta': { cards: ['American Express', 'Amex'], boost: 1.15, note: 'MR points pool. Gold for dining, Platinum for flights, BBP for everything else.' },
+  'Capital One': { cards: ['Capital One'], boost: 1.1, note: 'Miles transfer between cards. Growing lounge network.' },
+  'HDFC Stack': { cards: ['HDFC'], boost: 1.15, note: 'SmartBuy rewards work across all HDFC cards.' },
+}
+
+function getEcosystemBoost(
+  card: CardWithRates,
+  ownedCards: Set<string>,
+  allCards: CardWithRates[],
+): { boost: number; ecosystemNote: string | null } {
+  if (ownedCards.size === 0) return { boost: 1, ecosystemNote: null }
+
+  const ownedCardObjects = allCards.filter((c) => ownedCards.has(c.id))
+  const ownedIssuers = new Set(ownedCardObjects.map((c) => c.issuer))
+
+  for (const [ecosystemName, eco] of Object.entries(ECOSYSTEM_BOOST)) {
+    const cardMatchesEcosystem = eco.cards.some((prefix) => card.issuer.includes(prefix))
+    const walletHasEcosystem = eco.cards.some((prefix) =>
+      [...ownedIssuers].some((issuer) => issuer.includes(prefix)),
+    )
+    if (cardMatchesEcosystem && walletHasEcosystem) {
+      return { boost: eco.boost, ecosystemNote: `${ecosystemName}: ${eco.note}` }
+    }
+  }
+
+  return { boost: 1, ecosystemNote: null }
+}
+
+// --- Wallet strategy ---
+
+export interface ScoredCard {
+  card: CardWithRates
+  totalScore: number
+  annualRewardsValue: number
+  firstYearValue: number
+}
+
+export interface WalletStrategy {
+  workhorse: { card: ScoredCard; useFor: string }
+  powerCard: { card: ScoredCard; useFor: string }
+  premium?: { card: ScoredCard; useFor: string }
+  combinedAnnualValue: number
+}
+
+function buildWalletStrategy(
+  recommendations: CardRecommendation[],
+  inputs: ScoringInputs,
+): WalletStrategy | null {
+  const eligible = recommendations.filter((r) => r.status !== 'ineligible')
+  if (eligible.length < 2) return null
+
+  const toScoredCard = (r: CardRecommendation): ScoredCard => ({
+    card: r.card,
+    totalScore: r.breakdown.totalScore,
+    annualRewardsValue: r.annualRewardsValue,
+    firstYearValue: r.firstYearValue,
+  })
+
+  const powerRec = eligible[0]
+  const powerCard = toScoredCard(powerRec)
+
+  const workhorseRec = eligible.find((r) => getCardAnnualFeeAmount(r.card) === 0 && r.card.id !== powerRec.card.id)
+    ?? eligible.find((r) => r.card.id !== powerRec.card.id)
+  if (!workhorseRec) return null
+  const workhorse = toScoredCard(workhorseRec)
+
+  const tripsPerYear = inputs.travelGoals.size >= 2 ? 6 : inputs.travelGoals.size === 1 ? 3 : 1
+  let premium: { card: ScoredCard; useFor: string } | undefined
+  if (tripsPerYear >= 5) {
+    const premiumRec = eligible.find(
+      (r) => getCardAnnualFeeAmount(r.card) > 300 && r.card.id !== powerRec.card.id && r.card.id !== workhorseRec.card.id,
+    )
+    if (premiumRec) {
+      premium = { card: toScoredCard(premiumRec), useFor: 'Travel perks, lounge access, and premium bookings' }
+    }
+  }
+
+  const combinedAnnualValue =
+    powerCard.annualRewardsValue +
+    workhorse.annualRewardsValue +
+    (premium?.card.annualRewardsValue ?? 0)
+
+  return {
+    workhorse: { card: workhorse, useFor: 'Everyday spending — groceries, gas, and general purchases' },
+    powerCard: { card: powerCard, useFor: 'High-value categories — dining, travel, and bonus earn' },
+    premium,
+    combinedAnnualValue,
+  }
+}
+
 // Note: TRAVEL_GOALS is exported from types.ts
 
 const REGION_BASE_BONUS: Record<'US' | 'IN', number> = {
@@ -384,9 +478,10 @@ function compareRecommendations(a: CardRecommendation, b: CardRecommendation): n
 }
 
 /**
- * Score a single card based on inputs
+ * Score a single card based on inputs.
+ * When allCards is provided, ecosystem synergy boost is applied.
  */
-export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecommendation {
+export function scoreCard(card: CardWithRates, inputs: ScoringInputs, allCards?: CardWithRates[]): CardRecommendation {
   const categories = getCategoriesForRegion(inputs.regionCode)
   const pointsPerYear = calculateYearlyPoints(card, inputs.spend, categories)
   const annualRewardsValue = (pointsPerYear * card.cpp_cents) / 100
@@ -422,6 +517,11 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
   const complexityPenalty = getComplexityPenalty(card, inputs.regionCode)
   const estimatedMonthsToGoal = calculateEstimatedMonthsToGoal(card, inputs, pointsPerYear, walletBalance, hasCardAlready)
 
+  // Ecosystem synergy boost
+  const { boost: ecosystemBoost, ecosystemNote } = allCards
+    ? getEcosystemBoost(card, inputs.ownedCards, allCards)
+    : { boost: 1, ecosystemNote: null }
+
   const partialBreakdown = {
     annualRewardsValue,
     signupBonusValue: adjustedSignupValue,
@@ -431,10 +531,11 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
     feePenalty,
     complexityPenalty,
   }
-  const totalScore =
+  const baseScore =
     eligibility.status === 'ineligible'
       ? Number.NEGATIVE_INFINITY
       : getWeightedTotal(partialBreakdown, inputs.mode)
+  const totalScore = baseScore === Number.NEGATIVE_INFINITY ? baseScore : baseScore * ecosystemBoost
 
   // Add warning if user can't meet spend requirement
   if (!canMeetSpend && signupBonusSpend > 0) {
@@ -455,6 +556,10 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
     estimatedMonthsToGoal,
     eligibility,
   )
+
+  if (ecosystemNote) {
+    explanation.whyThisCard.push(ecosystemNote)
+  }
 
   return {
     card,
@@ -480,6 +585,7 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
     hasCardAlready,
     walletBalance,
     estimatedMonthsToGoal,
+    ecosystemNote,
   }
 }
 
@@ -488,10 +594,20 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
  */
 export function scoreAndRankCards(cards: CardWithRates[], inputs: ScoringInputs): CardRecommendation[] {
   return cards
-    .map((card) => scoreCard(card, inputs))
+    .map((card) => scoreCard(card, inputs, cards))
     .sort(compareRecommendations)
     .map((result, index) => ({
       ...result,
       rank: result.status === 'ineligible' ? 0 : index + 1,
     }))
+}
+
+/**
+ * Generate a "Build Your Wallet" strategy from scored recommendations.
+ */
+export function getWalletStrategy(
+  recommendations: CardRecommendation[],
+  inputs: ScoringInputs,
+): WalletStrategy | null {
+  return buildWalletStrategy(recommendations, inputs)
 }

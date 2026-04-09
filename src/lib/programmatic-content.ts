@@ -28,6 +28,7 @@ type CardRow = {
   program_id: string
   apply_url: string | null
   display_order: number
+  expert_summary: string | null
 }
 
 type EarningRateRow = {
@@ -39,6 +40,7 @@ type EarningRateRow = {
 type ValuationRow = {
   program_id: string
   cpp_cents: number
+  notes: string | null
 }
 
 type CardIdentityRow = Pick<CardRow, 'id' | 'name' | 'issuer'>
@@ -67,6 +69,7 @@ export type ProgrammaticCard = CardRow & {
 
 export type ProgrammaticProgram = ProgramRow & {
   cpp_cents: number
+  valuation_notes: string | null
   earning_cards: Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>
   transfer_out: Array<{ to_program_id: string; to_program_name: string; to_program_slug: string; ratio_from: number; ratio_to: number }>
   transfer_in: Array<{ from_program_id: string; from_program_name: string; from_program_slug: string; ratio_from: number; ratio_to: number }>
@@ -135,7 +138,7 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
 
   const { data: cards, error: cardsErr } = await db
     .from('cards')
-    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order')
+    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order, expert_summary')
     .eq('is_active', true)
     .eq('geography', geography)
     .order('display_order', { ascending: true })
@@ -214,7 +217,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
   const programIds = programRows.map((program) => program.id)
   const programFilter = programIds.join(',')
   const [{ data: valuations }, { data: cards }, { data: partners }] = await Promise.all([
-    db.from('latest_valuations').select('program_id, cpp_cents').in('program_id', programIds),
+    db.from('latest_valuations').select('program_id, cpp_cents, notes').in('program_id', programIds),
     db.from('cards')
       .select('id, name, issuer, program_id, apply_url, geography')
       .eq('is_active', true)
@@ -227,6 +230,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
   ])
 
   const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
+  const valuationNotesByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.notes ?? null]))
   const cardsByProgramId = new Map<string, Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>>()
   const cardRows = (cards ?? []) as Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null; image_url?: string | null }>
   const slugByCardId = buildCardSlugById(cardRows)
@@ -285,6 +289,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
         valuationByProgramId.get(program.id),
         program.type,
       ),
+      valuation_notes: valuationNotesByProgramId.get(program.id) ?? null,
       earning_cards: cardsByProgramId.get(program.id) ?? [],
       transfer_out: transferOut,
       transfer_in: transferIn,

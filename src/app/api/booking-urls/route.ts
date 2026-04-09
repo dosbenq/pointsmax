@@ -18,7 +18,11 @@ export async function GET(request: Request) {
   try {
     const urls = await getActiveBookingUrls(region)
     const validUrls = urls.filter(u => isValidBookingUrl(u.url))
-    return NextResponse.json(validUrls)
+    return NextResponse.json(validUrls, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
+      },
+    })
   } catch (error) {
     logError('api_booking_urls_get_failed', { 
       message: error instanceof Error ? error.message : 'Unknown error',

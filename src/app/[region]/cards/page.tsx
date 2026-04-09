@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
-import { estimateEffectiveCashbackPct, listCardsForRegion } from '@/lib/programmatic-content'
+import { listCardsForRegion } from '@/lib/programmatic-content'
 import { REGIONS, type Region } from '@/lib/regions'
-import { formatCurrencyRounded, spendUnitLabel } from '@/lib/card-tools'
+import { CardsClient } from './cards-client'
 
 export const revalidate = 3600
 
@@ -109,52 +108,7 @@ export default async function CardsIndexPage({ params }: Props) {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cards.map((card) => {
-              const defaultRate =
-                card.earning_rates.find((row) => row.category === 'other')?.earn_multiplier ??
-                card.earning_rates[0]?.earn_multiplier ??
-                0
-              const modeledReturn = estimateEffectiveCashbackPct(card)
-
-              return (
-                <Link key={card.id} href={`/${normalized}/cards/${card.slug}`} className="pm-card-soft p-5 hover:shadow-md transition-shadow">
-                  <div className="mb-4 overflow-hidden rounded-[18px] border border-pm-border bg-white/80">
-                    {card.image_url ? (
-                      <Image
-                        src={card.image_url}
-                        alt={`${card.name} card art`}
-                        width={640}
-                        height={404}
-                        className="h-auto w-full"
-                      />
-                    ) : (
-                      <div className="aspect-[1.58/1] bg-gradient-to-br from-[#0d2848] to-[#1a7ea3]" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-pm-ink-500">{card.issuer}</p>
-                    <span className="rounded-full bg-pm-accent-soft px-2.5 py-1 text-[11px] font-semibold text-pm-accent">
-                      {modeledReturn > 0 ? `${modeledReturn.toFixed(1)}% modeled` : `${card.cpp_cents.toFixed(2)} cpp`}
-                    </span>
-                  </div>
-                  <h2 className="pm-heading text-lg mt-2">{card.name}</h2>
-                  <p className="text-sm text-pm-ink-500 mt-2">
-                    Fee: {formatCurrencyRounded(card.annual_fee_usd, card.currency)}
-                  </p>
-                  <p className="text-sm text-pm-ink-500 mt-1">
-                    Base earn: {Number(defaultRate).toFixed(2)} pts {spendUnitLabel(card.earn_unit, card.currency)}
-                  </p>
-                  <p className="text-sm text-pm-ink-500 mt-1">
-                    Program: {card.program?.name ?? 'Unknown'}
-                  </p>
-                  <p className="mt-4 text-sm text-pm-ink-700">
-                    Best next step: review the card, then jump straight into the linked program and booking workflow.
-                  </p>
-                </Link>
-              )
-            })}
-          </div>
+          <CardsClient cards={cards} region={normalized} />
 
           <section className="pm-card-soft p-8 sm:p-10">
             <div className="max-w-3xl">

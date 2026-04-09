@@ -105,6 +105,16 @@ export default function NavBar() {
       activePrefixes: [`/${region}/card-recommender`, `/${region}/cards`],
     },
     {
+      href: `/${region}/hotel-search`,
+      label: 'Hotels',
+      activePrefixes: [`/${region}/hotel-search`],
+    },
+    {
+      href: `/${region}/devaluation-tracker`,
+      label: 'Devaluations',
+      activePrefixes: [`/${region}/devaluation-tracker`],
+    },
+    {
       href: `/${region}/profile`,
       label: 'Wallet',
       activePrefixes: [`/${region}/profile`],

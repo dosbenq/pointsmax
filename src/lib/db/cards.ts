@@ -25,6 +25,14 @@ interface CardRow {
   earn_unit?: unknown
   geography?: unknown
   apply_url?: unknown
+  earning_rates?: unknown
+  top_perks?: unknown
+  community_sentiment?: unknown
+  ideal_for?: unknown
+  recent_changes?: unknown
+  expert_summary?: unknown
+  sources?: unknown
+  welcome_benefit?: unknown
 }
 
 interface ValuationRow {
@@ -74,8 +82,15 @@ function buildCardWithRates(
     image_url: typeof card.image_url === 'string' ? card.image_url : null,
     program_name: valuation?.program_name ?? 'Unknown',
     program_slug: valuation?.program_slug ?? '',
-    cpp_cents: resolveCppCents(valuation?.cpp_cents, valuation?.program_type),
+    cpp_cents: resolveCppCents(valuation?.cpp_cents, valuation?.program_type, valuation?.program_slug),
     earning_rates: rates,
+    top_perks: typeof card.top_perks === 'string' ? card.top_perks : null,
+    community_sentiment: typeof card.community_sentiment === 'string' ? card.community_sentiment : null,
+    ideal_for: typeof card.ideal_for === 'string' ? card.ideal_for : null,
+    recent_changes: typeof card.recent_changes === 'string' ? card.recent_changes : null,
+    expert_summary: typeof card.expert_summary === 'string' ? card.expert_summary : null,
+    sources: typeof card.sources === 'string' ? card.sources : null,
+    welcome_benefit: typeof card.welcome_benefit === 'string' ? card.welcome_benefit : null,
   }
 }
 

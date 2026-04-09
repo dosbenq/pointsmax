@@ -90,6 +90,7 @@ export interface CardRecommendation {
   hasCardAlready: boolean
   walletBalance: number
   estimatedMonthsToGoal: number | null
+  ecosystemNote?: string | null
 }
 
 // Ranking and filtering options
