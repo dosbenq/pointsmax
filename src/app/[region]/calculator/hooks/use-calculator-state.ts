@@ -42,6 +42,7 @@ export type CalculateResponse = {
   value_left_on_table_cents: number | null
   cash_baseline_available: boolean
   results: RedemptionResult[]
+  valuation_source?: string
 }
 
 export type BalanceRow = {

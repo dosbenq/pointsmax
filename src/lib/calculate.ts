@@ -458,11 +458,17 @@ export async function calculateRedemptions(
   // Final global sort: best options across all programs at the top
   results.sort((a, b) => b.total_value_cents - a.total_value_cents)
 
+  const hasDbValuations = referenceData.valuationMap.size > 0
+  const valuationSource = hasDbValuations
+    ? 'TPG April 2026 · DB-backed · Updated daily'
+    : 'TPG April 2026 · Fallback estimates'
+
   return {
     total_cash_value_cents: cashBaselineAvailable ? totalCashValue : null,
     total_optimal_value_cents: totalOptimalValue,
     value_left_on_table_cents: cashBaselineAvailable ? totalOptimalValue - totalCashValue : null,
     cash_baseline_available: cashBaselineAvailable,
     results,
+    valuation_source: valuationSource,
   }
 }

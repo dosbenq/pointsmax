@@ -306,4 +306,5 @@ export interface CalculateResponse {
   value_left_on_table_cents: number | null // difference = money you're leaving behind when cash baseline exists
   cash_baseline_available: boolean
   results: RedemptionResult[]       // all options, sorted by value DESC
+  valuation_source: string          // e.g. "TPG April 2026 · DB-backed"
 }

@@ -4,6 +4,7 @@ import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { listProgramsForRegion } from '@/lib/programmatic-content'
 import { REGIONS, type Region } from '@/lib/regions'
+import { DataFreshness } from '@/components/ui/DataFreshness'
 
 export const revalidate = 3600
 
@@ -64,6 +65,9 @@ export default async function ProgramsIndexPage({ params }: Props) {
           <p className="pm-subtle max-w-xl text-base">
             Valuation snapshots, transfer partners, and earning cards — {programs.length} programs tracked for real wallet and booking decisions.
           </p>
+          <div className="mt-3">
+            <DataFreshness />
+          </div>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="pm-card-soft p-5">
               <p className="pm-label">Tracked programs</p>

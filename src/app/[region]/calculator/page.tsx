@@ -17,6 +17,7 @@ import { type Region } from '@/lib/regions'
 import { analyzePortfolioHealth } from '@/lib/portfolio-health'
 import { trackEvent } from '@/lib/analytics'
 import { CalculatorActionStrip } from '@/features/calculator-shell'
+import { DataFreshness } from '@/components/ui/DataFreshness'
 
 type Tool = 'hub' | 'trip' | 'value' | 'ai'
 type TripMode = 'flights' | 'hotels'
@@ -420,6 +421,7 @@ export default function CalculatorPage() {
                <p className="mt-4 max-w-2xl text-sm sm:text-base text-pm-ink-700">
                  Low-effort value assumes simple cash-like or portal-style use. Best case assumes you pursue the strongest redemption path for each program. Your realistic sweet spot is <span className="font-semibold text-pm-ink-900">{formatUsdFromCents(valueAnalysis.likelyValueCents)}</span>.
                </p>
+               <DataFreshness source={state.result?.valuation_source} />
              </div>
 
              <div className="grid gap-4 md:grid-cols-4">

@@ -628,6 +628,21 @@ export async function POST(req: NextRequest) {
 
 Today's date: ${todayDate}${preferencesContext}
 
+CURRENT POINT VALUATIONS (TPG April 2026, refreshed daily from our database):
+  - Chase UR: 2.05 cents per point
+  - Amex MR: 2.00 cents per point
+  - Bilt Rewards: 2.20 cents per point (highest value transferable currency)
+  - Capital One Miles: 1.85 cents per point
+  - Citi ThankYou: 1.90 cents per point
+  - United MileagePlus: 1.35 cents per mile
+  - Delta SkyMiles: 1.20 cents per mile
+  - American AAdvantage: 1.60 cents per mile
+  - Southwest Rapid Rewards: 1.25 cents per point
+  - World of Hyatt: 1.70 cents per point
+  - Marriott Bonvoy: 0.75 cents per point
+  - Hilton Honors: 0.40 cents per point
+Use these valuations when advising the user. Always cite the source as "TPG April 2026".
+
 USER'S POINTS BALANCES:
 ${balanceSummary}
 
@@ -637,7 +652,7 @@ ${partnerSummary}
 PRE-CALCULATED REDEMPTION VALUES (in ${currencyUnit}):
 ${topValueSummary}
 
-PROGRAM CPP REFERENCE (live DB values):
+PROGRAM CPP REFERENCE (live DB values — use these when available, they override the general table above):
 ${programCppSummary}
 
 REGION CONTEXT:
