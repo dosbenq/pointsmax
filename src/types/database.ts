@@ -214,6 +214,14 @@ export interface Card {
   is_active: boolean
   display_order: number
   created_at: string
+  earning_rates?: string | null
+  top_perks?: string | null
+  community_sentiment?: string | null
+  ideal_for?: string | null
+  recent_changes?: string | null
+  expert_summary?: string | null
+  sources?: string | null
+  welcome_benefit?: string | null
 }
 
 export interface CardEarningRate {

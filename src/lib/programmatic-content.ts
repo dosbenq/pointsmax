@@ -28,6 +28,7 @@ type CardRow = {
   program_id: string
   apply_url: string | null
   display_order: number
+  expert_summary: string | null
 }
 
 type EarningRateRow = {
@@ -135,7 +136,7 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
 
   const { data: cards, error: cardsErr } = await db
     .from('cards')
-    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order')
+    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order, expert_summary')
     .eq('is_active', true)
     .eq('geography', geography)
     .order('display_order', { ascending: true })

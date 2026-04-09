@@ -148,6 +148,11 @@ export default async function CardsIndexPage({ params }: Props) {
                   <p className="text-sm text-pm-ink-500 mt-1">
                     Program: {card.program?.name ?? 'Unknown'}
                   </p>
+                  {card.expert_summary && (
+                    <p className="mt-3 text-sm text-pm-ink-600 leading-relaxed line-clamp-3">
+                      {card.expert_summary.slice(0, 120)}...
+                    </p>
+                  )}
                   <p className="mt-4 text-sm text-pm-ink-700">
                     Best next step: review the card, then jump straight into the linked program and booking workflow.
                   </p>

@@ -1,0 +1,10 @@
+-- Add rich data columns to cards table
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS earning_rates TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS top_perks TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS community_sentiment TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS ideal_for TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS recent_changes TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS expert_summary TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS sources TEXT;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS welcome_benefit TEXT;

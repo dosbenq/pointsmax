@@ -395,6 +395,41 @@ export default async function CardReviewPage({ params }: PageProps) {
           <div className="prose prose-pm text-pm-ink-700 leading-relaxed text-lg bg-pm-surface-soft p-8 rounded-[24px]">
             <p>{overview}</p>
           </div>
+
+          {card.expert_summary && (
+            <div className="mt-6 p-4 bg-pm-surface rounded-xl border border-pm-border">
+              <h3 className="text-sm font-semibold text-pm-ink-500 uppercase tracking-wide mb-2">Expert Summary</h3>
+              <p className="text-pm-ink-700 leading-relaxed">{card.expert_summary}</p>
+            </div>
+          )}
+
+          {card.top_perks && (
+            <div className="mt-4 p-4 bg-pm-surface rounded-xl border border-pm-border">
+              <h3 className="text-sm font-semibold text-pm-ink-500 uppercase tracking-wide mb-2">Key Benefits</h3>
+              <p className="text-pm-ink-700">{card.top_perks}</p>
+            </div>
+          )}
+
+          {card.community_sentiment && (
+            <div className="mt-4 p-4 bg-pm-surface rounded-xl border border-pm-border">
+              <h3 className="text-sm font-semibold text-pm-ink-500 uppercase tracking-wide mb-2">What the Community Says</h3>
+              <p className="text-pm-ink-700 italic">{card.community_sentiment}</p>
+            </div>
+          )}
+
+          {card.ideal_for && (
+            <div className="mt-4 p-4 bg-pm-surface rounded-xl border border-pm-border">
+              <h3 className="text-sm font-semibold text-pm-ink-500 uppercase tracking-wide mb-2">Best For</h3>
+              <p className="text-pm-ink-700">{card.ideal_for}</p>
+            </div>
+          )}
+
+          {card.recent_changes && (
+            <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950 rounded-xl border border-amber-200 dark:border-amber-800">
+              <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide mb-2">Recent Changes (2025-2026)</h3>
+              <p className="text-amber-800 dark:text-amber-200">{card.recent_changes}</p>
+            </div>
+          )}
         </section>
 
         <section id="rewards" className="scroll-mt-24">
