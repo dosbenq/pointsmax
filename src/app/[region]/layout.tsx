@@ -42,5 +42,5 @@ export default async function RegionLayout({
     notFound()
   }
 
-  return <PageTransition>{children}</PageTransition>
+  return <PageTransition><main id="main-content">{children}</main></PageTransition>
 }

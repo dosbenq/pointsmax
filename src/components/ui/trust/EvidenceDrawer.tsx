@@ -47,8 +47,8 @@ export function EvidenceDrawer({ isOpen, onClose, metadata }: EvidenceDrawerProp
                     <span className="text-[10px] uppercase tracking-widest font-bold text-pm-ink-500 block mb-1">Overall Confidence</span>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                       metadata.overallConfidence === 'high' ? 'bg-pm-success-soft text-pm-success border-pm-success-border' :
-                      metadata.overallConfidence === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                      'bg-red-50 text-red-700 border-red-200'
+                      metadata.overallConfidence === 'medium' ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' :
+                      'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                     } border`}>
                       {metadata.overallConfidence.toUpperCase()}
                     </span>
@@ -104,8 +104,8 @@ function EvidenceItem({ evidence }: { evidence: TrustEvidence }) {
         <span className="font-bold text-pm-ink-900 text-sm">{evidence.id.replace(/_/g, ' ')}</span>
         <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${
           evidence.confidence === 'high' ? 'text-pm-success bg-pm-success-soft' :
-          evidence.confidence === 'medium' ? 'text-amber-700 bg-amber-50' :
-          'text-red-700 bg-red-50'
+          evidence.confidence === 'medium' ? 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950' :
+          'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950'
         }`}>
           {evidence.confidence}
         </span>

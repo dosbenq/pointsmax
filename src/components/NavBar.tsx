@@ -1,25 +1,26 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { getRegionFromPath } from '@/lib/regions'
 import { useTheme } from 'next-themes'
 import { Moon, Sun, Menu, X, ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 function PMLogoMark() {
   return (
     <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-[10px] shadow-sm transition-transform duration-500 group-hover:scale-105">
       {/* Spinning Conic Gradient for border glow */}
       <div className="absolute inset-[-150%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,rgba(0,0,0,0.2)_50%,transparent_100%)] dark:bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,rgba(255,255,255,0.6)_50%,transparent_100%)]" />
-      
+
       {/* Absolute background covering the gradient except for the 1px border */}
       <div className="absolute inset-[1px] rounded-[9px] bg-gradient-to-tr from-pm-ink-900 to-pm-accent" />
-      
+
       {/* Top right subtle reflection */}
       <div className="absolute inset-[1px] rounded-[9px] bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_60%)]" />
-      
+
       <svg viewBox="0 0 24 24" fill="none" className="relative z-10 h-3.5 w-3.5 text-pm-bg drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
         <path d="M2 17l10 5 10-5" />
@@ -38,12 +39,46 @@ export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
+
+  // Close menus on route change
+  useEffect(() => {
+    setMenuOpen(false)
+    setAccountOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Escape key to close menus
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && menuOpen) {
+        setMenuOpen(false)
+      }
+      if (e.key === 'Escape' && accountOpen) {
+        setAccountOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [menuOpen, accountOpen])
+
+  // Click outside to close account dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false)
+      }
+    }
+    if (accountOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [accountOpen])
 
   useEffect(() => {
     try {
@@ -117,6 +152,28 @@ export default function NavBar() {
               )
             })}
           </nav>
+
+          {/* Desktop Region Switcher */}
+          <div className="hidden sm:flex items-center gap-1 ml-4 border border-pm-border rounded-lg p-0.5">
+            <Link
+              href={pathname.replace(/^\/(us|in)/, '/us')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                region === 'us' ? 'bg-pm-accent text-white' : 'text-pm-ink-500 hover:text-pm-ink-700'
+              )}
+            >
+              US
+            </Link>
+            <Link
+              href={pathname.replace(/^\/(us|in)/, '/in')}
+              className={cn(
+                'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+                region === 'in' ? 'bg-pm-accent text-white' : 'text-pm-ink-500 hover:text-pm-ink-700'
+              )}
+            >
+              India
+            </Link>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -133,10 +190,13 @@ export default function NavBar() {
             {loading ? (
               <div className="h-10 w-28 animate-pulse rounded-full bg-pm-surface-soft" />
             ) : user ? (
-              <div className="relative">
+              <div ref={accountRef} className="relative">
                 <button
                   onClick={() => setAccountOpen((v) => !v)}
                   className="inline-flex items-center gap-2 rounded-full border border-pm-border bg-pm-surface px-2 py-1.5 text-sm text-pm-ink-700 transition-colors hover:bg-pm-surface-soft"
+                  aria-expanded={accountOpen}
+                  aria-haspopup="menu"
+                  aria-label="Account menu"
                   type="button"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-pm-accent text-xs font-semibold text-pm-bg">
@@ -147,11 +207,12 @@ export default function NavBar() {
                 </button>
 
                 {accountOpen && (
-                  <div className="absolute right-0 top-full mt-3 w-64 pm-card p-2 shadow-soft">
+                  <div role="menu" className="absolute right-0 top-full mt-3 w-64 pm-card p-2 shadow-soft">
                     <p className="truncate border-b border-pm-border px-3 py-2 text-xs text-pm-ink-500">{profileName}</p>
                     <Link
                       href={`/${region}/profile`}
                       onClick={() => setAccountOpen(false)}
+                      role="menuitem"
                       className="mt-1 block rounded-lg px-3 py-2.5 text-sm font-medium text-pm-ink-900 transition-colors hover:bg-pm-surface-soft"
                     >
                       Profile &amp; Settings
@@ -161,6 +222,7 @@ export default function NavBar() {
                         setAccountOpen(false)
                         signOut()
                       }}
+                      role="menuitem"
                       className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-pm-danger transition-colors hover:bg-pm-danger-soft"
                       type="button"
                     >
@@ -183,6 +245,8 @@ export default function NavBar() {
             }}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-pm-border bg-pm-surface text-pm-ink-700 lg:hidden"
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
             type="button"
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -191,7 +255,7 @@ export default function NavBar() {
       </div>
 
       {menuOpen && (
-        <div className="border-t border-pm-border bg-pm-surface/95 backdrop-blur-xl lg:hidden shadow-soft">
+        <nav id="mobile-menu" role="navigation" aria-label="Mobile navigation" className="border-t border-pm-border bg-pm-surface/95 backdrop-blur-xl lg:hidden shadow-soft">
           <div className="pm-shell space-y-3 py-5">
             <div className="flex w-fit items-center gap-1 rounded-full border border-pm-border bg-pm-surface-soft p-1">
               <Link
@@ -251,7 +315,7 @@ export default function NavBar() {
               )}
             </div>
           </div>
-        </div>
+        </nav>
       )}
     </header>
   )

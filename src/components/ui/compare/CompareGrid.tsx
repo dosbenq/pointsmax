@@ -102,13 +102,13 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
        <div className="rounded-none sm:rounded-[24px] border-y sm:border border-pm-border bg-pm-surface shadow-sm overflow-hidden flex flex-col">
          
          {/* Desktop Header Row */}
-         <div className={`hidden md:grid ${desktopColClass} border-b border-pm-border sticky top-[73px] bg-pm-surface z-20 shadow-sm`}>
+         <div className={`hidden md:grid ${desktopColClass} border-b border-pm-border sticky top-[calc(var(--navbar-height,60px)+13px)] bg-pm-surface z-20 shadow-sm`}>
             {renderHeaderEmptySpace()}
             {renderCardHeaders()}
          </div>
 
          {/* Mobile Stacking Header */}
-         <div className="md:hidden sticky top-[73px] bg-pm-surface/90 backdrop-blur-md z-20 border-b border-pm-border">
+         <div className="md:hidden sticky top-[calc(var(--navbar-height,60px)+13px)] bg-pm-surface/90 backdrop-blur-md z-20 border-b border-pm-border">
             <div className={`grid ${mobileColClass}`}>
                {renderCardHeaders()}
             </div>

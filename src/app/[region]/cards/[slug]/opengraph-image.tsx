@@ -64,7 +64,7 @@ export default async function Image({ params }: Props) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05 }}>{title}</div>
+          <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.05, maxWidth: '900px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', wordBreak: 'break-word' }}>{title}</div>
           <div style={{ fontSize: 30, opacity: 0.9 }}>
             {bestRate ? `${bestRate[1]}x on ${bestRate[0]}` : 'Rewards profile available on PointsMax'}
           </div>

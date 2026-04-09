@@ -130,6 +130,25 @@ export default async function ProgramDetailPage({ params }: Props) {
       <NavBar />
       <section className="pm-page-header">
         <div className="pm-shell">
+          <nav aria-label="Breadcrumb" className="mb-6">
+            <ol className="flex items-center gap-2 text-sm text-pm-ink-500">
+              <li>
+                <Link href={`/${normalized}`} className="hover:text-pm-ink-700 transition-colors">
+                  Home
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li>
+                <Link href={`/${normalized}/programs`} className="hover:text-pm-ink-700 transition-colors">
+                  Programs
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li className="text-pm-ink-900 font-medium" aria-current="page">
+                {program.name}
+              </li>
+            </ol>
+          </nav>
           <span className="pm-pill mb-4 inline-block">Program guide {config.flag}</span>
           <h1 className="pm-heading text-4xl sm:text-5xl mb-3">{program.name}</h1>
           <p className="pm-subtle max-w-xl text-base">
