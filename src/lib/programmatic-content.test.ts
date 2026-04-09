@@ -24,8 +24,8 @@ describe('region defaults', () => {
 
 describe('resolveProgrammaticCppCents', () => {
   it('uses per-type defaults when no valuation exists', () => {
-    expect(resolveProgrammaticCppCents(undefined, 'transferable_points')).toBe(1.6)
-    expect(resolveProgrammaticCppCents(undefined, 'airline_miles')).toBe(1.2)
-    expect(resolveProgrammaticCppCents(undefined, 'hotel_points')).toBe(0.8)
+    expect(resolveProgrammaticCppCents(undefined, 'transferable_points')).toBe(2.00)
+    expect(resolveProgrammaticCppCents(undefined, 'airline_miles')).toBe(1.35)
+    expect(resolveProgrammaticCppCents(undefined, 'hotel_points')).toBe(0.75)
   })
 })
