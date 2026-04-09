@@ -78,6 +78,7 @@ export function CardsClient({ cards, region }: CardsClientProps) {
                     alt={`${card.name} card art`}
                     width={640}
                     height={404}
+                    loading="lazy"
                     className="h-auto w-full"
                   />
                 ) : (

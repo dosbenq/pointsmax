@@ -1,10 +1,15 @@
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import { getActivePrograms } from '@/lib/db/programs'
 import { REGIONS, type Region } from '@/lib/regions'
-import { HeroSection } from './homepage-sections'
+
+const HeroSection = dynamic(
+  () => import('./homepage-sections').then(m => m.HeroSection),
+  { loading: () => <div className="h-[500px]" /> }
+)
 
 export const revalidate = 300
 
