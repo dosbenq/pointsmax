@@ -19,6 +19,7 @@ export default function Footer() {
   const resourceLinks = [
     { href: `/${region}/cards`, label: 'Cards' },
     { href: `/${region}/programs`, label: 'Programs' },
+    { href: `/${region}/hotel-search`, label: 'Hotel Search' },
     { href: `/${region}/inspire`, label: 'Playbooks' },
     { href: `/${region}/how-it-works`, label: 'How it works' },
   ]
