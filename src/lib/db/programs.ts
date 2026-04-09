@@ -22,7 +22,7 @@ export async function getActivePrograms(geography?: 'US' | 'IN' | null): Promise
     .order('display_order')
 
   if (geography) {
-    query = query.in('geography', ['global', geography])
+    query = query.or(`geography.is.null,geography.eq.${geography},geography.eq.global`)
   }
 
   let { data, error } = await query

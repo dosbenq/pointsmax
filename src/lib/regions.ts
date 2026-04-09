@@ -91,6 +91,20 @@ export const PROGRAM_GOAL_MAP: Record<string, string[]> = {
 
 export const DEFAULT_REGION: Region = 'us'
 
+/**
+ * Normalize region string to the canonical DB format.
+ * Programs table uses uppercase ('US', 'IN'),
+ * booking_urls uses lowercase ('us', 'in').
+ * This function returns the format appropriate for each context.
+ */
+export function normalizeRegionForPrograms(region: string): 'US' | 'IN' {
+  return region.toLowerCase() === 'in' ? 'IN' : 'US'
+}
+
+export function normalizeRegionForRoutes(region: string): 'us' | 'in' {
+  return region.toLowerCase() === 'in' ? 'in' : 'us'
+}
+
 export function getRegionFromPath(pathname: string): Region {
   const parts = pathname.split('/')
   const first = parts[1]?.toLowerCase()

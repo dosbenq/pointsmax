@@ -86,6 +86,9 @@ export interface TransferBonus {
   is_verified: boolean
   notes: string | null
   created_at: string
+  auto_detected?: boolean    // Added in migration 019
+  verified?: boolean         // Added in migration 019 (duplicate of is_verified)
+  active?: boolean           // Added in migration 019
 }
 
 export interface RedemptionOption {
@@ -104,6 +107,8 @@ export interface User {
   tier: SubscriptionTier
   stripe_customer_id: string | null
   created_at: string
+  auth_id?: string          // Added in migration 002
+  last_seen_at?: string     // Added in migration 046
 }
 
 export interface UserBalance {

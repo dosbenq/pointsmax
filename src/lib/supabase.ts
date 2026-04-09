@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const pooledUrl = process.env.SUPABASE_DB_URL_POOLED?.trim()
-const dbUrl = pooledUrl && pooledUrl.startsWith('https://') ? pooledUrl : supabaseUrl
+const dbUrl = pooledUrl && (pooledUrl.startsWith('https://') || pooledUrl.startsWith('postgres://') || pooledUrl.startsWith('postgresql://')) ? pooledUrl : supabaseUrl
 
 type GenericTableShape = {
   Row: Record<string, unknown>
