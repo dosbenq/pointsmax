@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Check, ChevronsUpDown, PlaneTakeoff, Search } from 'lucide-react'
+import { Check, ChevronsUpDown, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -92,7 +92,7 @@ export function AirportAutocomplete({
                   key={airport.iata}
                   // We shove all searchable text into the generated value string for the filter func
                   value={`${airport.iata} ${airport.city} ${airport.name}`}
-                  onSelect={(currentValue) => {
+                  onSelect={() => {
                     onChange(airport.iata)
                     setOpen(false)
                   }}

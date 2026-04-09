@@ -183,7 +183,7 @@ export function ConnectedWallets({ onManualEntry, className = '', isGuest = fals
     } catch {
       setViewState({ type: 'error', message: 'Failed to load connected wallets. Please try again.' })
     }
-  }, [])
+  }, [isGuest])
 
   useEffect(() => {
     fetchAccounts()

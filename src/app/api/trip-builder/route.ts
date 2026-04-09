@@ -105,7 +105,7 @@ function validate(body: unknown): AwardSearchParams & { hotel_nights: number; de
   for (const bal of balances) {
     if (!bal || typeof bal !== 'object') return { error: 'Invalid balance entry' }
     if (typeof bal.program_id !== 'string' || !UUID_RE.test(bal.program_id)) {
-      return { error: 'Each balance must have a valid program_id' }
+      return { error: 'Each balance must have a valid program_id format (UUID)' }
     }
     if (typeof bal.amount !== 'number' || bal.amount <= 0 || bal.amount > 100_000_000) {
       return { error: 'Each balance amount must be a positive number' }

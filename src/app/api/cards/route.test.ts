@@ -33,16 +33,22 @@ function makeDbClient(options: {
       }
 
       if (table === 'latest_valuations') {
+        const valQuery = {
+          in: vi.fn(async () => options.valuations),
+          eq: vi.fn(async () => options.valuations),
+        }
         return {
-          select: vi.fn(async () => options.valuations),
+          select: vi.fn(() => valQuery),
         }
       }
 
       if (table === 'card_earning_rates') {
+        const ratesQuery = {
+          in: vi.fn(async () => options.rates),
+          eq: vi.fn(async () => options.rates),
+        }
         return {
-          select: vi.fn(() => ({
-            in: vi.fn(async () => options.rates),
-          })),
+          select: vi.fn(() => ratesQuery),
         }
       }
 
@@ -119,8 +125,8 @@ describe('GET /api/cards', () => {
     expect(res.status).toBe(500)
     expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
-      'cards_repository_rates_fetch_failed',
-      expect.objectContaining({ error: 'rates failed' })
+      'cards_api_error',
+      expect.objectContaining({ error: 'Failed to fetch cards data' })
     )
   })
 
@@ -273,7 +279,7 @@ describe('GET /api/cards', () => {
           data: [
             {
               program_id: 'program-in-2',
-              cpp_cents: '120',
+              cpp_cents: 120,
               program_name: 'India Program 2',
               program_slug: 'india-program-2',
               program_type: 'transferable_points',

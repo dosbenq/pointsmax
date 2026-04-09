@@ -257,6 +257,10 @@ export async function POST(req: NextRequest) {
 // Check status of an ingestion job
 // ─────────────────────────────────────────────
 
+export const __testing = {
+  resetIngestJobs: () => ingestJobs.clear(),
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const jobId = searchParams.get('jobId')
