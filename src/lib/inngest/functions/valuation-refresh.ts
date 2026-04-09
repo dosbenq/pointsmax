@@ -116,8 +116,8 @@ export const valuationRefresh = inngest.createFunction(
     })
 
     await step.run('revalidate-valuation-caches', async () => {
-      revalidateTag('valuations')
-      revalidateTag('programmatic-cards')
+      revalidateTag('valuations', 'default')
+      revalidateTag('programmatic-cards', 'default')
       return { ok: true }
     })
 
