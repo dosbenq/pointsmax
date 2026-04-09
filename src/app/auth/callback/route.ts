@@ -8,9 +8,21 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const nextParam = searchParams.get('next') ?? '/us/calculator'
-  const next = nextParam.startsWith('/') && !nextParam.startsWith('//')
-    ? nextParam
-    : '/us/calculator'
+  // Validate: must be relative path, no protocol-relative, no encoded sequences that could redirect
+  const isValidPath = (p: string) => {
+    if (!p.startsWith('/') || p.startsWith('//')) return false
+    // Reject any URL-encoded slashes or backslashes that could bypass validation
+    if (/%2f/i.test(p) || /%5c/i.test(p) || p.includes('\\')) return false
+    // Ensure it doesn't contain protocol indicators
+    try {
+      const url = new URL(p, 'http://localhost')
+      if (url.hostname !== 'localhost') return false
+    } catch {
+      return false
+    }
+    return true
+  }
+  const next = isValidPath(nextParam) ? nextParam : '/us/calculator'
 
   // Use the canonical app origin from env, not the request URL origin.
   // request.url can reflect internal Vercel routing URLs on some deployments,

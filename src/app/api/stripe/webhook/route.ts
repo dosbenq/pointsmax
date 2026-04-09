@@ -124,7 +124,12 @@ export async function POST(req: NextRequest) {
       }
 
       const metadata = isRecord(object.metadata) ? object.metadata : {}
-      const userId = getString(metadata.user_id) ?? getString(object.client_reference_id)
+      // Don't trust client_reference_id as fallback for user identification
+      const userId = getString(metadata.user_id)
+      if (!userId) {
+        logWarn('stripe_webhook_no_user_id', { event_id: event.id, type: event.type })
+        return NextResponse.json({ received: true })
+      }
       const customerId = getString(object.customer)
       const refSlug = getString(metadata.ref_slug)
 
@@ -180,7 +185,7 @@ export async function POST(req: NextRequest) {
       const status = getString(object.status)
       const { data: existingUserRow } = await db
         .from('users')
-        .select('id, tier')
+        .select('id, tier, updated_at')
         .eq('stripe_customer_id', customerId)
         .single()
       const existingUser =
@@ -198,10 +203,26 @@ export async function POST(req: NextRequest) {
             ? 'premium'
             : 'free'
 
-      await db
-        .from('users')
-        .update({ tier: nextTier })
-        .eq('stripe_customer_id', customerId)
+      if (existingUser) {
+        // Only update if our event is newer than the last update (optimistic locking)
+        const eventTimestamp = new Date((object.created as number) * 1000).toISOString()
+        const { error: updateError } = await db
+          .from('users')
+          .update({
+            tier: nextTier,
+            updated_at: eventTimestamp,
+          })
+          .eq('id', existingUser.id)
+          .lte('updated_at', eventTimestamp)
+
+        if (updateError) {
+          logWarn('stripe_webhook_tier_update_failed', {
+            requestId,
+            customer_id: customerId,
+            error: updateError.message,
+          })
+        }
+      }
 
       await insertSubscriptionEvent(db, {
         userId: existingUser?.id ?? null,

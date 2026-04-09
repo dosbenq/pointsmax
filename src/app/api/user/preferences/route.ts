@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { userPreferencesRequestSchema } from '@/lib/validation'
 
 async function getCurrentUserRowId(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
@@ -48,17 +49,21 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
+
+  const parsed = userPreferencesRequestSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Invalid preferences', details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+
   const {
     home_airport,
     preferred_cabin,
     preferred_airlines,
     avoided_airlines,
-  } = (body as {
-    home_airport?: unknown
-    preferred_cabin?: unknown
-    preferred_airlines?: unknown
-    avoided_airlines?: unknown
-  })
+  } = parsed.data
 
   const { error } = await supabase
     .from('user_preferences')

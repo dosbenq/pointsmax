@@ -39,22 +39,44 @@ export async function DELETE(req: NextRequest) {
     if (internalUser) {
       const internalId = internalUser.id
 
-      const [prefErr, alertsErr, balancesErr, watchesErr, sharedTripsErr, clickErr] = await Promise.all([
-        db.from('user_preferences').delete().eq('user_id', internalId).then((res) => res.error),
-        db.from('alert_subscriptions').delete().eq('user_id', internalId).then((res) => res.error),
-        db.from('user_balances').delete().eq('user_id', internalId).then((res) => res.error),
-        db.from('flight_watches').delete().eq('user_id', internalId).then((res) => res.error),
-        db.from('shared_trips').delete().eq('user_id', internalId).then((res) => res.error),
-        db.from('affiliate_clicks').update({ user_id: null }).eq('user_id', internalId).then((res) => res.error),
-      ])
+      // Use sequential deletion with error tracking
+      const deletionSteps = [
+        { table: 'flight_watches', filter: { user_id: internalId } },
+        { table: 'alert_subscriptions', filter: { user_id: internalId } },
+        { table: 'user_balances', filter: { user_id: internalId } },
+        { table: 'shared_trips', filter: { created_by: internalId } },
+        { table: 'user_preferences', filter: { user_id: internalId } },
+      ] as const
 
-      const cleanupErrors = [prefErr, alertsErr, balancesErr, watchesErr, sharedTripsErr, clickErr].filter(Boolean)
-      if (cleanupErrors.length > 0) {
-        logError('account_delete_cleanup_failed', {
-          requestId,
-          errors: cleanupErrors.map((e) => (e as { message?: string }).message ?? 'unknown'),
-        })
-        return NextResponse.json({ error: 'Unable to delete account right now.' }, { status: 500 })
+      const errors: string[] = []
+      for (const step of deletionSteps) {
+        const filterKey = Object.keys(step.filter)[0]
+        const filterVal = Object.values(step.filter)[0]
+        const { error } = await db
+          .from(step.table)
+          .delete()
+          .eq(filterKey, filterVal)
+        if (error) {
+          errors.push(`${step.table}: ${error.message}`)
+        }
+      }
+
+      // Nullify affiliate clicks rather than delete
+      const { error: clickErr } = await db
+        .from('affiliate_clicks')
+        .update({ user_id: null })
+        .eq('user_id', internalId)
+      if (clickErr) {
+        errors.push(`affiliate_clicks: ${clickErr.message}`)
+      }
+
+      if (errors.length > 0) {
+        logError('account_deletion_partial_failure', { requestId, userId: internalId, errors })
+        // Don't proceed with auth deletion if data cleanup had failures
+        return NextResponse.json(
+          { error: 'Account deletion partially failed. Please contact support.' },
+          { status: 500 }
+        )
       }
 
       const { error: deleteUserRowErr } = await db
@@ -73,6 +95,7 @@ export async function DELETE(req: NextRequest) {
       logWarn('account_delete_missing_profile_row', { requestId, auth_user_id: user.id })
     }
 
+    // Only delete auth user if all data cleanup succeeded
     const { error: authDeleteErr } = await db.auth.admin.deleteUser(user.id)
     if (authDeleteErr) {
       logError('account_delete_auth_delete_failed', {

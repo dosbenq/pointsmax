@@ -127,7 +127,7 @@ export default function OnboardingPage() {
 
        if (balancesToInsert.length > 0) {
           // Wipe existing manual to prevent dupes during onboarding
-          await supabase.from('wallet_balances').delete().eq('user_id', user!.id)
+          await supabase.from('wallet_balances').delete().eq('user_id', user!.id).eq('source', 'manual')
           await supabase.from('wallet_balances').insert(balancesToInsert)
        }
 

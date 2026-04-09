@@ -16,6 +16,7 @@ type MockUser = {
   id: string
   tier: 'free' | 'premium'
   stripe_customer_id: string | null
+  updated_at?: string
 }
 
 type MockState = {
@@ -84,20 +85,28 @@ function createDbMock(state: MockState) {
           return {
             eq(column: string, value: string) {
               state.updates.push({ table, payload, column, value })
+              let matchedUser: MockUser | null = null
               if (table === 'users') {
                 if (column === 'id') {
-                  const user = state.usersById.get(value)
-                  if (user) {
-                    Object.assign(user, payload)
-                  }
+                  matchedUser = state.usersById.get(value) ?? null
                 } else if (column === 'stripe_customer_id') {
-                  const user = findUserByCustomer(state, value)
-                  if (user) {
-                    Object.assign(user, payload)
-                  }
+                  matchedUser = findUserByCustomer(state, value)
                 }
               }
-              return Promise.resolve({ error: null })
+              const applyUpdate = () => {
+                if (matchedUser) Object.assign(matchedUser, payload)
+              }
+              return {
+                lte(_col: string, _val: string) {
+                  // Optimistic locking: always apply in tests
+                  applyUpdate()
+                  return Promise.resolve({ error: null })
+                },
+                then(resolve: (v: { error: null }) => void) {
+                  applyUpdate()
+                  return Promise.resolve({ error: null }).then(resolve)
+                },
+              }
             },
           }
         },
@@ -139,8 +148,8 @@ describe('POST /api/stripe/webhook', () => {
     state = {
       processedEventIds: new Set(),
       usersById: new Map([
-        ['user-1', { id: 'user-1', tier: 'free', stripe_customer_id: null }],
-        ['user-2', { id: 'user-2', tier: 'premium', stripe_customer_id: 'cus_premium' }],
+        ['user-1', { id: 'user-1', tier: 'free', stripe_customer_id: null, updated_at: '2020-01-01T00:00:00.000Z' }],
+        ['user-2', { id: 'user-2', tier: 'premium', stripe_customer_id: 'cus_premium', updated_at: '2020-01-01T00:00:00.000Z' }],
       ]),
       subscriptionEvents: [],
       creatorConversions: [],
@@ -172,6 +181,7 @@ describe('POST /api/stripe/webhook', () => {
     const res = await POST(makeRequest(buildStripeEvent('customer.subscription.deleted', {
       customer: 'cus_premium',
       status: 'canceled',
+      created: Math.floor(Date.now() / 1000),
     }, 'evt_sub_deleted')))
 
     expect(res.status).toBe(200)

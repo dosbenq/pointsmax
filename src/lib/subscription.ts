@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { logError } from '@/lib/logger'
 import type { SubscriptionTier } from '@/types/database'
 
 export type GatedFeature = 'live_award_search' | 'flight_watches' | 'connector_sync'
@@ -63,7 +64,9 @@ export async function getUserTier(userId?: string): Promise<SubscriptionTier> {
     const tier = data?.tier === 'premium' ? 'premium' : 'free'
     setCachedTier(`auth:${user.id}`, tier)
     return tier
-  } catch {
+  } catch (err) {
+    // Safety: fall back to 'free' on error — deny premium access rather than granting it
+    logError('get_user_tier_failed', { error: err instanceof Error ? err.message : String(err) })
     return 'free'
   }
 }

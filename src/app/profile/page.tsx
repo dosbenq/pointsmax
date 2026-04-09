@@ -356,6 +356,8 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
     setPrefInput(p => ({ ...p, [inputKey]: '' }))
   }
 
+  const isGuest = !user
+
   const handleManualAdd = async () => {
     if (!manualProgramId) return alert('Please select a program.')
     const num = parseInt(manualAmount, 10)
@@ -495,7 +497,6 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
     }
   }
 
-  const isGuest = !user
   const activeUser = user || { email: 'Guest User' }
   const avatarLetter = user?.email?.[0]?.toUpperCase() ?? 'G'
 
