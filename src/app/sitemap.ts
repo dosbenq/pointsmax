@@ -20,7 +20,7 @@ function isSitemapProgramRow(value: unknown): value is SitemapProgramRow {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
-  const staticRoutes = ['', 'calculator', 'award-search', 'card-recommender', 'earning-calculator', 'how-it-works', 'inspire', 'pricing']
+  const staticRoutes = ['', 'calculator', 'award-search', 'card-recommender', 'earning-calculator', 'how-it-works', 'inspire', 'pricing', 'cards', 'cards/compare', 'programs', 'privacy', 'terms', 'trip-builder']
 
   function getRoutePriority(route: string): number {
     if (!route) return 0.95

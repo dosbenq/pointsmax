@@ -7,9 +7,16 @@ import { REGIONS, type Region } from '@/lib/regions'
 
 export const revalidate = 3600
 
-export const metadata: Metadata = {
-  title: 'Loyalty Programs Directory',
-  description: 'Browse loyalty program values, transfer paths, and card earn sources.',
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { region } = await params
+  const label = region === 'in' ? 'India' : 'US'
+  return {
+    title: `Loyalty Programs Directory — ${label}`,
+    description: `Browse ${label} loyalty program values, transfer paths, and card earn sources.`,
+    alternates: {
+      canonical: `/${region}/programs`,
+    },
+  }
 }
 
 type Props = {

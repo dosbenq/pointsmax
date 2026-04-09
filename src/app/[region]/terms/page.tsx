@@ -2,10 +2,17 @@ import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 
-export const metadata: Metadata = {
-  title: 'Terms of Service | PointsMax',
-  description: 'Terms for using the PointsMax website and tools.',
-  alternates: { canonical: '/terms' },
+type Props = {
+  params: Promise<{ region: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { region } = await params
+  return {
+    title: 'Terms of Service | PointsMax',
+    description: 'Terms for using the PointsMax website and tools.',
+    alternates: { canonical: `/${region}/terms` },
+  }
 }
 
 const LAST_UPDATED = 'February 21, 2026'

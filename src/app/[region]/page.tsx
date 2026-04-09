@@ -183,9 +183,14 @@ export default function LandingPage() {
            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-pm-surface-soft to-transparent z-10" />
            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-pm-surface-soft to-transparent z-10" />
            
-           <div className="flex items-center justify-center gap-16 animate-[scroll_40s_linear_infinite] whitespace-nowrap opacity-60">
+           <div className="flex animate-[scroll_40s_linear_infinite] whitespace-nowrap opacity-60">
              {marqueeItems.map((item, idx) => (
-               <span key={idx} className="text-xl font-bold text-pm-ink-500 tracking-tighter">
+               <span key={`a-${idx}`} className="text-xl font-bold text-pm-ink-500 tracking-tighter mx-8">
+                 {item}
+               </span>
+             ))}
+             {marqueeItems.map((item, idx) => (
+               <span key={`b-${idx}`} className="text-xl font-bold text-pm-ink-500 tracking-tighter mx-8">
                  {item}
                </span>
              ))}

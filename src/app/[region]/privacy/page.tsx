@@ -2,10 +2,17 @@ import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy | PointsMax',
-  description: 'How PointsMax collects, uses, and protects your data.',
-  alternates: { canonical: '/privacy' },
+type Props = {
+  params: Promise<{ region: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { region } = await params
+  return {
+    title: 'Privacy Policy | PointsMax',
+    description: 'How PointsMax collects, uses, and protects your data.',
+    alternates: { canonical: `/${region}/privacy` },
+  }
 }
 
 const LAST_UPDATED = 'February 21, 2026'

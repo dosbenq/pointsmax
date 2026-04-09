@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import NavBar from '@/components/NavBar'
+import Footer from '@/components/Footer'
 import { useSpendOnlyRanking } from '@/features/card-recommender'
 import { formatCurrencyRounded, getCategoriesForRegion, spendInputPrefix } from '@/lib/card-tools'
 import { REGIONS, type Region } from '@/lib/regions'
@@ -69,7 +71,9 @@ export function EarningCalculatorClient({ region }: { region: Region }) {
   )
 
   return (
-    <div className="min-h-screen bg-pm-bg">
+    <>
+      <NavBar />
+      <div className="min-h-screen bg-pm-bg">
       <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="pm-label text-pm-accent">Standalone earning tool</p>
@@ -173,5 +177,7 @@ export function EarningCalculatorClient({ region }: { region: Region }) {
         </section>
       </main>
     </div>
+      <Footer />
+    </>
   )
 }
