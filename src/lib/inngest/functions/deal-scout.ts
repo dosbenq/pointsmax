@@ -151,7 +151,7 @@ export const dealScout = inngest.createFunction(
       const userBalances = balancesByUser.get(watch.user_id) ?? []
       if (userBalances.length === 0) {
         results.push({ watch_id: watch.id, status: 'missing_balances' })
-        await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+        await step.run(`update-watch-${watch.id}-missing_balances`, async () => {
           await db
             .from('flight_watches')
             .update({ last_checked_at: new Date().toISOString() })
@@ -184,7 +184,7 @@ export const dealScout = inngest.createFunction(
         })
       } catch {
         results.push({ watch_id: watch.id, status: 'search_failed' })
-        await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+        await step.run(`update-watch-${watch.id}-search_failed`, async () => {
           await db
             .from('flight_watches')
             .update({ last_checked_at: new Date().toISOString() })
@@ -205,7 +205,7 @@ export const dealScout = inngest.createFunction(
 
       if (!bestDeal) {
         results.push({ watch_id: watch.id, status: 'no_match' })
-        await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+        await step.run(`update-watch-${watch.id}-no_match`, async () => {
           await db
             .from('flight_watches')
             .update({ last_checked_at: new Date().toISOString() })
@@ -217,7 +217,7 @@ export const dealScout = inngest.createFunction(
       const dealScore = scoreDeal(bestDeal, bestDeal.baseline_cpp_cents)
       if (dealScore.rating === 'fair' || dealScore.rating === 'poor') {
         results.push({ watch_id: watch.id, status: 'below_threshold', detail: dealScore.rating })
-        await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+        await step.run(`update-watch-${watch.id}-below_threshold`, async () => {
           await db
             .from('flight_watches')
             .update({ last_checked_at: new Date().toISOString() })
@@ -253,7 +253,7 @@ export const dealScout = inngest.createFunction(
         results.push({ watch_id: watch.id, status: 'alerted' })
       }
 
-      await step.run(`update-watch-timestamp-${watch.id}`, async () => {
+      await step.run(`update-watch-${watch.id}-success`, async () => {
         await db
           .from('flight_watches')
           .update({ last_checked_at: new Date().toISOString() })

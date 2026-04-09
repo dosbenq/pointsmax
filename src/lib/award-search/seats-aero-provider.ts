@@ -305,10 +305,17 @@ export class SeatsAeroProvider implements AwardProvider {
       })
 
       if (!res.ok) {
-        logWarn('seats_aero_api_error', {
-          status: res.status,
-          body: await res.text(),
-        })
+        const status = res.status
+        if (status === 401 || status === 403) {
+          logError('seats_aero_auth_failure', { status })
+          throw new Error(`Award search provider authentication failed (${status})`)
+        }
+        if (status >= 500) {
+          logError('seats_aero_server_error', { status })
+          throw new Error(`Award search provider unavailable (${status})`)
+        }
+        // 404 or other client errors — legitimate "no results"
+        logWarn('seats_aero_client_error', { status })
         return []
       }
 

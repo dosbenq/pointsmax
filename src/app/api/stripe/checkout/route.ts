@@ -36,6 +36,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
   }
 
+  let body: Record<string, unknown> = {}
+  try {
+    body = (await req.json()) as Record<string, unknown>
+  } catch {
+    // No body is fine — default to US region
+  }
+  const normalizedRegion = body.region === 'in' ? 'in' : 'us'
+
   try {
     const db = createAdminClient()
     const { data, error: userErr } = await db
@@ -82,14 +90,18 @@ export async function POST(req: NextRequest) {
 
     const appOrigin = getSafeAppOrigin(req.url)
     const refSlug = req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null
+    const priceId = normalizedRegion === 'in'
+      ? process.env.STRIPE_PRO_PRICE_ID_INR ?? process.env.STRIPE_PRO_PRICE_ID
+      : process.env.STRIPE_PRO_PRICE_ID
     const session = await createStripeCheckoutSession({
       secretKey,
       customerId,
       userId: userRow.id,
       successUrl: `${appOrigin}/pricing?checkout=success`,
       cancelUrl: `${appOrigin}/pricing?checkout=cancelled`,
-      priceId: process.env.STRIPE_PRO_PRICE_ID,
+      priceId,
       refSlug,
+      region: normalizedRegion,
     })
 
     logInfo('stripe_checkout_created', {

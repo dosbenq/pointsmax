@@ -61,27 +61,45 @@ export const weeklyDigest = inngest.createFunction(
     const resend = new Resend(resendKey)
     const appOrigin = getConfiguredAppOrigin()
 
-    const [usersRes, prefsRes, balancesRes] = await Promise.all([
-      db.from('users').select('id, email'),
-      db.from('user_preferences').select('user_id, home_airport, digest_email_enabled'),
-      db.from('user_balances').select('user_id, program_id, balance'),
-    ])
+    type EligibleRow = {
+      user_id: string
+      home_airport: string | null
+      digest_email_enabled: boolean | null
+      users: DigestUserRow
+    }
 
-    const users = (usersRes.data ?? []) as DigestUserRow[]
-    const prefsByUserId = new Map(
-      ((prefsRes.data ?? []) as PreferenceRow[]).map((row) => [row.user_id, row]),
-    )
+    // Only fetch users who have digest enabled
+    const { data: rawEligibleUsers } = await db
+      .from('user_preferences')
+      .select('user_id, home_airport, digest_email_enabled, users!inner(id, email)')
+      .eq('digest_email_enabled', true)
+      .limit(500)
+
+    const eligibleUsers = (rawEligibleUsers ?? []) as unknown as EligibleRow[]
+
+    // Then fetch balances only for eligible users
+    const eligibleUserIds = eligibleUsers.map((u) => u.user_id)
+
+    const { data: balancesData } = eligibleUserIds.length > 0
+      ? await db
+          .from('user_balances')
+          .select('user_id, program_id, balance')
+          .in('user_id', eligibleUserIds)
+      : { data: [] as BalanceRow[] }
+
     const balancesByUserId = new Map<string, BalanceRow[]>()
-    for (const balance of ((balancesRes.data ?? []) as BalanceRow[])) {
+    for (const balance of ((balancesData ?? []) as BalanceRow[])) {
       const list = balancesByUserId.get(balance.user_id) ?? []
       list.push(balance)
       balancesByUserId.set(balance.user_id, list)
     }
 
     let sent = 0
-    for (const user of users) {
-      const prefs = prefsByUserId.get(user.id)
-      if (prefs?.digest_email_enabled === false) continue
+    for (const row of eligibleUsers) {
+      const userRel = row.users
+      if (!userRel) continue
+      const user: DigestUserRow = { id: userRel.id, email: userRel.email }
+      const prefs: PreferenceRow = { user_id: row.user_id, home_airport: row.home_airport, digest_email_enabled: row.digest_email_enabled }
 
       const balances = (balancesByUserId.get(user.id) ?? []).filter((row) => row.balance > 0)
       if (balances.length === 0) continue

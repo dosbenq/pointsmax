@@ -72,16 +72,16 @@ export function isValidBookingUrl(url: string): boolean {
   }
 }
 
-async function loadValidatedBookingUrls(region?: 'us' | 'in'): Promise<BookingUrl[]> {
+async function loadValidatedBookingUrls(region?: 'us' | 'in'): Promise<{ urls: BookingUrl[]; degraded: boolean }> {
   try {
     const dbUrls = await getActiveBookingUrls(region ?? null)
-    return dedupeBookingUrls(dbUrls.filter((row) => isValidBookingUrl(row.url)))
+    return { urls: dedupeBookingUrls(dbUrls.filter((row) => isValidBookingUrl(row.url))), degraded: false }
   } catch (err) {
     logWarn('booking_urls_unavailable', {
       region: region ?? 'all',
       message: err instanceof Error ? err.message : 'Unknown error',
     })
-    return []
+    return { urls: [], degraded: true }
   }
 }
 
@@ -97,7 +97,7 @@ function categorizeValidatedUrls(urls: BookingUrl[]): CategorizedBookingLink[] {
  * Uses only validated DB-backed URLs. No static fallback.
  */
 export async function getBookingUrlsForPrompt(region: 'us' | 'in'): Promise<string> {
-  const relevant = await loadValidatedBookingUrls(region)
+  const { urls: relevant } = await loadValidatedBookingUrls(region)
   if (relevant.length === 0) {
     return 'Known booking URLs: none configured. Do not invent external booking links.'
   }
@@ -112,7 +112,7 @@ export async function getBookingUrlsForPrompt(region: 'us' | 'in'): Promise<stri
  */
 export async function getBookingUrl(programSlug: string): Promise<string | null> {
   const normalizedTarget = normalizeProgramSlug(programSlug)
-  const all = await loadValidatedBookingUrls()
+  const { urls: all } = await loadValidatedBookingUrls()
   const found = all.find((u) => normalizeProgramSlug(u.program_slug) === normalizedTarget)
   return found?.url ?? null
 }
@@ -121,7 +121,7 @@ export async function getBookingLinks(
   category?: BookingLinkCategory,
   region?: 'us' | 'in',
 ): Promise<CategorizedBookingLink[]> {
-  const all = await loadValidatedBookingUrls(region)
+  const { urls: all } = await loadValidatedBookingUrls(region)
   const categorized = categorizeValidatedUrls(all)
 
   return category
@@ -141,7 +141,8 @@ export async function formatBookingLinksForPrompt(
 }
 
 export async function getTripBuilderPromptSections(region: 'us' | 'in') {
-  const categorized = categorizeValidatedUrls(await loadValidatedBookingUrls(region))
+  const { urls: validatedUrls } = await loadValidatedBookingUrls(region)
+  const categorized = categorizeValidatedUrls(validatedUrls)
   const formatCategory = (category: BookingLinkCategory) => {
     const links = categorized.filter((link) => link.category === category)
     if (links.length === 0) return '- No validated URLs configured'

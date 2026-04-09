@@ -18,7 +18,7 @@ function normalizeRegion(value: unknown): 'us' | 'in' {
 }
 
 function newShareId(): string {
-  return crypto.randomBytes(5).toString('base64url')
+  return crypto.randomBytes(12).toString('base64url')
 }
 
 export async function POST(req: NextRequest) {

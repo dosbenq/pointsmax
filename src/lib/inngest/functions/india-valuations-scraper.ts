@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { logInfo, logError } from '@/lib/logger'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { logAiMetric } from '@/lib/telemetry'
+import { getGeminiModelCandidatesForApiKey } from '@/lib/gemini-models'
 
 const GENAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
@@ -56,8 +57,23 @@ async function fetchPageContent(url: string): Promise<string> {
 
 async function extractValuationsWithGemini(html: string): Promise<ScrapedValuation[]> {
   const startedAt = Date.now()
-  const model = GENAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-  
+  const apiKey = process.env.GEMINI_API_KEY || ''
+  const candidates = await getGeminiModelCandidatesForApiKey(apiKey)
+  let model
+  for (const candidate of candidates) {
+    try {
+      model = GENAI.getGenerativeModel({ model: candidate })
+      break
+    } catch {
+      continue
+    }
+  }
+  if (!model) {
+    logError('india_valuations_no_model', {})
+    return []
+  }
+  const selectedModelName = candidates[0] ?? 'unknown'
+
   const prompt = `Extract credit card reward point valuations from this HTML content.
 ...
 HTML content to analyze:
@@ -66,41 +82,41 @@ ${html.slice(0, 150000)}`
   try {
     const result = await model.generateContent(prompt)
     const text = result.response.text()
-    
+
     // Extract JSON from response
     const jsonMatch = text.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
       logAiMetric({
         operation: 'india_scraper_extract',
-        model: 'gemini-1.5-flash',
+        model: selectedModelName,
         latency_ms: Date.now() - startedAt,
         is_fallback: false,
         success: true,
       })
       return []
     }
-    
+
     const parsed = JSON.parse(jsonMatch[0])
     if (!Array.isArray(parsed)) {
       logAiMetric({
         operation: 'india_scraper_extract',
-        model: 'gemini-1.5-flash',
+        model: selectedModelName,
         latency_ms: Date.now() - startedAt,
         is_fallback: false,
         success: true,
       })
       return []
     }
-    
+
     logAiMetric({
       operation: 'india_scraper_extract',
-      model: 'gemini-1.5-flash',
+      model: selectedModelName,
       latency_ms: Date.now() - startedAt,
       is_fallback: false,
       success: true,
     })
 
-    return parsed.filter((v): v is ScrapedValuation => 
+    return parsed.filter((v): v is ScrapedValuation =>
       typeof v.program_name === 'string' &&
       typeof v.cpp_inr === 'number' &&
       typeof v.source_quote === 'string'
@@ -108,7 +124,7 @@ ${html.slice(0, 150000)}`
   } catch (error) {
     logAiMetric({
       operation: 'india_scraper_extract',
-      model: 'gemini-1.5-flash',
+      model: selectedModelName,
       latency_ms: Date.now() - startedAt,
       is_fallback: false,
       success: false,
@@ -138,19 +154,21 @@ export const indiaValuationsScraper = inngest.createFunction(
     logInfo('india_valuations_scraper_started', { jobId })
 
     const db = createAdminClient()
-    const allValuations: ScrapedValuation[] = []
     const unmappedPrograms: string[] = []
 
-    // Fetch and extract from each source
+    // Fetch and extract from each source — collect return values instead of mutating closure
+    const scrapeResults: ScrapedValuation[][] = []
     for (const url of SOURCES) {
-      await step.run(`fetch-${url}`, async () => {
+      const siteResults = await step.run(`fetch-${url}`, async () => {
         const html = await fetchPageContent(url)
         if (html) {
-          const valuations = await extractValuationsWithGemini(html)
-          allValuations.push(...valuations)
+          return await extractValuationsWithGemini(html)
         }
+        return []
       })
+      scrapeResults.push(siteResults)
     }
+    const allValuations = scrapeResults.flat()
 
     // Get program IDs from database
     const { data: programs } = await db

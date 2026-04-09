@@ -93,6 +93,16 @@ function normalizeRegion(value: unknown): RegionCode {
   return value === 'in' ? 'in' : 'us'
 }
 
+/** Strip control characters and limit length for prompt-safe interpolation */
+function sanitizeForPrompt(input: string, maxLen = 200): string {
+  return input
+    .replace(/[\x00-\x1f\x7f]/g, '') // Strip control characters
+    .replace(/\n/g, ' ')              // Replace newlines with spaces
+    .replace(/[<>]/g, '')             // Strip angle brackets
+    .slice(0, maxLen)
+    .trim()
+}
+
 function formatMinorCurrency(valueCents: number, regionCtx: RegionContext): string {
   return (valueCents / 100).toLocaleString('en-US', {
     style: 'currency',
@@ -473,6 +483,7 @@ export async function POST(req: NextRequest) {
     topResults,
     preferences,
     region,
+    historyHash: history?.length ? JSON.stringify(history).length + '-' + history.length : '0',
   })
 
   const cached = getCachedAiResponse<string>(cacheKey)
@@ -528,22 +539,22 @@ export async function POST(req: NextRequest) {
   const balanceSummary = balances
     .map((b) => {
       if (!b.program_id) {
-        return `  - ${b.name}: ${b.amount.toLocaleString()} points`
+        return `  - ${sanitizeForPrompt(b.name)}: ${b.amount.toLocaleString()} points`
       }
       const ctx = programContextById.get(b.program_id)
       if (!ctx) {
-        return `  - ${b.name}: ${b.amount.toLocaleString()} points`
+        return `  - ${sanitizeForPrompt(b.name)}: ${b.amount.toLocaleString()} points`
       }
       const cpp = typeof ctx.cpp_cents === 'number' ? ` · ${formatCpp(ctx.cpp_cents, regionCtx)}` : ''
-      return `  - ${ctx.name} (${ctx.slug}): ${b.amount.toLocaleString()} points${cpp}`
+      return `  - ${sanitizeForPrompt(ctx.name)} (${sanitizeForPrompt(ctx.slug)}): ${b.amount.toLocaleString()} points${cpp}`
     })
     .join('\n')
 
   const partnersByProgram: Record<string, string[]> = {}
   for (const r of topResults) {
     if (r.category !== 'transfer_partner') continue
-    const prog = r.from_program?.name ?? ''
-    const partner = r.to_program?.name ?? ''
+    const prog = sanitizeForPrompt(r.from_program?.name ?? '')
+    const partner = sanitizeForPrompt(r.to_program?.name ?? '')
     if (!prog) continue
     if (!partnersByProgram[prog]) partnersByProgram[prog] = []
     if (partner && !partnersByProgram[prog].includes(partner)) {
@@ -561,7 +572,7 @@ export async function POST(req: NextRequest) {
       .map((r) => {
         const displayValue = formatMinorCurrency(r.total_value_cents, regionCtx)
         const bonus = r.active_bonus_pct ? ` ⚡+${r.active_bonus_pct}% bonus` : ''
-        return `  - ${r.label}: ${displayValue} (${formatCpp(r.cpp_cents, regionCtx)})${bonus}`
+        return `  - ${sanitizeForPrompt(r.label)}: ${displayValue} (${formatCpp(r.cpp_cents, regionCtx)})${bonus}`
       })
       .join('\n')
     : '  (No pre-calculated redemption rows were provided for this chat turn.)'
