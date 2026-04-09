@@ -83,7 +83,9 @@ export default async function PricingPage({ params }: Props) {
 
   // Pricing in local currency
   // Using approximate conversions - in production these would come from Stripe
-  const proPrice = region === 'in' ? '₹499' : '$9.99'
+  const proPrice = region === 'in'
+    ? (process.env.NEXT_PUBLIC_PRO_PRICE_INR || '₹499')
+    : (process.env.NEXT_PUBLIC_PRO_PRICE_USD || '$9.99')
   const freePrice = region === 'in' ? '₹0' : '$0'
   
   const faq = getFAQ(region, proPrice)

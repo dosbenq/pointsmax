@@ -202,6 +202,7 @@ export function useCalculatorState() {
   // ── Core state ──────────────────────────────────────────────
   const [programs, setPrograms] = useState<Program[]>([])
   const [programsLoading, setProgramsLoading] = useState(true)
+  const [programsError, setProgramsError] = useState<string | null>(null)
   const [rows, setRows] = useState<BalanceRow[]>([{ id: '1', program_id: '', amount: '' }])
   const [result, setResult] = useState<CalculateResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -369,7 +370,11 @@ export function useCalculatorState() {
           setPrograms([])
         }
       })
-      .catch(() => setPrograms([]))
+      .catch((err) => {
+        console.error('Failed to load programs:', err)
+        setPrograms([])
+        setProgramsError('Unable to load loyalty programs. Please refresh the page.')
+      })
       .finally(() => setProgramsLoading(false))
   }, [region])
 
@@ -430,6 +435,10 @@ export function useCalculatorState() {
           program_id: b.program_id,
           amount: String(Math.max(0, Math.round(b.balance))),
         })))
+      })
+      .catch((err) => {
+        console.error('Failed to load user balances:', err)
+        // Don't crash — user can still manually add balances
       })
   }, [user, region])
 
@@ -605,14 +614,21 @@ export function useCalculatorState() {
 
   const savePreferences = useCallback(async () => {
     setPrefSaving(true)
-    await fetch('/api/user/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prefForm),
-    })
-    await refreshPreferences()
-    setPrefSaving(false)
-    setPrefOpen(false)
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefForm),
+      })
+      if (!res.ok) throw new Error('Failed to save preferences')
+      await refreshPreferences()
+      setPrefOpen(false)
+    } catch (err) {
+      console.error('Preferences save failed:', err)
+      // Don't close the panel on error so user can retry
+    } finally {
+      setPrefSaving(false)
+    }
   }, [prefForm, refreshPreferences])
 
   const runAwardSearch = useCallback(async () => {
@@ -912,6 +928,7 @@ export function useCalculatorState() {
     // Core state
     programs,
     programsLoading,
+    programsError,
     rows,
     result,
     loading,

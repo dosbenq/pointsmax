@@ -10,7 +10,8 @@ export default function Footer() {
   const config = REGIONS[region]
 
   const productLinks = [
-    { href: `/${region}/calculator`, label: 'Planner' },
+    { href: `/${region}/calculator`, label: 'Calculator' },
+    { href: `/${region}/trip-builder`, label: 'Trip Builder' },
     { href: `/${region}/card-recommender`, label: 'Card Strategy' },
     { href: `/${region}/profile`, label: 'Wallet' },
   ]

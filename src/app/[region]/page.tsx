@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { PlaneTakeoff, CreditCard, Wallet, Compass } from 'lucide-react'
+import { PlaneTakeoff, CreditCard } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { type Region } from '@/lib/regions'
@@ -195,43 +195,6 @@ export default function LandingPage() {
                </span>
              ))}
            </div>
-        </div>
-
-        {/* Feature Teasers - Clean visual grid below the fold */}
-        <div className="relative z-10 bg-pm-surface border-t border-pm-border-strong mt-auto">
-          <div className="pm-shell py-16 sm:py-24 grid sm:grid-cols-2 xl:grid-cols-4 gap-12 sm:gap-8">
-            <Link href={`/${region}/profile`} className="group flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
-                <Wallet className="w-6 h-6 stroke-[1.5]" />
-              </div>
-              <h3 className="pm-heading text-xl mb-3">Premium Wallet</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Track balances, import statements, and build a wallet you can actually use for trip decisions.</p>
-            </Link>
-
-            <Link href={`/${region}/calculator`} className="group flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
-                <PlaneTakeoff className="w-6 h-6 stroke-[1.5]" />
-              </div>
-              <h3 className="pm-heading text-xl mb-3">Live Award Search</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Search award options with clear live-versus-estimated labeling, wallet reachability, and transfer guidance.</p>
-            </Link>
-
-            <Link href={`/${region}/card-recommender`} className="group flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
-                <CreditCard className="w-6 h-6 stroke-[1.5]" />
-              </div>
-              <h3 className="pm-heading text-xl mb-3">Card Matcher</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Find the next card that fits your region, spend, and redemption goals instead of chasing generic rankings.</p>
-            </Link>
-
-            <Link href={`/${region}/inspire`} className="group flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-[20px] bg-pm-surface-soft border border-pm-border flex items-center justify-center text-pm-ink-900 mb-6 group-hover:scale-110 group-hover:bg-pm-accent group-hover:text-pm-bg group-hover:border-pm-accent transition-all duration-300 shadow-xs group-hover:shadow-glow">
-                <Compass className="w-6 h-6 stroke-[1.5]" />
-              </div>
-              <h3 className="pm-heading text-xl mb-3">Award Playbooks</h3>
-              <p className="text-pm-ink-500 text-sm leading-relaxed max-w-xs">Study sweet spots, route examples, and inspiration pages that feed directly back into search and booking workflows.</p>
-            </Link>
-          </div>
         </div>
 
       </main>

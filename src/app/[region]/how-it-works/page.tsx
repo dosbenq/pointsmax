@@ -116,8 +116,8 @@ const getFAQ = (region: Region) => region === 'in' ? [
     a: "An award chart is a table published by an airline or hotel program that shows how many points are required to book a reward. Some programs use dynamic pricing instead of fixed award charts. PointsMax uses chart-based estimates where applicable and live data from Seats.aero for real availability.",
   },
   {
-    q: 'When will Pro launch?',
-    a: "We're rolling out Pro in phases. Join the waitlist to get launch updates, early access, and pricing details.",
+    q: 'What does Pro include?',
+    a: 'Pro unlocks live award availability from Seats.aero, unlimited AI advisor messages, deal watches, and priority support.',
   },
 ]
 

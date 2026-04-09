@@ -15,6 +15,8 @@ import {
 import { AwardResults, AIChat, BalanceInputPanel, HotelResults } from './components'
 import { type Region } from '@/lib/regions'
 import { analyzePortfolioHealth } from '@/lib/portfolio-health'
+import { trackEvent } from '@/lib/analytics'
+import { CalculatorActionStrip } from '@/features/calculator-shell'
 
 type Tool = 'hub' | 'trip' | 'value' | 'ai'
 type TripMode = 'flights' | 'hotels'
@@ -618,6 +620,17 @@ export default function CalculatorPage() {
                </div>
              </div>
 
+             {(state.result || state.awardResult) && (
+               <CalculatorActionStrip
+                 visible={true}
+                 onBook={() => setActiveTool('trip')}
+                 onShare={() => state.shareTripSnapshot()}
+                 onAlert={() => {}}
+                 shareBusy={state.shareBusy}
+                 region={region}
+               />
+             )}
+
              <div className="flex flex-col gap-3 sm:flex-row">
                <button onClick={() => state.setResult(null)} className="pm-button-secondary w-full sm:w-auto">Reset Calculation</button>
                <button onClick={() => state.calculate()} className="pm-button w-full sm:w-auto">Refresh Analysis</button>
@@ -714,7 +727,7 @@ export default function CalculatorPage() {
               aiError={state.aiError}
               blockedReason={state.advisorBlockedReason}
               canUseAdvisor={state.canUseAdvisor}
-              hasCalculatorResult={true}
+              hasCalculatorResult={Boolean(state.result || state.awardResult)}
               result={state.result}
               user={user}
               chatEndRef={state.chatEndRef}
@@ -722,7 +735,14 @@ export default function CalculatorPage() {
               onSendMessage={state.sendMessage}
               onRetryLastMessage={state.retryLastMessage}
               onClearChat={() => { state.setChatMessages([]); state.setGeminiHistory([]); state.setMessageCount(0) }}
-              onSwitchPanel={() => {}}
+              onSwitchPanel={(panel, reason) => {
+                if (panel === 'redemptions' || panel === 'awards') {
+                  setActiveTool(panel === 'awards' ? 'trip' : 'value')
+                }
+                if (reason) {
+                  trackEvent('calculator_panel_switch', { panel, reason })
+                }
+              }}
             />
          </div>
       </div>

@@ -393,10 +393,19 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
   const signupValue = (card.signup_bonus_pts * card.cpp_cents) / 100
   const hasCardAlready = inputs.ownedCards.has(card.id)
   const signupValueEligible = hasCardAlready ? 0 : signupValue
+
+  // Check if user can meet the minimum spend requirement for signup bonus
+  const signupBonusSpend = card.signup_bonus_spend ?? 0
+  const totalMonthlySpend = Object.values(inputs.spend).reduce(
+    (sum, val) => sum + (Number.parseFloat((val ?? '0').replace(/,/g, '')) || 0), 0
+  )
+  const canMeetSpend = signupBonusSpend <= 0 || (totalMonthlySpend * 3 >= signupBonusSpend)
+  const adjustedSignupValue = canMeetSpend ? signupValueEligible : 0
+
   const softBenefitValue = getSoftBenefitAnnualValue(card, inputs.regionCode)
   const annualFeeAmount = getCardAnnualFeeAmount(card)
   const ongoingValue = annualRewardsValue + softBenefitValue - annualFeeAmount
-  const firstYearValue = ongoingValue + signupValueEligible
+  const firstYearValue = ongoingValue + adjustedSignupValue
   const goalCount = goalMatchScore(card, inputs.travelGoals, inputs.programGoalMap)
   const goalMatchStrength = getGoalMatchStrength(goalCount, inputs.travelGoals.size)
   const walletBalance = getWalletBalanceForCard(card, inputs.walletBalances ?? [])
@@ -415,7 +424,7 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
 
   const partialBreakdown = {
     annualRewardsValue,
-    signupBonusValue: signupValueEligible,
+    signupBonusValue: adjustedSignupValue,
     softBenefitValue,
     goalAlignmentBonus,
     walletSynergyBonus,
@@ -427,12 +436,19 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
       ? Number.NEGATIVE_INFINITY
       : getWeightedTotal(partialBreakdown, inputs.mode)
 
+  // Add warning if user can't meet spend requirement
+  if (!canMeetSpend && signupBonusSpend > 0) {
+    eligibility.warnings.push(
+      `Your stated monthly spend may not meet the $${signupBonusSpend.toLocaleString()} minimum spend requirement for the signup bonus.`
+    )
+  }
+
   const confidence = buildConfidence(card, inputs, eligibility, walletBalance, goalMatchStrength)
   const explanation = buildExplanation(
     card,
     inputs,
     annualRewardsValue,
-    signupValueEligible,
+    adjustedSignupValue,
     softBenefitValue,
     goalCount,
     walletBalance,
@@ -454,7 +470,7 @@ export function scoreCard(card: CardWithRates, inputs: ScoringInputs): CardRecom
     pointsPerYear,
     annualRewardsValue,
     signupValue,
-    signupValueEligible,
+    signupValueEligible: adjustedSignupValue,
     softBenefitValue,
     softBenefits: getSoftBenefits(card),
     ongoingValue,

@@ -856,7 +856,12 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
                 type="text"
                 placeholder="e.g. JFK, LAX, ORD"
                 value={prefForm.home_airport ?? ''}
-                onChange={e => setPrefForm(f => ({ ...f, home_airport: e.target.value.toUpperCase() }))}
+                onChange={e => {
+                  const value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
+                  setPrefForm(f => ({ ...f, home_airport: value }))
+                }}
+                maxLength={3}
+                pattern="[A-Z]{3}"
                 className="pm-input"
               />
             </div>
