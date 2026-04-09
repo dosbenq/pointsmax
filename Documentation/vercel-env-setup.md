@@ -88,4 +88,4 @@ PointsMax now pins Node `20.x` in `package.json`, so Vercel should use the same 
 vercel --prod
 ```
 
-Then run post-deploy checks from `/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/launch-day-runbook.md`.
+Then run post-deploy checks from `./Documentation/launch-day-runbook.md`.

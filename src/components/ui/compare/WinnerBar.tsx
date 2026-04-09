@@ -1,5 +1,5 @@
 import { CardComparePayload } from '@/features/card-recommender/domain/ui-contract'
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 import { Sparkles, Plane, Coffee, Shield, DollarSign } from 'lucide-react'
 
 interface WinnerBarProps {
@@ -41,8 +41,8 @@ function WinnerPill({ icon, label, cardName }: { icon: ReactNode, label: string,
   return (
     <div className="flex flex-col items-center">
       <div className="text-[10px] font-bold text-pm-ink-500 uppercase tracking-widest flex items-center gap-1.5 mb-1">
-         <span className="w-3 h-3 flex items-center justify-center">
-           {icon}
+         <span className="w-3 h-3 flex items-center justify-center" aria-hidden="true">
+           {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: 'w-3 h-3' }) : icon}
          </span>
          {label}
       </div>

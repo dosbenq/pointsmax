@@ -44,7 +44,7 @@ export function TrustPanel({ metadata, className = '' }: TrustPanelProps) {
             </div>
             <div className="text-xs text-pm-ink-500 flex items-center gap-1 flex-wrap">
               Last audited {format(new Date(metadata.lastVerifiedDate), 'MMM d, yyyy')}
-              <span className="text-pm-border mx-1">•</span>
+              <span className="text-pm-ink-500 mx-1">•</span>
               {metadata.sourcesCheckedCount} sources checked
             </div>
           </div>

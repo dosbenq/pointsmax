@@ -105,7 +105,10 @@ describe('POST /api/award-search/parse', () => {
     expect(payload.params.origin).toBe('JFK')
     expect(payload.params.destination).toBe('HND')
     expect(payload.params.cabin).toBe('business')
-    expect(payload.params.start_date).toBe('2026-03-01')
+    // March is in the past relative to current date, so next year is correct
+    const now = new Date()
+    const expectedYear = 2 < now.getMonth() ? now.getFullYear() + 1 : now.getFullYear()
+    expect(payload.params.start_date).toBe(`${expectedYear}-03-01`)
     expect(payload.confidence).toBe('high')
   })
 })

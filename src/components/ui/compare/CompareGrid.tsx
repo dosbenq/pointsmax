@@ -114,14 +114,17 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
             </div>
             
             {/* Mobile Section Nav Picker */}
-            <div className="flex w-full bg-pm-surface-soft border-t border-pm-border overflow-x-auto text-xs py-1 scrollbar-hide">
+            <div role="tablist" aria-label="Card comparison sections" className="flex w-full bg-pm-surface-soft border-t border-pm-border overflow-x-auto text-xs py-1 scrollbar-hide">
               {['verdict', 'fees', 'rewards', 'perks'].map((tab) => (
-                <button 
+                <button
                   key={tab}
+                  role="tab"
+                  aria-selected={activeMobileTab === tab}
+                  aria-controls={`panel-${tab}`}
                   onClick={() => setActiveMobileTab(tab as 'verdict' | 'fees' | 'rewards' | 'perks')}
                   className={`flex-1 py-3 px-4 font-bold uppercase tracking-widest text-center whitespace-nowrap transition-colors ${activeMobileTab === tab ? 'text-pm-accent border-b-2 border-pm-accent' : 'text-pm-ink-500 hover:text-pm-ink-900 border-b-2 border-transparent'}`}
                 >
-                  {tab}
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
             </div>
@@ -131,7 +134,7 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
          <div className="flex flex-col">
            
            {/* SECTION: Verdict */}
-           <div className={`flex-col ${activeMobileTab === 'verdict' ? 'flex' : 'hidden md:flex'}`}>
+           <div role="tabpanel" id="panel-verdict" className={`flex-col ${activeMobileTab === 'verdict' ? 'flex' : 'hidden md:flex'}`}>
              <div className="bg-pm-surface-soft border-b border-pm-border p-4 text-xs font-bold uppercase tracking-widest text-pm-ink-500 md:col-span-full">
                Quick Verdict
              </div>
@@ -139,7 +142,7 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
            </div>
 
            {/* SECTION: Fees & Math */}
-           <div className={`flex-col ${activeMobileTab === 'fees' ? 'flex' : 'hidden md:flex'}`}>
+           <div role="tabpanel" id="panel-fees" className={`flex-col ${activeMobileTab === 'fees' ? 'flex' : 'hidden md:flex'}`}>
              <div className="bg-pm-surface-soft border-b border-pm-border p-4 text-xs font-bold uppercase tracking-widest text-pm-ink-500 md:col-span-full">
                Fees & Math
              </div>
@@ -162,7 +165,7 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
            </div>
 
            {/* SECTION: Rewards Engine */}
-           <div className={`flex-col ${activeMobileTab === 'rewards' ? 'flex' : 'hidden md:flex'}`}>
+           <div role="tabpanel" id="panel-rewards" className={`flex-col ${activeMobileTab === 'rewards' ? 'flex' : 'hidden md:flex'}`}>
              <div className="bg-pm-surface-soft border-b border-pm-border p-4 text-xs font-bold uppercase tracking-widest text-pm-ink-500 md:col-span-full">
                Rewards Engine
              </div>
@@ -181,7 +184,7 @@ export function CompareGrid({ cards, region, sourcePage, recommendationMode }: C
            </div>
 
            {/* SECTION: Perks & Lifestyle */}
-           <div className={`flex-col ${activeMobileTab === 'perks' ? 'flex' : 'hidden md:flex'}`}>
+           <div role="tabpanel" id="panel-perks" className={`flex-col ${activeMobileTab === 'perks' ? 'flex' : 'hidden md:flex'}`}>
              <div className="bg-pm-surface-soft border-b border-pm-border p-4 text-xs font-bold uppercase tracking-widest text-pm-ink-500 md:col-span-full">
                Perks & Lifestyle
              </div>

@@ -47,7 +47,7 @@ public/card-art/          Self-hosted card assets
 
 ## Catalog Workflow
 
-Catalog work lives in [Documentation/catalog/README.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/catalog/README.md).
+Catalog work lives in [Documentation/catalog/README.md](./Documentation/catalog/README.md).
 
 Key commands:
 
@@ -84,12 +84,12 @@ npm run preflight
 
 ## Key Docs
 
-- [Documentation/README.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/README.md)
-- [Documentation/catalog/README.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/catalog/README.md)
-- [Documentation/engineering/01-architecture.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/engineering/01-architecture.md)
-- [Documentation/research/02-user-jtbd.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/research/02-user-jtbd.md)
-- [Documentation/research/10-connected-wallet-epic.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/research/10-connected-wallet-epic.md)
-- [Documentation/supabase-automation.md](/Users/adityaaggarwal/Desktop/Duke/Claude/pointsmax/Documentation/supabase-automation.md)
+- [Documentation/README.md](./Documentation/README.md)
+- [Documentation/catalog/README.md](./Documentation/catalog/README.md)
+- [Documentation/engineering/01-architecture.md](./Documentation/engineering/01-architecture.md)
+- [Documentation/research/02-user-jtbd.md](./Documentation/research/02-user-jtbd.md)
+- [Documentation/research/10-connected-wallet-epic.md](./Documentation/research/10-connected-wallet-epic.md)
+- [Documentation/supabase-automation.md](./Documentation/supabase-automation.md)
 
 ## Working Rule
 

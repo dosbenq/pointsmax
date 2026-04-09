@@ -76,6 +76,8 @@
   --pm-surface-rgb: 18 18 18;
   --pm-accent-rgb: 59 130 246;
   --pm-accent-strong-rgb: 96 165 250;
+  --pm-premium: #e2e8f0;
+  --pm-premium-soft: rgba(255, 255, 255, 0.04);
 }
 
 html {
@@ -312,6 +314,21 @@ body {
   to {
     transform: translateX(-50%);
   }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--pm-border);
+  border-radius: 2px;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--pm-border) transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
