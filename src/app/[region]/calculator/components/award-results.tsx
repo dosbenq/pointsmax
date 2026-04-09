@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
+import { DataFreshness } from '@/components/ui/DataFreshness'
 import type {
   AwardParams,
   AwardSearchResponse,
@@ -396,6 +397,8 @@ export function AwardResults({
                 <p className="text-xs text-pm-accent-strong mt-2">{bookingGuideStatus}</p>
               )}
             </div>
+
+            <DataFreshness />
           </div>
         </div>
       )}
