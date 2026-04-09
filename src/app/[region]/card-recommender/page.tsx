@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
@@ -26,9 +26,11 @@ import { buildCardComparePayloads } from '@/lib/card-compare'
 import {
   useCardScorer,
   useSpendOnlyRanking,
+  getWalletStrategy,
   TRAVEL_GOALS,
   type RecommendationMode,
   type AnnualFeeTolerance,
+  type WalletStrategy,
 } from '@/features/card-recommender'
 
 type SpendInputs = Partial<Record<SpendCategory, string>>
@@ -201,7 +203,7 @@ export default function CardRecommenderPage() {
       })
   }, [regionCode])
 
-  const { visible: visibleResults, blocked: blockedResults } = useCardScorer({
+  const { all: allResults, visible: visibleResults, blocked: blockedResults } = useCardScorer({
     cards,
     spend,
     travelGoals,
@@ -215,7 +217,23 @@ export default function CardRecommenderPage() {
     targetGoalValue: null,
     showResults: step === 6 && activeView === 'strategy',
   })
-  
+
+  const walletStrategy = useMemo<WalletStrategy | null>(() => {
+    if (allResults.length === 0) return null
+    return getWalletStrategy(allResults, {
+      spend,
+      travelGoals,
+      ownedCards,
+      regionCode,
+      programGoalMap: config.programGoalMap,
+      annualFeeTolerance,
+      mode,
+      recentOpenAccounts24m: Number.parseInt(recentOpenAccounts24m || '0', 10) || 0,
+      walletBalances,
+      targetGoalValue: null,
+    })
+  }, [allResults, spend, travelGoals, ownedCards, regionCode, config.programGoalMap, annualFeeTolerance, mode, recentOpenAccounts24m, walletBalances])
+
   const spendOnlyResults = useSpendOnlyRanking({
     cards,
     spend,
@@ -702,6 +720,12 @@ export default function CardRecommenderPage() {
                        )}
                     </div>
                   )}
+
+                  {bestMatch.ecosystemNote && (
+                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                      {bestMatch.ecosystemNote}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-pm-border flex flex-col sm:flex-row gap-4">
@@ -782,6 +806,56 @@ export default function CardRecommenderPage() {
                  </span>
                ))}
              </div>
+          </div>
+        )}
+
+        {walletStrategy && (
+          <div className="mt-10 p-6 bg-gradient-to-br from-pm-accent/5 to-pm-accent/10 rounded-2xl border border-pm-accent/20">
+            <h2 className="text-xl font-bold text-pm-ink-900 mb-2">Recommended Card Strategy</h2>
+            <p className="text-sm text-pm-ink-500 mb-6">Based on your spending profile, here&apos;s the optimal card setup:</p>
+
+            <div className="space-y-4">
+              {/* Workhorse card */}
+              <div className="flex items-center gap-4 p-4 bg-white dark:bg-pm-surface rounded-xl border border-pm-border">
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 text-lg" aria-hidden="true">&#128295;</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Workhorse</span>
+                    <span className="text-sm font-bold text-pm-ink-900">{walletStrategy.workhorse.card.card.name}</span>
+                  </div>
+                  <p className="text-xs text-pm-ink-500 mt-0.5">Use for: {walletStrategy.workhorse.useFor}</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-bold text-pm-accent">{formatCurrencyRounded(walletStrategy.workhorse.card.card.annual_fee_usd, walletStrategy.workhorse.card.card.currency)}/yr</div>
+                </div>
+              </div>
+
+              {/* Power card */}
+              <div className="flex items-center gap-4 p-4 bg-white dark:bg-pm-surface rounded-xl border border-pm-border">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center text-amber-600 dark:text-amber-300 text-lg" aria-hidden="true">&#9889;</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Power Card</span>
+                    <span className="text-sm font-bold text-pm-ink-900">{walletStrategy.powerCard.card.card.name}</span>
+                  </div>
+                  <p className="text-xs text-pm-ink-500 mt-0.5">Use for: {walletStrategy.powerCard.useFor}</p>
+                </div>
+              </div>
+
+              {/* Premium card (only if user travels frequently) */}
+              {walletStrategy.premium && (
+                <div className="flex items-center gap-4 p-4 bg-white dark:bg-pm-surface rounded-xl border border-pm-border">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-600 dark:text-purple-300 text-lg" aria-hidden="true">&#9992;&#65039;</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">Premium</span>
+                      <span className="text-sm font-bold text-pm-ink-900">{walletStrategy.premium.card.card.name}</span>
+                    </div>
+                    <p className="text-xs text-pm-ink-500 mt-0.5">Use for: {walletStrategy.premium.useFor}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </motion.div>
