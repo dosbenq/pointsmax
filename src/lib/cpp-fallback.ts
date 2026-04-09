@@ -1,10 +1,22 @@
-// Fallback CPP values by program type (TPG April 2026 averages).
-// These are only used when the DB `latest_valuations` view has no row
-// for a given program — the DB value always takes precedence.
+// TPG April 2026 per-program fallbacks (cents per point)
+const TPG_APRIL_2026_CPP: Record<string, number> = {
+  'chase-ultimate-rewards': 2.05,
+  'amex-membership-rewards': 2.00,
+  'capital-one-miles': 1.85,
+  'citi-thankyou': 1.90,
+  'bilt-rewards': 2.20,
+  'united-mileageplus': 1.35,
+  'delta-skymiles': 1.20,
+  'american-airlines-aadvantage': 1.60,
+  'world-of-hyatt': 1.70,
+  'marriott-bonvoy': 0.75,
+  'hilton-honors': 0.40,
+}
+
 const DEFAULT_CPP_BY_TYPE: Record<string, number> = {
-  transferable_points: 2.0,
+  transferable_points: 2.00,
   airline_miles: 1.35,
-  hotel_points: 0.70,
+  hotel_points: 0.75,
   cashback: 1.0,
 }
 
@@ -73,10 +85,16 @@ function getTypeFallback(programType: string | undefined): number {
   return parseEnvNumber('DEFAULT_CPP_CENTS') ?? DEFAULT_GLOBAL_CPP
 }
 
-export function resolveCppCents(cppCents: number | string | null | undefined, programType?: string): number {
+export function resolveCppCents(cppCents: number | string | null | undefined, programType?: string, programSlug?: string): number {
   const parsedCppCents = parsePositiveNumber(cppCents)
   if (parsedCppCents != null) {
     return parsedCppCents
+  }
+
+  if (programSlug) {
+    const slug = programSlug.toLowerCase()
+    const tpgValue = TPG_APRIL_2026_CPP[slug]
+    if (tpgValue != null) return tpgValue
   }
 
   return getTypeFallback(programType)

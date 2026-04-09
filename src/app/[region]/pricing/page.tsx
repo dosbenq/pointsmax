@@ -7,6 +7,8 @@ import PricingActions from '@/components/PricingActions'
 import { notFound } from 'next/navigation'
 import { REGIONS, type Region } from '@/lib/regions'
 
+export const revalidate = 86400
+
 type Props = {
   params: Promise<{ region: string }>
 }

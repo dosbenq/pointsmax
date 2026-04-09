@@ -22,6 +22,8 @@ import {
 } from '@/features/card-recommender'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 
+export const revalidate = 3600
+
 type PageProps = {
   params: Promise<{ region: string; slug: string }>
 }

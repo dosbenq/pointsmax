@@ -82,7 +82,7 @@ function buildCardWithRates(
     image_url: typeof card.image_url === 'string' ? card.image_url : null,
     program_name: valuation?.program_name ?? 'Unknown',
     program_slug: valuation?.program_slug ?? '',
-    cpp_cents: resolveCppCents(valuation?.cpp_cents, valuation?.program_type),
+    cpp_cents: resolveCppCents(valuation?.cpp_cents, valuation?.program_type, valuation?.program_slug),
     earning_rates: rates,
     top_perks: typeof card.top_perks === 'string' ? card.top_perks : null,
     community_sentiment: typeof card.community_sentiment === 'string' ? card.community_sentiment : null,

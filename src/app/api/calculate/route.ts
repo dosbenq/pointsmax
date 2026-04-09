@@ -88,8 +88,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await calculateRedemptions(balances)
-    setCachedAiResponse(cacheKey, result, cacheTtl)
-    return NextResponse.json(result, {
+    const responsePayload = { ...result, valuation_source: 'TPG April 2026' }
+    setCachedAiResponse(cacheKey, responsePayload, cacheTtl)
+    return NextResponse.json(responsePayload, {
       headers: {
         'X-PointsMax-Cache': 'MISS',
         'X-Calculate-Latency-Ms': String(Date.now() - startedAt),

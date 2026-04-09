@@ -331,7 +331,7 @@ function buildTransferOptionsForBalance(
       if (flooredPointsOut <= 0) continue
 
       const toValuation = valuationMap.get(partner.to_program_id)
-      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type)
+      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type, toProgram.slug)
       const totalValueCents = flooredPointsOut * toCppCents
       const effectiveCppCents = balance.amount > 0 ? totalValueCents / balance.amount : 0
 
