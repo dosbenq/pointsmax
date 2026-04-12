@@ -363,14 +363,12 @@
 | `src/app/profile/page.test.tsx` |
 | `src/app/sitemap.test.ts` |
 | `src/components/ConnectedWallets.test.tsx` |
-| `src/config/booking-links.test.ts` |
 | `src/features/calculator-shell/__tests__/action-strip.test.tsx` |
 | `src/features/card-recommender/__tests__/hooks.test.tsx` |
 | `src/features/card-recommender/__tests__/ranking.test.ts` |
 | `src/features/card-recommender/__tests__/scorer.test.ts` |
 | `src/lib/admin-emails.test.ts` |
 | `src/lib/ai-cache.test.ts` |
-| `src/lib/api-response.test.ts` |
 | `src/lib/api-security.test.ts` |
 | `src/lib/app-origin.test.ts` |
 | `src/lib/auth-context.test.tsx` |
