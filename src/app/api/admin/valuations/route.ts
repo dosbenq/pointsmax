@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     source: 'manual',
     effective_date: effectiveDate,
     notes: notes || null,
-  } as any)
+  } as never)
 
   if (insertErr) {
     logError('admin_valuations_insert_failed', {

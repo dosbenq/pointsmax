@@ -61,7 +61,7 @@ export async function PATCH(request: Request) {
     cpp_cents: parsedCpp,
     source: source ?? 'manual',
     effective_date: today,
-  } as any)
+  } as never)
 
   if (error) {
     console.error('admin_programs_valuation_insert_failed', { error: error.message })

@@ -30,68 +30,53 @@ import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
 import { fetchCashFareUsd } from './cash-fare-provider'
+import { AwardProviderUnavailableError } from './errors'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
+// The API returns lowercase source ids ("united", "flyingblue", "virginatlantic").
+// Keys here are normalized (lowercase, alphanumerics only) so casing or
+// punctuation differences can never silently drop live availability again.
 const SEATS_AERO_SOURCE_TO_SLUG: Record<string, string> = {
-  // United
-  'United': 'united',
-  'UnitedMileagePlus': 'united',
-  // Delta
-  'Delta': 'delta',
-  'DeltaSkyMiles': 'delta',
-  // American
-  'American': 'american',
-  'AmericanAAdvantage': 'american',
-  // Aeroplan
-  'Aeroplan': 'aeroplan',
-  'AirCanada': 'aeroplan',
-  // British Airways
-  'British': 'british-airways',
-  'BritishAirways': 'british-airways',
-  'Avios': 'british-airways',
-  // Flying Blue
-  'FlyingBlue': 'flying-blue',
-  'AirFrance': 'flying-blue',
-  'KLM': 'flying-blue',
-  // Singapore
-  'Singapore': 'singapore',
-  'SingaporeAirlines': 'singapore',
-  'KrisFlyer': 'singapore',
-  // ANA
-  'ANA': 'ana',
-  'AllNippon': 'ana',
-  // Turkish
-  'Turkish': 'turkish',
-  'TurkishAirlines': 'turkish',
-  // Avianca
-  'Avianca': 'avianca',
-  'LifeMiles': 'avianca',
-  // Emirates
-  'Emirates': 'emirates',
-  'EmiratesSkywards': 'emirates',
-  // Virgin Atlantic
-  'VirginAtlantic': 'virgin-atlantic',
-  'Virgin': 'virgin-atlantic',
-  // Cathay
-  'Cathay': 'cathay',
-  'CathayPacific': 'cathay',
-  'AsiaMiles': 'cathay',
-  // Alaska
-  'Alaska': 'alaska',
-  'AlaskaMileagePlan': 'alaska',
-  // JetBlue
-  'JetBlue': 'jetblue',
-  'TrueBlue': 'jetblue',
-  // Iberia
-  'Iberia': 'iberia',
-  // Aer Lingus
-  'AerLingus': 'aer-lingus',
-  // Etihad
-  'Etihad': 'etihad',
-  'EtihadGuest': 'etihad',
-  // Hawaiian
-  'Hawaiian': 'hawaiian',
-  'HawaiianAirlines': 'hawaiian',
+  aeroplan: 'aeroplan',
+  aircanada: 'aeroplan',
+  alaska: 'alaska',
+  alaskamileageplan: 'alaska',
+  american: 'american',
+  americanaadvantage: 'american',
+  delta: 'delta',
+  deltaskymiles: 'delta',
+  emirates: 'emirates',
+  emiratesskywards: 'emirates',
+  etihad: 'etihad',
+  etihadguest: 'etihad',
+  flyingblue: 'flying-blue',
+  jetblue: 'jetblue',
+  trueblue: 'jetblue',
+  singapore: 'singapore',
+  krisflyer: 'singapore',
+  turkish: 'turkish',
+  turkishairlines: 'turkish',
+  united: 'united',
+  unitedmileageplus: 'united',
+  virginatlantic: 'virgin-atlantic',
+  // Sources Seats.aero has listed historically; harmless if absent from the API.
+  british: 'british-airways',
+  britishairways: 'british-airways',
+  avios: 'british-airways',
+  lifemiles: 'avianca',
+  avianca: 'avianca',
+  ana: 'ana',
+  cathay: 'cathay',
+  asiamiles: 'cathay',
+  iberia: 'iberia',
+  aerlingus: 'aer-lingus',
+  hawaiian: 'hawaiian',
+}
+
+export function seatsAeroSourceToSlug(source: unknown): string | null {
+  if (typeof source !== 'string') return null
+  const normalized = source.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return SEATS_AERO_SOURCE_TO_SLUG[normalized] ?? null
 }
 
 // ── Cabin class → Seats.aero cabin param ─────────────────────
@@ -195,7 +180,7 @@ export class SeatsAeroProvider implements AwardProvider {
 
     for (const flight of (seatsAeroResponse ?? [])) {
       if (!flight[cabinAvailKey]) continue
-      const slug = SEATS_AERO_SOURCE_TO_SLUG[flight.Source]
+      const slug = seatsAeroSourceToSlug(flight.Source)
       if (!slug) continue
 
       const cost = parseInt(String(flight[cabinCostKey] ?? '0'), 10)
@@ -290,43 +275,58 @@ export class SeatsAeroProvider implements AwardProvider {
     startDate: string,
     endDate: string,
   ): Promise<SeatsAeroFlight[]> {
-    try {
-      const url = new URL('https://seats.aero/partnerapi/search')
-      url.searchParams.set('origin_airport', origin)
-      url.searchParams.set('destination_airport', destination)
-      url.searchParams.set('cabin', toSeatsAeroCabin(cabin))
-      url.searchParams.set('start_date', startDate)
-      url.searchParams.set('end_date', endDate)
+    const url = new URL('https://seats.aero/partnerapi/search')
+    url.searchParams.set('origin_airport', origin)
+    url.searchParams.set('destination_airport', destination)
+    url.searchParams.set('cabin', toSeatsAeroCabin(cabin))
+    url.searchParams.set('start_date', startDate)
+    url.searchParams.set('end_date', endDate)
 
-      const res = await fetch(url.toString(), {
-        headers: { 'Partner-Authorization': this.apiKey },
+    let res: Response
+    try {
+      res = await fetch(url.toString(), {
+        headers: { 'Partner-Authorization': this.apiKey, accept: 'application/json' },
         signal: AbortSignal.timeout(8000),
         next: { revalidate: 300 }, // cache 5 min
       })
-
-      if (!res.ok) {
-        const status = res.status
-        if (status === 401 || status === 403) {
-          logError('seats_aero_auth_failure', { status })
-          throw new Error(`Award search provider authentication failed (${status})`)
-        }
-        if (status >= 500) {
-          logError('seats_aero_server_error', { status })
-          throw new Error(`Award search provider unavailable (${status})`)
-        }
-        // 404 or other client errors — legitimate "no results"
-        logWarn('seats_aero_client_error', { status })
-        return []
-      }
-
-      const json = await res.json()
-      // Seats.aero returns { data: [...], count: N } or just an array
-      return Array.isArray(json) ? json : (json.data ?? [])
     } catch (err) {
       logError('seats_aero_fetch_failed', {
         error: err instanceof Error ? err.message : String(err),
       })
+      throw new AwardProviderUnavailableError('Live award availability is temporarily unreachable.')
+    }
+
+    // Auth, quota and server failures must not masquerade as "no seats":
+    // surface them so the caller falls back to clearly-labelled estimates.
+    if (res.status === 401 || res.status === 403) {
+      logError('seats_aero_auth_failure', { status: res.status })
+      throw new AwardProviderUnavailableError(`Award search provider rejected the API key (${res.status}).`)
+    }
+    if (res.status === 429) {
+      logError('seats_aero_rate_limited', { status: res.status })
+      throw new AwardProviderUnavailableError('Award search provider daily quota exhausted (429).')
+    }
+    if (res.status >= 500) {
+      logError('seats_aero_server_error', { status: res.status })
+      throw new AwardProviderUnavailableError(`Award search provider unavailable (${res.status}).`)
+    }
+    if (!res.ok) {
+      // 404 / other 4xx for a valid request means "no results for this route".
+      logWarn('seats_aero_client_error', { status: res.status })
       return []
+    }
+
+    try {
+      const json: unknown = await res.json()
+      // Seats.aero returns { data: [...], count: N } (older responses: a bare array).
+      if (Array.isArray(json)) return json as SeatsAeroFlight[]
+      const data = (json as { data?: unknown } | null)?.data
+      return Array.isArray(data) ? (data as SeatsAeroFlight[]) : []
+    } catch (err) {
+      logError('seats_aero_parse_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      throw new AwardProviderUnavailableError('Award search provider returned an unreadable response.')
     }
   }
 }
