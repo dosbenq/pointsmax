@@ -347,7 +347,7 @@ export const bookingUrls = pgTable("booking_urls", {
 	isActive: boolean("is_active").default(true),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
+}, () => [
 	check("booking_urls_region_check", sql`region = ANY (ARRAY['us'::text, 'in'::text, 'global'::text])`),
 ]);
 
@@ -560,7 +560,7 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
 	eventType: text("event_type").notNull(),
 	processedAt: timestamp("processed_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	rawPayload: jsonb("raw_payload").notNull(),
-}, (table) => [
+}, () => [
 ]);
 
 export const subscriptionEvents = pgTable("subscription_events", {
@@ -611,7 +611,7 @@ export const cashFareCache = pgTable("cash_fare_cache", {
 	travelDate: text("travel_date").notNull(),
 	fareUsd: integer("fare_usd").notNull(),
 	fetchedAt: timestamp("fetched_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
+}, () => [
 ]);
 
 export const onboardingEmailLog = pgTable("onboarding_email_log", {
