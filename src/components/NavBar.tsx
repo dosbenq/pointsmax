@@ -41,11 +41,13 @@ export default function NavBar() {
   const [scrolled, setScrolled] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
 
-  // Close menus on route change
-  useEffect(() => {
+  // Close menus on route change (adjust state during render, not in an effect)
+  const [menusPathname, setMenusPathname] = useState(pathname)
+  if (menusPathname !== pathname) {
+    setMenusPathname(pathname)
     setMenuOpen(false)
     setAccountOpen(false)
-  }, [pathname])
+  }
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
@@ -116,7 +118,7 @@ export default function NavBar() {
     },
   ]), [region])
 
-  const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
+  const profileName = user?.name || user?.email?.split('@')[0] || 'User'
   const avatarLetter = profileName.charAt(0).toUpperCase()
 
   return (

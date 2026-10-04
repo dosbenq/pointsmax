@@ -7,48 +7,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createAdminClient } from '@/lib/supabase'
+import { aliasedTable, and, arrayOverlaps, eq, gte, inArray, isNull, lte, or } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { alertSubscriptions, programs, transferBonuses, transferPartners } from '@/lib/db/schema'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
 import { getSafeAppOrigin } from '@/lib/app-origin'
 import { isAuthorizedCronRequest } from '@/lib/cron-auth'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
-type BonusRow = {
-  id: string
-  transfer_partner_id: string
-  bonus_pct: number
-  start_date: string
-  end_date: string
-}
-
 type PartnerRow = {
   id: string
   from_program_id: string
   to_program_id: string
-  from_program: { name?: string } | null
-  to_program: { name?: string } | null
-}
-
-function isBonusRow(value: unknown): value is BonusRow {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return (
-    typeof row.id === 'string' &&
-    typeof row.transfer_partner_id === 'string' &&
-    typeof row.bonus_pct === 'number' &&
-    typeof row.start_date === 'string' &&
-    typeof row.end_date === 'string'
-  )
-}
-
-function isPartnerRow(value: unknown): value is PartnerRow {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return (
-    typeof row.id === 'string' &&
-    typeof row.from_program_id === 'string' &&
-    typeof row.to_program_id === 'string'
-  )
+  from_program_name: string | null
+  to_program_name: string | null
 }
 
 function buildUnsubscribeLink(email: string): string {
@@ -146,81 +118,82 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'RESEND_API_KEY or RESEND_FROM_EMAIL not configured' }, { status: 500 })
   }
 
-  const db = createAdminClient()
+  const db = getDb()
   const today = new Date().toISOString().split('T')[0]
+  const fromProgram = aliasedTable(programs, 'from_program')
+  const toProgram = aliasedTable(programs, 'to_program')
 
-  // Find active bonuses that haven't been alerted yet
-  const { data: bonusesRaw, error: bonusErr } = await db
-    .from('transfer_bonuses')
-    .select(`
-      id, transfer_partner_id, bonus_pct, start_date, end_date
-    `)
-    .lte('start_date', today)
-    .gte('end_date', today)
-    .is('alerted_at', null)
+  let bonuses: Array<{ id: string; transfer_partner_id: string; bonus_pct: number; start_date: string; end_date: string }>
+  let partnerById: Map<string, PartnerRow>
+  const subscribersByProgram = new Map<string, string[]>()
 
-  if (bonusErr) {
-    logError('cron_bonus_alerts_fetch_failed', { requestId, error: bonusErr.message })
+  try {
+    // Active, verified bonuses that haven't been alerted yet. Unverified
+    // auto-detected bonuses must never be emailed to subscribers.
+    bonuses = await db
+      .select({
+        id: transferBonuses.id,
+        transfer_partner_id: transferBonuses.transferPartnerId,
+        bonus_pct: transferBonuses.bonusPct,
+        start_date: transferBonuses.startDate,
+        end_date: transferBonuses.endDate,
+      })
+      .from(transferBonuses)
+      .where(and(
+        lte(transferBonuses.startDate, today),
+        gte(transferBonuses.endDate, today),
+        isNull(transferBonuses.alertedAt),
+        eq(transferBonuses.active, true),
+        or(eq(transferBonuses.verified, true), eq(transferBonuses.isVerified, true)),
+      ))
+
+    if (bonuses.length === 0) {
+      logInfo('cron_bonus_alerts_no_work', { requestId, latency_ms: Date.now() - startedAt })
+      return NextResponse.json({ ok: true, bonuses_processed: 0, emails_sent: 0 })
+    }
+
+    const partnerIds = [...new Set(bonuses.map((b) => b.transfer_partner_id))]
+    const partnerRows: PartnerRow[] = await db
+      .select({
+        id: transferPartners.id,
+        from_program_id: transferPartners.fromProgramId,
+        to_program_id: transferPartners.toProgramId,
+        from_program_name: fromProgram.name,
+        to_program_name: toProgram.name,
+      })
+      .from(transferPartners)
+      .leftJoin(fromProgram, eq(fromProgram.id, transferPartners.fromProgramId))
+      .leftJoin(toProgram, eq(toProgram.id, transferPartners.toProgramId))
+      .where(inArray(transferPartners.id, partnerIds))
+    partnerById = new Map(partnerRows.map((row) => [row.id, row]))
+
+    const fromProgramIds = [...new Set(partnerRows.map((row) => row.from_program_id))]
+    if (fromProgramIds.length > 0) {
+      const subscriberRows = await db
+        .select({ email: alertSubscriptions.email, program_ids: alertSubscriptions.programIds })
+        .from(alertSubscriptions)
+        .where(and(eq(alertSubscriptions.isActive, true), arrayOverlaps(alertSubscriptions.programIds, fromProgramIds)))
+
+      for (const row of subscriberRows) {
+        for (const programId of row.program_ids) {
+          if (!fromProgramIds.includes(programId)) continue
+          const list = subscribersByProgram.get(programId) ?? []
+          list.push(row.email)
+          subscribersByProgram.set(programId, list)
+        }
+      }
+    }
+  } catch (error) {
+    logError('cron_bonus_alerts_fetch_failed', {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-  }
-
-  const bonuses = ((bonusesRaw ?? []) as unknown[]).filter(isBonusRow)
-
-  if (bonuses.length === 0) {
-    logInfo('cron_bonus_alerts_no_work', { requestId, latency_ms: Date.now() - startedAt })
-    return NextResponse.json({ ok: true, bonuses_processed: 0, emails_sent: 0 })
   }
 
   const resend = new Resend(resendKey)
   let emailsSent = 0
   const failedBonusIds: string[] = []
-
-  const partnerIds = [...new Set(bonuses.map(b => b.transfer_partner_id))]
-  const { data: partnerRowsRaw, error: partnerErr } = await db
-    .from('transfer_partners')
-    .select(`
-      id, from_program_id, to_program_id,
-      from_program:programs!transfer_partners_from_program_id_fkey(name),
-      to_program:programs!transfer_partners_to_program_id_fkey(name)
-    `)
-    .in('id', partnerIds)
-
-  if (partnerErr) {
-    logError('cron_bonus_alerts_partner_fetch_failed', { requestId, error: partnerErr.message })
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-  }
-
-  const partnerRows = ((partnerRowsRaw ?? []) as unknown[]).filter(isPartnerRow)
-  const partnerById = new Map<string, PartnerRow>(partnerRows.map((row) => [row.id, row]))
-  const fromProgramIds = [
-    ...new Set(partnerRows.map((row) => row.from_program_id).filter(Boolean)),
-  ]
-
-  const subscribersByProgram = new Map<string, string[]>()
-  if (fromProgramIds.length > 0) {
-    const { data: subscriberRows, error: subscriberErr } = await db
-      .from('alert_subscriptions')
-      .select('email, program_ids')
-      .eq('is_active', true)
-      .overlaps('program_ids', fromProgramIds)
-
-    if (subscriberErr) {
-      logError('cron_bonus_alerts_subscriber_fetch_failed', { requestId, error: subscriberErr.message })
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-    }
-
-    for (const row of (subscriberRows ?? []) as Array<{ email: unknown; program_ids: unknown }>) {
-      if (typeof row.email !== 'string') continue
-      if (!Array.isArray(row.program_ids)) continue
-      for (const programId of row.program_ids) {
-        if (typeof programId !== 'string') continue
-        if (!fromProgramIds.includes(programId)) continue
-        const list = subscribersByProgram.get(programId) ?? []
-        list.push(row.email)
-        subscribersByProgram.set(programId, list)
-      }
-    }
-  }
 
   for (const bonus of bonuses) {
     const partnerDetail = partnerById.get(bonus.transfer_partner_id)
@@ -230,8 +203,8 @@ export async function GET(req: NextRequest) {
       continue
     }
 
-    const fromName = partnerDetail.from_program?.name ?? 'Unknown'
-    const toName = partnerDetail.to_program?.name ?? 'Unknown'
+    const fromName = partnerDetail.from_program_name ?? 'Unknown'
+    const toName = partnerDetail.to_program_name ?? 'Unknown'
     const fromProgramId = partnerDetail.from_program_id
 
     let bonusHadFailures = false
@@ -275,17 +248,17 @@ export async function GET(req: NextRequest) {
       !hadSubscribers || bonusEmailsSent > 0 || (!bonusHadFailures && hadSubscribers)
 
     if (shouldMarkAlerted) {
-      const { error: updateError } = await db
-        .from('transfer_bonuses')
-        .update({ alerted_at: new Date().toISOString() })
-        .eq('id', bonus.id)
-
-      if (updateError) {
+      try {
+        await db
+          .update(transferBonuses)
+          .set({ alertedAt: new Date().toISOString() })
+          .where(eq(transferBonuses.id, bonus.id))
+      } catch (updateError) {
         failedBonusIds.push(bonus.id)
         logError('cron_bonus_alerts_mark_failed', {
           requestId,
           bonusId: bonus.id,
-          error: updateError.message,
+          error: updateError instanceof Error ? updateError.message : String(updateError),
         })
       }
     } else {

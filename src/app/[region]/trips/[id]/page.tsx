@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
-import { createServerDbClient } from '@/lib/supabase'
+import { and, eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { sharedTrips } from '@/lib/db/schema'
 import { type Region, REGIONS } from '@/lib/regions'
 
 type Props = {
@@ -28,17 +30,25 @@ export default async function SharedTripPage({ params }: Props) {
   const { region, id } = await params
   const normalized = normalizeRegion(region)
   const config = REGIONS[normalized]
-  const db = createServerDbClient()
+  let trip: SharedTripRow | undefined
+  try {
+    const rows = await getDb()
+      .select({
+        id: sharedTrips.id,
+        region: sharedTrips.region,
+        trip_data: sharedTrips.tripData,
+        created_at: sharedTrips.createdAt,
+      })
+      .from(sharedTrips)
+      .where(and(eq(sharedTrips.id, id), eq(sharedTrips.region, normalized)))
+      .limit(1)
+    trip = rows[0] as SharedTripRow | undefined
+  } catch {
+    // Malformed ids (not a UUID) and database errors both render as not found.
+    trip = undefined
+  }
 
-  const { data, error } = await db
-    .from('shared_trips')
-    .select('id, region, trip_data, created_at')
-    .eq('id', id)
-    .eq('region', normalized)
-    .maybeSingle()
-
-  if (error || !data) notFound()
-  const trip = data as SharedTripRow
+  if (!trip) notFound()
   const snapshot = trip.trip_data ?? {}
 
   const destination = typeof snapshot.destination === 'string' ? snapshot.destination : 'Unknown destination'

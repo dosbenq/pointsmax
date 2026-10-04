@@ -1,111 +1,61 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getSessionUser } from '@/lib/auth'
+import { setDbForTesting } from '@/lib/db/client'
+import { userBalances } from '@/lib/db/schema'
+import { createTestDb, seedPrograms, seedUser, sessionFor, testId, type SeededUser, type TestDb } from '@/test/utils/test-db'
+import { POST } from './route'
 
-const mockGetUser = vi.fn()
-const mockFrom = vi.fn()
-const mockUpsert = vi.fn()
+vi.mock('@/lib/auth', async (importOriginal) =>
+  (await import('@/test/utils/mock-auth')).mockAuthModule(importOriginal))
 
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+let db: TestDb
+let pat: SeededUser
+const confirm = (body: unknown) => POST(new NextRequest('http://localhost/api/connectors/ingest/confirm', {
+  method: 'POST',
+  body: JSON.stringify(body),
 }))
 
-vi.mock('@/lib/logger', () => ({
-  logInfo: vi.fn(),
-  logError: vi.fn(),
-}))
+beforeEach(async () => {
+  vi.clearAllMocks()
+  db = await createTestDb()
+  setDbForTesting(db)
+  await seedPrograms(db, [{ key: 'chase-ur' }, { key: 'amex-mr' }])
+  pat = await seedUser(db, 'pat')
+  vi.mocked(getSessionUser).mockResolvedValue(sessionFor(pat))
+})
 
-const { POST } = await import('./route')
-
-function installDefaultDbMocks() {
-  mockFrom.mockImplementation((table: string) => {
-    if (table === 'users') {
-      return {
-        select: () => ({
-          eq: () => ({
-            single: async () => ({ data: { id: 'internal-user-1' }, error: null }),
-          }),
-        }),
-      }
-    }
-
-    if (table === 'user_balances') {
-      return {
-        upsert: (...args: unknown[]) => {
-          const result = mockUpsert(...args)
-          return result === undefined ? Promise.resolve({ error: null }) : result
-        },
-      }
-    }
-
-    throw new Error(`Unexpected table ${table}`)
-  })
-}
+afterAll(() => setDbForTesting(null))
 
 describe('POST /api/connectors/ingest/confirm', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    installDefaultDbMocks()
-    mockUpsert.mockResolvedValue({ error: null })
-  })
-
   it('requires authentication', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } })
-
-    const response = await POST(new NextRequest('http://localhost/api/connectors/ingest/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidates: [{ program_id: 'prog-1', balance: 1000 }] }),
-    }))
-
-    expect(response.status).toBe(401)
+    vi.mocked(getSessionUser).mockResolvedValue(null)
+    expect((await confirm({ candidates: [] })).status).toBe(401)
   })
 
-  it('rejects invalid payloads', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'auth-user-1' } } })
-
-    const response = await POST(new NextRequest('http://localhost/api/connectors/ingest/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidates: [] }),
-    }))
-
-    expect(response.status).toBe(400)
+  it('rejects invalid payloads, including non-UUID programme ids', async () => {
+    expect((await confirm({ candidates: [] })).status).toBe(400)
+    expect((await confirm({ candidates: [{ program_id: 'chase-ur', balance: 100 }] })).status).toBe(400)
+    expect((await confirm({ candidates: [{ program_id: testId('chase-ur'), balance: -5 }] })).status).toBe(400)
   })
 
-  it('upserts selected balances into user_balances', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'auth-user-1' } } })
+  it('upserts selected balances into user_balances for the caller', async () => {
+    await db.insert(userBalances).values({ userId: pat.userId, programId: testId('chase-ur'), balance: 1 })
 
-    const response = await POST(new NextRequest('http://localhost/api/connectors/ingest/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        candidates: [
-          { program_id: 'prog-chase', balance: 45234 },
-          { program_id: 'prog-amex', balance: 87400 },
-        ],
-      }),
-    }))
-    const body = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(body).toEqual({ ok: true, saved_count: 2 })
-    expect(mockUpsert).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          user_id: 'internal-user-1',
-          program_id: 'prog-chase',
-          balance: 45234,
-        }),
-        expect.objectContaining({
-          user_id: 'internal-user-1',
-          program_id: 'prog-amex',
-          balance: 87400,
-        }),
+    const res = await confirm({
+      candidates: [
+        { program_id: testId('chase-ur'), balance: 120000.7 },
+        { program_id: testId('amex-mr'), balance: 45000 },
       ],
-      { onConflict: 'user_id,program_id' },
-    )
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true, saved_count: 2 })
+
+    const rows = await db.select().from(userBalances)
+    expect(rows.map((r) => [r.userId, r.programId, r.balance]).sort()).toEqual([
+      [pat.userId, testId('amex-mr'), 45000],
+      [pat.userId, testId('chase-ur'), 120000],
+    ].sort())
   })
 })

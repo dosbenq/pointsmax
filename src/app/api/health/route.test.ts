@@ -1,15 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: () => ({
-    from: () => ({
-      select: () => ({
-        limit: async () => ({ error: null }),
-      }),
-    }),
-  }),
-}))
+import { setDbForTesting } from '@/lib/db/client'
+import { createTestDb } from '@/test/utils/test-db'
+
+beforeAll(async () => setDbForTesting(await createTestDb()))
+afterAll(() => setDbForTesting(null))
 
 const { GET, HEAD } = await import('./route')
 
@@ -35,6 +32,19 @@ describe('GET /api/health', () => {
 
     expect(body.ok).toBe(true)
     expect(['healthy', 'degraded']).toContain(body.status)
+  })
+
+  it('reports unhealthy (503) when the database is unreachable', async () => {
+    const realDb = await createTestDb()
+    await realDb.$client.close()
+    setDbForTesting(realDb)
+    try {
+      const res = await GET(new NextRequest('https://pointsmax.com/api/health'))
+      expect(res.status).toBe(503)
+      expect((await res.json()).status).toBe('unhealthy')
+    } finally {
+      setDbForTesting(await createTestDb())
+    }
   })
 
   it('includes cache-control header', async () => {

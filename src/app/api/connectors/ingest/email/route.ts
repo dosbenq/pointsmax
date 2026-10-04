@@ -8,7 +8,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSessionUser } from '@/lib/auth'
 import { logInfo } from '@/lib/logger'
 import type { IngestStatus } from '@/lib/connectors/csv-parser'
 
@@ -44,8 +44,7 @@ export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID()
 
   // Auth check
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   
   if (!user) {
     return NextResponse.json(
@@ -73,30 +72,14 @@ export async function POST(req: NextRequest) {
   // Feature not yet enabled - return placeholder status
   if (!EMAIL_INGESTION_ENABLED) {
     if (body.action === 'register_interest') {
-      // Store interest for future feature rollout
-      const { error } = await supabase
-        .from('user_feature_interests')
-        .upsert({
-          user_id: user.id,
-          feature: 'email_statement_ingest',
-          metadata: {
-            email_domain: body.emailDomain,
-            preferred_provider: body.provider,
-            registered_at: new Date().toISOString(),
-          },
-          created_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,feature',
-        })
-
-      if (error) {
-        logInfo('email_ingest_interest_failed', {
-          requestId,
-          userId: user.id,
-          error: error.message,
-        })
-        // Non-blocking - continue to return helpful response
-      }
+      // Record interest for future feature rollout. (This used to write to a
+      // user_feature_interests table that was never created, so it always failed.)
+      logInfo('email_ingest_interest_registered', {
+        requestId,
+        userId: user.id,
+        email_domain: body.emailDomain,
+        preferred_provider: body.provider,
+      })
 
       return NextResponse.json({
         status: createIngestStatus('pending', {
@@ -144,8 +127,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   // Auth check
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   
   if (!user) {
     return NextResponse.json(

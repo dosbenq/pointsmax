@@ -5,7 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { createServerDbClient } from '@/lib/supabase'
+import { inArray } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { programs } from '@/lib/db/schema'
 import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
 import { StubProvider } from '@/lib/award-search/stub-provider'
 import type { AwardSearchParams } from '@/lib/award-search'
@@ -29,19 +31,17 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-async function buildBalanceSummary(
-  db: ReturnType<typeof createServerDbClient>,
-  balances: AwardSearchParams['balances'],
-): Promise<string> {
+async function buildBalanceSummary(balances: AwardSearchParams['balances']): Promise<string> {
   const programIds = [...new Set(balances.map((balance) => balance.program_id))]
-  const { data } = await db
-    .from('programs')
-    .select('id, name, short_name')
-    .in('id', programIds)
+  const data = programIds.length === 0
+    ? []
+    : await getDb()
+      .select({ id: programs.id, name: programs.name, short_name: programs.shortName })
+      .from(programs)
+      .where(inArray(programs.id, programIds))
 
   const programNameById = new Map(
-    ((data ?? []) as Array<{ id: string; name?: string | null; short_name?: string | null }>)
-      .map((program) => [program.id, program.short_name || program.name || program.id]),
+    data.map((program) => [program.id, program.short_name || program.name || program.id]),
   )
 
   return balances.map((balance) => {
@@ -198,12 +198,11 @@ export async function POST(req: NextRequest) {
   const { hotel_nights, destination_name, trip_type, ...awardParams } = validated
 
   try {
-    const db = createServerDbClient()
     let provider = createAwardProvider()
     let estimatesOnly = false
     let results
     try {
-      results = sortAwardResultsByPoints(await provider.search(awardParams, db))
+      results = sortAwardResultsByPoints(await provider.search(awardParams))
     } catch (err) {
       if (!(err instanceof AwardProviderUnavailableError)) {
         throw err
@@ -214,7 +213,7 @@ export async function POST(req: NextRequest) {
         error: err.message,
       })
       provider = new StubProvider()
-      results = sortAwardResultsByPoints(await provider.search(awardParams, db))
+      results = sortAwardResultsByPoints(await provider.search(awardParams))
       estimatesOnly = true
     }
 
@@ -266,7 +265,7 @@ export async function POST(req: NextRequest) {
       return `- ${r.program_name}: ~${r.estimated_miles.toLocaleString()} miles (~${r.points_needed_from_wallet.toLocaleString()} points from wallet)${chain} [${reachable}]`
     }).join('\n')
 
-    const balanceSummary = await buildBalanceSummary(db, awardParams.balances)
+    const balanceSummary = await buildBalanceSummary(awardParams.balances)
 
     const promptSections = await getTripBuilderPromptSections(requestRegion)
     const prompt = `You are an expert travel rewards advisor. Plan a trip using points/miles.

@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
-import { createAdminClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { cashFareCache } from '@/lib/db/schema'
 import type { CabinClass } from './types'
 import { logWarn } from '@/lib/logger'
 
@@ -66,16 +68,22 @@ export async function fetchCashFareUsd(
   if (!apiKey) return null
 
   const cacheId = buildCacheId(origin, destination, cabin, outboundDate)
-  const db = createAdminClient()
 
   try {
-    const { data } = await db
-      .from('cash_fare_cache')
-      .select('id, origin, destination, cabin, travel_date, fare_usd, fetched_at')
-      .eq('id', cacheId)
-      .single()
+    const [cached] = await getDb()
+      .select({
+        id: cashFareCache.id,
+        origin: cashFareCache.origin,
+        destination: cashFareCache.destination,
+        cabin: cashFareCache.cabin,
+        travel_date: cashFareCache.travelDate,
+        fare_usd: cashFareCache.fareUsd,
+        fetched_at: cashFareCache.fetchedAt,
+      })
+      .from(cashFareCache)
+      .where(eq(cashFareCache.id, cacheId))
+      .limit(1) as CashFareCacheRow[]
 
-    const cached = (data ?? null) as CashFareCacheRow | null
     if (cached && isFresh(cached.fetched_at)) {
       return cached.fare_usd
     }
@@ -120,17 +128,18 @@ export async function fetchCashFareUsd(
     if (fareUsd == null) return null
 
     try {
-      await db
-        .from('cash_fare_cache')
-        .upsert({
-          id: cacheId,
-          origin,
-          destination,
-          cabin,
-          travel_date: outboundDate,
-          fare_usd: fareUsd,
-          fetched_at: new Date().toISOString(),
-        })
+      const row = {
+        origin,
+        destination,
+        cabin,
+        travelDate: outboundDate,
+        fareUsd,
+        fetchedAt: new Date().toISOString(),
+      }
+      await getDb()
+        .insert(cashFareCache)
+        .values({ id: cacheId, ...row })
+        .onConflictDoUpdate({ target: cashFareCache.id, set: row })
     } catch {
       // Cache write failure should not block the response.
     }

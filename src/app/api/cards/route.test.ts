@@ -1,72 +1,40 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sql } from 'drizzle-orm'
+import { setDbForTesting } from '@/lib/db/client'
+import { cardEarningRates, cards } from '@/lib/db/schema'
+import { createTestDb, seedPrograms, testId, type TestDb } from '@/test/utils/test-db'
 
-const createPublicClientMock = vi.fn()
 const logErrorMock = vi.fn()
-
-vi.mock('@/lib/supabase', () => ({
-  createPublicClient: createPublicClientMock,
-}))
 
 vi.mock('@/lib/logger', () => ({
   logError: logErrorMock,
 }))
 
+vi.mock('@/lib/api-security', () => ({
+  enforceRateLimit: vi.fn(async () => null),
+}))
+
 const { GET } = await import('./route')
 
-type QueryResult<T> = { data: T; error: { message: string } | null }
+let db: TestDb
 
-function makeDbClient(options: {
-  cards: QueryResult<Array<Record<string, unknown>>>
-  valuations: QueryResult<Array<Record<string, unknown>>>
-  rates: QueryResult<Array<Record<string, unknown>>>
-}) {
-  return {
-    from: vi.fn((table: string) => {
-      if (table === 'cards') {
-        const cardsQuery = {
-          eq: vi.fn(() => cardsQuery),
-          order: vi.fn(async () => options.cards),
-        }
-        return {
-          select: vi.fn(() => cardsQuery),
-        }
-      }
+beforeEach(async () => {
+  vi.clearAllMocks()
+  db = await createTestDb()
+  setDbForTesting(db)
+  await seedPrograms(db, [
+    { key: 'program-one', name: 'Program One', geography: 'US', cpp: 2 },
+    { key: 'india-program', name: 'India Program', geography: 'IN', cpp: 120 },
+  ])
+})
 
-      if (table === 'latest_valuations') {
-        const valuationsQuery = {
-          in: vi.fn(async () => options.valuations),
-        }
-        return {
-          select: vi.fn(() => valuationsQuery),
-        }
-      }
-
-      if (table === 'card_earning_rates') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn(async () => options.rates),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table queried: ${table}`)
-    }),
-  }
-}
+afterAll(() => setDbForTesting(null))
 
 describe('GET /api/cards', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('returns 500 when the base cards query fails', async () => {
-    createPublicClientMock.mockReturnValue(
-      makeDbClient({
-        cards: { data: [], error: { message: 'cards failed' } },
-        valuations: { data: [], error: null },
-        rates: { data: [], error: null },
-      })
-    )
+    await db.execute(sql`drop table card_earning_rates`)
+    await db.execute(sql`drop table cards cascade`)
 
     const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
@@ -75,46 +43,13 @@ describe('GET /api/cards', () => {
     expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
       'cards_repository_fetch_failed',
-      expect.objectContaining({ cards_error: 'cards failed' })
+      expect.objectContaining({ cards_error: expect.any(String) }),
     )
   })
 
   it('returns 500 when the earning-rates query fails', async () => {
-    createPublicClientMock.mockReturnValue(
-      makeDbClient({
-        cards: {
-          data: [
-            {
-              id: 'card-1',
-              name: 'Card One',
-              issuer: 'Issuer',
-              annual_fee_usd: 95,
-              signup_bonus_pts: 50000,
-              signup_bonus_spend: 3000,
-              program_id: 'program-1',
-              apply_url: 'https://example.com/apply/card-1',
-              is_active: true,
-              display_order: 1,
-              created_at: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          error: null,
-        },
-        valuations: {
-          data: [
-            {
-              program_id: 'program-1',
-              cpp_cents: 2,
-              program_name: 'Program One',
-              program_slug: 'program-one',
-              program_type: 'transferable_points',
-            },
-          ],
-          error: null,
-        },
-        rates: { data: [], error: { message: 'rates failed' } },
-      })
-    )
+    await db.insert(cards).values({ id: testId('card-1'), name: 'Card One', issuer: 'Issuer', programId: testId('program-one') })
+    await db.execute(sql`drop table card_earning_rates`)
 
     const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
@@ -123,48 +58,22 @@ describe('GET /api/cards', () => {
     expect(body.error.code).toBe('INTERNAL_ERROR')
     expect(logErrorMock).toHaveBeenCalledWith(
       'cards_repository_fetch_failed',
-      expect.objectContaining({ rates_error: 'rates failed' })
+      expect.objectContaining({ metadata_error: expect.any(String) }),
     )
   })
 
   it('returns normalized cards payload with cache headers', async () => {
-    createPublicClientMock.mockReturnValue(
-      makeDbClient({
-        cards: {
-          data: [
-            {
-              id: 'card-1',
-              name: 'Card One',
-              issuer: 'Issuer',
-              annual_fee_usd: 95,
-              signup_bonus_pts: 50000,
-              signup_bonus_spend: 3000,
-              program_id: 'program-1',
-              is_active: true,
-              display_order: 1,
-              created_at: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          error: null,
-        },
-        valuations: {
-          data: [
-            {
-              program_id: 'program-1',
-              cpp_cents: 2,
-              program_name: 'Program One',
-              program_slug: 'program-one',
-              program_type: 'transferable_points',
-            },
-          ],
-          error: null,
-        },
-        rates: {
-          data: [{ card_id: 'card-1', category: 'dining', earn_multiplier: 3 }],
-          error: null,
-        },
-      })
-    )
+    await db.insert(cards).values({
+      id: testId('card-1'),
+      name: 'Card One',
+      issuer: 'Issuer',
+      annualFeeUsd: 95,
+      signupBonusPts: 50000,
+      signupBonusSpend: 3000,
+      programId: testId('program-one'),
+      displayOrder: 1,
+    })
+    await db.insert(cardEarningRates).values({ cardId: testId('card-1'), category: 'dining', earnMultiplier: 3 })
 
     const res = await GET(new Request('https://pointsmax.com/api/cards?geography=US'))
     const body = await res.json()
@@ -174,65 +83,31 @@ describe('GET /api/cards', () => {
     expect(body.cards).toHaveLength(1)
     expect(body.cards[0]).toEqual(
       expect.objectContaining({
-        id: 'card-1',
+        id: testId('card-1'),
         geography: 'US',
         currency: 'USD',
         earn_unit: '1_dollar',
         apply_url: null,
         program_name: 'Program One',
         program_slug: 'program-one',
-      })
+        cpp_cents: 2,
+      }),
     )
-    expect(body.cards[0].earning_rates).toEqual(
-      expect.objectContaining({
-        dining: 3,
-        groceries: 1,
-        travel: 1,
-      })
-    )
+    expect(body.cards[0].earning_rates).toEqual(expect.objectContaining({ dining: 3, groceries: 1, travel: 1 }))
   })
 
-  it('returns india valuation units exactly as stored in the database', async () => {
-    createPublicClientMock.mockReturnValue(
-      makeDbClient({
-        cards: {
-          data: [
-            {
-              id: 'card-in-1',
-              name: 'India Card',
-              issuer: 'Issuer',
-              annual_fee_usd: 5000,
-              signup_bonus_pts: 0,
-              signup_bonus_spend: 0,
-              program_id: 'program-in-1',
-              currency: 'INR',
-              earn_unit: '100_inr',
-              geography: 'IN',
-              is_active: true,
-              display_order: 1,
-              created_at: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          error: null,
-        },
-        valuations: {
-          data: [
-            {
-              program_id: 'program-in-1',
-              cpp_cents: 120,
-              program_name: 'India Program',
-              program_slug: 'india-program',
-              program_type: 'transferable_points',
-            },
-          ],
-          error: null,
-        },
-        rates: {
-          data: [{ card_id: 'card-in-1', category: 'dining', earn_multiplier: 3.33 }],
-          error: null,
-        },
-      })
-    )
+  it('returns india valuation units exactly as stored in the database (paise)', async () => {
+    await db.insert(cards).values({
+      id: testId('card-in-1'),
+      name: 'India Card',
+      issuer: 'Issuer',
+      annualFeeUsd: 5000,
+      programId: testId('india-program'),
+      currency: 'INR',
+      earnUnit: '100_inr',
+      geography: 'IN',
+    })
+    await db.insert(cardEarningRates).values({ cardId: testId('card-in-1'), category: 'dining', earnMultiplier: 3.33 })
 
     const res = await GET(new Request('https://pointsmax.com/api/cards?geography=IN'))
     const body = await res.json()
@@ -240,65 +115,8 @@ describe('GET /api/cards', () => {
     expect(res.status).toBe(200)
     expect(body.geography).toBe('IN')
     expect(body.cards[0]).toEqual(
-      expect.objectContaining({
-        geography: 'IN',
-        currency: 'INR',
-        earn_unit: '100_inr',
-        cpp_cents: 120,
-      })
+      expect.objectContaining({ geography: 'IN', currency: 'INR', earn_unit: '100_inr', cpp_cents: 120 }),
     )
-  })
-
-  it('keeps normalized india valuation units unchanged', async () => {
-    createPublicClientMock.mockReturnValue(
-      makeDbClient({
-        cards: {
-          data: [
-            {
-              id: 'card-in-2',
-              name: 'India Card 2',
-              issuer: 'Issuer',
-              annual_fee_usd: 2500,
-              signup_bonus_pts: 0,
-              signup_bonus_spend: 0,
-              program_id: 'program-in-2',
-              currency: 'INR',
-              earn_unit: '100_inr',
-              geography: 'IN',
-              is_active: true,
-              display_order: 1,
-              created_at: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-          error: null,
-        },
-        valuations: {
-          data: [
-            {
-              program_id: 'program-in-2',
-              cpp_cents: '120',
-              program_name: 'India Program 2',
-              program_slug: 'india-program-2',
-              program_type: 'transferable_points',
-            },
-          ],
-          error: null,
-        },
-        rates: {
-          data: [{ card_id: 'card-in-2', category: 'dining', earn_multiplier: 2.67 }],
-          error: null,
-        },
-      })
-    )
-
-    const res = await GET(new Request('https://pointsmax.com/api/cards?geography=IN'))
-    const body = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(body.cards[0]).toEqual(
-      expect.objectContaining({
-        cpp_cents: 120,
-      })
-    )
+    expect(body.cards[0].earning_rates.dining).toBe(3.33)
   })
 })

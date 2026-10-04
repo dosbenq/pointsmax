@@ -17,7 +17,6 @@ npm run ops:watchdog
 6. Affiliate click telemetry (`/api/analytics/affiliate-click`)
 7. Alerts subscription path (`/api/alerts/subscribe`)
 8. Cron automation chain:
-   - `/api/cron/update-valuations`
    - `/api/cron/send-bonus-alerts`
    - `/api/cron/ingest-youtube-knowledge`
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { logError, getRequestId, logWarn } from '@/lib/logger'
-import { createAdminClient } from '@/lib/supabase'
+import { searchKnowledgeDocs, type KnowledgeChunk } from '@/lib/knowledge/search'
 import { REGIONS, type Region } from '@/lib/regions'
 import {
   generateAiCacheKey,
@@ -14,15 +14,6 @@ import {
 import { CircuitBreakerOpenError, geminiCircuitBreaker } from '@/lib/circuit-breaker'
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-
-type KnowledgeChunk = {
-  id: string
-  source_id?: string
-  source_url?: string
-  title?: string
-  content: string
-  similarity?: number
-}
 
 const MAX_BODY_BYTES = 24_000
 const MAX_MESSAGE_CHARS = 1_500
@@ -40,39 +31,6 @@ function getRequestScope(req: NextRequest): string {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
   const ua = req.headers.get('user-agent') ?? 'unknown'
   return `${ip}|${ua}`
-}
-
-async function fetchKnowledgeChunks(queryVector: number[], requestId: string): Promise<KnowledgeChunk[]> {
-  const db = createAdminClient()
-
-  const rpc = await db.rpc('search_knowledge_docs', {
-    query_embedding: queryVector,
-    match_threshold: 0.45,
-    match_count: 6,
-  } as never)
-
-  const rpcRows = Array.isArray(rpc.data) ? (rpc.data as Array<Record<string, unknown>>) : []
-
-  if (!rpc.error && rpcRows.length > 0) {
-    return rpcRows
-      .filter((row): row is Record<string, unknown> => !!row && typeof row === 'object')
-      .map((row) => ({
-        id: String(row.id ?? ''),
-        source_id: typeof row.source_id === 'string' ? row.source_id : undefined,
-        source_url: typeof row.source_url === 'string' ? row.source_url : undefined,
-        title: typeof row.title === 'string' ? row.title : undefined,
-        content: typeof row.content === 'string' ? row.content : '',
-        similarity: typeof row.similarity === 'number' ? row.similarity : undefined,
-      }))
-      .filter((row) => row.id && row.content)
-  }
-
-  logWarn('expert_chat_knowledge_context_unavailable', {
-    requestId,
-    rpc_error: rpc.error?.message ?? null,
-    rpc_rows: rpcRows.length,
-  })
-  return []
 }
 
 function buildContext(chunks: KnowledgeChunk[]): string {
@@ -163,7 +121,7 @@ export async function POST(req: NextRequest) {
     const embeddingResult = await embeddingModel.embedContent(message)
     const queryVector = embeddingResult.embedding.values
 
-    const chunks = await fetchKnowledgeChunks(queryVector, requestId)
+    const chunks = await searchKnowledgeDocs(queryVector, requestId)
     const contextText = buildContext(chunks)
 
     const modelNames = await getGeminiModelCandidatesForApiKey(apiKey)

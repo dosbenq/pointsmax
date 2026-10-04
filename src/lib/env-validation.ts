@@ -52,6 +52,10 @@ function validateCorsAllowedOrigins(value: string): boolean | string {
 // Required environment variables for production
 const REQUIRED_ENV_VARS: EnvVarConfig[] = [
   // Supabase (Critical)
+  { name: 'DATABASE_URL', type: 'string', required: false, validate: (v) => /^postgres(ql)?:\/\//.test(v) || 'Must be a postgres:// connection string' },
+  { name: 'BETTER_AUTH_SECRET', type: 'string', required: process.env.NODE_ENV === 'production', validate: (v) => v.length >= 32 || 'Must be at least 32 characters' },
+  { name: 'GOOGLE_CLIENT_ID', type: 'string', required: false },
+  { name: 'GOOGLE_CLIENT_SECRET', type: 'string', required: false },
   { name: 'NEXT_PUBLIC_SUPABASE_URL', type: 'url', required: true },
   { name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', type: 'string', required: true },
   { name: 'SUPABASE_SERVICE_ROLE_KEY', type: 'string', required: process.env.NODE_ENV === 'production' },

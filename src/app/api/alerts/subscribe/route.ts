@@ -4,16 +4,15 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { alertSubscriptions } from '@/lib/db/schema'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAX_BODY_BYTES = 16_000
-type UserIdRow = { id: string }
-type ExistingSubscriptionRow = { id: string; user_id: string | null }
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
@@ -75,37 +74,21 @@ export async function POST(req: NextRequest) {
   let user_id: string | null = null
   let authEmail: string | null = null
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll: () => cookieStore.getAll() } },
-    )
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getSessionUser(req.headers)
     if (user) {
       authEmail = user.email?.trim().toLowerCase() ?? null
-
-      // Look up internal user record
-      const db = createAdminClient()
-      const { data: userRowData } = await db
-        .from('users')
-        .select('id')
-        .eq('auth_id', user.id)
-        .single()
-      const userRow = (userRowData ?? null) as UserIdRow | null
-      user_id = userRow?.id ?? null
+      user_id = await getUserRowId(user.id)
     }
   } catch {
     // non-blocking
   }
 
-  const db = createAdminClient()
-  const { data: existingData } = await db
-    .from('alert_subscriptions')
-    .select('id, user_id')
-    .eq('email', normalizedEmail)
-    .maybeSingle()
-  const existing = (existingData ?? null) as ExistingSubscriptionRow | null
+  const db = getDb()
+  const [existing] = await db
+    .select({ id: alertSubscriptions.id, user_id: alertSubscriptions.userId })
+    .from(alertSubscriptions)
+    .where(eq(alertSubscriptions.email, normalizedEmail))
+    .limit(1)
 
   // Authenticated users can only mutate their own email subscription.
   if (user_id) {
@@ -116,15 +99,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { error } = await db
-      .from('alert_subscriptions')
-      .upsert(
-        { email: normalizedEmail, user_id, program_ids: cleanedProgramIds, is_active: true } as never,
-        { onConflict: 'email' },
-      )
-
-    if (error) {
-      logError('alerts_subscribe_upsert_failed', { requestId, error: error.message })
+    try {
+      const values = { userId: user_id, programIds: cleanedProgramIds, isActive: true }
+      await db
+        .insert(alertSubscriptions)
+        .values({ email: normalizedEmail, ...values })
+        .onConflictDoUpdate({ target: alertSubscriptions.email, set: values })
+    } catch (error) {
+      logError('alerts_subscribe_upsert_failed', { requestId, error: error instanceof Error ? error.message : String(error) })
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
@@ -145,12 +127,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { error } = await db
-    .from('alert_subscriptions')
-    .insert({ email: normalizedEmail, user_id: null, program_ids: cleanedProgramIds, is_active: true } as never)
-
-  if (error) {
-    logError('alerts_subscribe_insert_failed', { requestId, error: error.message })
+  try {
+    await db
+      .insert(alertSubscriptions)
+      .values({ email: normalizedEmail, userId: null, programIds: cleanedProgramIds, isActive: true })
+  } catch (error) {
+    logError('alerts_subscribe_insert_failed', { requestId, error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 

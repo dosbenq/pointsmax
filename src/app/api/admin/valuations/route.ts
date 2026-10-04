@@ -1,95 +1,32 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
+import { asc } from 'drizzle-orm'
+import { CATALOG_MANAGED_RESPONSE } from '@/lib/catalog'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { latestValuations } from '@/lib/db/schema'
+import { requireAdmin } from '@/lib/admin-auth'
 import { logError } from '@/lib/logger'
-
-type CreateValuationBody = {
-  program_slug?: unknown
-  cpp_cents?: unknown
-  notes?: unknown
-}
-
-type ProgramLookupRow = {
-  id: string
-  slug: string
-}
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-  const { data, error } = await db
-    .from('latest_valuations')
-    .select('*')
-    .order('program_name')
-
-  if (error) {
-    logError('admin_valuations_get_failed', { error: error.message })
+  try {
+    const valuations = await getDb()
+      .select(columnsOf(latestValuations))
+      .from(latestValuations)
+      .orderBy(asc(latestValuations.programName))
+    return NextResponse.json({ valuations })
+  } catch (error) {
+    logError('admin_valuations_get_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ valuations: data ?? [] })
 }
 
+// Valuations are managed in src/data/catalog/valuations.json and synced with
+// `npm run catalog:sync`; writing them here would be overwritten on the next sync.
 export async function POST(request: Request) {
-  const { error: authError, adminEmail } = await requireAdmin(request)
+  const { error: authError } = await requireAdmin(request)
   if (authError) return authError
-
-  let body: CreateValuationBody
-  try {
-    body = (await request.json()) as CreateValuationBody
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-  }
-
-  const programSlug = typeof body.program_slug === 'string' ? body.program_slug.trim() : ''
-  const cppCents = Number(body.cpp_cents)
-  const notes = typeof body.notes === 'string' ? body.notes.trim() : null
-
-  if (!programSlug) {
-    return NextResponse.json({ error: 'program_slug is required' }, { status: 400 })
-  }
-  if (!Number.isFinite(cppCents) || cppCents <= 0 || cppCents > 100) {
-    return NextResponse.json({ error: 'cpp_cents must be a number between 0 and 100' }, { status: 400 })
-  }
-
-  const db = createAdminClient()
-  const { data: programData, error: programErr } = await db
-    .from('programs')
-    .select('id, slug')
-    .eq('slug', programSlug)
-    .eq('is_active', true)
-    .single()
-
-  const program = (programData ?? null) as ProgramLookupRow | null
-  if (programErr || !program) {
-    return NextResponse.json({ error: 'Unknown program_slug' }, { status: 400 })
-  }
-
-  const effectiveDate = new Date().toISOString().slice(0, 10)
-  // TODO: Generate Supabase types to replace this cast
-  const { error: insertErr } = await db.from('valuations').insert({
-    program_id: program.id,
-    cpp_cents: cppCents,
-    source: 'manual',
-    effective_date: effectiveDate,
-    notes: notes || null,
-  } as any)
-
-  if (insertErr) {
-    logError('admin_valuations_insert_failed', {
-      program_slug: programSlug,
-      error: insertErr.message,
-    })
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-  }
-
-  await logAdminAction('valuation.manual_insert', program.id, {
-    program_slug: programSlug,
-    cpp_cents: cppCents,
-    notes,
-  }, adminEmail!)
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json(CATALOG_MANAGED_RESPONSE, { status: 409 })
 }

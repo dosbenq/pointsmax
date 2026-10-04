@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createServerDbClient } from '@/lib/supabase'
+import { asc, inArray } from 'drizzle-orm'
+import { getDb, hasDatabaseUrl } from '@/lib/db/client'
+import { inspirationRoutes } from '@/lib/db/schema'
 import type { Region } from '@/lib/regions'
 
 type Props = {
@@ -25,17 +27,33 @@ type InspirationRouteRow = {
 export const revalidate = 86400
 
 async function loadInspirationRoutes(region: Region): Promise<InspirationRouteRow[]> {
-  const db = createServerDbClient()
+  if (!hasDatabaseUrl()) return []
   const regionCode = region === 'in' ? 'IN' : 'US'
-  const { data, error } = await db
-    .from('inspiration_routes')
-    .select('origin_iata, destination_iata, destination_label, cabin, program_slug, miles_required, estimated_cash_value_usd, cpp_cents, headline, description, is_featured, display_order')
-    .in('region', [regionCode, 'GLOBAL'])
-    .order('display_order', { ascending: true })
+  let data: InspirationRouteRow[]
+  try {
+    data = await getDb()
+      .select({
+        origin_iata: inspirationRoutes.originIata,
+        destination_iata: inspirationRoutes.destinationIata,
+        destination_label: inspirationRoutes.destinationLabel,
+        cabin: inspirationRoutes.cabin,
+        program_slug: inspirationRoutes.programSlug,
+        miles_required: inspirationRoutes.milesRequired,
+        estimated_cash_value_usd: inspirationRoutes.estimatedCashValueUsd,
+        cpp_cents: inspirationRoutes.cppCents,
+        headline: inspirationRoutes.headline,
+        description: inspirationRoutes.description,
+        is_featured: inspirationRoutes.isFeatured,
+        display_order: inspirationRoutes.displayOrder,
+      })
+      .from(inspirationRoutes)
+      .where(inArray(inspirationRoutes.region, [regionCode, 'GLOBAL']))
+      .orderBy(asc(inspirationRoutes.displayOrder)) as InspirationRouteRow[]
+  } catch {
+    return []
+  }
 
-  if (error) return []
-
-  return ((data ?? []) as InspirationRouteRow[])
+  return data
     .sort((left, right) => Number(right.is_featured) - Number(left.is_featured) || left.display_order - right.display_order)
 }
 

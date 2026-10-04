@@ -3,7 +3,10 @@
 // All database access for booking URL queries
 // ============================================================
 
-import { createPublicClient } from '@/lib/supabase'
+import { and, asc, eq, inArray } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { bookingUrls } from '@/lib/db/schema'
 import type { BookingUrl } from '@/types/database'
 import { logError } from '@/lib/logger'
 
@@ -12,24 +15,18 @@ import { logError } from '@/lib/logger'
  * Returns URLs matching the region + global URLs
  */
 export async function getActiveBookingUrls(region?: 'us' | 'in' | null): Promise<BookingUrl[]> {
-  const db = createPublicClient()
-
-  let query = db
-    .from('booking_urls')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order')
-
-  if (region) {
-    query = query.in('region', ['global', region])
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    logError('booking_urls_repository_fetch_failed', { message: error.message })
+  try {
+    const rows = await getDb()
+      .select(columnsOf(bookingUrls))
+      .from(bookingUrls)
+      .where(and(
+        eq(bookingUrls.isActive, true),
+        region ? inArray(bookingUrls.region, ['global', region]) : undefined,
+      ))
+      .orderBy(asc(bookingUrls.sortOrder))
+    return rows as unknown as BookingUrl[]
+  } catch (error) {
+    logError('booking_urls_repository_fetch_failed', { message: error instanceof Error ? error.message : String(error) })
     throw new Error('Failed to fetch booking URLs')
   }
-
-  return (data ?? []) as unknown as BookingUrl[]
 }

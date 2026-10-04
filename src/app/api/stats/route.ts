@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
+import { getDb } from '@/lib/db/client'
+import { siteStats } from '@/lib/db/schema'
 import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 
@@ -93,15 +94,24 @@ export async function GET(req: Request) {
     })
   }
 
-  const db = createServerDbClient()
-  const { data, error } = await db
-    .from('site_stats')
-    .select('user_count, tracked_points, optimized_value_cents')
-    .limit(1)
-    .maybeSingle()
+  let data: { user_count: number | null; tracked_points: number | null; optimized_value_cents: number | null } | undefined
+  let error: unknown = null
+  try {
+    const rows = await getDb()
+      .select({
+        user_count: siteStats.userCount,
+        tracked_points: siteStats.trackedPoints,
+        optimized_value_cents: siteStats.optimizedValueCents,
+      })
+      .from(siteStats)
+      .limit(1)
+    data = rows[0]
+  } catch (err) {
+    error = err
+  }
 
   if (error) {
-    logError('public_stats_fetch_failed', { error: error.message })
+    logError('public_stats_fetch_failed', { error: error instanceof Error ? error.message : String(error) })
     // Return fallback stats so the frontend doesn't crash
     const fallbackPayload = {
       users: 0,

@@ -2,7 +2,8 @@ import crypto from 'node:crypto'
 import { inngest } from '../client'
 import { YoutubeTranscript } from 'youtube-transcript'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { createAdminClient } from '@/lib/supabase'
+import { getDb } from '@/lib/db/client'
+import { knowledgeDocs } from '@/lib/db/schema'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { chunkText, parseYouTubeVideoId } from '@/lib/knowledge/youtube'
 import { logAiMetric } from '@/lib/telemetry'
@@ -27,7 +28,7 @@ export const youtubeLearner = inngest.createFunction(
       return { message: 'No video_urls provided' }
     }
 
-    const db = createAdminClient()
+    const db = getDb()
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) throw new Error('GEMINI_API_KEY missing')
     const genAI = new GoogleGenerativeAI(apiKey)
@@ -126,22 +127,22 @@ ${fullText.slice(0, 30000)}
           const contentHash = crypto.createHash('sha256').update(normalized).digest('hex')
 
           // Store in Postgres
-          await db.from('knowledge_docs').upsert({
-            source_id: `youtube:${videoId}`,
-            source_url: url,
-            title: `Learning from Video ${videoId}`,
-            content: normalized,
-            embedding: vector,
-            content_hash: contentHash,
-            metadata: {
-              ingested_at: new Date().toISOString(),
-              type: 'youtube_transcript',
-              channel: channel ?? 'unknown-channel',
-            },
-          }, {
-            onConflict: 'source_id,content_hash',
-            ignoreDuplicates: true,
-          })
+          await db
+            .insert(knowledgeDocs)
+            .values({
+              sourceId: `youtube:${videoId}`,
+              sourceUrl: url,
+              title: `Learning from Video ${videoId}`,
+              content: normalized,
+              embedding: vector,
+              contentHash,
+              metadata: {
+                ingested_at: new Date().toISOString(),
+                type: 'youtube_transcript',
+                channel: channel ?? 'unknown-channel',
+              },
+            })
+            .onConflictDoNothing({ target: [knowledgeDocs.sourceId, knowledgeDocs.contentHash] })
         }
       })
 

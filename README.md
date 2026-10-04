@@ -45,9 +45,27 @@ public/card-art/          Self-hosted card assets
 - real wallet/provider connectors
 - long-tail card economics enrichment for the expanded catalog
 
-## Catalog Workflow
+## Points Catalog (source of truth)
 
-Catalog work lives in [Documentation/catalog/README.md](./Documentation/catalog/README.md).
+Programmes, valuations, transfer partners and redemption options live in
+`src/data/catalog/*.json`. The database is a synced copy; nothing scrapes
+valuations any more.
+
+To change a valuation:
+
+1. Edit `src/data/catalog/valuations.json`: set `cpp` (cents for US/global,
+   paise for India) and `reviewed_at` to today.
+2. `npm run catalog:check` validates units, slugs and routes, and lists values
+   due for review (older than 60 days).
+3. `npm run catalog:sync` shows the diff against the database
+   (`DATABASE_URL` or `SUPABASE_DB_URL`); add `-- --apply` to write it.
+
+The calculator, hotel page, admin Programs page and AI prompts all read these
+values and show the real review date.
+
+## Card Catalog Workflow
+
+Card catalog work lives in [Documentation/catalog/README.md](./Documentation/catalog/README.md).
 
 Key commands:
 

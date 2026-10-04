@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
 import { enforceRateLimit } from '@/lib/api-security'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { users } from '@/lib/db/schema'
 
 export async function POST(request: Request) {
   const rateLimitError = await enforceRateLimit(request, {
@@ -11,21 +13,19 @@ export async function POST(request: Request) {
   })
   if (rateLimitError) return rateLimitError
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) {
     return NextResponse.json({ ok: false }, { status: 401 })
   }
 
-  const db = createAdminClient()
-  const { data: userRow } = await db.from('users').select('id').eq('auth_id', user.id).single()
-  const internalUserId = (userRow as { id?: unknown } | null)?.id
-  if (typeof internalUserId !== 'string') {
+  const updated = await getDb()
+    .update(users)
+    .set({ lastSeenAt: new Date().toISOString() })
+    .where(eq(users.authId, user.id))
+    .returning({ id: users.id })
+  if (updated.length === 0) {
     return NextResponse.json({ ok: false }, { status: 404 })
   }
 
-  await db.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', internalUserId)
   return NextResponse.json({ ok: true })
 }

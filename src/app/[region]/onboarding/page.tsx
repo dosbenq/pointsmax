@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Sparkles, MapPin, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { AirportAutocomplete } from '@/components/AirportAutocomplete'
-import { createBrowserClient } from '@supabase/ssr'
 
 type OnboardingStep = 0 | 1 | 2
 
@@ -34,11 +33,6 @@ export default function OnboardingPage() {
   const { user, loading: authLoading } = useAuth()
   const [step, setStep] = useState<OnboardingStep>(0)
   const [loading, setLoading] = useState(false)
-  const [supabase] = useState(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { storageKey: 'pm-auth-token-v2', debug: false } }
-  ))
 
   const params = useParams()
   const region = (params?.region as string) || 'us'
@@ -50,8 +44,8 @@ export default function OnboardingPage() {
   const [card1Points, setCard1Points] = useState('')
   const [card2Points, setCard2Points] = useState('')
   
-  const card1Slug = region === 'in' ? 'hdfc_rewards' : 'chase_ur'
-  const card2Slug = region === 'in' ? 'axis_edge' : 'amex_mr'
+  const card1Slug = region === 'in' ? 'hdfc-smartbuy' : 'chase-ur'
+  const card2Slug = region === 'in' ? 'axis-edge' : 'amex-mr'
   const card1Name = region === 'in' ? 'HDFC Reward Points' : 'Chase Ultimate Rewards'
   const card2Name = region === 'in' ? 'Axis Edge Rewards' : 'Amex Membership Rewards'
   const card1Monogram = region === 'in' ? 'HR' : 'UR'
@@ -69,74 +63,36 @@ export default function OnboardingPage() {
         return
       }
 
-      const { data: prefs } = await supabase
-        .from('user_preferences')
-        .select('home_airport')
-        .eq('id', user.id)
-        .single()
-        
-        if (prefs?.home_airport) {
-          // User already has a home airport, redirect to calculator
-          router.push(`/${region}/calculator?origin=${prefs.home_airport}`)
-        }
+      const res = await fetch('/api/user/preferences').catch(() => null)
+      const prefs = res?.ok ? ((await res.json()) as { preferences?: { home_airport?: string | null } | null }).preferences : null
+
+      if (prefs?.home_airport) {
+        // User already has a home airport, redirect to calculator
+        router.push(`/${region}/calculator?origin=${prefs.home_airport}`)
       }
-      
-      checkOnboardingStatus()
-    }, [user, authLoading, router, supabase, region])
+    }
+
+    checkOnboardingStatus()
+  }, [user, authLoading, router, region])
 
   const handleComplete = async () => {
     setLoading(true)
     
     try {
-       // 1. Save Home Airport to preferences
-       if (homeAirport) {
-         await supabase
-            .from('user_preferences')
-            .upsert({ 
-               id: user!.id,
-               home_airport: homeAirport.toUpperCase()
-            }, { onConflict: 'id' })
-       }
+       const parsePoints = (value: string) => Number.parseInt(value.replace(/\D/g, ''), 10) || 0
+       const balances = [
+         { program_slug: card1Slug, balance: parsePoints(card1Points) },
+         { program_slug: card2Slug, balance: parsePoints(card2Points) },
+       ].filter((entry) => entry.balance > 0)
 
-       // 2. Insert mocked points if provided
-       const balancesToInsert = []
-       
-       if (card1Points && parseInt(card1Points.replace(/\D/g, '')) > 0) {
-         const { data: cpp } = await supabase.from('programs').select('id').eq('slug', card1Slug).single()
-         if (cpp) {
-           balancesToInsert.push({
-             user_id: user!.id,
-             program_id: cpp.id,
-             balance: parseInt(card1Points.replace(/\D/g, '')),
-             source: 'manual'
-           })
-         }
-       }
-       
-       if (card2Points && parseInt(card2Points.replace(/\D/g, '')) > 0) {
-         const { data: mr } = await supabase.from('programs').select('id').eq('slug', card2Slug).single()
-         if (mr) {
-           balancesToInsert.push({
-             user_id: user!.id,
-             program_id: mr.id,
-             balance: parseInt(card2Points.replace(/\D/g, '')),
-             source: 'manual'
-           })
-         }
-       }
-
-       if (balancesToInsert.length > 0) {
-          // Wipe existing manual to prevent dupes during onboarding
-          await supabase.from('wallet_balances').delete().eq('user_id', user!.id).eq('source', 'manual')
-          await supabase.from('wallet_balances').insert(balancesToInsert)
-       }
-
+       // Saves home airport + starting balances server-side in one request.
        await fetch('/api/onboarding/complete', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
            region,
            home_airport: homeAirport.toUpperCase(),
+           balances,
          }),
          keepalive: true,
        }).catch(() => {})

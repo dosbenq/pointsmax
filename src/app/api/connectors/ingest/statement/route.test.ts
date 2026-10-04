@@ -4,11 +4,23 @@ import { NextRequest } from 'next/server'
 const mockGetUser = vi.fn()
 const mockFrom = vi.fn()
 
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+vi.mock('@/lib/auth', () => ({
+  getSessionUser: async () => {
+    const result = await mockGetUser()
+    const user = result?.data?.user
+    return user
+      ? { id: user.id, email: user.email ?? 'user@example.com', name: null, image: null, emailVerified: true, createdAt: '2026-01-01T00:00:00.000Z' }
+      : null
+  },
+  getUserRowId: async () => 'user-row-1',
+}))
+
+vi.mock('@/lib/connectors/program-catalog', () => ({
+  loadProgramsAndAliases: async () => {
+    const programs = await mockFrom('programs').select().eq('is_active', true)
+    const aliases = await mockFrom('program_name_aliases').select()
+    return { programs: programs.data ?? [], aliases: aliases.data ?? [] }
+  },
 }))
 
 vi.mock('@/lib/logger', () => ({

@@ -1,30 +1,20 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
-
-type ProgramRow = {
-  id: string
-  [key: string]: unknown
-}
-
-type LatestValuationRow = {
-  program_id: string
-  [key: string]: unknown
-}
+import { CATALOG_MANAGED_RESPONSE } from '@/lib/catalog'
+import { asc } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { latestValuations, programs as programsTable } from '@/lib/db/schema'
+import { requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-
-  const [{ data: programs }, { data: valuations }] = await Promise.all([
-    db.from('programs').select('*').order('display_order'),
-    db.from('latest_valuations').select('*'),
+  const db = getDb()
+  const [programRows, valuationRows] = await Promise.all([
+    db.select(columnsOf(programsTable)).from(programsTable).orderBy(asc(programsTable.displayOrder)),
+    db.select(columnsOf(latestValuations)).from(latestValuations),
   ])
-
-  const programRows = (programs ?? []) as ProgramRow[]
-  const valuationRows = (valuations ?? []) as LatestValuationRow[]
 
   const result = programRows.map(p => ({
     ...p,
@@ -34,42 +24,10 @@ export async function GET(req: Request) {
   return NextResponse.json({ programs: result })
 }
 
-// PATCH: insert a new valuation record for a program (keeps history)
+// Valuations are managed in src/data/catalog/valuations.json and synced with
+// `npm run catalog:sync`; writing them here would be overwritten on the next sync.
 export async function PATCH(request: Request) {
-  const { error: authError, adminEmail } = await requireAdmin(request)
+  const { error: authError } = await requireAdmin(request)
   if (authError) return authError
-
-  const { program_id, cpp_cents, source } = await request.json()
-  if (!program_id || cpp_cents == null) {
-    return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  }
-
-  const parsedCpp = parseFloat(cpp_cents)
-  if (typeof parsedCpp !== 'number' || parsedCpp <= 0 || parsedCpp > 100) {
-    return NextResponse.json(
-      { error: 'cpp_cents must be between 0 and 100' },
-      { status: 400 }
-    )
-  }
-
-  const db = createAdminClient()
-  const today = new Date().toISOString().split('T')[0]
-
-  // TODO: Generate Supabase types to replace this cast
-  const { error } = await db.from('valuations').insert({
-    program_id,
-    cpp_cents: parsedCpp,
-    source: source ?? 'manual',
-    effective_date: today,
-  } as any)
-
-  if (error) {
-    console.error('admin_programs_valuation_insert_failed', { error: error.message })
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-  }
-  await logAdminAction('valuation.update', String(program_id), {
-    cpp_cents: parsedCpp,
-    source: source ?? 'manual',
-  }, adminEmail!)
-  return NextResponse.json({ ok: true })
+  return NextResponse.json(CATALOG_MANAGED_RESPONSE, { status: 409 })
 }

@@ -1,12 +1,16 @@
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { eq } from 'drizzle-orm'
+import { getOrCreateUserRowId, getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { userPreferences } from '@/lib/db/schema'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // GET /auth/callback
-// Exchanges OAuth code for a session, then redirects to /calculator
+// Post-sign-in landing. Better Auth completes the Google OAuth exchange at
+// /api/auth/callback/google and then redirects here; we send first-time users
+// to onboarding and everyone else to `next`.
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const code = searchParams.get('code')
   const nextParam = searchParams.get('next') ?? '/us/calculator'
   // Validate: must be relative path, no protocol-relative, no encoded sequences that could redirect
   const isValidPath = (p: string) => {
@@ -29,29 +33,27 @@ export async function GET(request: NextRequest) {
   // causing redirects to go to the wrong host.
   const appOrigin = getConfiguredAppOrigin()
 
-  if (code) {
-    const supabase = await createSupabaseServerClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Check if user has completed onboarding (has a home airport)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-         const { data: prefs } = await supabase
-           .from('user_preferences')
-           .select('home_airport')
-           .eq('id', user.id)
-           .single()
+  const user = await getSessionUser(request.headers)
+  if (user) {
+    try {
+      const userRowId = await getOrCreateUserRowId(user)
+      const [prefs] = await getDb()
+        .select({ home_airport: userPreferences.homeAirport })
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, userRowId))
+        .limit(1)
 
-         if (!prefs?.home_airport) {
-           // Extract region from 'next' path (e.g. /in/calculator -> in)
-           const pathParts = next.split('/').filter(Boolean)
-           const region = pathParts[0] === 'in' ? 'in' : 'us'
-           return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
-         }
+      if (!prefs?.home_airport) {
+        // Extract region from 'next' path (e.g. /in/calculator -> in)
+        const pathParts = next.split('/').filter(Boolean)
+        const region = pathParts[0] === 'in' ? 'in' : 'us'
+        return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
       }
-
-      return NextResponse.redirect(`${appOrigin}${next}`)
+    } catch {
+      // Profile lookup problems should not block a successful sign-in.
     }
+
+    return NextResponse.redirect(`${appOrigin}${next}`)
   }
 
   // Something went wrong — redirect to calculator with error flag

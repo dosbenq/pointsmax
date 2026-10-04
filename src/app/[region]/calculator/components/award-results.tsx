@@ -18,7 +18,7 @@ import type {
 } from '../hooks/use-calculator-state'
 import type { Region } from '@/lib/regions'
 import { formatCpp } from '@/lib/formatters'
-import type { User } from '@supabase/supabase-js'
+import type { AppUser as User } from '@/lib/auth-types'
 
 type BookingGuideStartResponse = {
   ok: boolean

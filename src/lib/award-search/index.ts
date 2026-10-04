@@ -7,13 +7,9 @@
 import type { AwardProvider } from './types'
 import { StubProvider } from './stub-provider'
 import { SeatsAeroProvider } from './seats-aero-provider'
+import { AwardProviderUnavailableError } from './errors'
 
-export class AwardProviderUnavailableError extends Error {
-  constructor(message = 'Live award data is not configured. Add SEATS_AERO_API_KEY.') {
-    super(message)
-    this.name = 'AwardProviderUnavailableError'
-  }
-}
+export { AwardProviderUnavailableError }
 
 function shouldAllowStubFallback(): boolean {
   const explicit = (process.env.ALLOW_STUB_AWARD_SEARCH ?? '').trim().toLowerCase()

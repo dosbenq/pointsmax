@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await calculateRedemptions(balances)
-    const responsePayload = { ...result, valuation_source: 'TPG April 2026' }
+    const responsePayload = result
     setCachedAiResponse(cacheKey, responsePayload, cacheTtl)
     return NextResponse.json(responsePayload, {
       headers: {

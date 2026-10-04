@@ -15,6 +15,8 @@
 // ============================================================
 
 import { logInfo, logError } from '@/lib/logger'
+import { getDb } from '@/lib/db/client'
+import { connectorAuditLog } from '@/lib/db/schema'
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -49,7 +51,7 @@ export interface ConnectorAuditEvent {
   metadata?: Record<string, unknown>
 }
 
-/** Injectable persistence interface — production uses Supabase. */
+/** Injectable persistence interface — production uses databaseAuditPersistence(). */
 export interface AuditPersistence {
   insert(event: ConnectorAuditEvent): Promise<void>
 }
@@ -85,5 +87,21 @@ export async function emitAuditEvent(
       accountId: event.accountId,
       error: err instanceof Error ? err.message : String(err),
     })
+  }
+}
+
+/** Audit persistence backed by the connector_audit_log table. */
+export function databaseAuditPersistence(): AuditPersistence {
+  return {
+    async insert(event) {
+      await getDb().insert(connectorAuditLog).values({
+        userId: event.userId,
+        accountId: event.accountId,
+        provider: event.provider,
+        eventType: event.eventType,
+        actor: event.actor,
+        metadata: event.metadata ?? null,
+      })
+    },
   }
 }

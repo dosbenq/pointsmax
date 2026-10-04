@@ -131,8 +131,6 @@ async function run() {
       program_ids: [PROGRAM_ID],
     }),
   })
-
-  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations`, { headers: cronHeaders })
   await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts`, { headers: cronHeaders })
   await requestJson('Cron ingest knowledge', `${BASE_URL}/api/cron/ingest-youtube-knowledge`, { headers: cronHeaders })
 

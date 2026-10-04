@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { sql } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { UUID_RE } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { userBalances } from '@/lib/db/schema'
 import { badRequest, internalError } from '@/lib/error-utils'
 import { logError, logInfo } from '@/lib/logger'
 
 type ConfirmCandidate = {
   program_id: string
   balance: number
-}
-
-async function getCurrentUserRowId(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  authId: string,
-): Promise<string | null> {
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authId)
-    .single()
-
-  const id = (userRecord as { id?: unknown } | null)?.id
-  return typeof id === 'string' ? id : null
 }
 
 function validateCandidates(body: unknown): ConfirmCandidate[] | null {
@@ -31,7 +21,7 @@ function validateCandidates(body: unknown): ConfirmCandidate[] | null {
     .filter((row): row is { program_id: string; balance: number } => {
       if (!row || typeof row !== 'object') return false
       const record = row as Record<string, unknown>
-      return typeof record.program_id === 'string' && Number(record.balance) > 0
+      return typeof record.program_id === 'string' && UUID_RE.test(record.program_id) && Number(record.balance) > 0
     })
     .map((row) => ({
       program_id: row.program_id,
@@ -43,10 +33,7 @@ function validateCandidates(body: unknown): ConfirmCandidate[] | null {
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID()
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
@@ -64,26 +51,26 @@ export async function POST(req: NextRequest) {
     return badRequest('At least one matched candidate is required')
   }
 
-  const userId = await getCurrentUserRowId(supabase, user.id)
+  const userId = await getUserRowId(user.id)
   if (!userId) {
     return NextResponse.json({ error: 'User record not found' }, { status: 404 })
   }
 
   try {
     const rows = candidates.map((candidate) => ({
-      user_id: userId,
-      program_id: candidate.program_id,
+      userId,
+      programId: candidate.program_id,
       balance: candidate.balance,
-      updated_at: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }))
 
-    const { error } = await supabase
-      .from('user_balances')
-      .upsert(rows, { onConflict: 'user_id,program_id' })
-
-    if (error) {
-      throw new Error(error.message)
-    }
+    await getDb()
+      .insert(userBalances)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [userBalances.userId, userBalances.programId],
+        set: { balance: sql`excluded.balance`, updatedAt: sql`excluded.updated_at` },
+      })
 
     logInfo('ingest_confirm_saved', {
       requestId,

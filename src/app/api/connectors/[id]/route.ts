@@ -20,31 +20,14 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
+import { and, eq } from 'drizzle-orm'
+import { requireProfile, UUID_RE } from '@/lib/auth-guard'
+import { databaseAuditPersistence, emitAuditEvent } from '@/lib/connectors/audit-log'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { connectedAccounts } from '@/lib/db/schema'
 import { logInfo, logError } from '@/lib/logger'
 import type { ConnectedAccount } from '@/types/connectors'
-import { createAdminClient } from '@/lib/supabase'
-
-// ─────────────────────────────────────────────
-// Audit persistence backed by Supabase
-// ─────────────────────────────────────────────
-
-function buildAuditPersistence(): AuditPersistence {
-  return {
-    async insert(event) {
-      const admin = createAdminClient()
-      await admin.from('connector_audit_log').insert({
-        user_id: event.userId,
-        account_id: event.accountId,
-        provider: event.provider,
-        event_type: event.eventType,
-        actor: event.actor,
-        metadata: event.metadata ?? null,
-      })
-    },
-  }
-}
 
 // ─────────────────────────────────────────────
 // Route handler
@@ -60,34 +43,23 @@ export async function DELETE(
     return NextResponse.json({ error: 'Account ID is required' }, { status: 400 })
   }
 
-  const supabase = await createSupabaseServerClient()
+  const auth = await requireProfile()
+  if (!auth.ok) return auth.response
+  const { userId } = auth
 
-  // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
-  if (!userId) {
-    return NextResponse.json({ error: 'User record not found' }, { status: 404 })
+  if (!UUID_RE.test(accountId)) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
   // Fetch account to confirm ownership before deletion
-  const { data: accountRow, error: accountErr } = await supabase
-    .from('connected_accounts')
-    .select('*')
-    .eq('id', accountId)
-    .eq('user_id', userId)
-    .single()
+  const ownAccount = and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId))
+  const [accountRow] = await getDb()
+    .select(columnsOf(connectedAccounts))
+    .from(connectedAccounts)
+    .where(ownAccount)
+    .limit(1)
 
-  if (accountErr || !accountRow) {
+  if (!accountRow) {
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
@@ -95,7 +67,7 @@ export async function DELETE(
 
   // Emit audit event BEFORE deletion so metadata is available.
   // The audit row's account_id will be set to NULL by ON DELETE SET NULL.
-  await emitAuditEvent(buildAuditPersistence(), {
+  await emitAuditEvent(databaseAuditPersistence(), {
     userId,
     accountId,
     provider: account.provider,
@@ -108,17 +80,13 @@ export async function DELETE(
   })
 
   // Hard delete — balance_snapshots are removed via CASCADE
-  const { error: deleteErr } = await supabase
-    .from('connected_accounts')
-    .delete()
-    .eq('id', accountId)
-    .eq('user_id', userId)
-
-  if (deleteErr) {
+  try {
+    await getDb().delete(connectedAccounts).where(ownAccount)
+  } catch (deleteErr) {
     logError('connector_delete_failed', {
       accountId,
       provider: account.provider,
-      error: deleteErr.message,
+      error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }

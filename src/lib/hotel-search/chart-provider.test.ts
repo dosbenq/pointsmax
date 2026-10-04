@@ -1,97 +1,60 @@
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { ChartHotelProvider } from './chart-provider'
+import { setDbForTesting } from '@/lib/db/client'
+import { hotelAwardCharts, hotelPrograms } from '@/lib/db/schema'
+import { createTestDb, seedPrograms, seedTransfer, testId, type TestDb } from '@/test/utils/test-db'
+
+let db: TestDb
+
+beforeEach(async () => {
+  db = await createTestDb()
+  setDbForTesting(db)
+  await seedPrograms(db, [
+    { key: 'chase-ur', name: 'Chase Ultimate Rewards' },
+    { key: 'hyatt', name: 'World of Hyatt', type: 'hotel_points' },
+  ])
+  await seedTransfer(db, 'chase-ur', 'hyatt')
+  await db.insert(hotelPrograms).values({
+    id: testId('hotel-hyatt'),
+    slug: 'hyatt',
+    name: 'World of Hyatt',
+    chain: 'Hyatt',
+    bookingUrl: 'https://world.hyatt.com/content/gp/en/rewards.html',
+    colorHex: '#B49970',
+  })
+  await db.insert(hotelAwardCharts).values([
+    {
+      programId: testId('hotel-hyatt'),
+      destinationRegion: 'asia_pacific',
+      tierLabel: 'Category 4',
+      tierNumber: 4,
+      pointsOffPeak: 12000,
+      pointsStandard: 15000,
+      pointsPeak: 18000,
+      estimatedCashUsd: 320,
+    },
+    {
+      programId: testId('hotel-hyatt'),
+      destinationRegion: 'europe',
+      tierLabel: 'Category 4',
+      tierNumber: 4,
+      pointsStandard: 15000,
+      estimatedCashUsd: 280,
+    },
+  ])
+})
+
+afterAll(() => setDbForTesting(null))
 
 describe('ChartHotelProvider', () => {
   it('returns ranked hotel results with transfer details', async () => {
-    const client = { from: vi.fn() }
-    ;(client.from as ReturnType<typeof vi.fn>)
-      .mockImplementationOnce(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(async () => ({
-            data: [
-              {
-                id: 'hotel-hyatt',
-                slug: 'hyatt',
-                name: 'World of Hyatt',
-                chain: 'Hyatt',
-                booking_url: 'https://world.hyatt.com/content/gp/en/rewards.html',
-                color_hex: '#B49970',
-              },
-            ],
-            error: null,
-          })),
-        })),
-      }))
-      .mockImplementationOnce(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(async () => ({
-            data: [
-              {
-                program_id: 'hotel-hyatt',
-                destination_region: 'asia_pacific',
-                tier_label: 'Category 4',
-                tier_number: 4,
-                points_off_peak: 12000,
-                points_standard: 15000,
-                points_peak: 18000,
-                estimated_cash_usd: 320,
-              },
-            ],
-            error: null,
-          })),
-        })),
-      }))
-      .mockImplementationOnce(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(async () => ({
-            data: [
-              {
-                id: 'chase-id',
-                name: 'Chase Ultimate Rewards',
-                short_name: 'Chase UR',
-                slug: 'chase-ur',
-                color_hex: '#1177ff',
-                type: 'transferable_points',
-              },
-              {
-                id: 'hyatt-id',
-                name: 'World of Hyatt',
-                short_name: 'Hyatt',
-                slug: 'hyatt',
-                color_hex: '#B49970',
-                type: 'hotel_points',
-              },
-            ],
-            error: null,
-          })),
-        })),
-      }))
-      .mockImplementationOnce(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(async () => ({
-            data: [
-              {
-                id: 'tp-1',
-                from_program_id: 'chase-id',
-                to_program_id: 'hyatt-id',
-                ratio_from: 1,
-                ratio_to: 1,
-                is_instant: true,
-                transfer_time_max_hrs: 0,
-              },
-            ],
-            error: null,
-          })),
-        })),
-      }))
-
-    const provider = new ChartHotelProvider()
-    const results = await provider.search({
+    const results = await new ChartHotelProvider().search({
       destination_region: 'asia_pacific',
       check_in: '2026-04-01',
       check_out: '2026-04-04',
-      balances: [{ program_id: 'chase-id', amount: 50000 }],
-    }, client as never)
+      balances: [{ program_id: testId('chase-ur'), amount: 50000 }],
+    })
 
     expect(results).toHaveLength(1)
     expect(results[0].program_slug).toBe('hyatt')
@@ -100,5 +63,18 @@ describe('ChartHotelProvider', () => {
     expect(results[0].is_reachable).toBe(true)
     expect(results[0].transfer_chain).toContain('Chase Ultimate Rewards')
     expect(results[0].cpp_cents).toBeGreaterThan(2)
+  })
+
+  it('still returns chart results when the wallet cannot reach the programme', async () => {
+    const results = await new ChartHotelProvider().search({
+      destination_region: 'europe',
+      check_in: '2026-04-01',
+      check_out: '2026-04-02',
+      balances: [],
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0].is_reachable).toBe(false)
+    expect(results[0].transfer_chain).toBeNull()
   })
 })

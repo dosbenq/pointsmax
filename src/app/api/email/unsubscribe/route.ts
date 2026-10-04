@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { getDb } from '@/lib/db/client'
+import { userPreferences } from '@/lib/db/schema'
 import { verifyDigestUnsubscribeToken } from '@/lib/digest-email-token'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 
@@ -12,10 +13,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${appOrigin}/pricing?digest_unsubscribe=invalid`)
   }
 
-  const db = createAdminClient()
-  await db
-    .from('user_preferences')
-    .upsert({ user_id: userId, digest_email_enabled: false }, { onConflict: 'user_id' })
+  try {
+    await getDb()
+      .insert(userPreferences)
+      .values({ userId, digestEmailEnabled: false })
+      .onConflictDoUpdate({ target: userPreferences.userId, set: { digestEmailEnabled: false } })
+  } catch {
+    return NextResponse.redirect(`${appOrigin}/pricing?digest_unsubscribe=invalid`)
+  }
 
   return NextResponse.redirect(`${appOrigin}/pricing?digest_unsubscribe=ok`)
 }

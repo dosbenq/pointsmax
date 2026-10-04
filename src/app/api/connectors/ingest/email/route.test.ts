@@ -1,15 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const mockUpsert = vi.fn()
-const mockFrom = vi.fn(() => ({ upsert: mockUpsert }))
 const mockGetUser = vi.fn()
 
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+vi.mock('@/lib/auth', () => ({
+  getSessionUser: async () => {
+    const result = await mockGetUser()
+    const user = result?.data?.user
+    return user
+      ? { id: user.id, email: user.email ?? 'user@example.com', name: null, image: null, emailVerified: true, createdAt: '2026-01-01T00:00:00.000Z' }
+      : null
+  },
+  getUserRowId: async () => 'user-row-1',
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -18,6 +20,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const { POST, GET } = await import('./route')
+const { logInfo } = await import('@/lib/logger')
 
 function createPostRequest(body: unknown, userId = 'test-user'): NextRequest {
   mockGetUser.mockResolvedValue({ data: { user: { id: userId } } })
@@ -37,7 +40,6 @@ function createGetRequest(url: string, userId = 'test-user'): NextRequest {
 describe('POST /api/connectors/ingest/email', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUpsert.mockResolvedValue({ error: null })
     delete process.env.ENABLE_EMAIL_INGESTION
   })
 
@@ -99,22 +101,10 @@ describe('POST /api/connectors/ingest/email', () => {
     expect(res.status).toBe(200)
     expect(body.status.status).toBe('pending')
     expect(body.status.message).toContain('Thanks for your interest')
-    expect(mockUpsert).toHaveBeenCalled()
-  })
-
-  it('handles database errors gracefully when registering interest', async () => {
-    mockUpsert.mockResolvedValue({ error: { message: 'DB error' } })
-    
-    const req = createPostRequest({
-      action: 'register_interest',
-    })
-
-    const res = await POST(req)
-    const body = await res.json()
-
-    // Should still return success to user, just log the error
-    expect(res.status).toBe(200)
-    expect(body.status.message).toContain('Thanks for your interest')
+    expect(logInfo).toHaveBeenCalledWith('email_ingest_interest_registered', expect.objectContaining({
+      email_domain: 'gmail.com',
+      preferred_provider: 'chase',
+    }))
   })
 
   it('includes supported providers in feature info', async () => {

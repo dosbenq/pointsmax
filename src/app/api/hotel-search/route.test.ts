@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
 import * as hotelSearch from '@/lib/hotel-search'
-
-vi.mock('@/lib/supabase', () => ({
-  createServerDbClient: vi.fn(),
-}))
 
 vi.mock('@/lib/hotel-search', async (importOriginal) => {
   const actual = await importOriginal<typeof hotelSearch>()
@@ -33,7 +28,6 @@ function makeRequest(body: unknown) {
 describe('POST /api/hotel-search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(createServerDbClient).mockReturnValue({} as never)
   })
 
   it('rejects invalid destination regions', async () => {

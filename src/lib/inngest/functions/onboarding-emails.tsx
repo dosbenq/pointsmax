@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { getDb, type Database } from '@/lib/db/client'
+import { onboardingEmailLog, programs as programsTable, transferPartners, userBalances, users } from '@/lib/db/schema'
 import { calculateRedemptions } from '@/lib/calculate'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { renderEmail } from '@/lib/email-render'
@@ -49,12 +51,20 @@ export function pickLargestProgram(
   }
 }
 
-async function logEmailKind(db: ReturnType<typeof createAdminClient>, userId: string, email: string, kind: string) {
-  await db.from('onboarding_email_log').upsert({
-    user_id: userId,
-    email,
-    email_kind: kind,
-  }, { onConflict: 'user_id,email_kind', ignoreDuplicates: true })
+async function logEmailKind(db: Database, userId: string, email: string, kind: string) {
+  await db
+    .insert(onboardingEmailLog)
+    .values({ userId, email, emailKind: kind })
+    .onConflictDoNothing()
+}
+
+async function loadUser(db: Database, userId: string): Promise<UserRow | null> {
+  const [row] = await db
+    .select({ id: users.id, email: users.email, tier: users.tier, last_seen_at: users.lastSeenAt })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return row ?? null
 }
 
 export const onboardingEmails = inngest.createFunction(
@@ -74,25 +84,23 @@ export const onboardingEmails = inngest.createFunction(
 
     const appOrigin = getConfiguredAppOrigin()
     const region = event.data.region === 'in' ? 'in' : 'us'
-    const db = createAdminClient()
+    const db = getDb()
     const resend = new Resend(resendKey)
 
-    const user = await step.run('load-user', async () => {
-      const { data } = await db.from('users').select('id, email, tier, last_seen_at').eq('id', userId).single()
-      return (data ?? null) as UserRow | null
-    })
+    const user = await step.run('load-user', () => loadUser(db, userId))
     if (!user?.email) {
       return { ok: false, skipped: true, reason: 'user_not_found' }
     }
 
-    const [{ data: balancesData }, { data: programsData }, { data: transferPartnerData }] = await Promise.all([
-      db.from('user_balances').select('program_id, balance').eq('user_id', userId),
-      db.from('programs').select('id, name'),
-      db.from('transfer_partners').select('from_program_id, to_program_id').eq('is_active', true),
+    const [balances, programs, transferPartnerData]: [BalanceRow[], ProgramRow[], TransferPartnerLookupRow[]] = await Promise.all([
+      db.select({ program_id: userBalances.programId, balance: userBalances.balance }).from(userBalances).where(eq(userBalances.userId, userId)),
+      db.select({ id: programsTable.id, name: programsTable.name }).from(programsTable),
+      db
+        .select({ from_program_id: transferPartners.fromProgramId, to_program_id: transferPartners.toProgramId })
+        .from(transferPartners)
+        .where(eq(transferPartners.isActive, true)),
     ])
 
-    const balances = (balancesData ?? []) as BalanceRow[]
-    const programs = (programsData ?? []) as ProgramRow[]
     const programsById = new Map(programs.map((program) => [program.id, program.name]))
     const largestProgram = pickLargestProgram(balances, programsById)
 
@@ -131,14 +139,11 @@ export const onboardingEmails = inngest.createFunction(
 
     await step.sleep('wait-3-days', '3d')
 
-    const refreshedUser = await step.run('reload-user-after-3d', async () => {
-      const { data } = await db.from('users').select('id, email, tier, last_seen_at').eq('id', userId).single()
-      return (data ?? null) as UserRow | null
-    })
+    const refreshedUser = await step.run('reload-user-after-3d', () => loadUser(db, userId))
 
     if (refreshedUser?.email && shouldSendFollowUp(refreshedUser.last_seen_at, 3)) {
       const transferPartnerName = largestProgram
-        ? ((transferPartnerData as TransferPartnerLookupRow[] | null) ?? [])
+        ? transferPartnerData
           .find((row) => row.from_program_id === largestProgram.programId)
         : null
       const bestPartner = transferPartnerName ? programsById.get(transferPartnerName.to_program_id) : null
@@ -162,10 +167,7 @@ export const onboardingEmails = inngest.createFunction(
 
     await step.sleep('wait-7-days', '4d')
 
-    const premiumCheck = await step.run('reload-user-after-7d', async () => {
-      const { data } = await db.from('users').select('id, email, tier, last_seen_at').eq('id', userId).single()
-      return (data ?? null) as UserRow | null
-    })
+    const premiumCheck = await step.run('reload-user-after-7d', () => loadUser(db, userId))
 
     if (premiumCheck?.email && premiumCheck.tier === 'free' && shouldSendFollowUp(premiumCheck.last_seen_at, 7)) {
       const homeAirport = typeof event.data.home_airport === 'string' && event.data.home_airport

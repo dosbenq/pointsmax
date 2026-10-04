@@ -1,170 +1,97 @@
-import { createServerDbClient, hasConfiguredPublicSupabaseEnv } from '@/lib/supabase'
-import { yearlyPointsFromSpend } from '@/lib/card-tools'
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
+import { getDb, hasDatabaseUrl } from '@/lib/db/client'
+import {
+  cardEarningRates,
+  cards as cardsTable,
+  comparisonPages,
+  latestValuations,
+  programs as programsTable,
+  transferPartners,
+} from '@/lib/db/schema'
 import type { Region } from '@/lib/regions'
-import type { SpendCategory } from '@/types/database'
-import { resolveCppCents } from '@/lib/cpp-fallback'
 import { unstable_cache } from 'next/cache'
 import { getCanonicalCardSlug } from '@/lib/card-slugs'
+import {
+  buildCardSlugById,
+  geographyForRegion,
+  parseBestUses,
+  resolveProgrammaticCppCents,
+  type CardRow,
+  type ComparisonPageRow,
+  type EarningRateRow,
+  type ProgrammaticCard,
+  type ProgrammaticProgram,
+  type ProgramRow,
+  type ValuationRow,
+} from '@/lib/programmatic-content-shared'
 
-type ProgramRow = {
-  id: string
-  name: string
-  slug: string
-  type: string
-  geography: string | null
-}
-
-type CardRow = {
-  id: string
-  name: string
-  issuer: string
-  image_url: string | null
-  annual_fee_usd: number
-  currency: string
-  earn_unit: string
-  geography: string
-  signup_bonus_pts: number
-  signup_bonus_spend: number
-  program_id: string
-  apply_url: string | null
-  display_order: number
-  expert_summary: string | null
-}
-
-type EarningRateRow = {
-  card_id: string
-  category: SpendCategory
-  earn_multiplier: number
-}
-
-type ValuationRow = {
-  program_id: string
-  cpp_cents: number
-  notes: string | null
-}
-
-type CardIdentityRow = Pick<CardRow, 'id' | 'name' | 'issuer'>
-
-type ComparisonPageRow = {
-  slug: string
-  region: string
-  title: string
-  description: string
-  card_slugs: string[]
-  category_focus: string | null
-  is_published: boolean
-  display_order: number
-}
-
-export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
-  return resolveCppCents(cppCents, programType)
-}
-
-export type ProgrammaticCard = CardRow & {
-  slug: string
-  program: ProgramRow | null
-  cpp_cents: number
-  earning_rates: EarningRateRow[]
-}
-
-export type ProgrammaticProgram = ProgramRow & {
-  cpp_cents: number
-  valuation_notes: string | null
-  earning_cards: Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>
-  transfer_out: Array<{ to_program_id: string; to_program_name: string; to_program_slug: string; ratio_from: number; ratio_to: number }>
-  transfer_in: Array<{ from_program_id: string; from_program_name: string; from_program_slug: string; ratio_from: number; ratio_to: number }>
-  best_uses: string[]
-}
-
-function buildCardSlug(card: CardIdentityRow, used = new Set<string>()): string {
-  const base = getCanonicalCardSlug(card)
-  if (!used.has(base)) {
-    used.add(base)
-    return base
-  }
-
-  const idSuffix = card.id.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(-6)
-  const withId = `${base}-${idSuffix}`
-  used.add(withId)
-  return withId
-}
-
-export function buildCardSlugById(cards: CardIdentityRow[]): Map<string, string> {
-  const used = new Set<string>()
-  return new Map(cards.map((card) => [card.id, buildCardSlug(card, used)]))
-}
-
-function geographyForRegion(region: Region): 'US' | 'IN' {
-  return region === 'in' ? 'IN' : 'US'
-}
-
-function parseBestUses(raw: unknown): string[] {
-  if (Array.isArray(raw)) {
-    return raw.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-  }
-  return []
-}
-
-function isMissingTableError(error: { code?: string; message?: string } | null | undefined): boolean {
-  if (!error) return false
-  return (
-    error.code === '42P01' ||
-    error.message?.toLowerCase().includes('relation') === true ||
-    error.message?.toLowerCase().includes('does not exist') === true
-  )
-}
-
-export function estimateEffectiveCashbackPct(card: ProgrammaticCard): number {
-  const cpp = Number(card.cpp_cents) / 100
-  if (!Number.isFinite(cpp) || cpp <= 0) return 0
-  const baselineRate =
-    card.earning_rates.find((row) => row.category === 'other')?.earn_multiplier ??
-    Math.max(...card.earning_rates.map((row) => Number(row.earn_multiplier) || 0), 0)
-  if (!Number.isFinite(baselineRate) || baselineRate <= 0) return 0
-  const yearly = yearlyPointsFromSpend({
-    monthlySpend: card.earn_unit === '100_inr' ? 100 : 1,
-    earnMultiplier: baselineRate,
-    earnUnit: card.earn_unit,
-  })
-  const value = yearly * cpp
-  const spend = card.earn_unit === '100_inr' ? 1200 : 12
-  return (value / spend) * 100
-}
+export * from '@/lib/programmatic-content-shared'
 
 async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticCard[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
+  if (!hasDatabaseUrl()) return []
+  const db = getDb()
   const geography = geographyForRegion(region)
 
-  const { data: cards, error: cardsErr } = await db
-    .from('cards')
-    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order, expert_summary')
-    .eq('is_active', true)
-    .eq('geography', geography)
-    .order('display_order', { ascending: true })
+  let cardRows: CardRow[]
+  let rates: EarningRateRow[]
+  let programRows: ProgramRow[]
+  let valuations: ValuationRow[]
+  try {
+    cardRows = await db
+      .select({
+        id: cardsTable.id,
+        name: cardsTable.name,
+        issuer: cardsTable.issuer,
+        image_url: cardsTable.imageUrl,
+        annual_fee_usd: cardsTable.annualFeeUsd,
+        currency: cardsTable.currency,
+        earn_unit: cardsTable.earnUnit,
+        geography: cardsTable.geography,
+        signup_bonus_pts: cardsTable.signupBonusPts,
+        signup_bonus_spend: cardsTable.signupBonusSpend,
+        program_id: cardsTable.programId,
+        apply_url: cardsTable.applyUrl,
+        display_order: cardsTable.displayOrder,
+        expert_summary: cardsTable.expertSummary,
+      })
+      .from(cardsTable)
+      .where(and(eq(cardsTable.isActive, true), eq(cardsTable.geography, geography)))
+      .orderBy(asc(cardsTable.displayOrder)) as CardRow[]
+    if (cardRows.length === 0) return []
 
-  if (cardsErr || !cards) return []
-  const cardRows = cards as CardRow[]
-  if (cardRows.length === 0) return []
-
-  const cardIds = cardRows.map((card) => card.id)
-  const programIds = [...new Set(cardRows.map((card) => card.program_id))]
-
-  const [{ data: rates }, { data: programs }, { data: valuations }] = await Promise.all([
-    db.from('card_earning_rates').select('card_id, category, earn_multiplier').in('card_id', cardIds),
-    db.from('programs').select('id, name, slug, type, geography').in('id', programIds),
-    db.from('latest_valuations').select('program_id, cpp_cents').in('program_id', programIds),
-  ])
+    const cardIds = cardRows.map((card) => card.id)
+    const programIds = [...new Set(cardRows.map((card) => card.program_id))]
+    ;[rates, programRows, valuations] = await Promise.all([
+      db.select({
+        card_id: cardEarningRates.cardId,
+        category: cardEarningRates.category,
+        earn_multiplier: cardEarningRates.earnMultiplier,
+      }).from(cardEarningRates).where(inArray(cardEarningRates.cardId, cardIds)).then((rows) => rows as unknown as EarningRateRow[]),
+      db.select({
+        id: programsTable.id,
+        name: programsTable.name,
+        slug: programsTable.slug,
+        type: programsTable.type,
+        geography: programsTable.geography,
+      }).from(programsTable).where(inArray(programsTable.id, programIds)).then((rows) => rows as unknown as ProgramRow[]),
+      db.select({
+        program_id: latestValuations.programId,
+        cpp_cents: latestValuations.cppCents,
+      }).from(latestValuations).where(inArray(latestValuations.programId, programIds)).then((rows) => rows as unknown as ValuationRow[]),
+    ])
+  } catch {
+    return []
+  }
 
   const ratesByCardId = new Map<string, EarningRateRow[]>()
-  for (const row of ((rates ?? []) as EarningRateRow[])) {
+  for (const row of rates) {
     const list = ratesByCardId.get(row.card_id) ?? []
     list.push(row)
     ratesByCardId.set(row.card_id, list)
   }
 
-  const programById = new Map(((programs ?? []) as ProgramRow[]).map((program) => [program.id, program]))
-  const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
+  const programById = new Map(programRows.map((program) => [program.id, program]))
+  const valuationByProgramId = new Map(valuations.map((row) => [row.program_id, row.cpp_cents]))
 
   const slugByCardId = buildCardSlugById(cardRows)
 
@@ -199,40 +126,70 @@ export async function getCardBySlug(region: Region, slug: string): Promise<Progr
 }
 
 async function listProgramsForRegionUncached(region: Region): Promise<ProgrammaticProgram[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
+  if (!hasDatabaseUrl()) return []
+  const db = getDb()
   const geography = geographyForRegion(region)
 
-  const { data: programs, error } = await db
-    .from('programs')
-    .select('id, name, slug, type, geography, best_uses')
-    .eq('is_active', true)
-    .or(`geography.is.null,geography.eq.${geography},geography.eq.global`)
-    .order('name', { ascending: true })
+  let programRows: Array<ProgramRow & { best_uses?: unknown }>
+  let programIds: string[]
+  let valuations: ValuationRow[]
+  let cards: Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null; geography: string }>
+  let partners: Array<{ from_program_id: string; to_program_id: string; ratio_from: number; ratio_to: number }>
+  try {
+    programRows = await db
+      .select({
+        id: programsTable.id,
+        name: programsTable.name,
+        slug: programsTable.slug,
+        type: programsTable.type,
+        geography: programsTable.geography,
+        best_uses: programsTable.bestUses,
+      })
+      .from(programsTable)
+      .where(and(
+        eq(programsTable.isActive, true),
+        or(isNull(programsTable.geography), eq(programsTable.geography, geography), eq(programsTable.geography, 'global')),
+      ))
+      .orderBy(asc(programsTable.name)) as Array<ProgramRow & { best_uses?: unknown }>
+    if (programRows.length === 0) return []
 
-  if (error || !programs) return []
-  const programRows = programs as Array<ProgramRow & { best_uses?: unknown }>
-  if (programRows.length === 0) return []
+    programIds = programRows.map((program) => program.id)
+    ;[valuations, cards, partners] = await Promise.all([
+      db.select({
+        program_id: latestValuations.programId,
+        cpp_cents: latestValuations.cppCents,
+        notes: latestValuations.notes,
+      }).from(latestValuations).where(inArray(latestValuations.programId, programIds)).then((rows) => rows as unknown as ValuationRow[]),
+      db.select({
+        id: cardsTable.id,
+        name: cardsTable.name,
+        issuer: cardsTable.issuer,
+        program_id: cardsTable.programId,
+        apply_url: cardsTable.applyUrl,
+        geography: cardsTable.geography,
+      }).from(cardsTable).where(and(
+        eq(cardsTable.isActive, true),
+        eq(cardsTable.geography, geography),
+        inArray(cardsTable.programId, programIds),
+      )),
+      db.select({
+        from_program_id: transferPartners.fromProgramId,
+        to_program_id: transferPartners.toProgramId,
+        ratio_from: transferPartners.ratioFrom,
+        ratio_to: transferPartners.ratioTo,
+      }).from(transferPartners).where(and(
+        eq(transferPartners.isActive, true),
+        or(inArray(transferPartners.fromProgramId, programIds), inArray(transferPartners.toProgramId, programIds)),
+      )),
+    ])
+  } catch {
+    return []
+  }
 
-  const programIds = programRows.map((program) => program.id)
-  const programFilter = programIds.join(',')
-  const [{ data: valuations }, { data: cards }, { data: partners }] = await Promise.all([
-    db.from('latest_valuations').select('program_id, cpp_cents, notes').in('program_id', programIds),
-    db.from('cards')
-      .select('id, name, issuer, program_id, apply_url, geography')
-      .eq('is_active', true)
-      .eq('geography', geography)
-      .in('program_id', programIds),
-    db.from('transfer_partners')
-      .select('from_program_id, to_program_id, ratio_from, ratio_to')
-      .eq('is_active', true)
-      .or(`from_program_id.in.(${programFilter}),to_program_id.in.(${programFilter})`),
-  ])
-
-  const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
-  const valuationNotesByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.notes ?? null]))
+  const valuationByProgramId = new Map(valuations.map((row) => [row.program_id, row.cpp_cents]))
+  const valuationNotesByProgramId = new Map(valuations.map((row) => [row.program_id, row.notes ?? null]))
   const cardsByProgramId = new Map<string, Array<{ id: string; name: string; slug: string; issuer: string; apply_url: string | null }>>()
-  const cardRows = (cards ?? []) as Array<{ id: string; name: string; issuer: string; program_id: string; apply_url: string | null; image_url?: string | null }>
+  const cardRows = cards
   const slugByCardId = buildCardSlugById(cardRows)
   for (const card of cardRows) {
     const list = cardsByProgramId.get(card.program_id) ?? []
@@ -251,7 +208,7 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
   return programRows.map((program) => {
     const transferOut: ProgrammaticProgram['transfer_out'] = []
     const transferIn: ProgrammaticProgram['transfer_in'] = []
-    for (const row of (partners ?? []) as Array<{ from_program_id: string; to_program_id: string; ratio_from: number; ratio_to: number }>) {
+    for (const row of partners) {
       if (!programIds.includes(row.from_program_id) && !programIds.includes(row.to_program_id)) continue
       if (row.from_program_id === program.id) {
         const target = programNameById.get(row.to_program_id)
@@ -328,19 +285,28 @@ export type ProgrammaticComparisonPage = {
 }
 
 async function listComparisonPagesForRegionUncached(region: Region): Promise<ProgrammaticComparisonPage[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
-  const { data, error } = await db
-    .from('comparison_pages')
-    .select('slug, region, title, description, card_slugs, category_focus, is_published, display_order')
-    .eq('region', region)
-    .eq('is_published', true)
-    .order('display_order', { ascending: true })
+  if (!hasDatabaseUrl()) return []
+  let data: ComparisonPageRow[]
+  try {
+    data = await getDb()
+      .select({
+        slug: comparisonPages.slug,
+        region: comparisonPages.region,
+        title: comparisonPages.title,
+        description: comparisonPages.description,
+        card_slugs: comparisonPages.cardSlugs,
+        category_focus: comparisonPages.categoryFocus,
+        is_published: comparisonPages.isPublished,
+        display_order: comparisonPages.displayOrder,
+      })
+      .from(comparisonPages)
+      .where(and(eq(comparisonPages.region, region), eq(comparisonPages.isPublished, true)))
+      .orderBy(asc(comparisonPages.displayOrder)) as ComparisonPageRow[]
+  } catch {
+    return []
+  }
 
-  if (isMissingTableError(error)) return []
-  if (error || !data) return []
-
-  return (data as ComparisonPageRow[]).map((row) => ({
+  return data.map((row) => ({
     slug: row.slug,
     region,
     title: row.title,

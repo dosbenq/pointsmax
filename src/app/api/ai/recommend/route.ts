@@ -1,7 +1,10 @@
 import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
+import { formatValuationsForPrompt } from '@/lib/catalog'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { createServerDbClient } from '@/lib/supabase'
+import { and, eq, inArray } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { latestValuations, programs as programsTable, transferPartners } from '@/lib/db/schema'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { type Region } from '@/lib/regions'
@@ -123,24 +126,27 @@ async function fetchProgramContext(
   topResults: TopResult[],
   regionCtx: RegionContext,
 ): Promise<ProgramContextRow[]> {
-  const db = createServerDbClient()
   const regionGeo = regionCtx.code.toUpperCase()
 
-  const [{ data: programsData, error: programsError }, { data: valuationData, error: valuationError }] = await Promise.all([
-    db
-      .from('programs')
-      .select('id, name, slug, geography')
-      .eq('is_active', true)
-      .in('geography', ['global', regionGeo]),
-    db
-      .from('latest_valuations')
-      .select('program_id, cpp_cents'),
-  ])
-
-  if (programsError || valuationError) return []
+  let programsData: Array<{ id: string; name: string; slug: string }>
+  let valuationData: Array<{ program_id: string | null; cpp_cents: number | null }>
+  try {
+    const db = getDb()
+    ;[programsData, valuationData] = await Promise.all([
+      db
+        .select({ id: programsTable.id, name: programsTable.name, slug: programsTable.slug })
+        .from(programsTable)
+        .where(and(eq(programsTable.isActive, true), inArray(programsTable.geography, ['global', regionGeo]))),
+      db
+        .select({ program_id: latestValuations.programId, cpp_cents: latestValuations.cppCents })
+        .from(latestValuations),
+    ])
+  } catch {
+    return []
+  }
 
   const valuations = new Map<string, number>(
-    (valuationData ?? [])
+    valuationData
       .map((row) => {
         const programId = typeof row.program_id === 'string' ? row.program_id : ''
         const cpp = typeof row.cpp_cents === 'number' && Number.isFinite(row.cpp_cents) ? row.cpp_cents : NaN
@@ -150,7 +156,7 @@ async function fetchProgramContext(
       .filter((row): row is readonly [string, number] => row !== null),
   )
 
-  const programs = (programsData ?? [])
+  const programs = programsData
     .map((row) => ({
       id: typeof row.id === 'string' ? row.id : '',
       name: typeof row.name === 'string' ? row.name : '',
@@ -214,27 +220,26 @@ async function fetchTransferPartnerSummary(
 
   if (balanceProgramIds.length === 0) return '  (none)'
 
-  const db = createServerDbClient()
-  const { data: partnersData, error: partnersError } = await db
-    .from('transfer_partners')
-    .select('from_program_id, to_program_id')
-    .eq('is_active', true)
-    .in('from_program_id', balanceProgramIds)
+  let partnerRows: Array<{ from_program_id: string; to_program_id: string }>
+  let programsData: Array<{ id: string; name: string }>
+  try {
+    const db = getDb()
+    partnerRows = await db
+      .select({ from_program_id: transferPartners.fromProgramId, to_program_id: transferPartners.toProgramId })
+      .from(transferPartners)
+      .where(and(eq(transferPartners.isActive, true), inArray(transferPartners.fromProgramId, balanceProgramIds)))
+    if (partnerRows.length === 0) return '  (none)'
 
-  if (partnersError || !partnersData || partnersData.length === 0) return '  (none)'
+    const programIds = [...new Set(partnerRows.flatMap((row) => [row.from_program_id, row.to_program_id]))]
+    programsData = await db
+      .select({ id: programsTable.id, name: programsTable.name })
+      .from(programsTable)
+      .where(inArray(programsTable.id, programIds))
+  } catch {
+    return '  (none)'
+  }
 
-  const partnerRows = partnersData as Array<{ from_program_id: string; to_program_id: string }>
-  const programIds = [...new Set(partnerRows.flatMap((row) => [row.from_program_id, row.to_program_id]))]
-  const { data: programsData, error: programsError } = await db
-    .from('programs')
-    .select('id, name')
-    .in('id', programIds)
-
-  if (programsError || !programsData) return '  (none)'
-
-  const programNameById = new Map(
-    (programsData as Array<{ id: string; name: string }>).map((row) => [row.id, row.name]),
-  )
+  const programNameById = new Map(programsData.map((row) => [row.id, row.name]))
   const partnersByProgram = new Map<string, string[]>()
 
   for (const row of partnerRows) {
@@ -628,20 +633,9 @@ export async function POST(req: NextRequest) {
 
 Today's date: ${todayDate}${preferencesContext}
 
-CURRENT POINT VALUATIONS (TPG April 2026, refreshed daily from our database):
-  - Chase UR: 2.05 cents per point
-  - Amex MR: 2.00 cents per point
-  - Bilt Rewards: 2.20 cents per point (highest value transferable currency)
-  - Capital One Miles: 1.85 cents per point
-  - Citi ThankYou: 1.90 cents per point
-  - United MileagePlus: 1.35 cents per mile
-  - Delta SkyMiles: 1.20 cents per mile
-  - American AAdvantage: 1.60 cents per mile
-  - Southwest Rapid Rewards: 1.25 cents per point
-  - World of Hyatt: 1.70 cents per point
-  - Marriott Bonvoy: 0.75 cents per point
-  - Hilton Honors: 0.40 cents per point
-Use these valuations when advising the user. Always cite the source as "TPG April 2026".
+CURRENT POINT VALUATIONS (PointsMax catalog; each value shows when it was last reviewed):
+${formatValuationsForPrompt(region)}
+Use these valuations when advising the user. Cite them as "PointsMax valuations" with the review month.
 
 USER'S POINTS BALANCES:
 ${balanceSummary}
@@ -652,7 +646,7 @@ ${partnerSummary}
 PRE-CALCULATED REDEMPTION VALUES (in ${currencyUnit}):
 ${topValueSummary}
 
-PROGRAM CPP REFERENCE (live DB values — use these when available, they override the general table above):
+PROGRAM CPP REFERENCE (database values for the user's programmes):
 ${programCppSummary}
 
 REGION CONTEXT:
@@ -711,8 +705,6 @@ When recommending:
     "confidence": "low | medium | high"
   }
 }
-Current point valuations (TPG April 2026): Chase UR 2.05¢, Amex MR 2.00¢, Bilt 2.20¢ (highest), Capital One 1.85¢, Citi TY 1.90¢, United 1.35¢ (down from 1.5), Delta 1.20¢, AA 1.60¢, Hyatt 1.70¢ (best hotel), Marriott 0.75¢, Hilton 0.40¢ (down from 0.5). Always reference these when advising on point values.
-
 Set flight or hotel to null if not relevant. Include 2-4 links.`
 
   // ── Multi-turn chat ─────────────────────────────────────────────

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
+import { asc } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { latestValuations } from '@/lib/db/schema'
 import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 
@@ -12,21 +14,22 @@ export async function GET(request: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
-    const db = createServerDbClient()
-    const { data, error } = await db
-      .from('latest_valuations')
-      .select('program_id, program_name, cpp_cents, source, source_url, notes, updated_at')
-      .order('program_name')
+    const data = await getDb()
+      .select({
+        program_id: latestValuations.programId,
+        program_name: latestValuations.programName,
+        cpp_cents: latestValuations.cppCents,
+        source: latestValuations.source,
+        source_url: latestValuations.sourceUrl,
+        notes: latestValuations.notes,
+        reviewed_at: latestValuations.effectiveDate,
+        // Kept for API compatibility; the view never had an updated_at column.
+        updated_at: latestValuations.effectiveDate,
+      })
+      .from(latestValuations)
+      .orderBy(asc(latestValuations.programName))
 
-    if (error) {
-      logError('valuations_fetch_failed', { error: error.message })
-      return NextResponse.json(
-        { error: 'Failed to load valuations' },
-        { status: 503, headers: { 'Retry-After': '30' } }
-      )
-    }
-
-    return NextResponse.json({ valuations: data ?? [] }, {
+    return NextResponse.json({ valuations: data }, {
       headers: {
         'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
       },

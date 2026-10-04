@@ -55,8 +55,7 @@ These files still reference the older India slug set and should be updated durin
 - `supabase/migrations/031_refresh_booking_urls.sql`
 - `src/lib/regions.ts`
 - `src/lib/award-search/award-charts.ts`
-- `src/lib/inngest/functions/india-valuations-scraper.ts`
-- `src/app/api/cron/update-valuations/route.ts`
+- `src/data/catalog/*.json` (the catalog is now the source of truth; rename slugs there, then run `npm run catalog:sync`)
 - `src/app/api/ai/recommend/route.ts`
 
 ## Execution Rule

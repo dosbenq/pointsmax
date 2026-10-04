@@ -2,37 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/lib/api-security'
 import { badRequest, internalError } from '@/lib/error-utils'
 import { logError, logInfo } from '@/lib/logger'
-import type { ProgramAliasRow } from '@/lib/connectors/program-matcher'
 import { extractFromPdf } from '@/lib/connectors/statement-parser/pdf-extractor'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSessionUser } from '@/lib/auth'
+import { loadProgramsAndAliases } from '@/lib/connectors/program-catalog'
 
 export const runtime = 'nodejs'
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024
-
-type ProgramRow = {
-  id: string
-  name: string
-  slug: string
-}
-
-async function loadProgramsAndAliases(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<{ programs: ProgramRow[]; aliases: ProgramAliasRow[] }> {
-  const [{ data: programs, error: programsError }, { data: aliases, error: aliasesError }] = await Promise.all([
-    supabase.from('programs').select('id, name, slug').eq('is_active', true),
-    supabase.from('program_name_aliases').select('alias, program_slug'),
-  ])
-
-  if (programsError) {
-    throw new Error(`Failed to load programs: ${programsError.message}`)
-  }
-
-  return {
-    programs: ((programs ?? []) as ProgramRow[]),
-    aliases: aliasesError?.code === '42P01' ? [] : ((aliases ?? []) as ProgramAliasRow[]),
-  }
-}
 
 function isPdfFile(file: File): boolean {
   return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
@@ -48,8 +24,7 @@ export async function POST(req: NextRequest) {
   })
   if (rateLimitError) return rateLimitError
 
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
@@ -68,7 +43,7 @@ export async function POST(req: NextRequest) {
       return badRequest('file must be 5MB or smaller')
     }
 
-    const { programs, aliases } = await loadProgramsAndAliases(supabase)
+    const { programs, aliases } = await loadProgramsAndAliases()
     const buffer = Buffer.from(await file.arrayBuffer())
     const extracted = await extractFromPdf(buffer, programs, aliases)
 

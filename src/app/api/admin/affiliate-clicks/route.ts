@@ -1,32 +1,37 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { eq, gte } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { affiliateClicks, cards } from '@/lib/db/schema'
 import { requireAdmin } from '@/lib/admin-auth'
 import { logError } from '@/lib/logger'
 
-type ClickRow = {
-  card_id: string | null
-  source_page: string | null
-  creator_slug: string | null
-  region: string | null
-  rank: number | null
-  created_at: string
-  cards: { name: string } | { name: string }[] | null
-}
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
   const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  const db = createAdminClient()
-
-  const { data, error } = await db
-    .from('affiliate_clicks')
-    .select('card_id, source_page, creator_slug, region, rank, created_at, cards(name)')
-    .gte('created_at', windowStart)
-
-  if (error) {
-    logError('admin_affiliate_clicks_fetch_failed', { error: error.message })
+  let data: Array<{
+    card_id: string | null
+    source_page: string | null
+    creator_slug: string | null
+    region: string | null
+    card_name: string | null
+  }>
+  try {
+    data = await getDb()
+      .select({
+        card_id: affiliateClicks.cardId,
+        source_page: affiliateClicks.sourcePage,
+        creator_slug: affiliateClicks.creatorSlug,
+        region: affiliateClicks.region,
+        card_name: cards.name,
+      })
+      .from(affiliateClicks)
+      .leftJoin(cards, eq(cards.id, affiliateClicks.cardId))
+      .where(gte(affiliateClicks.createdAt, windowStart))
+  } catch (error) {
+    logError('admin_affiliate_clicks_fetch_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
@@ -39,11 +44,9 @@ export async function GET(req: Request) {
     clicks: number
   }>()
 
-  for (const row of (data ?? []) as unknown as ClickRow[]) {
+  for (const row of data) {
     if (!row.card_id) continue
-    const cardName = Array.isArray(row.cards)
-      ? (row.cards[0]?.name ?? 'Unknown card')
-      : (row.cards?.name ?? 'Unknown card')
+    const cardName = row.card_name ?? 'Unknown card'
     const sourcePage = row.source_page ?? 'unknown'
     const creatorSlug = row.creator_slug ?? null
     const region = row.region ?? 'unknown'

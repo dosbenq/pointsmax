@@ -1,48 +1,43 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sql } from 'drizzle-orm'
+import { getSessionUser } from '@/lib/auth'
+import { setDbForTesting } from '@/lib/db/client'
+import { createTestDb, seedUser, sessionFor, type TestDb } from '@/test/utils/test-db'
 import { canUseFeature, getUserTier, resetSubscriptionTierCache } from './subscription'
 
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: vi.fn(),
-}))
+vi.mock('@/lib/auth', () => ({ getSessionUser: vi.fn() }))
 
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: vi.fn(),
-}))
+let db: TestDb
 
 describe('subscription helpers', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     resetSubscriptionTierCache()
+    db = await createTestDb()
+    setDbForTesting(db)
   })
 
-  it('returns free when no session exists', async () => {
-    vi.mocked(createSupabaseServerClient).mockResolvedValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
-      },
-    } as never)
+  afterAll(() => setDbForTesting(null))
 
+  it('returns free when no session exists', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(null)
     await expect(getUserTier()).resolves.toBe('free')
   })
 
-  it('returns the stored tier for a known internal user id', async () => {
-    vi.mocked(createAdminClient).mockReturnValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({ data: { tier: 'premium' } }),
-          })),
-        })),
-      })),
-    } as never)
+  it('returns the signed-in user tier', async () => {
+    const user = await seedUser(db, 'pat', { tier: 'premium' })
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(user))
+    await expect(getUserTier()).resolves.toBe('premium')
+  })
 
-    await expect(getUserTier('user-123')).resolves.toBe('premium')
+  it('returns the stored tier for a known internal user id', async () => {
+    const user = await seedUser(db, 'sam', { tier: 'premium' })
+    await expect(getUserTier(user.userId)).resolves.toBe('premium')
   })
 
   it('returns free when the lookup throws', async () => {
-    vi.mocked(createSupabaseServerClient).mockRejectedValue(new Error('boom'))
+    vi.mocked(getSessionUser).mockRejectedValue(new Error('boom'))
     await expect(getUserTier()).resolves.toBe('free')
   })
 
@@ -56,21 +51,11 @@ describe('subscription helpers', () => {
   })
 
   it('caches tier lookups for a known internal user id', async () => {
-    const single = vi.fn().mockResolvedValue({ data: { tier: 'premium' } })
-
-    vi.mocked(createAdminClient).mockReturnValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single,
-          })),
-        })),
-      })),
-    } as never)
-
-    await expect(getUserTier('user-123')).resolves.toBe('premium')
-    await expect(getUserTier('user-123')).resolves.toBe('premium')
-
-    expect(single).toHaveBeenCalledTimes(1)
+    const user = await seedUser(db, 'kim', { tier: 'premium' })
+    await expect(getUserTier(user.userId)).resolves.toBe('premium')
+    await db.execute(sql`update users set tier = 'free'`)
+    await expect(getUserTier(user.userId)).resolves.toBe('premium')
+    resetSubscriptionTierCache()
+    await expect(getUserTier(user.userId)).resolves.toBe('free')
   })
 })

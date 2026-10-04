@@ -17,7 +17,10 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, desc, eq } from 'drizzle-orm'
+import { requireProfile, UUID_RE } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { balanceSnapshots, connectedAccounts } from '@/lib/db/schema'
 
 export async function GET(
   req: NextRequest,
@@ -32,51 +35,44 @@ export async function GET(
     return NextResponse.json({ error: 'Account ID is required' }, { status: 400 })
   }
 
-  const supabase = await createSupabaseServerClient()
+  const auth = await requireProfile()
+  if (!auth.ok) return auth.response
+  const { userId } = auth
 
-  // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
-  if (!userId) {
-    return NextResponse.json({ error: 'User record not found' }, { status: 404 })
-  }
-
-  // Verify account ownership
-  const { data: account, error: accountErr } = await supabase
-    .from('connected_accounts')
-    .select('id')
-    .eq('id', accountId)
-    .eq('user_id', userId)
-    .single()
-
-  if (accountErr || !account) {
+  if (!UUID_RE.test(accountId)) {
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
-  // Fetch balance snapshots
-  const { data: balances, error } = await supabase
-    .from('balance_snapshots')
-    .select('id, connected_account_id, user_id, program_id, balance, source, provider_cursor, fetched_at')
-    .eq('connected_account_id', accountId)
-    .eq('user_id', userId)
-    .order('fetched_at', { ascending: false })
-    .limit(limit)
+  const db = getDb()
+  // Verify account ownership
+  const [account] = await db
+    .select({ id: connectedAccounts.id })
+    .from(connectedAccounts)
+    .where(and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId)))
+    .limit(1)
 
-  if (error) {
-    return NextResponse.json({ error: 'Failed to fetch balance snapshots' }, { status: 500 })
+  if (!account) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ balances: balances ?? [] })
+  try {
+    const balances = await db
+      .select({
+        id: balanceSnapshots.id,
+        connected_account_id: balanceSnapshots.connectedAccountId,
+        user_id: balanceSnapshots.userId,
+        program_id: balanceSnapshots.programId,
+        balance: balanceSnapshots.balance,
+        source: balanceSnapshots.source,
+        provider_cursor: balanceSnapshots.providerCursor,
+        fetched_at: balanceSnapshots.fetchedAt,
+      })
+      .from(balanceSnapshots)
+      .where(and(eq(balanceSnapshots.connectedAccountId, accountId), eq(balanceSnapshots.userId, userId)))
+      .orderBy(desc(balanceSnapshots.fetchedAt))
+      .limit(limit)
+    return NextResponse.json({ balances })
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch balance snapshots' }, { status: 500 })
+  }
 }

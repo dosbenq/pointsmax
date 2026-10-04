@@ -1,10 +1,7 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { desc, inArray } from 'drizzle-orm'
 import { SYNC_POLICY } from '@/lib/connectors/sync-orchestrator'
-import type { GenericDatabase } from '@/lib/supabase'
-
-type SupabaseLikeClient = {
-  from: SupabaseClient<GenericDatabase>['from']
-}
+import { getDb } from '@/lib/db/client'
+import { balanceSnapshots, connectedAccounts as connectedAccountsTable, programs, userBalances } from '@/lib/db/schema'
 
 type ManualBalanceRow = {
   user_id: string
@@ -28,11 +25,6 @@ type BalanceSnapshotRow = {
   balance: number
   source: 'connector' | 'manual'
   fetched_at: string
-}
-
-type ProgramRegionRow = {
-  id: string
-  geography: string | null
 }
 
 export type UnifiedBalance = {
@@ -72,7 +64,6 @@ function applyRegionFilter(
 }
 
 export async function loadUnifiedBalancesByUser(
-  client: SupabaseLikeClient,
   userIds: string[],
   region?: 'US' | 'IN' | null,
 ): Promise<Map<string, UnifiedBalance[]>> {
@@ -81,42 +72,44 @@ export async function loadUnifiedBalancesByUser(
 
   if (uniqueUserIds.length === 0) return balancesByUser
 
-  const [{ data: manualBalances, error: balancesError }, { data: connectedAccounts, error: connectedAccountsError }, { data: snapshots, error: snapshotsError }] = await Promise.all([
-    client
-      .from('user_balances')
-      .select('user_id, program_id, balance, updated_at')
-      .in('user_id', uniqueUserIds),
-    client
-      .from('connected_accounts')
-      .select('id, user_id, status, sync_status, last_synced_at')
-      .in('user_id', uniqueUserIds),
-    client
-      .from('balance_snapshots')
-      .select('user_id, connected_account_id, program_id, balance, source, fetched_at')
-      .in('user_id', uniqueUserIds)
-      .order('fetched_at', { ascending: false }),
+  const db = getDb()
+  const [manualBalances, connectedAccounts, snapshots] = await Promise.all([
+    db.select({
+      user_id: userBalances.userId,
+      program_id: userBalances.programId,
+      balance: userBalances.balance,
+      updated_at: userBalances.updatedAt,
+    }).from(userBalances).where(inArray(userBalances.userId, uniqueUserIds)) as Promise<ManualBalanceRow[]>,
+    db.select({
+      id: connectedAccountsTable.id,
+      user_id: connectedAccountsTable.userId,
+      status: connectedAccountsTable.status,
+      sync_status: connectedAccountsTable.syncStatus,
+      last_synced_at: connectedAccountsTable.lastSyncedAt,
+    }).from(connectedAccountsTable).where(inArray(connectedAccountsTable.userId, uniqueUserIds)) as Promise<ConnectedAccountRow[]>,
+    db.select({
+      user_id: balanceSnapshots.userId,
+      connected_account_id: balanceSnapshots.connectedAccountId,
+      program_id: balanceSnapshots.programId,
+      balance: balanceSnapshots.balance,
+      source: balanceSnapshots.source,
+      fetched_at: balanceSnapshots.fetchedAt,
+    }).from(balanceSnapshots)
+      .where(inArray(balanceSnapshots.userId, uniqueUserIds))
+      .orderBy(desc(balanceSnapshots.fetchedAt)) as Promise<BalanceSnapshotRow[]>,
   ])
-
-  if (balancesError) throw new Error(`Failed to load manual balances: ${balancesError.message}`)
-  if (connectedAccountsError) throw new Error(`Failed to load connected accounts: ${connectedAccountsError.message}`)
-  if (snapshotsError) throw new Error(`Failed to load balance snapshots: ${snapshotsError.message}`)
 
   let validProgramIds: Set<string> | null = null
   if (region) {
-    const { data: programs, error: programsError } = await client
-      .from('programs')
-      .select('id, geography')
-      .in('geography', [region, 'global'])
-
-    if (programsError) throw new Error(`Failed to load programs: ${programsError.message}`)
-
-    validProgramIds = new Set(
-      (((programs as ProgramRegionRow[] | null) ?? []).map((program) => program.id)),
-    )
+    const regionPrograms = await db
+      .select({ id: programs.id })
+      .from(programs)
+      .where(inArray(programs.geography, [region, 'global']))
+    validProgramIds = new Set(regionPrograms.map((program) => program.id))
   }
 
   const accountMap = new Map<string, ConnectedAccountRow>(
-    ((connectedAccounts as ConnectedAccountRow[] | null) ?? []).map((account) => [account.id, account]),
+    connectedAccounts.map((account) => [account.id, account]),
   )
 
   const unifiedByUser = new Map<string, Map<string, UnifiedBalance>>()
@@ -128,7 +121,7 @@ export async function loadUnifiedBalancesByUser(
     return next
   }
 
-  for (const snapshot of (snapshots as BalanceSnapshotRow[] | null) ?? []) {
+  for (const snapshot of snapshots) {
     const userBucket = getUserBucket(snapshot.user_id)
     if (userBucket.has(snapshot.program_id)) continue
 
@@ -145,7 +138,7 @@ export async function loadUnifiedBalancesByUser(
     })
   }
 
-  for (const manual of (manualBalances as ManualBalanceRow[] | null) ?? []) {
+  for (const manual of manualBalances) {
     const userBucket = getUserBucket(manual.user_id)
     userBucket.set(manual.program_id, {
       program_id: manual.program_id,

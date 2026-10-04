@@ -1,7 +1,9 @@
 import crypto from 'node:crypto'
 import { Resend } from 'resend'
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
+import { and, eq, isNotNull } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { cards as cardsTable, linkHealthLog } from '@/lib/db/schema'
 
 type CardLinkRow = {
   id: string
@@ -75,17 +77,16 @@ export const linkChecker = inngest.createFunction(
   { id: 'affiliate-link-checker', name: 'Agent: Affiliate Link Checker' },
   { cron: '0 14 * * 1' },
   async ({ step }) => {
-    const db = createAdminClient()
-    const runId = crypto.randomUUID()
+    const db = getDb()
+    // Inngest replays the handler for every step, so the run id must come from a step.
+    const runId = await step.run('create-run-id', () => crypto.randomUUID())
 
     const cards = await step.run('load-cards-with-affiliate-links', async () => {
-      const { data, error } = await db
-        .from('cards')
-        .select('id, name, apply_url')
-        .eq('is_active', true)
-        .not('apply_url', 'is', null)
-      if (error) throw new Error(error.message)
-      return (data ?? []) as CardLinkRow[]
+      const rows: CardLinkRow[] = await db
+        .select({ id: cardsTable.id, name: cardsTable.name, apply_url: cardsTable.applyUrl })
+        .from(cardsTable)
+        .where(and(eq(cardsTable.isActive, true), isNotNull(cardsTable.applyUrl)))
+      return rows
     })
 
     const results = await step.run('check-affiliate-links', async () => {
@@ -108,14 +109,13 @@ export const linkChecker = inngest.createFunction(
     await step.run('persist-link-health-results', async () => {
       if (results.length === 0) return { inserted: 0 }
       const rows = results.map((item) => ({
-        run_id: runId,
-        card_id: item.card_id,
+        runId,
+        cardId: item.card_id,
         url: item.url,
-        status_code: item.status_code,
+        statusCode: item.status_code,
         ok: item.ok,
       }))
-      const { error } = await db.from('link_health_log').insert(rows)
-      if (error) throw new Error(error.message)
+      await db.insert(linkHealthLog).values(rows)
       return { inserted: rows.length }
     })
 

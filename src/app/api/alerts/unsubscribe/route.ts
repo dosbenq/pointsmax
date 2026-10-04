@@ -4,7 +4,9 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { alertSubscriptions } from '@/lib/db/schema'
 import { verifyUnsubscribeToken } from '@/lib/alerts-token'
 import { getSafeAppOrigin } from '@/lib/app-origin'
 
@@ -19,13 +21,14 @@ export async function GET(req: NextRequest) {
     return new NextResponse('Invalid token', { status: 400 })
   }
 
-  const db = createAdminClient()
-  const { error } = await db
-    .from('alert_subscriptions')
-    .update({ is_active: false })
-    .eq('email', email)
+  let failed = false
+  try {
+    await getDb().update(alertSubscriptions).set({ isActive: false }).where(eq(alertSubscriptions.email, email))
+  } catch {
+    failed = true
+  }
 
-  if (error) {
+  if (failed) {
     return new NextResponse('Failed to unsubscribe. Please try again.', {
       status: 500,
       headers: { 'Content-Type': 'text/html' },
