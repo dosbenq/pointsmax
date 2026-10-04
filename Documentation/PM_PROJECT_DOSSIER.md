@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `5505be5`
+- Git commit: `931d253`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **41**
 - API routes: **62**
 - Supabase migrations: **66**
-- Test files: **113**
+- Test files: **110**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **42**
@@ -383,16 +383,13 @@
 | `src/app/api/booking-guide/step-complete/route.test.ts` |
 | `src/app/api/calculate/route.test.ts` |
 | `src/app/api/cards/route.test.ts` |
-| `src/app/api/connectors/[id]/balances/route.test.ts` |
-| `src/app/api/connectors/[id]/route.test.ts` |
-| `src/app/api/connectors/disconnect/route.test.ts` |
+| `src/app/api/connectors/connectors.db.test.ts` |
 | `src/app/api/connectors/ingest/confirm/route.test.ts` |
 | `src/app/api/connectors/ingest/csv/route.test.ts` |
 | `src/app/api/connectors/ingest/email/route.test.ts` |
 | `src/app/api/connectors/ingest/pdf/route.test.ts` |
 | `src/app/api/connectors/ingest/statement/route.test.ts` |
 | `src/app/api/connectors/lifecycle.test.ts` |
-| `src/app/api/connectors/route.test.ts` |
 | `src/app/api/connectors/sync/route.test.ts` |
 | `src/app/api/cron/ingest-youtube-knowledge/route.test.ts` |
 | `src/app/api/cron/send-bonus-alerts/route.test.ts` |
@@ -493,9 +490,9 @@
 | `src/app/api/ai/recommend/route.test.ts` | 623 |
 | `src/features/card-recommender/domain/scorer.ts` | 614 |
 | `src/app/[region]/cards/[slug]/page.tsx` | 606 |
-| `src/app/api/connectors/ingest/csv/route.ts` | 541 |
-| `src/app/api/connectors/ingest/csv/route.test.ts` | 536 |
+| `src/app/api/connectors/ingest/csv/route.test.ts` | 574 |
 | `src/app/[region]/calculator/components/award-results.tsx` | 518 |
+| `src/app/api/connectors/ingest/csv/route.ts` | 505 |
 
 ## 10. PM Operational Playbook
 

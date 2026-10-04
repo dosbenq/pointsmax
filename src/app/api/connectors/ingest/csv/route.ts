@@ -4,26 +4,21 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, eq, sql } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { UUID_RE } from '@/lib/auth-guard'
+import { loadProgramsAndAliases } from '@/lib/connectors/program-catalog'
+import { getDb } from '@/lib/db/client'
+import { balanceSnapshots, connectedAccounts, userBalances } from '@/lib/db/schema'
 import { parseBalanceCsv, validateCsvFile, createIngestStatus } from '@/lib/connectors/csv-parser'
 import { logError, logInfo } from '@/lib/logger'
 import type { CsvRow } from '@/lib/connectors/csv-parser'
-import { matchProgramByName, type ProgramAliasRow } from '@/lib/connectors/program-matcher'
+import { matchProgramByName } from '@/lib/connectors/program-matcher'
 import { ingestJobs } from './state'
 import type { IngestJob } from './state'
 
 // Maximum concurrent jobs per user
 const MAX_CONCURRENT_JOBS = 3
-
-type ProgramRow = {
-  id: string
-  name: string
-  slug: string
-}
-
-type ConnectedAccountRow = {
-  id: string
-}
 
 type IngestRow = {
   program_name: string
@@ -35,42 +30,8 @@ type IngestRow = {
   notes?: string
 }
 
-async function getCurrentUserRowId(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  authId: string,
-): Promise<string | null> {
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authId)
-    .single()
-
-  const id = (userRecord as { id?: unknown } | null)?.id
-  return typeof id === 'string' ? id : null
-}
-
-async function resolvePrograms(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  rows: CsvRow[],
-) {
-  const [{ data, error }, { data: aliasesData, error: aliasesError }] = await Promise.all([
-    supabase
-      .from('programs')
-      .select('id, name, slug')
-      .eq('is_active', true),
-    supabase
-      .from('program_name_aliases')
-      .select('alias, program_slug'),
-  ])
-
-  if (error) {
-    throw new Error(`Failed to load programs: ${error.message}`)
-  }
-
-  const programs = ((data as ProgramRow[] | null) ?? [])
-  const aliases = aliasesError?.code === '42P01'
-    ? []
-    : (((aliasesData ?? []) as ProgramAliasRow[]))
+async function resolvePrograms(rows: CsvRow[]) {
+  const { programs, aliases } = await loadProgramsAndAliases()
   const rowsById = new Map(programs.map((program) => [program.id, program]))
 
   const matchedRows: Array<IngestRow & { resolved_program_id: string }> = []
@@ -111,19 +72,14 @@ async function resolvePrograms(
   return { matchedRows, unmatchedRows }
 }
 
-async function validateConnectedAccountOwnership(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  connectedAccountId: string,
-  userId: string,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('connected_accounts')
-    .select('id')
-    .eq('id', connectedAccountId)
-    .eq('user_id', userId)
-    .single()
-
-  return !error && !!(data as ConnectedAccountRow | null)?.id
+async function validateConnectedAccountOwnership(connectedAccountId: string, userId: string): Promise<boolean> {
+  if (!UUID_RE.test(connectedAccountId)) return false
+  const [row] = await getDb()
+    .select({ id: connectedAccounts.id })
+    .from(connectedAccounts)
+    .where(and(eq(connectedAccounts.id, connectedAccountId), eq(connectedAccounts.userId, userId)))
+    .limit(1)
+  return Boolean(row)
 }
 
 // ─────────────────────────────────────────────
@@ -136,9 +92,8 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now()
 
   // Auth check
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
+  const user = await getSessionUser()
+
   if (!user) {
     return NextResponse.json(
       { error: 'Authentication required' },
@@ -156,7 +111,7 @@ export async function POST(req: NextRequest) {
     const previewOnly =
       String(formData.get('previewOnly') ?? '').trim().toLowerCase() === 'true'
 
-    const userId = await getCurrentUserRowId(supabase, authUserId)
+    const userId = await getUserRowId(authUserId)
     if (!userId) {
       return NextResponse.json(
         { error: 'User record not found' },
@@ -264,7 +219,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { matchedRows, unmatchedRows } = await resolvePrograms(supabase, parseResult.rows)
+    const { matchedRows, unmatchedRows } = await resolvePrograms(parseResult.rows)
     if (matchedRows.length === 0) {
       job.status = 'failed'
       job.completedAt = new Date().toISOString()
@@ -331,7 +286,7 @@ export async function POST(req: NextRequest) {
     let insertError: { message: string } | null = null
     let importedCount = 0
     if (connectedAccountId && connectedAccountId.trim().length > 0) {
-      const isOwned = await validateConnectedAccountOwnership(supabase, connectedAccountId, userId)
+      const isOwned = await validateConnectedAccountOwnership(connectedAccountId, userId)
       if (!isOwned) {
         return NextResponse.json(
           { error: 'Connected account not found' },
@@ -341,32 +296,42 @@ export async function POST(req: NextRequest) {
 
       const fetchedAt = new Date().toISOString()
       const snapshots = matchedRows.map((row) => ({
-        connected_account_id: connectedAccountId,
-        user_id: userId,
-        program_id: row.resolved_program_id,
+        connectedAccountId,
+        userId,
+        programId: row.resolved_program_id,
         balance: row.balance,
         source: 'manual' as const,
-        raw_payload: row.notes ? { notes: row.notes, import_source: 'csv' } : { import_source: 'csv' },
-        fetched_at: fetchedAt,
+        rawPayload: row.notes ? { notes: row.notes, import_source: 'csv' } : { import_source: 'csv' },
+        fetchedAt,
       }))
 
-      const result = await supabase
-        .from('balance_snapshots')
-        .insert(snapshots)
-      insertError = result.error
+      try {
+        if (snapshots.length > 0) await getDb().insert(balanceSnapshots).values(snapshots)
+      } catch (error) {
+        insertError = { message: error instanceof Error ? error.message : String(error) }
+      }
       importedCount = snapshots.length
     } else {
       const manualRows = matchedRows.map((row) => ({
-        user_id: userId,
-        program_id: row.resolved_program_id,
+        userId,
+        programId: row.resolved_program_id,
         balance: row.balance,
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }))
 
-      const result = await supabase
-        .from('user_balances')
-        .upsert(manualRows, { onConflict: 'user_id,program_id' })
-      insertError = result.error
+      try {
+        if (manualRows.length > 0) {
+          await getDb()
+            .insert(userBalances)
+            .values(manualRows)
+            .onConflictDoUpdate({
+              target: [userBalances.userId, userBalances.programId],
+              set: { balance: sql`excluded.balance`, updatedAt: sql`excluded.updated_at` },
+            })
+        }
+      } catch (error) {
+        insertError = { message: error instanceof Error ? error.message : String(error) }
+      }
       importedCount = manualRows.length
     }
 
@@ -477,9 +442,8 @@ export async function GET(req: NextRequest) {
   const jobId = searchParams.get('jobId')
 
   // Auth check
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  
+  const user = await getSessionUser()
+
   if (!user) {
     return NextResponse.json(
       { error: 'Authentication required' },

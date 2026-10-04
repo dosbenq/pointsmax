@@ -5,12 +5,14 @@
 // ============================================================
 
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, desc, eq } from 'drizzle-orm'
+import { requireProfile } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { connectedAccounts } from '@/lib/db/schema'
 import type { ConnectedAccount, ConnectorProvider } from '@/types/connectors'
-import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
+import { databaseAuditPersistence, emitAuditEvent } from '@/lib/connectors/audit-log'
 import { SYNC_POLICY } from '@/lib/connectors/sync-orchestrator'
 import { logInfo, logError } from '@/lib/logger'
-import { createAdminClient } from '@/lib/supabase'
 
 // Omit sensitive fields from the response
 type ConnectedAccountResponse = Omit<ConnectedAccount, 'token_vault_ref'>
@@ -33,24 +35,21 @@ function isValidProvider(p: string): p is ConnectorProvider {
   return VALID_PROVIDERS.includes(p as ConnectorProvider)
 }
 
-// ─────────────────────────────────────────────
-// Audit persistence backed by Supabase
-// ─────────────────────────────────────────────
-
-function buildAuditPersistence(): AuditPersistence {
-  return {
-    async insert(event) {
-      const admin = createAdminClient()
-      await admin.from('connector_audit_log').insert({
-        user_id: event.userId,
-        account_id: event.accountId,
-        provider: event.provider,
-        event_type: event.eventType,
-        actor: event.actor,
-        metadata: event.metadata ?? null,
-      })
-    },
-  }
+// Public columns (token_vault_ref is never returned)
+const ACCOUNT_FIELDS = {
+  id: connectedAccounts.id,
+  user_id: connectedAccounts.userId,
+  provider: connectedAccounts.provider,
+  display_name: connectedAccounts.displayName,
+  status: connectedAccounts.status,
+  token_expires_at: connectedAccounts.tokenExpiresAt,
+  scopes: connectedAccounts.scopes,
+  last_synced_at: connectedAccounts.lastSyncedAt,
+  last_error: connectedAccounts.lastError,
+  sync_status: connectedAccounts.syncStatus,
+  error_code: connectedAccounts.errorCode,
+  created_at: connectedAccounts.createdAt,
+  updated_at: connectedAccounts.updatedAt,
 }
 
 // Enrich with freshness field for client convenience
@@ -79,41 +78,23 @@ function enrichAccount(account: ConnectedAccountResponse): ConnectedAccountRespo
 // ─────────────────────────────────────────────
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient()
-
-  // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
-  if (!userId) {
-    return NextResponse.json({ error: 'User record not found' }, { status: 404 })
-  }
+  const auth = await requireProfile()
+  if (!auth.ok) return auth.response
+  const { userId } = auth
 
   // Fetch connected accounts with freshness info
-  const { data: accounts, error } = await supabase
-    .from('connected_accounts')
-    .select('id, user_id, provider, display_name, status, token_expires_at, scopes, last_synced_at, last_error, sync_status, error_code, created_at, updated_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
+  let accounts: ConnectedAccountResponse[]
+  try {
+    accounts = await getDb()
+      .select(ACCOUNT_FIELDS)
+      .from(connectedAccounts)
+      .where(eq(connectedAccounts.userId, userId))
+      .orderBy(desc(connectedAccounts.createdAt)) as unknown as ConnectedAccountResponse[]
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch connected accounts' }, { status: 500 })
   }
 
-  return NextResponse.json({ 
-    accounts: (accounts as unknown as ConnectedAccountResponse[] ?? []).map(enrichAccount) 
-  })
+  return NextResponse.json({ accounts: accounts.map(enrichAccount) })
 }
 
 // ─────────────────────────────────────────────
@@ -121,26 +102,9 @@ export async function GET() {
 // ─────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient()
-
-  // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
-  if (!userId) {
-    return NextResponse.json({ error: 'User record not found' }, { status: 404 })
-  }
+  const auth = await requireProfile()
+  if (!auth.ok) return auth.response
+  const { userId } = auth
 
   // Parse and validate request body
   let body: unknown
@@ -178,12 +142,12 @@ export async function POST(req: Request) {
   }
 
   // Check for duplicate connections (DB enforces uniqueness on user_id + provider)
-  const { data: existing } = await supabase
-    .from('connected_accounts')
-    .select('id, status')
-    .eq('user_id', userId)
-    .eq('provider', provider)
-    .maybeSingle()
+  const db = getDb()
+  const [existing] = await db
+    .select({ id: connectedAccounts.id, status: connectedAccounts.status })
+    .from(connectedAccounts)
+    .where(and(eq(connectedAccounts.userId, userId), eq(connectedAccounts.provider, provider)))
+    .limit(1)
 
   if (existing) {
     return NextResponse.json(
@@ -193,31 +157,36 @@ export async function POST(req: Request) {
   }
 
   // Create the connected account
-  const { data: account, error: insertError } = await supabase
-    .from('connected_accounts')
-    .insert({
-      user_id: userId,
-      provider,
-      display_name: display_name.trim(),
-      token_vault_ref: token_vault_ref.trim(),
-      scopes: scopes.join(' '), // Store as space-separated string
-      status: 'active',
-      sync_status: 'pending',
-      last_synced_at: null,
-    })
-    .select('id, user_id, provider, display_name, status, token_expires_at, scopes, last_synced_at, last_error, sync_status, error_code, created_at, updated_at')
-    .single()
+  let account: ConnectedAccountResponse | undefined
+  let insertError: string | null = null
+  try {
+    ;[account] = await db
+      .insert(connectedAccounts)
+      .values({
+        userId,
+        provider,
+        displayName: display_name.trim(),
+        tokenVaultRef: token_vault_ref.trim(),
+        scopes: scopes.join(' '), // Store as space-separated string
+        status: 'active',
+        syncStatus: 'pending',
+        lastSyncedAt: null,
+      })
+      .returning(ACCOUNT_FIELDS) as unknown as ConnectedAccountResponse[]
+  } catch (error) {
+    insertError = error instanceof Error ? error.message : String(error)
+  }
 
-  if (insertError || !account) {
+  if (!account) {
     logError('connector_create_failed', {
       userId,
       provider,
-      error: insertError?.message,
+      error: insertError,
     })
     return NextResponse.json({ error: 'Failed to create connected account' }, { status: 500 })
   }
 
-  const accountId = (account as { id: string }).id
+  const accountId = account.id
 
   logInfo('connector_created', {
     accountId,
@@ -226,7 +195,7 @@ export async function POST(req: Request) {
   })
 
   // Emit audit event
-  await emitAuditEvent(buildAuditPersistence(), {
+  await emitAuditEvent(databaseAuditPersistence(), {
     userId,
     accountId,
     provider,
@@ -239,7 +208,7 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json(
-    { account: enrichAccount(account as unknown as ConnectedAccountResponse) },
+    { account: enrichAccount(account) },
     { status: 201 }
   )
 }

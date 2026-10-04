@@ -17,15 +17,19 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { UUID_RE } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { balanceSnapshots, connectedAccounts } from '@/lib/db/schema'
 import { connectorRegistry } from '@/lib/connectors/connector-registry'
 import { decryptToken } from '@/lib/connectors/token-vault'
 import { runAccountSync, type SyncPersistence } from '@/lib/connectors/sync-orchestrator'
 import { isAccountStale } from '@/lib/connectors/sync-orchestrator'
 import { logInfo, logError } from '@/lib/logger'
 import type { ConnectedAccount, FetchBalanceResult, SyncErrorCode } from '@/types/connectors'
-import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
-import { createAdminClient } from '@/lib/supabase'
+import { databaseAuditPersistence, emitAuditEvent } from '@/lib/connectors/audit-log'
 import { ensureConnectorRegistryInitialized } from '@/lib/connectors/adapters'
 import { canUseFeature, getUserTier } from '@/lib/subscription'
 
@@ -33,17 +37,10 @@ import { canUseFeature, getUserTier } from '@/lib/subscription'
 // Persistence: Supabase-backed sync state
 // ─────────────────────────────────────────────
 
-function buildPersistence(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  account: ConnectedAccount,
-): SyncPersistence {
-  const getSnapshotClient = () => {
-    try {
-      return createAdminClient()
-    } catch {
-      return supabase
-    }
-  }
+function buildPersistence(account: ConnectedAccount): SyncPersistence {
+  const db = getDb()
+  const thisAccount = (accountId: string) =>
+    and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, account.user_id))
 
   const buildSnapshotRows = (result: FetchBalanceResult) => {
     const fetchedAt = new Date().toISOString()
@@ -57,24 +54,21 @@ function buildPersistence(
         )
       })
       .map(([programId, balance]) => ({
-        connected_account_id: account.id,
-        user_id: account.user_id,
-        program_id: programId,
+        connectedAccountId: account.id,
+        userId: account.user_id,
+        programId,
         balance: Math.floor(balance),
         source: 'connector' as const,
-        provider_cursor: result.cursor,
-        raw_payload: result.rawPayload ?? null,
-        fetched_at: fetchedAt,
+        providerCursor: result.cursor,
+        rawPayload: result.rawPayload ?? null,
+        fetchedAt,
       }))
   }
 
   return {
     async markSyncing(accountId) {
       try {
-        await supabase
-          .from('connected_accounts')
-          .update({ sync_status: 'syncing' })
-          .eq('id', accountId)
+        await db.update(connectedAccounts).set({ syncStatus: 'syncing' }).where(thisAccount(accountId))
       } catch (error) {
         logError('connector_sync_mark_syncing_failed', {
           accountId,
@@ -88,18 +82,7 @@ function buildPersistence(
 
       if (snapshotRows.length > 0) {
         try {
-          const snapshotClient = getSnapshotClient()
-          const { error: snapshotError } = await snapshotClient
-            .from('balance_snapshots')
-            .insert(snapshotRows)
-
-          if (snapshotError) {
-            logError('connector_sync_snapshot_insert_failed', {
-              accountId,
-              error: snapshotError.message,
-              snapshotCount: snapshotRows.length,
-            })
-          }
+          await db.insert(balanceSnapshots).values(snapshotRows)
         } catch (error) {
           logError('connector_sync_snapshot_insert_failed', {
             accountId,
@@ -110,15 +93,15 @@ function buildPersistence(
       }
 
       try {
-        await supabase
-          .from('connected_accounts')
-          .update({
-            sync_status: 'ok',
-            last_synced_at: new Date().toISOString(),
-            last_error: null,
-            error_code: null,
+        await db
+          .update(connectedAccounts)
+          .set({
+            syncStatus: 'ok',
+            lastSyncedAt: new Date().toISOString(),
+            lastError: null,
+            errorCode: null,
           })
-          .eq('id', accountId)
+          .where(thisAccount(accountId))
       } catch (error) {
         logError('connector_sync_mark_success_failed', {
           accountId,
@@ -129,14 +112,10 @@ function buildPersistence(
 
     async markError(accountId, errorCode: SyncErrorCode, errorMessage: string) {
       try {
-        await supabase
-          .from('connected_accounts')
-          .update({
-            sync_status: 'error',
-            last_error: errorMessage,
-            error_code: errorCode,
-          })
-          .eq('id', accountId)
+        await db
+          .update(connectedAccounts)
+          .set({ syncStatus: 'error', lastError: errorMessage, errorCode })
+          .where(thisAccount(accountId))
       } catch (error) {
         logError('connector_sync_mark_error_failed', {
           accountId,
@@ -148,15 +127,15 @@ function buildPersistence(
 
     async markAuthError(accountId) {
       try {
-        await supabase
-          .from('connected_accounts')
-          .update({
+        await db
+          .update(connectedAccounts)
+          .set({
             status: 'expired',
-            sync_status: 'error',
-            error_code: 'auth_error',
-            last_error: 'Credentials expired or revoked — re-authorisation required',
+            syncStatus: 'error',
+            errorCode: 'auth_error',
+            lastError: 'Credentials expired or revoked — re-authorisation required',
           })
-          .eq('id', accountId)
+          .where(thisAccount(accountId))
       } catch (error) {
         logError('connector_sync_mark_auth_error_failed', {
           accountId,
@@ -167,33 +146,13 @@ function buildPersistence(
   }
 }
 
-function buildAuditPersistence(): AuditPersistence {
-  return {
-    async insert(event) {
-      const admin = createAdminClient()
-      await admin.from('connector_audit_log').insert({
-        user_id: event.userId,
-        account_id: event.accountId,
-        provider: event.provider,
-        event_type: event.eventType,
-        actor: event.actor,
-        metadata: event.metadata ?? null,
-      })
-    },
-  }
-}
-
 // ─────────────────────────────────────────────
 // Route handler
 // ─────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-
   // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Parse body
@@ -210,12 +169,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
+  const userId = await getUserRowId(user.id)
   if (!userId) {
     return NextResponse.json({ error: 'User record not found' }, { status: 404 })
   }
@@ -233,15 +187,16 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Fetch connected account (RLS ensures ownership)
-  const { data: accountRow, error: accountErr } = await supabase
-    .from('connected_accounts')
-    .select('*')
-    .eq('id', accountId)
-    .eq('user_id', userId)
-    .single()
+  // Fetch connected account — explicit user_id check enforces ownership
+  const [accountRow] = UUID_RE.test(accountId)
+    ? await getDb()
+      .select(columnsOf(connectedAccounts))
+      .from(connectedAccounts)
+      .where(and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId)))
+      .limit(1)
+    : []
 
-  if (accountErr || !accountRow) {
+  if (!accountRow) {
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
@@ -288,7 +243,7 @@ export async function POST(req: NextRequest) {
   }
 
   const context = { accessToken, userId, account }
-  const persistence = buildPersistence(supabase, account)
+  const persistence = buildPersistence(account)
 
   const stale = isAccountStale(account)
   logInfo('sync_triggered', {
@@ -298,7 +253,7 @@ export async function POST(req: NextRequest) {
   })
 
   const outcome = await runAccountSync(adapter, context, persistence)
-  await emitAuditEvent(buildAuditPersistence(), {
+  await emitAuditEvent(databaseAuditPersistence(), {
     userId,
     accountId,
     provider: account.provider,

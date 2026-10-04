@@ -1,100 +1,41 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getSessionUser } from '@/lib/auth'
+import { setDbForTesting } from '@/lib/db/client'
+import { balanceSnapshots, connectedAccounts, connectorAuditLog } from '@/lib/db/schema'
+import { getUserTier, resetSubscriptionTierCache } from '@/lib/subscription'
+import {
+  createTestDb, seedConnectedAccount, seedPrograms, seedUser, sessionFor, testId,
+  type SeededUser, type TestDb,
+} from '@/test/utils/test-db'
 
-// ─────────────────────────────────────────────
-// Module mocks (must be declared before imports)
-// ─────────────────────────────────────────────
-
-// Default: authenticated user
-let mockUser: { id: string } | null = { id: 'auth-uid-1' }
-let mockUserRow: { id: string } | null = { id: 'user-row-1' }
-let mockAccount: Record<string, unknown> | null = null
-let mockSupabaseUpdateError: { message: string } | null = null
-const mockBalanceSnapshotsInsert = vi.fn().mockResolvedValue({ error: null })
-const mockConnectorAuditInsert = vi.fn().mockResolvedValue({ error: null })
-
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({
-    auth: {
-      getUser: async () => ({ data: { user: mockUser } }),
-    },
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            single: async () => ({
-              data: table === 'connected_accounts' ? mockAccount : null,
-              error: mockAccount === null && table === 'connected_accounts' ? { message: 'not found' } : null,
-            }),
-          }),
-          single: async () => ({
-            data: table === 'users' ? mockUserRow : null,
-            error: null,
-          }),
-        }),
-      }),
-      update: () => ({
-        eq: () => Promise.resolve({ error: mockSupabaseUpdateError }),
-      }),
-    }),
-  }),
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: () => ({
-    from: (table: string) => ({
-      insert: (payload: unknown) => {
-        if (table === 'balance_snapshots') {
-          return mockBalanceSnapshotsInsert(payload)
-        }
-        if (table === 'connector_audit_log') {
-          return mockConnectorAuditInsert(payload)
-        }
-        return Promise.resolve({ error: null })
-      },
-    }),
-  }),
-}))
+vi.mock('@/lib/auth', async (importOriginal) =>
+  (await import('@/test/utils/mock-auth')).mockAuthModule(importOriginal))
 
 vi.mock('@/lib/connectors/token-vault', () => ({
   decryptToken: vi.fn().mockReturnValue('decrypted-token-123'),
 }))
 
+// The orchestrator (retries/backoff) is unit-tested separately; here it simply
+// drives the persistence callbacks the route provides, which hit the database.
 let mockSyncOutcome: Record<string, unknown> = { status: 'ok', result: { balances: {}, cursor: null } }
-
 vi.mock('@/lib/connectors/sync-orchestrator', () => ({
   runAccountSync: vi.fn().mockImplementation(async (_adapter, context, persistence) => {
     const accountId = (context as { account: { id: string } }).account.id
     await persistence.markSyncing(accountId)
-
     if (mockSyncOutcome.status === 'ok') {
-      await persistence.markSuccess(
-        accountId,
-        (mockSyncOutcome as { result: { balances: Record<string, number>; cursor: string | null; rawPayload?: Record<string, unknown> } }).result,
-      )
-      return mockSyncOutcome
-    }
-
-    if (mockSyncOutcome.status === 'auth_error') {
+      await persistence.markSuccess(accountId, (mockSyncOutcome as { result: unknown }).result)
+    } else if (mockSyncOutcome.status === 'auth_error') {
       await persistence.markAuthError(accountId)
-      return mockSyncOutcome
+    } else {
+      const outcome = mockSyncOutcome as { errorCode: 'provider_error' | 'rate_limit'; message: string }
+      await persistence.markError(accountId, outcome.errorCode, outcome.message)
     }
-
-    await persistence.markError(
-      accountId,
-      (mockSyncOutcome as { errorCode: 'provider_error' | 'rate_limit' | 'unknown' | 'auth_error'; message: string }).errorCode,
-      (mockSyncOutcome as { message: string }).message,
-    )
     return mockSyncOutcome
   }),
   isAccountStale: vi.fn().mockReturnValue(false),
-  SYNC_POLICY: {
-    maxAttempts: 3,
-    initialDelayMs: 1000,
-    backoffMultiplier: 2,
-    maxDelayMs: 30000,
-    staleThresholdMs: 14400000,
-  },
+  SYNC_POLICY: { maxAttempts: 3, initialDelayMs: 1000, backoffMultiplier: 2, maxDelayMs: 30000, staleThresholdMs: 14400000 },
 }))
 
 vi.mock('@/lib/connectors/connector-registry', () => ({
@@ -109,237 +50,98 @@ vi.mock('@/lib/connectors/connector-registry', () => ({
   },
 }))
 
-vi.mock('@/lib/subscription', () => ({
-  getUserTier: vi.fn().mockResolvedValue('premium'),
-  canUseFeature: vi.fn((tier: 'free' | 'premium', feature: string) => {
-    if (feature === 'connector_sync') return tier === 'premium'
-    return false
-  }),
+vi.mock('@/lib/subscription', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/subscription')>()
+  return { ...actual, getUserTier: vi.fn() }
+})
+
+const { POST } = await import('./route')
+
+let db: TestDb
+let pat: SeededUser
+const sync = (body: unknown) => POST(new NextRequest('https://pointsmax.com/api/connectors/sync', {
+  method: 'POST',
+  body: typeof body === 'string' ? body : JSON.stringify(body),
 }))
 
-// Import AFTER mocks
-const { POST } = await import('./route')
-const { getUserTier } = await import('@/lib/subscription')
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-
-function makeActiveAccount(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'acct-001',
-    user_id: 'user-row-1',
-    provider: 'amex',
-    display_name: null,
-    token_vault_ref: 'vault-ref-enc',
-    status: 'active',
-    token_expires_at: null,
-    scopes: null,
-    last_synced_at: null,
-    last_error: null,
-    sync_status: 'pending',
-    error_code: null,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    ...overrides,
-  }
-}
-
-function postRequest(body: unknown) {
-  return new NextRequest('https://pointsmax.com/api/connectors/sync', {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
-beforeEach(() => {
-  mockUser = { id: 'auth-uid-1' }
-  mockUserRow = { id: 'user-row-1' }
-  mockAccount = makeActiveAccount()
-  mockSupabaseUpdateError = null
-  mockSyncOutcome = { status: 'ok', result: { balances: { 'prog-amex-mr': 50000 }, cursor: null } }
+beforeEach(async () => {
+  vi.clearAllMocks()
+  resetSubscriptionTierCache()
+  db = await createTestDb()
+  setDbForTesting(db)
+  await seedPrograms(db, [{ key: 'amex-mr' }, { key: 'chase-ur' }])
+  pat = await seedUser(db, 'pat', { tier: 'premium' })
+  vi.mocked(getSessionUser).mockResolvedValue(sessionFor(pat))
   vi.mocked(getUserTier).mockResolvedValue('premium')
-  mockBalanceSnapshotsInsert.mockClear()
-  mockBalanceSnapshotsInsert.mockResolvedValue({ error: null })
-  mockConnectorAuditInsert.mockClear()
-  mockConnectorAuditInsert.mockResolvedValue({ error: null })
+  mockSyncOutcome = { status: 'ok', result: { balances: {}, cursor: null } }
 })
 
-// ─────────────────────────────────────────────
-// Auth guard
-// ─────────────────────────────────────────────
+afterAll(() => setDbForTesting(null))
 
-describe('POST /api/connectors/sync — auth', () => {
-  it('returns 401 when no user is authenticated', async () => {
-    mockUser = null
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(401)
-    const body = await res.json()
-    expect(body.error).toBe('Unauthorized')
-  })
-})
+describe('POST /api/connectors/sync', () => {
+  it('requires a session and premium access', async () => {
+    vi.mocked(getSessionUser).mockResolvedValueOnce(null)
+    expect((await sync({ account_id: testId('x') })).status).toBe(401)
 
-// ─────────────────────────────────────────────
-// Validation
-// ─────────────────────────────────────────────
-
-describe('POST /api/connectors/sync — validation', () => {
-  it('returns 403 when the user lacks premium access', async () => {
-    vi.mocked(getUserTier).mockResolvedValue('free')
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
+    vi.mocked(getUserTier).mockResolvedValueOnce('free')
+    const res = await sync({ account_id: testId('x') })
     expect(res.status).toBe(403)
-    const body = await res.json()
-    expect(body.error.code).toBe('PREMIUM_REQUIRED')
+    expect((await res.json()).error.code).toBe('PREMIUM_REQUIRED')
   })
 
-  it('returns 400 for invalid JSON', async () => {
-    const req = new NextRequest('https://pointsmax.com/api/connectors/sync', {
-      method: 'POST',
-      body: 'not-json',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const res = await POST(req)
-    expect(res.status).toBe(400)
+  it('validates the body', async () => {
+    expect((await sync('nope')).status).toBe(400)
+    expect((await sync({})).status).toBe(400)
+    expect((await sync({ account_id: '' })).status).toBe(400)
   })
 
-  it('returns 400 when account_id is missing', async () => {
-    const res = await POST(postRequest({}))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toMatch(/account_id/)
+  it('returns 404 for missing or foreign accounts and 400 for inactive ones', async () => {
+    expect((await sync({ account_id: testId('missing') })).status).toBe(404)
+    const sam = await seedUser(db, 'sam')
+    expect((await sync({ account_id: await seedConnectedAccount(db, sam) })).status).toBe(404)
+
+    const expired = await seedConnectedAccount(db, pat, { status: 'expired' })
+    expect((await (await sync({ account_id: expired })).json()).error).toMatch(/expired/)
+    const revoked = await seedConnectedAccount(db, pat, { provider: 'chase', status: 'revoked' })
+    expect((await (await sync({ account_id: revoked })).json()).error).toMatch(/revoked/)
   })
 
-  it('returns 400 when account_id is empty string', async () => {
-    const res = await POST(postRequest({ account_id: '   ' }))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toMatch(/account_id/)
-  })
-})
-
-// ─────────────────────────────────────────────
-// Account lookup
-// ─────────────────────────────────────────────
-
-describe('POST /api/connectors/sync — account lookup', () => {
-  it('returns 404 when connected account is not found', async () => {
-    mockAccount = null
-    const res = await POST(postRequest({ account_id: 'nonexistent' }))
-    expect(res.status).toBe(404)
-    const body = await res.json()
-    expect(body.error).toMatch(/not found/i)
-  })
-
-  it('returns 400 when account status is expired', async () => {
-    mockAccount = makeActiveAccount({ status: 'expired' })
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toMatch(/expired/)
-  })
-
-  it('returns 400 when account status is revoked', async () => {
-    mockAccount = makeActiveAccount({ status: 'revoked' })
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toMatch(/revoked/)
-  })
-})
-
-// ─────────────────────────────────────────────
-// Sync success state transition
-// ─────────────────────────────────────────────
-
-describe('POST /api/connectors/sync — sync success', () => {
-  it('returns 200 with status ok on successful sync', async () => {
+  it('stores snapshots and marks the account synced on success', async () => {
+    const id = await seedConnectedAccount(db, pat, { syncStatus: 'pending' })
     mockSyncOutcome = {
       status: 'ok',
-      result: {
-        balances: { 'prog-amex-mr': 75000, 'prog-chase-ur': 125000 },
-        cursor: 'cursor-123',
-        rawPayload: { provider: 'amex' },
-      },
+      result: { balances: { [testId('amex-mr')]: 75000, [testId('chase-ur')]: 125000.9, bad: -1 }, cursor: 'c1' },
     }
 
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
+    const res = await sync({ account_id: id })
     expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.status).toBe('ok')
-    expect(body.result).toBeDefined()
-    expect(body.result.balances).toEqual({ 'prog-amex-mr': 75000, 'prog-chase-ur': 125000 })
+    expect((await res.json()).status).toBe('ok')
 
-    expect(mockBalanceSnapshotsInsert).toHaveBeenCalledTimes(1)
-    expect(mockBalanceSnapshotsInsert).toHaveBeenCalledWith([
-      expect.objectContaining({
-        connected_account_id: 'acct-001',
-        user_id: 'user-row-1',
-        program_id: 'prog-amex-mr',
-        balance: 75000,
-        source: 'connector',
-        provider_cursor: 'cursor-123',
-        raw_payload: { provider: 'amex' },
-      }),
-      expect.objectContaining({
-        connected_account_id: 'acct-001',
-        user_id: 'user-row-1',
-        program_id: 'prog-chase-ur',
-        balance: 125000,
-        source: 'connector',
-        provider_cursor: 'cursor-123',
-        raw_payload: { provider: 'amex' },
-      }),
-    ])
-  })
-})
-
-// ─────────────────────────────────────────────
-// Sync failure state transitions
-// ─────────────────────────────────────────────
-
-describe('POST /api/connectors/sync — sync failure transitions', () => {
-  it('returns auth_error status when credentials are expired', async () => {
-    mockSyncOutcome = {
-      status: 'auth_error',
-      message: 'Token expired',
-    }
-
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.status).toBe('auth_error')
-    expect(body.message).toBe('Token expired')
+    const snapshots = await db.select().from(balanceSnapshots)
+    expect(snapshots.map((s) => [s.programId, s.balance]).sort()).toEqual([
+      [testId('amex-mr'), 75000],
+      [testId('chase-ur'), 125000],
+    ].sort())
+    const [account] = await db.select().from(connectedAccounts)
+    expect(account).toMatchObject({ syncStatus: 'ok', lastError: null })
+    expect(account.lastSyncedAt).not.toBeNull()
+    const [audit] = await db.select().from(connectorAuditLog)
+    expect(audit).toMatchObject({ eventType: 'sync', metadata: expect.objectContaining({ outcome: 'ok' }) })
   })
 
-  it('returns error status with errorCode after exhausting retries', async () => {
-    mockSyncOutcome = {
-      status: 'error',
-      errorCode: 'provider_error',
-      message: 'Provider API unavailable',
-      attempts: 3,
-    }
+  it('marks expired credentials and provider errors on the account', async () => {
+    const id = await seedConnectedAccount(db, pat)
+    mockSyncOutcome = { status: 'auth_error', message: 'Token expired' }
+    const authRes = await (await sync({ account_id: id })).json()
+    expect(authRes.status).toBe('auth_error')
+    let [account] = await db.select().from(connectedAccounts)
+    expect(account).toMatchObject({ status: 'expired', errorCode: 'auth_error' })
 
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.status).toBe('error')
-    expect(body.errorCode).toBe('provider_error')
-    expect(body.attempts).toBe(3)
-  })
-
-  it('returns error status with rate_limit errorCode', async () => {
-    mockSyncOutcome = {
-      status: 'error',
-      errorCode: 'rate_limit',
-      message: 'Rate limited — retry after 5000ms',
-      attempts: 3,
-    }
-
-    const res = await POST(postRequest({ account_id: 'acct-001' }))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.status).toBe('error')
-    expect(body.errorCode).toBe('rate_limit')
+    await db.update(connectedAccounts).set({ status: 'active' })
+    mockSyncOutcome = { status: 'error', errorCode: 'rate_limit', message: 'Slow down', attempts: 3 }
+    const errRes = await (await sync({ account_id: id })).json()
+    expect(errRes).toMatchObject({ status: 'error', errorCode: 'rate_limit', attempts: 3 })
+    ;[account] = await db.select().from(connectedAccounts)
+    expect(account).toMatchObject({ syncStatus: 'error', errorCode: 'rate_limit', lastError: 'Slow down' })
   })
 })

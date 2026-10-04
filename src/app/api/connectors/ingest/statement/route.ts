@@ -2,40 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { badRequest, internalError } from '@/lib/error-utils'
 import { logError, logInfo } from '@/lib/logger'
-import { type ProgramAliasRow } from '@/lib/connectors/program-matcher'
 import { parseStatementText } from '@/lib/connectors/statement-parser/text-parser'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSessionUser } from '@/lib/auth'
+import { loadProgramsAndAliases } from '@/lib/connectors/program-catalog'
 
 const MAX_STATEMENT_BODY_BYTES = 20_000
 const MAX_STATEMENT_TEXT_CHARS = 10_000
-
-type ProgramRow = {
-  id: string
-  name: string
-  slug: string
-}
-
-async function loadProgramsAndAliases(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-): Promise<{ programs: ProgramRow[]; aliases: ProgramAliasRow[] }> {
-  const [{ data: programs, error: programsError }, { data: aliases, error: aliasesError }] = await Promise.all([
-    supabase.from('programs').select('id, name, slug').eq('is_active', true),
-    supabase.from('program_name_aliases').select('alias, program_slug'),
-  ])
-
-  if (programsError) {
-    throw new Error(`Failed to load programs: ${programsError.message}`)
-  }
-
-  const aliasRows = aliasesError?.code === '42P01'
-    ? []
-    : (((aliases ?? []) as ProgramAliasRow[]))
-
-  return {
-    programs: ((programs ?? []) as ProgramRow[]),
-    aliases: aliasRows,
-  }
-}
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID()
@@ -50,8 +22,7 @@ export async function POST(req: NextRequest) {
   })
   if (rateLimitError) return rateLimitError
 
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
@@ -76,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { programs, aliases } = await loadProgramsAndAliases(supabase)
+    const { programs, aliases } = await loadProgramsAndAliases()
     const candidates = parseStatementText(text, programs, aliases)
 
     logInfo('statement_ingest_parsed', {

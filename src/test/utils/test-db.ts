@@ -106,3 +106,24 @@ export function sessionFor(user: SeededUser) {
     createdAt: '2026-01-01T00:00:00.000Z',
   }
 }
+
+/** Insert a connected (bank/loyalty) account for a seeded user. */
+export async function seedConnectedAccount(
+  db: TestDb,
+  owner: SeededUser,
+  opts: { key?: string; provider?: string; status?: string; syncStatus?: string; lastSyncedAt?: string | null } = {},
+): Promise<string> {
+  const id = testId(`acct:${opts.key ?? owner.authId}:${opts.provider ?? 'amex'}`)
+  await db.insert(schema.connectedAccounts).values({
+    id,
+    userId: owner.userId,
+    provider: opts.provider ?? 'amex',
+    displayName: 'My Amex',
+    tokenVaultRef: 'vault:secret',
+    status: opts.status ?? 'active',
+    syncStatus: opts.syncStatus ?? 'ok',
+    lastSyncedAt: opts.lastSyncedAt === undefined ? null : opts.lastSyncedAt,
+    scopes: 'balances',
+  })
+  return id
+}

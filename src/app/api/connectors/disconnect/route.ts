@@ -19,11 +19,15 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { emitAuditEvent, type AuditPersistence } from '@/lib/connectors/audit-log'
+import { and, eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { UUID_RE } from '@/lib/auth-guard'
+import { databaseAuditPersistence, emitAuditEvent } from '@/lib/connectors/audit-log'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { connectedAccounts } from '@/lib/db/schema'
 import { logInfo, logError } from '@/lib/logger'
 import type { ConnectedAccount } from '@/types/connectors'
-import { createAdminClient } from '@/lib/supabase'
 
 // ─────────────────────────────────────────────
 // Sentinel value written into token_vault_ref on revoke.
@@ -33,36 +37,12 @@ import { createAdminClient } from '@/lib/supabase'
 const REVOKED_SENTINEL = 'REVOKED'
 
 // ─────────────────────────────────────────────
-// Audit persistence backed by Supabase
-// ─────────────────────────────────────────────
-
-function buildAuditPersistence(): AuditPersistence {
-  return {
-    async insert(event) {
-      const admin = createAdminClient()
-      await admin.from('connector_audit_log').insert({
-        user_id: event.userId,
-        account_id: event.accountId,
-        provider: event.provider,
-        event_type: event.eventType,
-        actor: event.actor,
-        metadata: event.metadata ?? null,
-      })
-    },
-  }
-}
-
-// ─────────────────────────────────────────────
 // Route handler
 // ─────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-
   // Auth guard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Parse body
@@ -79,25 +59,23 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve internal user row id
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-  const userId = (userRow as { id?: string } | null)?.id
+  const userId = await getUserRowId(user.id)
   if (!userId) {
     return NextResponse.json({ error: 'User record not found' }, { status: 404 })
   }
+  if (!UUID_RE.test(accountId)) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
 
   // Fetch connected account — explicit user_id check prevents cross-user access
-  const { data: accountRow, error: accountErr } = await supabase
-    .from('connected_accounts')
-    .select('*')
-    .eq('id', accountId)
-    .eq('user_id', userId)
-    .single()
+  const ownAccount = and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.userId, userId))
+  const [accountRow] = await getDb()
+    .select(columnsOf(connectedAccounts))
+    .from(connectedAccounts)
+    .where(ownAccount)
+    .limit(1)
 
-  if (accountErr || !accountRow) {
+  if (!accountRow) {
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
@@ -112,24 +90,23 @@ export async function POST(req: NextRequest) {
   }
 
   // Destroy credential material and mark as revoked
-  const { error: updateErr } = await supabase
-    .from('connected_accounts')
-    .update({
-      token_vault_ref: REVOKED_SENTINEL,
-      status: 'revoked',
-      sync_status: 'error',
-      last_error: 'Account disconnected by user',
-      error_code: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', accountId)
-    .eq('user_id', userId)
-
-  if (updateErr) {
+  try {
+    await getDb()
+      .update(connectedAccounts)
+      .set({
+        tokenVaultRef: REVOKED_SENTINEL,
+        status: 'revoked',
+        syncStatus: 'error',
+        lastError: 'Account disconnected by user',
+        errorCode: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(ownAccount)
+  } catch (updateErr) {
     logError('disconnect_update_failed', {
       accountId,
       provider: account.provider,
-      error: updateErr.message,
+      error: updateErr instanceof Error ? updateErr.message : String(updateErr),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
@@ -137,7 +114,7 @@ export async function POST(req: NextRequest) {
   logInfo('connector_disconnected', { accountId, provider: account.provider, userId })
 
   // Emit audit event (non-blocking — does not throw on failure)
-  await emitAuditEvent(buildAuditPersistence(), {
+  await emitAuditEvent(databaseAuditPersistence(), {
     userId,
     accountId,
     provider: account.provider,

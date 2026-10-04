@@ -6,12 +6,50 @@ const mockUpsert = vi.fn()
 const mockFrom = vi.fn()
 const mockGetUser = vi.fn()
 
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  }),
+vi.mock('@/lib/auth', () => ({
+  getSessionUser: async () => {
+    const result = await mockGetUser()
+    const user = result?.data?.user
+    return user
+      ? { id: user.id, email: 'user@example.com', name: null, image: null, emailVerified: true, createdAt: '2026-01-01T00:00:00.000Z' }
+      : null
+  },
+  getUserRowId: async (authId: string) => `internal-${authId}`,
 }))
+
+vi.mock('@/lib/connectors/program-catalog', () => ({
+  loadProgramsAndAliases: async () => {
+    const programs = await mockFrom('programs').select().eq('is_active', true)
+    const aliases = await mockFrom('program_name_aliases').select()
+    return { programs: programs.data ?? [], aliases: aliases.data ?? [] }
+  },
+}))
+
+// Minimal stand-in for the Drizzle client: inserts/upserts are routed to the
+// mockInsert/mockUpsert spies (by table name); ownership checks always pass.
+vi.mock('@/lib/db/client', async () => {
+  const { getTableName } = await import('drizzle-orm')
+  const settle = async (pending: unknown) => {
+    const result = await pending
+    const error = (result as { error?: { message: string } } | undefined)?.error
+    if (error) throw new Error(error.message)
+  }
+  return {
+    getDb: () => ({
+      insert: (table: Parameters<typeof getTableName>[0]) => ({
+        values: (rows: unknown) => {
+          const name = getTableName(table)
+          return {
+            then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+              settle(mockInsert(name, rows)).then(resolve, reject),
+            onConflictDoUpdate: () => settle(mockUpsert(name, rows)),
+          }
+        },
+      }),
+      select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ id: 'owned' }] }) }) }),
+    }),
+  }
+})
 
 vi.mock('@/lib/logger', () => ({
   logInfo: vi.fn(),
@@ -310,7 +348,7 @@ Amex,invalid`
     const formData = new FormData()
     const file = new File([csvContent], 'balances.csv', { type: 'text/csv' })
     formData.append('file', file)
-    formData.append('connectedAccountId', 'account-123')
+    formData.append('connectedAccountId', '11111111-2222-4333-8444-555555555555')
     
     const req = createFormRequest(formData)
 
@@ -318,7 +356,7 @@ Amex,invalid`
     
     expect(res.status).toBe(200)
     const snapshotInsertCall = mockInsert.mock.calls.find(([table]) => table === 'balance_snapshots')
-    expect(snapshotInsertCall?.[1][0].connected_account_id).toBe('account-123')
+    expect(snapshotInsertCall?.[1][0].connectedAccountId).toBe('11111111-2222-4333-8444-555555555555')
   })
 
   it('handles empty CSV file', async () => {
