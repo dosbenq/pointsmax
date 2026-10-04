@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-
 export type HotelDestinationRegion =
   | 'north_america'
   | 'europe'
@@ -37,7 +35,7 @@ export interface HotelSearchResult {
 }
 
 export interface HotelAwardProvider {
-  search(params: HotelSearchParams, client: SupabaseClient): Promise<HotelSearchResult[]>
+  search(params: HotelSearchParams): Promise<HotelSearchResult[]>
 }
 
 export type HotelProgramRow = {

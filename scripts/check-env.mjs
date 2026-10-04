@@ -9,6 +9,7 @@ const REQUIRED = [
 ]
 
 const OPTIONAL = [
+  'DATABASE_URL',
   'ADMIN_EMAIL',
   'ADMIN_ALLOWED_EMAILS',
   'GEMINI_API_KEY',

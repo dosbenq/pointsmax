@@ -2,31 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SeatsAeroProvider, seatsAeroSourceToSlug } from './seats-aero-provider'
 import { AwardProviderUnavailableError } from './errors'
 import * as cashFareProvider from './cash-fare-provider'
+import { loadAwardCatalog } from './catalog-data'
+
+vi.mock('./catalog-data', () => ({ loadAwardCatalog: vi.fn() }))
 
 vi.mock('./cash-fare-provider', () => ({
   fetchCashFareUsd: vi.fn().mockResolvedValue(null),
 }))
 
 function makeClient(data: Record<string, unknown[]>) {
-  return {
-    from(table: string) {
-      const builder = {
-        select() {
-          return builder
-        },
-        in() {
-          return builder
-        },
-        eq() {
-          return builder
-        },
-        then(onfulfilled?: (value: { data: unknown[]; error: null }) => unknown) {
-          return Promise.resolve({ data: data[table] ?? [], error: null }).then(onfulfilled)
-        },
-      }
-      return builder
-    },
-  }
+  vi.mocked(loadAwardCatalog).mockResolvedValue({
+    transferPartners: (data.transfer_partners ?? []) as never,
+    programs: (data.programs ?? []) as never,
+    valuations: (data.latest_valuations ?? []) as never,
+  })
 }
 
 describe('SeatsAeroProvider', () => {
@@ -45,7 +34,7 @@ describe('SeatsAeroProvider', () => {
     }))
 
     const provider = new SeatsAeroProvider('test-key')
-    const client = makeClient({
+    makeClient({
       transfer_partners: [],
       programs: [
         { id: 'cash', name: 'Cash Wallet', short_name: 'Cash', slug: 'cash-wallet', color_hex: '#111111', type: 'cashback' },
@@ -64,7 +53,7 @@ describe('SeatsAeroProvider', () => {
       start_date: '2026-04-01',
       end_date: '2026-04-02',
       balances: [{ program_id: 'cash', amount: 50000 }],
-    }, client as never)
+    })
 
     expect(results).toHaveLength(1)
     expect(results[0].program_slug).toBe('united')
@@ -86,7 +75,7 @@ describe('SeatsAeroProvider', () => {
     vi.mocked(cashFareProvider.fetchCashFareUsd).mockResolvedValue(3900)
 
     const provider = new SeatsAeroProvider('test-key')
-    const client = makeClient({
+    makeClient({
       transfer_partners: [],
       programs: [
         { id: 'cash', name: 'Cash Wallet', short_name: 'Cash', slug: 'cash-wallet', color_hex: '#111111', type: 'cashback' },
@@ -105,7 +94,7 @@ describe('SeatsAeroProvider', () => {
       start_date: '2026-04-01',
       end_date: '2026-04-02',
       balances: [{ program_id: 'cash', amount: 50000 }],
-    }, client as never)
+    })
 
     expect(results[0].cash_value_source).toBe('live_fare_api')
     expect(results[0].cash_value_confidence).toBe('high')
@@ -129,6 +118,8 @@ describe('SeatsAeroProvider', () => {
       end_date: '2026-11-02',
       balances: [],
     }
+    beforeEach(() => makeClient(unitedOnly))
+
     function flight(source: string, jCost: string) {
       return {
         ID: '1', RouteID: 'r', Route: { OriginAirport: 'JFK', DestinationAirport: 'LHR' },
@@ -156,7 +147,7 @@ describe('SeatsAeroProvider', () => {
         json: async () => ({ data: [flight('united', '80000'), flight('united', '60000')], count: 2 }),
       }))
 
-      const results = await new SeatsAeroProvider('k').search(params, makeClient(unitedOnly) as never)
+      const results = await new SeatsAeroProvider('k').search(params)
       const united = results.find((r) => r.program_slug === 'united')
       expect(united?.has_real_availability).toBe(true)
       expect(united?.estimated_miles).toBe(120000)
@@ -167,7 +158,7 @@ describe('SeatsAeroProvider', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status, json: async () => ({}) }))
 
       await expect(
-        new SeatsAeroProvider('bad').search(params, makeClient(unitedOnly) as never),
+        new SeatsAeroProvider('bad').search(params),
       ).rejects.toBeInstanceOf(AwardProviderUnavailableError)
     })
 
@@ -175,14 +166,14 @@ describe('SeatsAeroProvider', () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')))
 
       await expect(
-        new SeatsAeroProvider('k').search(params, makeClient(unitedOnly) as never),
+        new SeatsAeroProvider('k').search(params),
       ).rejects.toBeInstanceOf(AwardProviderUnavailableError)
     })
 
     it('treats a 404 as no availability, not an outage', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }))
 
-      const results = await new SeatsAeroProvider('k').search(params, makeClient(unitedOnly) as never)
+      const results = await new SeatsAeroProvider('k').search(params)
       expect(results.every((r) => !r.has_real_availability)).toBe(true)
     })
   })

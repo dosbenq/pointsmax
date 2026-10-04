@@ -1,4 +1,6 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { hotelAwardCharts, hotelPrograms as hotelProgramsTable, programs, transferPartners as transferPartnersTable } from '@/lib/db/schema'
 import {
   buildReachablePaths,
   buildTransferChain,
@@ -58,58 +60,61 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 }
 
 export class ChartHotelProvider {
-  async search(params: HotelSearchParams, client: SupabaseClient): Promise<HotelSearchResult[]> {
+  async search(params: HotelSearchParams): Promise<HotelSearchResult[]> {
     const nights = calculateNights(params.check_in, params.check_out)
     const hotelHint = normalizeHotelHint(params.hotel_name)
+    const db = getDb()
 
-    const [{ data: hotelPrograms, error: hotelProgramError }, { data: charts, error: chartError }] = await withTimeout(Promise.all([
-      client
-        .from('hotel_programs')
-        .select('id, slug, name, chain, booking_url, color_hex')
-        .eq('is_active', true),
-      client
-        .from('hotel_award_charts')
-        .select('program_id, destination_region, tier_label, tier_number, points_off_peak, points_standard, points_peak, estimated_cash_usd')
-        .eq('destination_region', params.destination_region),
-    ]), QUERY_TIMEOUT_MS, 'Hotel search database queries')
+    const [hotelProgramRows, chartRows] = await withTimeout(Promise.all([
+      db.select({
+        id: hotelProgramsTable.id,
+        slug: hotelProgramsTable.slug,
+        name: hotelProgramsTable.name,
+        chain: hotelProgramsTable.chain,
+        booking_url: hotelProgramsTable.bookingUrl,
+        color_hex: hotelProgramsTable.colorHex,
+      }).from(hotelProgramsTable).where(eq(hotelProgramsTable.isActive, true)),
+      db.select({
+        program_id: hotelAwardCharts.programId,
+        destination_region: hotelAwardCharts.destinationRegion,
+        tier_label: hotelAwardCharts.tierLabel,
+        tier_number: hotelAwardCharts.tierNumber,
+        points_off_peak: hotelAwardCharts.pointsOffPeak,
+        points_standard: hotelAwardCharts.pointsStandard,
+        points_peak: hotelAwardCharts.pointsPeak,
+        estimated_cash_usd: hotelAwardCharts.estimatedCashUsd,
+      }).from(hotelAwardCharts).where(eq(hotelAwardCharts.destinationRegion, params.destination_region)),
+    ]), QUERY_TIMEOUT_MS, 'Hotel search database queries') as [HotelProgramRow[], HotelAwardChartRow[]]
 
-    if (hotelProgramError) {
-      throw new Error(`Failed to load hotel programs: ${hotelProgramError.message}`)
-    }
-    if (chartError) {
-      throw new Error(`Failed to load hotel award charts: ${chartError.message}`)
-    }
-
-    const hotelProgramRows = (hotelPrograms as HotelProgramRow[] | null) ?? []
-    const chartRows = (charts as HotelAwardChartRow[] | null) ?? []
     const hotelSlugs = hotelProgramRows.map((row) => row.slug)
 
-    const [{ data: programs, error: programError }, { data: transferPartners, error: transferError }] = await Promise.all([
-      client
-        .from('programs')
-        .select('id, name, short_name, slug, color_hex, type')
-        .eq('is_active', true),
-      client
-        .from('transfer_partners')
-        .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .eq('is_active', true),
+    const [programRows, transferPartners] = await Promise.all([
+      db.select({
+        id: programs.id,
+        name: programs.name,
+        short_name: programs.shortName,
+        slug: programs.slug,
+        color_hex: programs.colorHex,
+        type: programs.type,
+      }).from(programs).where(eq(programs.isActive, true)) as Promise<ProgramRow[]>,
+      db.select({
+        id: transferPartnersTable.id,
+        from_program_id: transferPartnersTable.fromProgramId,
+        to_program_id: transferPartnersTable.toProgramId,
+        ratio_from: transferPartnersTable.ratioFrom,
+        ratio_to: transferPartnersTable.ratioTo,
+        is_instant: transferPartnersTable.isInstant,
+        transfer_time_max_hrs: transferPartnersTable.transferTimeMaxHrs,
+      }).from(transferPartnersTable).where(eq(transferPartnersTable.isActive, true)) as Promise<TransferPartnerRow[]>,
     ])
 
-    if (programError) {
-      throw new Error(`Failed to load programs: ${programError.message}`)
-    }
-    if (transferError) {
-      throw new Error(`Failed to load transfer partners: ${transferError.message}`)
-    }
-
-    const programRows = ((programs as ProgramRow[] | null) ?? [])
     const walletProgramIds = new Set(params.balances.map((balance) => balance.program_id))
     const enrichedProgramRows = programRows.filter((row) => hotelSlugs.includes(row.slug) || walletProgramIds.has(row.id))
     const programMap = new Map(enrichedProgramRows.map((row) => [row.id, row]))
     const reachablePaths = buildReachablePaths(
       params.balances.filter((balance) => balance.amount > 0),
       programMap,
-      ((transferPartners as TransferPartnerRow[] | null) ?? []).filter((row) =>
+      transferPartners.filter((row) =>
         programMap.has(row.from_program_id) && programMap.has(row.to_program_id),
       ),
     )

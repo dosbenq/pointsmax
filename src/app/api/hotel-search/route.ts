@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { badRequest, internalError, serviceUnavailable } from '@/lib/error-utils'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
@@ -97,9 +96,8 @@ export async function POST(req: NextRequest) {
   if ('error' in params) return badRequest(params.error)
 
   try {
-    const client = createServerDbClient()
     const provider = createHotelSearchProvider()
-    const results = await provider.search(params, client)
+    const results = await provider.search(params)
 
     logInfo('hotel_search_success', {
       requestId,

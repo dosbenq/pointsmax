@@ -1,12 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeAll, describe, expect, it, vi, beforeEach } from 'vitest'
+import { sql } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import * as awardSearch from '@/lib/award-search'
 import type { AwardProvider } from '@/lib/award-search'
-import { createServerDbClient } from '@/lib/supabase'
+import { setDbForTesting } from '@/lib/db/client'
+import { createTestDb, type TestDb } from '@/test/utils/test-db'
 import { getUserTier } from '@/lib/subscription'
-
-process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'example-anon-key'
 
 // Mock dependencies
 vi.mock('@/lib/award-search', async (importOriginal) => {
@@ -14,21 +14,6 @@ vi.mock('@/lib/award-search', async (importOriginal) => {
   return {
     ...actual,
     createAwardProvider: vi.fn(),
-  }
-})
-
-vi.mock('@/lib/supabase', () => {
-  const mockQuery = {
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    then: vi.fn().mockImplementation((onFulfilled: (value: unknown) => unknown) => {
-      return Promise.resolve({ data: [] }).then(onFulfilled)
-    }),
-  }
-  return {
-    createServerDbClient: vi.fn().mockReturnValue(mockQuery),
   }
 })
 
@@ -98,19 +83,20 @@ function makeValidBody() {
   }
 }
 
+let db: TestDb
+
+beforeAll(async () => {
+  db = await createTestDb()
+})
+
+afterAll(() => setDbForTesting(null))
+
 describe('POST /api/award-search', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     vi.mocked(getUserTier).mockResolvedValue('premium')
-    vi.mocked(createServerDbClient).mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      then: vi.fn().mockImplementation((onFulfilled: (value: unknown) => unknown) => {
-        return Promise.resolve({ data: [] }).then(onFulfilled)
-      }),
-    } as never)
+    setDbForTesting(db)
+    await db.execute(sql`delete from programs`)
   })
 
   describe('Validation', () => {
@@ -248,15 +234,8 @@ describe('POST /api/award-search', () => {
     })
 
     it('includes a Delta warning when a Delta balance is in the wallet', async () => {
-      vi.mocked(createServerDbClient).mockReturnValue({
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            in: vi.fn(async () => ({
-              data: [{ id: validBalance.program_id, slug: 'delta' }],
-            })),
-          })),
-        })),
-      } as never)
+      await db.execute(sql`insert into programs (id, name, short_name, slug, type)
+        values (${validBalance.program_id}, 'Delta SkyMiles', 'Delta', 'delta', 'airline_miles')`)
 
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
         name: 'seats_aero',
@@ -306,11 +285,10 @@ describe('POST /api/award-search', () => {
 
     it('returns internal error when fallback provider also fails', async () => {
       const validBody = makeValidBody()
-      // First, make the StubProvider fail by mocking the DB to throw
-      const { createServerDbClient } = await import('@/lib/supabase')
-      vi.mocked(createServerDbClient).mockImplementationOnce(() => {
-        throw new Error('Database error')
-      })
+      // Make the StubProvider fail: its reference query hits a missing view.
+      const broken = await createTestDb()
+      await broken.execute(sql`drop view latest_valuations`)
+      setDbForTesting(broken)
 
       vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
         throw new awardSearch.AwardProviderUnavailableError()

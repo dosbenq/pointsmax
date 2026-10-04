@@ -1,6 +1,8 @@
 import { MetadataRoute } from 'next'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
-import { createServerDbClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { getDb, hasDatabaseUrl } from '@/lib/db/client'
+import { programs as programsTable } from '@/lib/db/schema'
 import { listCardsForRegion, listComparisonPagesForRegion } from '@/lib/programmatic-content'
 
 const BASE_URL = getConfiguredAppOrigin()
@@ -49,14 +51,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   try {
-    const db = createServerDbClient()
-    const [cardsByRegion, comparisonPagesByRegion, { data: programs }] = await Promise.all([
+    const [cardsByRegion, comparisonPagesByRegion, programs] = await Promise.all([
       Promise.all(REGIONS.map(async (region) => ({ region, cards: await listCardsForRegion(region) }))),
       Promise.all(REGIONS.map(async (region) => ({ region, pages: await listComparisonPagesForRegion(region) }))),
-      db.from('programs').select('slug, geography').eq('is_active', true),
+      hasDatabaseUrl()
+        ? getDb().select({ slug: programsTable.slug, geography: programsTable.geography }).from(programsTable).where(eq(programsTable.isActive, true))
+        : Promise.resolve([]),
     ])
 
-    const normalizedPrograms = ((programs ?? []) as unknown[]).filter(isSitemapProgramRow)
+    const normalizedPrograms = (programs as unknown[]).filter(isSitemapProgramRow)
 
     for (const entry of cardsByRegion) {
       for (const card of entry.cards) {

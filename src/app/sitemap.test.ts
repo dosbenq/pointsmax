@@ -11,16 +11,6 @@ vi.mock('@/lib/programmatic-content', () => ({
   ),
 }))
 
-vi.mock('@/lib/supabase', () => ({
-  createServerDbClient: () => ({
-    from: () => ({
-      select: () => ({
-        eq: async () => ({ data: [] }),
-      }),
-    }),
-  }),
-}))
-
 const { default: sitemap } = await import('./sitemap')
 
 describe('sitemap', () => {

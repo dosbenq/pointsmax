@@ -45,7 +45,7 @@ export const programs = pgTable("programs", {
 export const valuations = pgTable("valuations", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	programId: uuid("program_id").notNull(),
-	cppCents: numeric("cpp_cents", { precision: 10, scale:  4 }).notNull(),
+	cppCents: numeric("cpp_cents", { precision: 10, scale: 4, mode: "number" }).notNull(),
 	source: valuationSource().default('manual').notNull(),
 	sourceUrl: text("source_url"),
 	effectiveDate: date("effective_date").default(sql`CURRENT_DATE`).notNull(),
@@ -124,7 +124,7 @@ export const redemptionOptions = pgTable("redemption_options", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	programId: uuid("program_id").notNull(),
 	category: redemptionCategory().notNull(),
-	cppCents: numeric("cpp_cents", { precision: 10, scale:  4 }).notNull(),
+	cppCents: numeric("cpp_cents", { precision: 10, scale: 4, mode: "number" }).notNull(),
 	label: text().notNull(),
 	notes: text(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
@@ -213,7 +213,7 @@ export const cardEarningRates = pgTable("card_earning_rates", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	cardId: uuid("card_id").notNull(),
 	category: spendCategory().notNull(),
-	earnMultiplier: numeric("earn_multiplier", { precision: 6, scale:  2 }).notNull(),
+	earnMultiplier: numeric("earn_multiplier", { precision: 6, scale: 2, mode: "number" }).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.cardId],
@@ -592,7 +592,7 @@ export const inspirationRoutes = pgTable("inspiration_routes", {
 	programSlug: text("program_slug").notNull(),
 	milesRequired: integer("miles_required").notNull(),
 	estimatedCashValueUsd: integer("estimated_cash_value_usd").notNull(),
-	cppCents: numeric("cpp_cents").notNull(),
+	cppCents: numeric("cpp_cents", { mode: "number" }).notNull(),
 	headline: text().notNull(),
 	description: text().notNull(),
 	isFeatured: boolean("is_featured").default(false).notNull(),
@@ -820,7 +820,7 @@ export const siteStats = pgView("site_stats", {	// You can use { mode: "bigint" 
 
 export const latestValuations = pgView("latest_valuations", {	id: uuid(),
 	programId: uuid("program_id"),
-	cppCents: numeric("cpp_cents", { precision: 10, scale:  4 }),
+	cppCents: numeric("cpp_cents", { precision: 10, scale: 4, mode: "number" }),
 	source: valuationSource(),
 	sourceUrl: text("source_url"),
 	effectiveDate: date("effective_date"),

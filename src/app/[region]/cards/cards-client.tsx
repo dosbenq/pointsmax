@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { estimateEffectiveCashbackPct, type ProgrammaticCard } from '@/lib/programmatic-content'
+import { estimateEffectiveCashbackPct, type ProgrammaticCard } from '@/lib/programmatic-content-shared'
 import { formatCurrencyRounded, spendUnitLabel, CARD_ART_MAP } from '@/lib/card-tools'
 
 interface CardsClientProps {

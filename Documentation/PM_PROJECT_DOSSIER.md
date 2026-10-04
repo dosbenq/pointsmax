@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `a4f37c0`
+- Git commit: `249fb6a`
 
 ## 1. Executive Snapshot
 
@@ -201,7 +201,13 @@
 
 ## 5. Integrations and Environment Variables
 
-### Supabase
+### Database
+
+| Variable | Required |
+|---|---|
+| `DATABASE_URL` | Yes |
+
+### Supabase (being phased out: auth + remaining queries)
 
 | Variable | Required |
 |---|---|
@@ -421,9 +427,8 @@
 | `src/lib/cpp-fallback.test.ts` |
 | `src/lib/cron-auth.test.ts` |
 | `src/lib/db-timeout.test.ts` |
-| `src/lib/db/booking-urls.test.ts` |
-| `src/lib/db/cards.test.ts` |
-| `src/lib/db/programs.test.ts` |
+| `src/lib/db/columns.test.ts` |
+| `src/lib/db/repositories.test.ts` |
 | `src/lib/db/rls-index-audit.test.ts` |
 | `src/lib/db/schema.test.ts` |
 | `src/lib/deal-scorer.test.ts` |
@@ -439,6 +444,7 @@
 | `src/lib/jsonld-sanitize.test.ts` |
 | `src/lib/knowledge/youtube.test.ts` |
 | `src/lib/portfolio-health.test.ts` |
+| `src/lib/programmatic-content.db.test.ts` |
 | `src/lib/programmatic-content.test.ts` |
 | `src/lib/queue-durability.test.ts` |
 | `src/lib/region-parity.test.ts` |
@@ -466,7 +472,7 @@
 | `src/components/ConnectedWallets.test.tsx` | 931 |
 | `src/lib/db/schema.ts` | 892 |
 | `src/app/[region]/card-recommender/page.tsx` | 877 |
-| `src/app/api/ai/recommend/route.ts` | 815 |
+| `src/app/api/ai/recommend/route.ts` | 819 |
 | `src/app/[region]/calculator/page.tsx` | 769 |
 | `src/app/api/ai/recommend/route.test.ts` | 623 |
 | `src/features/card-recommender/domain/scorer.ts` | 614 |

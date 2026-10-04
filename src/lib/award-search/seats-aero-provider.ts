@@ -4,7 +4,6 @@
 // Falls back gracefully per-program if API fails.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   AwardProvider,
   AwardSearchParams,
@@ -31,6 +30,7 @@ import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
 import { fetchCashFareUsd } from './cash-fare-provider'
 import { AwardProviderUnavailableError } from './errors'
+import { loadAwardCatalog } from './catalog-data'
 import { SEATS_AERO_SEARCH_URL } from '@/config/providers'
 import { seatsAeroSourceToSlug } from './seats-aero-sources.mjs'
 
@@ -78,41 +78,27 @@ export class SeatsAeroProvider implements AwardProvider {
 
   constructor(private readonly apiKey: string) {}
 
-  async search(
-    params: AwardSearchParams,
-    client: SupabaseClient,
-  ): Promise<AwardSearchResult[]> {
+  async search(params: AwardSearchParams): Promise<AwardSearchResult[]> {
     const { origin, destination, cabin, passengers, balances, start_date, end_date } = params
 
-    // ── Fetch Supabase data in parallel with Seats.aero API ──
+    // ── Fetch reference data in parallel with Seats.aero ─────
     const [
       seatsAeroResponse,
-      { data: transferPartners },
-      { data: allPrograms },
-      { data: valuations },
+      { transferPartners, programs: allPrograms, valuations },
     ] = await Promise.all([
       this.fetchSeatsAero(origin, destination, cabin, start_date, end_date),
-      client
-        .from('transfer_partners')
-        .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .eq('is_active', true),
-      client
-        .from('programs')
-        .select('id, name, short_name, slug, color_hex, type'),
-      client
-        .from('latest_valuations')
-        .select('program_id, cpp_cents, program_name, program_slug, program_type'),
+      loadAwardCatalog(),
     ])
 
     // ── Build lookup maps ────────────────────────────────────
     const programMap = new Map<string, ProgramRow>(
-      ((allPrograms as ProgramRow[]) ?? []).map(p => [p.id, p]),
+      allPrograms.map(p => [p.id, p]),
     )
     const slugToProgram = new Map<string, ProgramRow>(
-      ((allPrograms as ProgramRow[]) ?? []).map(p => [p.slug, p]),
+      allPrograms.map(p => [p.slug, p]),
     )
     const valuationByProgramId = new Map<string, ValuationRow>(
-      ((valuations as ValuationRow[]) ?? []).map(v => [v.program_id, v]),
+      valuations.map(v => [v.program_id, v]),
     )
     const region = detectRouteRegion(origin, destination)
     const liveFareUsd = await fetchCashFareUsd(origin, destination, cabin, start_date)
@@ -152,7 +138,7 @@ export class SeatsAeroProvider implements AwardProvider {
     const reachablePaths = buildReachablePaths(
       balances,
       programMap,
-      (transferPartners as TransferPartnerRow[]) ?? [],
+      transferPartners,
     )
 
     // ── Build results ────────────────────────────────────────

@@ -179,7 +179,6 @@ export const dealScout = inngest.createFunction(
               end_date: watch.end_date,
               balances: userBalances,
             },
-            db,
           )
         })
       } catch {
