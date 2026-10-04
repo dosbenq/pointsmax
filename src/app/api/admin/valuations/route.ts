@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
+import { asc } from 'drizzle-orm'
 import { CATALOG_MANAGED_RESPONSE } from '@/lib/catalog'
-import { createAdminClient } from '@/lib/supabase'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { latestValuations } from '@/lib/db/schema'
 import { requireAdmin } from '@/lib/admin-auth'
 import { logError } from '@/lib/logger'
 
@@ -8,18 +11,16 @@ export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-  const { data, error } = await db
-    .from('latest_valuations')
-    .select('*')
-    .order('program_name')
-
-  if (error) {
-    logError('admin_valuations_get_failed', { error: error.message })
+  try {
+    const valuations = await getDb()
+      .select(columnsOf(latestValuations))
+      .from(latestValuations)
+      .orderBy(asc(latestValuations.programName))
+    return NextResponse.json({ valuations })
+  } catch (error) {
+    logError('admin_valuations_get_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ valuations: data ?? [] })
 }
 
 // Valuations are managed in src/data/catalog/valuations.json and synced with

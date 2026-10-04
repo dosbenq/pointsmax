@@ -1,5 +1,7 @@
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
+import { asc, eq, sql } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { flightWatches, users } from '@/lib/db/schema'
 import { Resend } from 'resend'
 import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
 import { StubProvider } from '@/lib/award-search/stub-provider'
@@ -18,37 +20,13 @@ type WatchRow = {
   end_date: string
   max_points: number | null
   last_checked_at: string | null
-  users: unknown
+  last_alert_key: string | null
+  email: string | null
 }
 
-function normalizeWatchRow(value: unknown): WatchRow | null {
-  if (!value || typeof value !== 'object') return null
-  const row = value as Record<string, unknown>
-  if (
-    typeof row.id !== 'string'
-    || typeof row.user_id !== 'string'
-    || typeof row.origin !== 'string'
-    || typeof row.destination !== 'string'
-    || typeof row.cabin !== 'string'
-    || typeof row.start_date !== 'string'
-    || typeof row.end_date !== 'string'
-  ) {
-    return null
-  }
-  const maxPoints = typeof row.max_points === 'number' ? row.max_points : null
-  const lastChecked = typeof row.last_checked_at === 'string' ? row.last_checked_at : null
-  return {
-    id: row.id,
-    user_id: row.user_id,
-    origin: row.origin,
-    destination: row.destination,
-    cabin: row.cabin,
-    start_date: row.start_date,
-    end_date: row.end_date,
-    max_points: maxPoints,
-    last_checked_at: lastChecked,
-    users: row.users,
-  }
+/** Stable identity of a deal; a watch is only emailed again when this changes. */
+export function dealAlertKey(deal: { program_slug: string; availability?: { date?: string | null } | null; points_needed_from_wallet: number }): string {
+  return [deal.program_slug, deal.availability?.date ?? '', deal.points_needed_from_wallet].join('|')
 }
 
 /**
@@ -59,32 +37,36 @@ export const dealScout = inngest.createFunction(
   { id: 'deal-scout', name: 'Agent: Deal Scout' },
   { cron: '0 * * * *' }, // Run every hour
   async ({ step }) => {
-    const db = createAdminClient()
+    const db = getDb()
     const now = Date.now()
     const cutoffMs = now - (60 * 60 * 1000)
 
     // 1) Fetch active watches; we'll enforce "older than 1 hour" in-memory.
-    const { data: watches } = await db
-      .from('flight_watches')
-      .select(`
-        id,
-        user_id,
-        origin,
-        destination,
-        cabin,
-        start_date,
-        end_date,
-        max_points,
-        last_checked_at,
-        users(email)
-      `)
-      .eq("is_active", true)
-      .order('last_checked_at', { ascending: true, nullsFirst: true })
+    const normalizedWatches: WatchRow[] = await db
+      .select({
+        id: flightWatches.id,
+        user_id: flightWatches.userId,
+        origin: flightWatches.origin,
+        destination: flightWatches.destination,
+        cabin: flightWatches.cabin,
+        start_date: flightWatches.startDate,
+        end_date: flightWatches.endDate,
+        max_points: flightWatches.maxPoints,
+        last_checked_at: flightWatches.lastCheckedAt,
+        last_alert_key: flightWatches.lastAlertKey,
+        email: users.email,
+      })
+      .from(flightWatches)
+      .leftJoin(users, eq(users.id, flightWatches.userId))
+      .where(eq(flightWatches.isActive, true))
+      .orderBy(sql`${flightWatches.lastCheckedAt} asc nulls first`, asc(flightWatches.createdAt))
       .limit(200)
 
-    const normalizedWatches = ((watches ?? []) as unknown[])
-      .map(normalizeWatchRow)
-      .filter((watch): watch is WatchRow => watch !== null)
+    const touchWatch = (watchId: string, extra: Partial<typeof flightWatches.$inferInsert> = {}) =>
+      db
+        .update(flightWatches)
+        .set({ lastCheckedAt: new Date().toISOString(), ...extra })
+        .where(eq(flightWatches.id, watchId))
 
     if (!normalizedWatches.length) {
       return { message: 'No active watches to check' }
@@ -143,7 +125,7 @@ export const dealScout = inngest.createFunction(
 
     const results: Array<{
       watch_id: string
-      status: 'alerted' | 'no_match' | 'missing_balances' | 'missing_email' | 'send_disabled' | 'search_failed' | 'below_threshold'
+      status: 'alerted' | 'no_match' | 'missing_balances' | 'missing_email' | 'send_disabled' | 'search_failed' | 'below_threshold' | 'already_alerted'
       detail?: string
     }> = []
 
@@ -152,10 +134,7 @@ export const dealScout = inngest.createFunction(
       if (userBalances.length === 0) {
         results.push({ watch_id: watch.id, status: 'missing_balances' })
         await step.run(`update-watch-${watch.id}-missing_balances`, async () => {
-          await db
-            .from('flight_watches')
-            .update({ last_checked_at: new Date().toISOString() })
-            .eq('id', watch.id)
+          await touchWatch(watch.id)
         })
         continue
       }
@@ -163,6 +142,9 @@ export const dealScout = inngest.createFunction(
       const cabin = normalizeCabin(watch.cabin)
       if (!cabin) {
         results.push({ watch_id: watch.id, status: 'search_failed', detail: 'invalid_cabin' })
+        await step.run(`update-watch-${watch.id}-invalid_cabin`, async () => {
+          await touchWatch(watch.id)
+        })
         continue
       }
 
@@ -184,10 +166,7 @@ export const dealScout = inngest.createFunction(
       } catch {
         results.push({ watch_id: watch.id, status: 'search_failed' })
         await step.run(`update-watch-${watch.id}-search_failed`, async () => {
-          await db
-            .from('flight_watches')
-            .update({ last_checked_at: new Date().toISOString() })
-            .eq('id', watch.id)
+          await touchWatch(watch.id)
         })
         continue
       }
@@ -205,10 +184,7 @@ export const dealScout = inngest.createFunction(
       if (!bestDeal) {
         results.push({ watch_id: watch.id, status: 'no_match' })
         await step.run(`update-watch-${watch.id}-no_match`, async () => {
-          await db
-            .from('flight_watches')
-            .update({ last_checked_at: new Date().toISOString() })
-            .eq('id', watch.id)
+          await touchWatch(watch.id)
         })
         continue
       }
@@ -217,15 +193,22 @@ export const dealScout = inngest.createFunction(
       if (dealScore.rating === 'fair' || dealScore.rating === 'poor') {
         results.push({ watch_id: watch.id, status: 'below_threshold', detail: dealScore.rating })
         await step.run(`update-watch-${watch.id}-below_threshold`, async () => {
-          await db
-            .from('flight_watches')
-            .update({ last_checked_at: new Date().toISOString() })
-            .eq('id', watch.id)
+          await touchWatch(watch.id)
         })
         continue
       }
 
-      const userEmail = getWatchEmail(watch.users)
+      const alertKey = dealAlertKey(bestDeal)
+      if (watch.last_alert_key === alertKey) {
+        results.push({ watch_id: watch.id, status: 'already_alerted' })
+        await step.run(`update-watch-${watch.id}-already_alerted`, async () => {
+          await touchWatch(watch.id)
+        })
+        continue
+      }
+
+      const userEmail = watch.email?.includes('@') ? watch.email : null
+      let alerted = false
       if (!userEmail) {
         results.push({ watch_id: watch.id, status: 'missing_email' })
       } else if (!canSendEmail || !resend) {
@@ -249,14 +232,15 @@ export const dealScout = inngest.createFunction(
             `,
           })
         })
+        alerted = true
         results.push({ watch_id: watch.id, status: 'alerted' })
       }
 
       await step.run(`update-watch-${watch.id}-success`, async () => {
-        await db
-          .from('flight_watches')
-          .update({ last_checked_at: new Date().toISOString() })
-          .eq('id', watch.id)
+        await touchWatch(
+          watch.id,
+          alerted ? { lastAlertKey: alertKey, lastAlertedAt: new Date().toISOString() } : {},
+        )
       })
     }
 
@@ -274,21 +258,6 @@ export const dealScout = inngest.createFunction(
 function normalizeCabin(value: string): CabinClass | null {
   if (value === 'economy' || value === 'premium_economy' || value === 'business' || value === 'first') {
     return value
-  }
-  return null
-}
-
-function getWatchEmail(value: unknown): string | null {
-  if (value && typeof value === 'object' && 'email' in value) {
-    const email = (value as { email?: unknown }).email
-    return typeof email === 'string' && email.includes('@') ? email : null
-  }
-  if (Array.isArray(value) && value.length > 0) {
-    const first = value[0]
-    if (first && typeof first === 'object' && 'email' in first) {
-      const email = (first as { email?: unknown }).email
-      return typeof email === 'string' && email.includes('@') ? email : null
-    }
   }
   return null
 }

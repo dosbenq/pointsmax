@@ -1,41 +1,27 @@
 import { NextResponse } from 'next/server'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
-import { createAdminClient } from '@/lib/supabase'
+import { desc, eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { programs as programsTable, transferBonuses, transferPartners } from '@/lib/db/schema'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
-
-type ProgramRow = {
-  id: string
-  name: string
-  short_name: string
-}
-
-type PartnerRow = {
-  id: string
-  from_program_id: string
-  to_program_id: string
-}
-
-type BonusRow = {
-  transfer_partner_id: string
-  [key: string]: unknown
-}
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-
-  const [bonusesRes, partnersRes, programsRes] = await Promise.all([
-    db.from('transfer_bonuses').select('*').order('start_date', { ascending: false }),
-    db.from('transfer_partners')
-      .select('id, from_program_id, to_program_id')
-      .eq('is_active', true),
-    db.from('programs').select('id, name, short_name').eq('is_active', true),
+  const db = getDb()
+  const [bonusRows, partnerRows, programs] = await Promise.all([
+    db.select(columnsOf(transferBonuses)).from(transferBonuses).orderBy(desc(transferBonuses.startDate)),
+    db.select({
+      id: transferPartners.id,
+      from_program_id: transferPartners.fromProgramId,
+      to_program_id: transferPartners.toProgramId,
+    }).from(transferPartners).where(eq(transferPartners.isActive, true)),
+    db.select({ id: programsTable.id, name: programsTable.name, short_name: programsTable.shortName })
+      .from(programsTable)
+      .where(eq(programsTable.isActive, true)),
   ])
-
-  const programs = (programsRes.data ?? []) as ProgramRow[]
-  const partnerRows = (partnersRes.data ?? []) as PartnerRow[]
   const partners = partnerRows.map(p => ({
     id: p.id,
     from_program_id: p.from_program_id,
@@ -46,7 +32,7 @@ export async function GET(req: Request) {
       programs.find(prog => prog.id === p.to_program_id)?.name ?? 'Unknown',
   }))
 
-  const bonuses = ((bonusesRes.data ?? []) as BonusRow[]).map(bonus => {
+  const bonuses = bonusRows.map(bonus => {
     const partner = partners.find(p => p.id === bonus.transfer_partner_id)
     return {
       ...bonus,
@@ -90,24 +76,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'bonus_pct must be a positive number' }, { status: 400 })
   }
 
-  const db = createAdminClient()
-
-  // TODO: Generate Supabase types to replace this cast
-  const { error } = await db.from('transfer_bonuses').insert({
-    transfer_partner_id,
-    bonus_pct: parsedBonusPct,
-    start_date,
-    end_date,
-    source_url: source_url || null,
-    notes: notes || null,
-    verified: true,
-    is_verified: true,
-    active: true,
-    auto_detected: false,
-  } as never)
-
-  if (error) {
-    console.error('admin_bonuses_insert_failed', { error: error.message })
+  try {
+    await getDb().insert(transferBonuses).values({
+      transferPartnerId: transfer_partner_id,
+      bonusPct: Math.round(parsedBonusPct),
+      startDate: start_date,
+      endDate: end_date,
+      sourceUrl: source_url || null,
+      notes: notes || null,
+      verified: true,
+      isVerified: true,
+      active: true,
+      autoDetected: false,
+    })
+  } catch (error) {
+    console.error('admin_bonuses_insert_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 

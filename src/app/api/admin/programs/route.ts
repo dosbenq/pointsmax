@@ -1,31 +1,20 @@
 import { NextResponse } from 'next/server'
 import { CATALOG_MANAGED_RESPONSE } from '@/lib/catalog'
-import { createAdminClient } from '@/lib/supabase'
+import { asc } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { latestValuations, programs as programsTable } from '@/lib/db/schema'
 import { requireAdmin } from '@/lib/admin-auth'
-
-type ProgramRow = {
-  id: string
-  [key: string]: unknown
-}
-
-type LatestValuationRow = {
-  program_id: string
-  [key: string]: unknown
-}
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-
-  const [{ data: programs }, { data: valuations }] = await Promise.all([
-    db.from('programs').select('*').order('display_order'),
-    db.from('latest_valuations').select('*'),
+  const db = getDb()
+  const [programRows, valuationRows] = await Promise.all([
+    db.select(columnsOf(programsTable)).from(programsTable).orderBy(asc(programsTable.displayOrder)),
+    db.select(columnsOf(latestValuations)).from(latestValuations),
   ])
-
-  const programRows = (programs ?? []) as ProgramRow[]
-  const valuationRows = (valuations ?? []) as LatestValuationRow[]
 
   const result = programRows.map(p => ({
     ...p,

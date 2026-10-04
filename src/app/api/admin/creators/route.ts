@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { desc, eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { creators } from '@/lib/db/schema'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 import { logError } from '@/lib/logger'
 
@@ -19,18 +22,13 @@ export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-  const { data, error } = await db
-    .from('creators')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    logError('admin_creators_list_failed', { error: error.message })
+  try {
+    const rows = await getDb().select(columnsOf(creators)).from(creators).orderBy(desc(creators.createdAt))
+    return NextResponse.json({ creators: rows })
+  } catch (error) {
+    logError('admin_creators_list_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ creators: data ?? [] })
 }
 
 export async function POST(req: Request) {
@@ -52,14 +50,10 @@ export async function POST(req: Request) {
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
   if (!slug) return NextResponse.json({ error: 'slug is required (letters, numbers, hyphen)' }, { status: 400 })
 
-  const db = createAdminClient()
+  const db = getDb()
 
   // Check slug uniqueness before creating
-  const { data: existing } = await db
-    .from('creators')
-    .select('id')
-    .eq('slug', slug)
-    .maybeSingle()
+  const [existing] = await db.select({ id: creators.id }).from(creators).where(eq(creators.slug, slug)).limit(1)
 
   if (existing) {
     return NextResponse.json(
@@ -68,16 +62,10 @@ export async function POST(req: Request) {
     )
   }
 
-  // TODO: Generate Supabase types to replace this cast
-  const { error } = await db.from('creators').insert({
-    name,
-    slug,
-    platform,
-    profile_url: profileUrl,
-  } as never)
-
-  if (error) {
-    logError('admin_creator_create_failed', { error: error.message, slug })
+  try {
+    await db.insert(creators).values({ name, slug, platform, profileUrl })
+  } catch (error) {
+    logError('admin_creator_create_failed', { error: error instanceof Error ? error.message : String(error), slug })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 

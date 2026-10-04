@@ -187,6 +187,8 @@ export const users = pgTable("users", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	authId: uuid("auth_id").references((): AnyPgColumn => authUser.id, { onDelete: "cascade" }),
 	lastSeenAt: timestamp("last_seen_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// Timestamp of the Stripe event that last set `tier`; older events are ignored.
+	tierUpdatedAt: timestamp("tier_updated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_users_last_seen_at").on(table.lastSeenAt.desc()),
 	unique("users_email_key").on(table.email),
@@ -268,6 +270,9 @@ export const flightWatches = pgTable("flight_watches", {
 	isActive: boolean("is_active").default(true).notNull(),
 	lastCheckedAt: timestamp("last_checked_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	// Identifies the last deal emailed for this watch so the same deal is not re-sent every hour.
+	lastAlertKey: text("last_alert_key"),
+	lastAlertedAt: timestamp("last_alerted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_flight_watches_active").on(table.isActive).where(sql`(is_active = true)`),
 	index("idx_flight_watches_user_id").on(table.userId),

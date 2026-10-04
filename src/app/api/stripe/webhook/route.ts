@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { and, eq, isNull, lte, or } from 'drizzle-orm'
+import { getDb, type Database } from '@/lib/db/client'
+import { creatorConversions, stripeWebhookEvents, subscriptionEvents, users } from '@/lib/db/schema'
 import { getStripeWebhookSecret, verifyStripeWebhookSignature } from '@/lib/stripe'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 
@@ -8,6 +10,7 @@ export const runtime = 'nodejs'
 type StripeEvent = {
   id: string
   type: string
+  created?: number
   data?: {
     object?: Record<string, unknown>
   }
@@ -26,7 +29,7 @@ function isPremiumSubscriptionStatus(status: string | null): boolean {
 }
 
 async function insertSubscriptionEvent(
-  db: ReturnType<typeof createAdminClient>,
+  db: Database,
   event: {
     userId?: string | null
     stripeCustomerId?: string | null
@@ -36,25 +39,33 @@ async function insertSubscriptionEvent(
     metadata?: Record<string, unknown>
   },
 ) {
-  await db.from('subscription_events').insert({
-    user_id: event.userId ?? null,
-    stripe_customer_id: event.stripeCustomerId ?? null,
-    event_type: event.eventType,
-    previous_tier: event.previousTier ?? null,
-    new_tier: event.newTier ?? null,
+  await db.insert(subscriptionEvents).values({
+    userId: event.userId ?? null,
+    stripeCustomerId: event.stripeCustomerId ?? null,
+    eventType: event.eventType,
+    previousTier: event.previousTier ?? null,
+    newTier: event.newTier ?? null,
     metadata: event.metadata ?? null,
   })
 }
 
 async function insertCreatorConversion(
-  db: ReturnType<typeof createAdminClient>,
+  db: Database,
   input: { creatorSlug: string; userId: string | null; revenueUsd?: number | null },
 ) {
-  await db.from('creator_conversions').insert({
-    creator_slug: input.creatorSlug,
-    user_id: input.userId,
-    revenue_usd: input.revenueUsd ?? 999,
+  await db.insert(creatorConversions).values({
+    creatorSlug: input.creatorSlug,
+    userId: input.userId,
+    revenueUsd: input.revenueUsd ?? 999,
   })
+}
+
+/** When the Stripe event happened (event.created), falling back to the object. */
+function eventTimestamp(event: StripeEvent, object: Record<string, unknown>): string {
+  const seconds = typeof event.created === 'number'
+    ? event.created
+    : typeof object.created === 'number' ? object.created : Date.now() / 1000
+  return new Date(seconds * 1000).toISOString()
 }
 
 export async function POST(req: NextRequest) {
@@ -88,25 +99,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const db = createAdminClient()
-    const { error: idempotencyError } = await db
-      .from('stripe_webhook_events')
-      .insert({
-        stripe_event_id: event.id,
-        event_type: event.type,
-        raw_payload: event as unknown as Record<string, unknown>,
-      })
-
-    if (idempotencyError) {
-      if (idempotencyError.code === '23505') {
+    const db = getDb()
+    try {
+      const recorded = await db
+        .insert(stripeWebhookEvents)
+        .values({
+          stripeEventId: event.id,
+          eventType: event.type,
+          rawPayload: event as unknown as Record<string, unknown>,
+        })
+        .onConflictDoNothing({ target: stripeWebhookEvents.stripeEventId })
+        .returning({ id: stripeWebhookEvents.stripeEventId })
+      if (recorded.length === 0) {
         logInfo('stripe_webhook_duplicate_skipped', { requestId, event_id: event.id })
         return NextResponse.json({ received: true })
       }
-
+    } catch (idempotencyError) {
       logWarn('stripe_webhook_idempotency_insert_failed', {
         requestId,
         event_id: event.id,
-        error: idempotencyError.message,
+        error: idempotencyError instanceof Error ? idempotencyError.message : String(idempotencyError),
         degraded_safety: true,
       })
     }
@@ -134,20 +146,17 @@ export async function POST(req: NextRequest) {
       const refSlug = getString(metadata.ref_slug)
 
       if (userId) {
-        const { data: existingUserRow } = await db
-          .from('users')
-          .select('tier')
-          .eq('id', userId)
-          .single()
+        const [existingUserRow] = await db.select({ tier: users.tier }).from(users).where(eq(users.id, userId)).limit(1)
         const previousTier = existingUserRow?.tier === 'premium' ? 'premium' : 'free'
 
         await db
-          .from('users')
-          .update({
+          .update(users)
+          .set({
             tier: 'premium',
-            stripe_customer_id: customerId ?? undefined,
+            tierUpdatedAt: eventTimestamp(event, object),
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
           })
-          .eq('id', userId)
+          .where(eq(users.id, userId))
 
         await insertSubscriptionEvent(db, {
           userId,
@@ -159,11 +168,20 @@ export async function POST(req: NextRequest) {
         })
 
         if (refSlug) {
-          await insertCreatorConversion(db, {
-            creatorSlug: refSlug,
-            userId,
-            revenueUsd: 999,
-          })
+          // Attribution is best-effort: an unknown creator slug must not fail the upgrade.
+          try {
+            await insertCreatorConversion(db, {
+              creatorSlug: refSlug,
+              userId,
+              revenueUsd: 999,
+            })
+          } catch (conversionError) {
+            logWarn('stripe_webhook_creator_conversion_failed', {
+              requestId,
+              ref_slug: refSlug,
+              error: conversionError instanceof Error ? conversionError.message : String(conversionError),
+            })
+          }
         }
 
         logInfo('stripe_webhook_checkout_completed', { requestId, user_id: userId })
@@ -183,18 +201,14 @@ export async function POST(req: NextRequest) {
       }
 
       const status = getString(object.status)
-      const { data: existingUserRow } = await db
-        .from('users')
-        .select('id, tier, updated_at')
-        .eq('stripe_customer_id', customerId)
-        .single()
-      const existingUser =
-        existingUserRow && typeof existingUserRow.id === 'string'
-          ? {
-              id: existingUserRow.id,
-              tier: existingUserRow.tier === 'premium' ? 'premium' : 'free',
-            }
-          : null
+      const [existingUserRow] = await db
+        .select({ id: users.id, tier: users.tier })
+        .from(users)
+        .where(eq(users.stripeCustomerId, customerId))
+        .limit(1)
+      const existingUser = existingUserRow
+        ? { id: existingUserRow.id, tier: existingUserRow.tier === 'premium' ? 'premium' : 'free' }
+        : null
 
       const nextTier =
         event.type === 'customer.subscription.deleted'
@@ -204,22 +218,22 @@ export async function POST(req: NextRequest) {
             : 'free'
 
       if (existingUser) {
-        // Only update if our event is newer than the last update (optimistic locking)
-        const eventTimestamp = new Date((object.created as number) * 1000).toISOString()
-        const { error: updateError } = await db
-          .from('users')
-          .update({
-            tier: nextTier,
-            updated_at: eventTimestamp,
-          })
-          .eq('id', existingUser.id)
-          .lte('updated_at', eventTimestamp)
-
-        if (updateError) {
+        // Ignore events older than the one that last set the tier (Stripe can
+        // deliver out of order).
+        const eventAt = eventTimestamp(event, object)
+        try {
+          await db
+            .update(users)
+            .set({ tier: nextTier, tierUpdatedAt: eventAt })
+            .where(and(
+              eq(users.id, existingUser.id),
+              or(isNull(users.tierUpdatedAt), lte(users.tierUpdatedAt, eventAt)),
+            ))
+        } catch (updateError) {
           logWarn('stripe_webhook_tier_update_failed', {
             requestId,
             customer_id: customerId,
-            error: updateError.message,
+            error: updateError instanceof Error ? updateError.message : String(updateError),
           })
         }
       }

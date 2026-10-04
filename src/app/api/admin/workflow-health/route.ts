@@ -2,7 +2,10 @@ import crypto from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 import { getConfiguredKnowledgeChannelUrl, getKnowledgeChannelLabel } from '@/lib/knowledge/channel-ingest'
-import { createAdminClient } from '@/lib/supabase'
+import { desc, eq, type SQL } from 'drizzle-orm'
+import type { PgTable } from 'drizzle-orm/pg-core'
+import { getDb } from '@/lib/db/client'
+import { adminAuditLog, flightWatches, knowledgeDocs } from '@/lib/db/schema'
 import { inngest } from '@/lib/inngest/client'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 
@@ -109,12 +112,19 @@ function mapEventIds(result: unknown): string[] {
     .filter(Boolean)
 }
 
+async function countRows(table: PgTable, where?: SQL): Promise<WatchCountResult> {
+  try {
+    return { count: await getDb().$count(table, where), error: null }
+  } catch (error) {
+    return { count: null, error: { message: error instanceof Error ? error.message : String(error) } }
+  }
+}
+
 export async function GET(req: NextRequest) {
   const requestId = getRequestId(req)
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
   const statuses = getConfigStatuses()
   const authBranding = getAuthBrandingStatus()
   const knowledgeChannel = getKnowledgeChannelStatus()
@@ -130,28 +140,17 @@ export async function GET(req: NextRequest) {
 
   const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [totalRes, activeRes, knowledgeRes, auditRes] = await Promise.all([
-    db.from('flight_watches').select('id', { count: 'exact', head: true }),
-    db.from('flight_watches').select('id', { count: 'exact', head: true }).eq('is_active', true),
-    db.from('knowledge_docs').select('id', { count: 'exact', head: true }),
-    db.from('admin_audit_log')
-      .select('created_at, action')
-      .order('created_at', { ascending: false })
-      .limit(200),
+  const [totalResult, activeResult, knowledgeResult, auditRows] = await Promise.all([
+    countRows(flightWatches),
+    countRows(flightWatches, eq(flightWatches.isActive, true)),
+    countRows(knowledgeDocs),
+    getDb()
+      .select({ created_at: adminAuditLog.createdAt, action: adminAuditLog.action })
+      .from(adminAuditLog)
+      .orderBy(desc(adminAuditLog.createdAt))
+      .limit(200)
+      .catch((): AuditLogRow[] => []),
   ])
-
-  const totalResult = totalRes as WatchCountResult
-  const activeResult = activeRes as WatchCountResult
-  const knowledgeResult = knowledgeRes as WatchCountResult
-  const auditRows: AuditLogRow[] = Array.isArray(auditRes.data)
-    ? auditRes.data.filter(
-      (row): row is AuditLogRow =>
-        !!row
-        && typeof row === 'object'
-        && typeof (row as { action?: unknown }).action === 'string'
-        && typeof (row as { created_at?: unknown }).created_at === 'string',
-    )
-    : []
 
   if (!totalResult.error && !activeResult.error) {
     flightWatchesReady = true

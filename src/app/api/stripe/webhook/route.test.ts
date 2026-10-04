@@ -1,239 +1,128 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { getStripeWebhookSecret, verifyStripeWebhookSignature } from '@/lib/stripe'
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: vi.fn(),
-}))
+import { setDbForTesting } from '@/lib/db/client'
+import { creatorConversions, creators, stripeWebhookEvents, subscriptionEvents, users } from '@/lib/db/schema'
+import { verifyStripeWebhookSignature } from '@/lib/stripe'
+import { createTestDb, seedUser, type SeededUser, type TestDb } from '@/test/utils/test-db'
+import { POST } from './route'
 
 vi.mock('@/lib/stripe', () => ({
   getStripeWebhookSecret: vi.fn().mockReturnValue('whsec_test'),
   verifyStripeWebhookSignature: vi.fn().mockReturnValue(true),
 }))
 
-type MockUser = {
-  id: string
-  tier: 'free' | 'premium'
-  stripe_customer_id: string | null
-  updated_at?: string
+let db: TestDb
+let pat: SeededUser
+
+function stripeEvent(type: string, object: Record<string, unknown>, id: string, created?: number) {
+  return { id, type, ...(created ? { created } : {}), data: { object } }
 }
 
-type MockState = {
-  processedEventIds: Set<string>
-  usersById: Map<string, MockUser>
-  subscriptionEvents: Array<Record<string, unknown>>
-  creatorConversions: Array<Record<string, unknown>>
-  updates: Array<Record<string, unknown>>
-}
-
-function buildStripeEvent(type: string, object: Record<string, unknown>, id = 'evt_test_1') {
-  return {
-    id,
-    type,
-    data: {
-      object,
-    },
-  }
-}
-
-function makeRequest(event: Record<string, unknown>) {
-  return new NextRequest('https://pointsmax.com/api/stripe/webhook', {
+function send(event: Record<string, unknown>) {
+  return POST(new NextRequest('https://pointsmax.com/api/stripe/webhook', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'stripe-signature': 't=123,v1=sig',
-    },
+    headers: { 'content-type': 'application/json', 'stripe-signature': 't=123,v1=sig' },
     body: JSON.stringify(event),
-  })
+  }))
 }
 
-function findUserByCustomer(state: MockState, customerId: string) {
-  for (const user of state.usersById.values()) {
-    if (user.stripe_customer_id === customerId) return user
-  }
-  return null
-}
+const tierOf = async (userId: string) =>
+  (await db.select({ tier: users.tier }).from(users).where(eq(users.id, userId)))[0]?.tier
 
-function createDbMock(state: MockState) {
-  return {
-    from(table: string) {
-      return {
-        insert(payload: Record<string, unknown>) {
-          if (table === 'stripe_webhook_events') {
-            const eventId = String(payload.stripe_event_id)
-            if (state.processedEventIds.has(eventId)) {
-              return Promise.resolve({ error: { code: '23505', message: 'duplicate key' } })
-            }
-            state.processedEventIds.add(eventId)
-            return Promise.resolve({ error: null })
-          }
+beforeEach(async () => {
+  vi.clearAllMocks()
+  vi.mocked(verifyStripeWebhookSignature).mockReturnValue(true)
+  db = await createTestDb()
+  setDbForTesting(db)
+  pat = await seedUser(db, 'pat')
+  await db.insert(creators).values({ slug: 'greatmiles', name: 'Great Miles', platform: 'youtube' })
+})
 
-          if (table === 'subscription_events') {
-            state.subscriptionEvents.push(payload)
-            return Promise.resolve({ error: null })
-          }
-
-          if (table === 'creator_conversions') {
-            state.creatorConversions.push(payload)
-            return Promise.resolve({ error: null })
-          }
-
-          return Promise.resolve({ error: null })
-        },
-        update(payload: Record<string, unknown>) {
-          return {
-            eq(column: string, value: string) {
-              state.updates.push({ table, payload, column, value })
-              let matchedUser: MockUser | null = null
-              if (table === 'users') {
-                if (column === 'id') {
-                  matchedUser = state.usersById.get(value) ?? null
-                } else if (column === 'stripe_customer_id') {
-                  matchedUser = findUserByCustomer(state, value)
-                }
-              }
-              const applyUpdate = () => {
-                if (matchedUser) Object.assign(matchedUser, payload)
-              }
-              return {
-                lte(_col: string, _val: string) {
-                  // Optimistic locking: always apply in tests
-                  applyUpdate()
-                  return Promise.resolve({ error: null })
-                },
-                then(resolve: (v: { error: null }) => void) {
-                  applyUpdate()
-                  return Promise.resolve({ error: null }).then(resolve)
-                },
-              }
-            },
-          }
-        },
-        select() {
-          return {
-            eq(column: string, value: string) {
-              return {
-                single: async () => {
-                  if (table !== 'users') {
-                    return { data: null, error: null }
-                  }
-
-                  if (column === 'id') {
-                    return { data: state.usersById.get(value) ?? null, error: null }
-                  }
-
-                  if (column === 'stripe_customer_id') {
-                    return { data: findUserByCustomer(state, value), error: null }
-                  }
-
-                  return { data: null, error: null }
-                },
-              }
-            },
-          }
-        },
-      }
-    },
-  }
-}
-
-const { POST } = await import('./route')
+afterAll(() => setDbForTesting(null))
 
 describe('POST /api/stripe/webhook', () => {
-  let state: MockState
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    state = {
-      processedEventIds: new Set(),
-      usersById: new Map([
-        ['user-1', { id: 'user-1', tier: 'free', stripe_customer_id: null, updated_at: '2020-01-01T00:00:00.000Z' }],
-        ['user-2', { id: 'user-2', tier: 'premium', stripe_customer_id: 'cus_premium', updated_at: '2020-01-01T00:00:00.000Z' }],
-      ]),
-      subscriptionEvents: [],
-      creatorConversions: [],
-      updates: [],
-    }
-    vi.mocked(createAdminClient).mockReturnValue(createDbMock(state) as never)
-    vi.mocked(getStripeWebhookSecret).mockReturnValue('whsec_test')
-    vi.mocked(verifyStripeWebhookSignature).mockReturnValue(true)
-  })
-
-  it('upgrades a user on checkout.session.completed', async () => {
-    const res = await POST(makeRequest(buildStripeEvent('checkout.session.completed', {
+  it('upgrades a user on checkout.session.completed and records the creator conversion', async () => {
+    const res = await send(stripeEvent('checkout.session.completed', {
       mode: 'subscription',
-      customer: 'cus_new',
-      client_reference_id: 'user-1',
-      metadata: { user_id: 'user-1', ref_slug: 'creator-a' },
-    })))
+      customer: 'cus_123',
+      metadata: { user_id: pat.userId, ref_slug: 'greatmiles' },
+    }, 'evt_1', 1_790_000_000))
 
     expect(res.status).toBe(200)
-    expect(state.usersById.get('user-1')?.tier).toBe('premium')
-    expect(state.usersById.get('user-1')?.stripe_customer_id).toBe('cus_new')
-    expect(state.subscriptionEvents).toHaveLength(1)
-    expect(state.subscriptionEvents[0].event_type).toBe('checkout.session.completed')
-    expect(state.creatorConversions).toHaveLength(1)
-    expect(state.creatorConversions[0].creator_slug).toBe('creator-a')
+    const [row] = await db.select().from(users).where(eq(users.id, pat.userId))
+    expect(row).toMatchObject({ tier: 'premium', stripeCustomerId: 'cus_123' })
+    expect(await db.select().from(subscriptionEvents)).toEqual([
+      expect.objectContaining({ eventType: 'checkout.session.completed', previousTier: 'free', newTier: 'premium' }),
+    ])
+    expect(await db.select().from(creatorConversions)).toEqual([
+      expect.objectContaining({ creatorSlug: 'greatmiles', userId: pat.userId }),
+    ])
   })
 
-  it('downgrades a user on customer.subscription.deleted', async () => {
-    const res = await POST(makeRequest(buildStripeEvent('customer.subscription.deleted', {
-      customer: 'cus_premium',
-      status: 'canceled',
-      created: Math.floor(Date.now() / 1000),
-    }, 'evt_sub_deleted')))
+  it('still upgrades the user when the creator ref slug is unknown', async () => {
+    const res = await send(stripeEvent('checkout.session.completed', {
+      mode: 'subscription',
+      customer: 'cus_456',
+      metadata: { user_id: pat.userId, ref_slug: 'no-such-creator' },
+    }, 'evt_unknown_ref', 1_790_000_000))
 
     expect(res.status).toBe(200)
-    expect(state.usersById.get('user-2')?.tier).toBe('free')
-    expect(state.subscriptionEvents).toHaveLength(1)
-    expect(state.subscriptionEvents[0].event_type).toBe('customer.subscription.deleted')
+    expect(await tierOf(pat.userId)).toBe('premium')
+    expect(await db.select().from(creatorConversions)).toEqual([])
+  })
+
+  it('downgrades a user on customer.subscription.deleted (previously never happened)', async () => {
+    await db.update(users).set({ tier: 'premium', stripeCustomerId: 'cus_123' }).where(eq(users.id, pat.userId))
+
+    const res = await send(stripeEvent('customer.subscription.deleted', {
+      customer: 'cus_123', status: 'canceled', created: 1_780_000_000,
+    }, 'evt_2', 1_790_000_100))
+
+    expect(res.status).toBe(200)
+    expect(await tierOf(pat.userId)).toBe('free')
+    expect(await db.select().from(subscriptionEvents)).toEqual([
+      expect.objectContaining({ userId: pat.userId, previousTier: 'premium', newTier: 'free' }),
+    ])
+  })
+
+  it('ignores an older subscription event delivered after a newer one', async () => {
+    await db.update(users).set({ stripeCustomerId: 'cus_123' }).where(eq(users.id, pat.userId))
+    const sub = { customer: 'cus_123', created: 1_780_000_000 }
+
+    await send(stripeEvent('customer.subscription.deleted', { ...sub, status: 'canceled' }, 'evt_new', 1_790_000_200))
+    await send(stripeEvent('customer.subscription.updated', { ...sub, status: 'active' }, 'evt_old', 1_790_000_100))
+
+    expect(await tierOf(pat.userId)).toBe('free')
   })
 
   it('skips duplicate event ids without reprocessing', async () => {
-    const event = buildStripeEvent('checkout.session.completed', {
-      mode: 'subscription',
-      customer: 'cus_new',
-      client_reference_id: 'user-1',
-      metadata: { user_id: 'user-1' },
-    }, 'evt_duplicate')
+    const event = stripeEvent('checkout.session.completed', {
+      mode: 'subscription', customer: 'cus_123', metadata: { user_id: pat.userId, ref_slug: 'greatmiles' },
+    }, 'evt_dup')
+    await send(event)
+    await send(event)
 
-    const first = await POST(makeRequest(event))
-    const second = await POST(makeRequest(event))
-
-    expect(first.status).toBe(200)
-    expect(second.status).toBe(200)
-    expect(state.subscriptionEvents).toHaveLength(1)
-    expect(state.updates).toHaveLength(1)
+    expect(await db.select().from(stripeWebhookEvents)).toHaveLength(1)
+    expect(await db.select().from(creatorConversions)).toHaveLength(1)
+    expect(await db.select().from(subscriptionEvents)).toHaveLength(1)
   })
 
   it('logs invoice.payment_failed without changing the user tier', async () => {
-    const res = await POST(makeRequest(buildStripeEvent('invoice.payment_failed', {
-      id: 'in_123',
-      customer: 'cus_premium',
-      amount_due: 999,
-      billing_reason: 'subscription_cycle',
-    }, 'evt_invoice_failed')))
+    await db.update(users).set({ tier: 'premium', stripeCustomerId: 'cus_123' }).where(eq(users.id, pat.userId))
+    await send(stripeEvent('invoice.payment_failed', { id: 'in_1', customer: 'cus_123', amount_due: 999 }, 'evt_inv'))
 
-    expect(res.status).toBe(200)
-    expect(state.usersById.get('user-2')?.tier).toBe('premium')
-    expect(state.subscriptionEvents).toHaveLength(1)
-    expect(state.subscriptionEvents[0].event_type).toBe('invoice.payment_failed')
-    expect(state.updates).toHaveLength(0)
+    expect(await tierOf(pat.userId)).toBe('premium')
+    expect(await db.select().from(subscriptionEvents)).toEqual([
+      expect.objectContaining({ eventType: 'invoice.payment_failed', stripeCustomerId: 'cus_123' }),
+    ])
   })
 
   it('rejects invalid signatures before any db writes', async () => {
     vi.mocked(verifyStripeWebhookSignature).mockReturnValue(false)
-
-    const res = await POST(makeRequest(buildStripeEvent('checkout.session.completed', {
-      mode: 'subscription',
-      customer: 'cus_new',
-      metadata: { user_id: 'user-1' },
-    })))
-
+    const res = await send(stripeEvent('checkout.session.completed', { mode: 'subscription' }, 'evt_bad'))
     expect(res.status).toBe(400)
-    expect(state.subscriptionEvents).toHaveLength(0)
-    expect(state.updates).toHaveLength(0)
-    expect(state.processedEventIds.size).toBe(0)
+    expect(await db.select().from(stripeWebhookEvents)).toHaveLength(0)
   })
 })

@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `931d253`
+- Git commit: `63223c2`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **41**
-- API routes: **62**
-- Supabase migrations: **66**
-- Test files: **110**
+- API routes: **61**
+- Supabase migrations: **68**
+- Test files: **113**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **42**
@@ -119,7 +119,6 @@
 | `/api/stripe/create-checkout` | `UNKNOWN` | `src/app/api/stripe/create-checkout/route.ts` |
 | `/api/stripe/portal` | `POST` | `src/app/api/stripe/portal/route.ts` |
 | `/api/stripe/webhook` | `POST` | `src/app/api/stripe/webhook/route.ts` |
-| `/api/test` | `GET` | `src/app/api/test/route.ts` |
 | `/api/trip-builder` | `POST` | `src/app/api/trip-builder/route.ts` |
 | `/api/trips/share` | `POST` | `src/app/api/trips/share/route.ts` |
 | `/api/user/account` | `DELETE` | `src/app/api/user/account/route.ts` |
@@ -201,6 +200,8 @@
 | 63 | `063_catalog_sync_support.sql` |
 | 64 | `064_active_bonuses_verified_only.sql` |
 | 65 | `065_affiliate_click_context.sql` |
+| 66 | `066_users_tier_updated_at.sql` |
+| 67 | `067_flight_watches_last_alert.sql` |
 
 ## 5. Integrations and Environment Variables
 
@@ -451,10 +452,13 @@
 | `src/lib/formatters.test.ts` |
 | `src/lib/hotel-search/chart-provider.test.ts` |
 | `src/lib/idempotency.test.ts` |
+| `src/lib/inngest/functions/deal-scout.test.ts` |
+| `src/lib/inngest/functions/onboarding-drip.test.ts` |
 | `src/lib/inngest/functions/onboarding-emails.test.ts` |
 | `src/lib/inngest/functions/transfer-bonus-monitor.test.ts` |
 | `src/lib/inngest/functions/weekly-digest.test.ts` |
 | `src/lib/jsonld-sanitize.test.ts` |
+| `src/lib/knowledge/search.test.ts` |
 | `src/lib/knowledge/youtube.test.ts` |
 | `src/lib/portfolio-health.test.ts` |
 | `src/lib/programmatic-content.db.test.ts` |
@@ -483,7 +487,7 @@
 | `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 1025 |
 | `src/app/profile/page.tsx` | 1023 |
 | `src/components/ConnectedWallets.test.tsx` | 931 |
-| `src/lib/db/schema.ts` | 894 |
+| `src/lib/db/schema.ts` | 899 |
 | `src/app/[region]/card-recommender/page.tsx` | 877 |
 | `src/app/api/ai/recommend/route.ts` | 819 |
 | `src/app/[region]/calculator/page.tsx` | 769 |

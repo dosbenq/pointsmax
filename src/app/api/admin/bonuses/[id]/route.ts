@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { transferBonuses } from '@/lib/db/schema'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
 export async function DELETE(
@@ -10,11 +12,10 @@ export async function DELETE(
   if (authError) return authError
 
   const { id } = await context.params
-  const db = createAdminClient()
-
-  const { error } = await db.from('transfer_bonuses').delete().eq('id', id)
-  if (error) {
-    console.error('admin_bonus_delete_failed', { bonus_id: id, error: error.message })
+  try {
+    await getDb().delete(transferBonuses).where(eq(transferBonuses.id, id))
+  } catch (error) {
+    console.error('admin_bonus_delete_failed', { bonus_id: id, error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   await logAdminAction('bonus.delete', id, {}, adminEmail!)
@@ -45,23 +46,18 @@ export async function PATCH(
     return NextResponse.json({ error: 'action must be verify or reject' }, { status: 400 })
   }
 
-  const db = createAdminClient()
-  const update =
-    action === 'verify'
-      ? { verified: true, is_verified: true, active: true }
-      : { verified: false, is_verified: false, active: false }
-
-  const { error } = await db
-    .from('transfer_bonuses')
-    // TODO: Generate Supabase types to replace this cast
-    .update(update as never)
-    .eq('id', id)
-  if (error) {
-    console.error('admin_bonus_update_failed', { bonus_id: id, action, error: error.message })
+  const verified = action === 'verify'
+  try {
+    await getDb()
+      .update(transferBonuses)
+      .set({ verified, isVerified: verified, active: verified })
+      .where(eq(transferBonuses.id, id))
+  } catch (error) {
+    console.error('admin_bonus_update_failed', { bonus_id: id, action, error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  await logAdminAction(`bonus.${action}`, id, update as Record<string, unknown>, adminEmail!)
+  await logAdminAction(`bonus.${action}`, id, { verified, is_verified: verified, active: verified }, adminEmail!)
 
   return NextResponse.json({ ok: true, action })
 }

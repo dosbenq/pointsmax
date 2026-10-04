@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
+import { asc, desc, eq, inArray } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { activeBonuses, inspirationRoutes, userBalances, userPreferences, users } from '@/lib/db/schema'
 import { calculateRedemptions } from '@/lib/calculate'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { renderEmail } from '@/lib/email-render'
@@ -57,38 +59,35 @@ export const weeklyDigest = inngest.createFunction(
       return { ok: false, skipped: true, reason: 'resend_not_configured' }
     }
 
-    const db = createAdminClient()
+    const db = getDb()
     const resend = new Resend(resendKey)
     const appOrigin = getConfiguredAppOrigin()
 
-    type EligibleRow = {
-      user_id: string
-      home_airport: string | null
-      digest_email_enabled: boolean | null
-      users: DigestUserRow
-    }
-
     // Only fetch users who have digest enabled
-    const { data: rawEligibleUsers } = await db
-      .from('user_preferences')
-      .select('user_id, home_airport, digest_email_enabled, users!inner(id, email)')
-      .eq('digest_email_enabled', true)
+    const eligibleUsers = await db
+      .select({
+        user_id: userPreferences.userId,
+        home_airport: userPreferences.homeAirport,
+        digest_email_enabled: userPreferences.digestEmailEnabled,
+        email: users.email,
+      })
+      .from(userPreferences)
+      .innerJoin(users, eq(users.id, userPreferences.userId))
+      .where(eq(userPreferences.digestEmailEnabled, true))
       .limit(500)
-
-    const eligibleUsers = (rawEligibleUsers ?? []) as unknown as EligibleRow[]
 
     // Then fetch balances only for eligible users
     const eligibleUserIds = eligibleUsers.map((u) => u.user_id)
 
-    const { data: balancesData } = eligibleUserIds.length > 0
+    const balancesData: BalanceRow[] = eligibleUserIds.length > 0
       ? await db
-          .from('user_balances')
-          .select('user_id, program_id, balance')
-          .in('user_id', eligibleUserIds)
-      : { data: [] as BalanceRow[] }
+          .select({ user_id: userBalances.userId, program_id: userBalances.programId, balance: userBalances.balance })
+          .from(userBalances)
+          .where(inArray(userBalances.userId, eligibleUserIds))
+      : []
 
     const balancesByUserId = new Map<string, BalanceRow[]>()
-    for (const balance of ((balancesData ?? []) as BalanceRow[])) {
+    for (const balance of balancesData) {
       const list = balancesByUserId.get(balance.user_id) ?? []
       list.push(balance)
       balancesByUserId.set(balance.user_id, list)
@@ -96,9 +95,7 @@ export const weeklyDigest = inngest.createFunction(
 
     let sent = 0
     for (const row of eligibleUsers) {
-      const userRel = row.users
-      if (!userRel) continue
-      const user: DigestUserRow = { id: userRel.id, email: userRel.email }
+      const user: DigestUserRow = { id: row.user_id, email: row.email }
       const prefs: PreferenceRow = { user_id: row.user_id, home_airport: row.home_airport, digest_email_enabled: row.digest_email_enabled }
 
       const balances = (balancesByUserId.get(user.id) ?? []).filter((row) => row.balance > 0)
@@ -114,24 +111,33 @@ export const weeklyDigest = inngest.createFunction(
       })
 
       const programIds = balances.map((row) => row.program_id)
-      const [{ data: bonusesData }, { data: inspirationData }] = await Promise.all([
+      const [bonusesData, inspirationData] = await Promise.all([
         db
-          .from('active_bonuses')
-          .select('bonus_pct, from_program_name, from_program_id, to_program_name')
-          .in('from_program_id', programIds)
-          .order('bonus_pct', { ascending: false })
+          .select({
+            bonus_pct: activeBonuses.bonusPct,
+            from_program_name: activeBonuses.fromProgramName,
+            from_program_id: activeBonuses.fromProgramId,
+            to_program_name: activeBonuses.toProgramName,
+          })
+          .from(activeBonuses)
+          .where(inArray(activeBonuses.fromProgramId, programIds))
+          .orderBy(desc(activeBonuses.bonusPct))
           .limit(3),
         db
-          .from('inspiration_routes')
-          .select('headline, destination_label, miles_required, cpp_cents')
-          .eq('region', inferRegion(prefs?.home_airport))
-          .order('is_featured', { ascending: false })
-          .order('display_order', { ascending: true })
+          .select({
+            headline: inspirationRoutes.headline,
+            destination_label: inspirationRoutes.destinationLabel,
+            miles_required: inspirationRoutes.milesRequired,
+            cpp_cents: inspirationRoutes.cppCents,
+          })
+          .from(inspirationRoutes)
+          .where(eq(inspirationRoutes.region, inferRegion(prefs?.home_airport)))
+          .orderBy(desc(inspirationRoutes.isFeatured), asc(inspirationRoutes.displayOrder))
           .limit(1),
       ])
 
-      const bonuses = summarizeBonuses((bonusesData ?? []) as BonusRow[])
-      const route = ((inspirationData ?? []) as InspirationRouteRow[])[0]
+      const bonuses = summarizeBonuses(bonusesData as BonusRow[])
+      const route: InspirationRouteRow | undefined = inspirationData[0]
       const featuredRoute = route
         ? `${route.headline} to ${route.destination_label} for ${route.miles_required.toLocaleString()} miles (${route.cpp_cents.toFixed(1)}¢/pt)`
         : 'A featured award sweet spot is waiting in the planner.'

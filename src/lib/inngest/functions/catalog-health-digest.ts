@@ -1,7 +1,6 @@
 import { Resend } from 'resend'
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
-import { buildCatalogHealthReport } from '@/lib/catalog-health'
+import { loadCatalogHealthReport } from '@/lib/catalog-health-data'
 
 export const catalogHealthDigest = inngest.createFunction(
   { id: 'catalog-health-digest', name: 'Agent: Catalog Health Digest' },
@@ -14,20 +13,7 @@ export const catalogHealthDigest = inngest.createFunction(
       return { ok: false, skipped: true, reason: 'email_not_configured' }
     }
 
-    const db = createAdminClient()
-    const [cardsRes, ratesRes] = await Promise.all([
-      db.from('cards').select('*').eq('is_active', true),
-      db.from('card_earning_rates').select('card_id, earn_multiplier'),
-    ])
-
-    if (cardsRes.error || ratesRes.error) {
-      throw new Error(cardsRes.error?.message ?? ratesRes.error?.message ?? 'Failed to load catalog health')
-    }
-
-    const report = buildCatalogHealthReport(
-      (cardsRes.data ?? []) as Record<string, unknown>[],
-      ((ratesRes.data ?? []) as Array<{ card_id: string; earn_multiplier: number | string | null }>),
-    )
+    const report = await loadCatalogHealthReport()
 
     const resend = new Resend(resendKey)
     await step.run('send-admin-catalog-health-email', async () => {

@@ -1,22 +1,29 @@
 import { NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { desc, eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { users } from '@/lib/db/schema'
 import { logAdminAction, requireAdmin } from '@/lib/admin-auth'
 
 export async function GET(req: Request) {
   const { error: authError } = await requireAdmin(req)
   if (authError) return authError
 
-  const db = createAdminClient()
-  const { data, error } = await db
-    .from('users')
-    .select('id, email, tier, stripe_customer_id, created_at')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('admin_users_list_failed', { error: error.message })
+  try {
+    const rows = await getDb()
+      .select({
+        id: users.id,
+        email: users.email,
+        tier: users.tier,
+        stripe_customer_id: users.stripeCustomerId,
+        created_at: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.createdAt))
+    return NextResponse.json({ users: rows })
+  } catch (error) {
+    console.error('admin_users_list_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-  return NextResponse.json({ users: data ?? [] })
 }
 
 const VALID_TIERS = ['free', 'premium'] as const
@@ -37,12 +44,10 @@ export async function PATCH(request: Request) {
     )
   }
 
-  const db = createAdminClient()
-  // TODO: Generate Supabase types to replace this cast
-  const { error } = await db.from('users').update({ tier } as never).eq('id', user_id)
-
-  if (error) {
-    console.error('admin_users_update_failed', { error: error.message })
+  try {
+    await getDb().update(users).set({ tier }).where(eq(users.id, user_id))
+  } catch (error) {
+    console.error('admin_users_update_failed', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   await logAdminAction('user.tier_update', String(user_id), { tier }, adminEmail!)

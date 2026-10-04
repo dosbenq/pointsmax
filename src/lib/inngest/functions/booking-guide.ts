@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { inngest } from '../client'
-import { createAdminClient } from '@/lib/supabase'
+import { and, eq } from 'drizzle-orm'
+import { getDb, type Database } from '@/lib/db/client'
+import { bookingGuideSessions, bookingGuideSteps } from '@/lib/db/schema'
 import { getGeminiModelCandidatesForApiKey } from '@/lib/gemini-models'
 import { logError, logInfo, logWarn } from '@/lib/logger'
 import {
@@ -10,8 +12,24 @@ import {
 import {
   buildFallbackBookingSteps,
   parseBookingChecklist,
-  type BookingGuideSessionRow,
 } from '@/lib/booking-guide-store'
+
+type SessionPatch = Partial<typeof bookingGuideSessions.$inferInsert>
+type StepPatch = Partial<typeof bookingGuideSteps.$inferInsert>
+
+async function updateSession(db: Database, sessionId: string, patch: SessionPatch) {
+  await db
+    .update(bookingGuideSessions)
+    .set({ ...patch, updatedAt: patch.updatedAt ?? new Date().toISOString() })
+    .where(eq(bookingGuideSessions.id, sessionId))
+}
+
+async function updateStep(db: Database, sessionId: string, stepIndex: number, patch: StepPatch) {
+  await db
+    .update(bookingGuideSteps)
+    .set({ ...patch, updatedAt: patch.updatedAt ?? new Date().toISOString() })
+    .where(and(eq(bookingGuideSteps.sessionId, sessionId), eq(bookingGuideSteps.stepIndex, stepIndex)))
+}
 
 type BookingStartedEvent = {
   data: {
@@ -70,31 +88,22 @@ export const bookingGuide = inngest.createFunction(
       redemption_label,
       booking_context,
     } = (event as BookingStartedEvent).data
-    const db = createAdminClient()
+    const db = getDb()
 
-    const { data: sessionData } = await db
-      .from('booking_guide_sessions')
-      .select('id, user_id, redemption_label, status, current_step_index, total_steps, started_at, completed_at, last_error, created_at, updated_at')
-      .eq('id', session_id)
-      .maybeSingle()
+    const [session] = await db
+      .select({ id: bookingGuideSessions.id })
+      .from(bookingGuideSessions)
+      .where(eq(bookingGuideSessions.id, session_id))
+      .limit(1)
 
-    if (!sessionData) {
+    if (!session) {
       logWarn('booking_guide_session_missing', { session_id, user_id })
       return { message: 'Session not found' }
     }
 
-    const session = sessionData as unknown as BookingGuideSessionRow
-
     try {
       await step.run('mark-session-generating', async () => {
-        await db
-          .from('booking_guide_sessions')
-          .update({
-            status: 'generating',
-            last_error: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', session.id)
+        await updateSession(db, session.id, { status: 'generating', lastError: null })
       })
 
       const stepTitles = await step.run('generate-booking-checklist', async () => {
@@ -103,53 +112,34 @@ export const bookingGuide = inngest.createFunction(
 
       const createdAt = new Date().toISOString()
       const stepRows = stepTitles.map((title, index) => ({
-        session_id: session.id,
-        step_index: index,
+        sessionId: session.id,
+        stepIndex: index,
         title,
         status: index === 0 ? 'current' : 'pending',
-        completion_note: null,
-        completed_at: null,
-        created_at: createdAt,
-        updated_at: createdAt,
+        createdAt,
+        updatedAt: createdAt,
       }))
 
       await step.run('persist-booking-steps', async () => {
-        await db.from('booking_guide_steps').delete().eq('session_id', session.id)
-        if (stepRows.length > 0) {
-          await db.from('booking_guide_steps').insert(stepRows)
-        }
-        await db
-          .from('booking_guide_sessions')
-          .update({
+        await db.transaction(async (tx) => {
+          await tx.delete(bookingGuideSteps).where(eq(bookingGuideSteps.sessionId, session.id))
+          if (stepRows.length > 0) {
+            await tx.insert(bookingGuideSteps).values(stepRows)
+          }
+          await updateSession(tx, session.id, {
             status: 'active',
-            current_step_index: 0,
-            total_steps: stepRows.length,
-            updated_at: new Date().toISOString(),
+            currentStepIndex: 0,
+            totalSteps: stepRows.length,
           })
-          .eq('id', session.id)
+        })
       })
 
       for (let index = 0; index < stepRows.length; index += 1) {
         const currentStep = stepRows[index]
 
         await step.run(`activate-step-${index}`, async () => {
-          await db
-            .from('booking_guide_sessions')
-            .update({
-              status: 'active',
-              current_step_index: index,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', session.id)
-
-          await db
-            .from('booking_guide_steps')
-            .update({
-              status: 'current',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('session_id', session.id)
-            .eq('step_index', index)
+          await updateSession(db, session.id, { status: 'active', currentStepIndex: index })
+          await updateStep(db, session.id, index, { status: 'current' })
         })
 
         logInfo('booking_guide_step_ready', {
@@ -168,23 +158,12 @@ export const bookingGuide = inngest.createFunction(
         if (!completionEvent) {
           await step.run(`timeout-step-${index}`, async () => {
             const now = new Date().toISOString()
-            await db
-              .from('booking_guide_steps')
-              .update({
-                status: 'timed_out',
-                updated_at: now,
-              })
-              .eq('session_id', session.id)
-              .eq('step_index', index)
-
-            await db
-              .from('booking_guide_sessions')
-              .update({
-                status: 'timed_out',
-                last_error: 'Timed out waiting for user step completion',
-                updated_at: now,
-              })
-              .eq('id', session.id)
+            await updateStep(db, session.id, index, { status: 'timed_out', updatedAt: now })
+            await updateSession(db, session.id, {
+              status: 'timed_out',
+              lastError: 'Timed out waiting for user step completion',
+              updatedAt: now,
+            })
           })
 
           return { message: 'Booking guide timed out waiting for user input.' }
@@ -192,50 +171,32 @@ export const bookingGuide = inngest.createFunction(
 
         await step.run(`complete-step-${index}`, async () => {
           const now = new Date().toISOString()
-          await db
-            .from('booking_guide_steps')
-            .update({
-              status: 'completed',
-              completion_note: getCompletionNote(completionEvent as BookingCompletedEvent),
-              completed_at: now,
-              updated_at: now,
-            })
-            .eq('session_id', session.id)
-            .eq('step_index', index)
+          await updateStep(db, session.id, index, {
+            status: 'completed',
+            completionNote: getCompletionNote(completionEvent as BookingCompletedEvent),
+            completedAt: now,
+            updatedAt: now,
+          })
 
           if (index + 1 < stepRows.length) {
-            await db
-              .from('booking_guide_steps')
-              .update({
-                status: 'current',
-                updated_at: now,
-              })
-              .eq('session_id', session.id)
-              .eq('step_index', index + 1)
+            await updateStep(db, session.id, index + 1, { status: 'current', updatedAt: now })
           } else {
-            await db
-              .from('booking_guide_sessions')
-              .update({
-                status: 'completed',
-                current_step_index: index,
-                completed_at: now,
-                updated_at: now,
-              })
-              .eq('id', session.id)
+            await updateSession(db, session.id, {
+              status: 'completed',
+              currentStepIndex: index,
+              completedAt: now,
+              updatedAt: now,
+            })
           }
         })
       }
 
       return { message: 'Booking complete! Enjoy your trip.' }
     } catch (error) {
-      await db
-        .from('booking_guide_sessions')
-        .update({
-          status: 'failed',
-          last_error: error instanceof Error ? error.message : String(error),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', session.id)
+      await updateSession(db, session.id, {
+        status: 'failed',
+        lastError: error instanceof Error ? error.message : String(error),
+      })
 
       logError('booking_guide_failed', {
         session_id: session.id,

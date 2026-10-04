@@ -1,12 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+// @vitest-environment node
+import { afterAll, describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from './route'
 import { NextRequest } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
 import { requireAdmin } from '@/lib/admin-auth'
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: vi.fn(),
-}))
+import { setDbForTesting } from '@/lib/db/client'
+import { adminAuditLog, flightWatches, knowledgeDocs } from '@/lib/db/schema'
+import { createTestDb, seedUser, type TestDb } from '@/test/utils/test-db'
 
 vi.mock('@/lib/admin-auth', () => ({
   requireAdmin: vi.fn(),
@@ -26,62 +25,30 @@ vi.mock('@/lib/inngest/client', () => ({
 }))
 
 describe('Workflow Health API', () => {
-  const makeCountQuery = (count: number) => {
-    const result = Promise.resolve({ count, data: [], error: null })
-    return {
-      eq: vi.fn().mockResolvedValue({ count, data: [], error: null }),
-      then: result.then.bind(result),
-      catch: result.catch.bind(result),
-      finally: result.finally.bind(result),
-    }
-  }
+  let db: TestDb
 
-  const mockDb = {
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-  }
-
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     vi.mocked(requireAdmin).mockResolvedValue({ error: null, adminEmail: 'admin@test.com' })
-    vi.mocked(createAdminClient).mockReturnValue(mockDb as never)
+    db = await createTestDb()
+    setDbForTesting(db)
   })
+
+  afterAll(() => setDbForTesting(null))
 
   it('GET returns new health fields', async () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project-ref.supabase.co'
 
-    mockDb.from.mockImplementation((table: string) => {
-      if (table === 'admin_audit_log') {
-        return {
-          select: vi.fn().mockReturnThis(),
-          order: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue({
-            data: [
-              { action: 'workflow.healthcheck_trigger', created_at: new Date().toISOString() },
-              { action: 'workflow.error', created_at: new Date().toISOString() },
-            ],
-            error: null,
-          }),
-        }
-      }
-      if (table === 'flight_watches') {
-        return {
-          select: vi.fn().mockImplementation(() => makeCountQuery(10)),
-        }
-      }
-      if (table === 'knowledge_docs') {
-        return {
-          select: vi.fn().mockImplementation(() => makeCountQuery(4)),
-        }
-      }
-      return {
-        select: vi.fn().mockResolvedValue({ count: 0, data: [], error: null }),
-        eq: vi.fn().mockReturnThis(),
-      }
-    })
+    const pat = await seedUser(db, 'pat')
+    await db.insert(flightWatches).values([
+      { userId: pat.userId, origin: 'JFK', destination: 'CDG', startDate: '2026-11-01', endDate: '2026-11-30' },
+      { userId: pat.userId, origin: 'JFK', destination: 'LHR', startDate: '2026-11-01', endDate: '2026-11-30', isActive: false },
+    ])
+    await db.insert(knowledgeDocs).values({ sourceId: 's', sourceUrl: 'https://x', title: 't', content: 'c', contentHash: 'h' })
+    await db.insert(adminAuditLog).values([
+      { adminEmail: 'admin@test.com', action: 'workflow.healthcheck_trigger' },
+      { adminEmail: 'admin@test.com', action: 'workflow.error' },
+    ])
 
     const req = new NextRequest('http://localhost/api/admin/workflow-health')
     const res = await GET(req)
@@ -90,6 +57,7 @@ describe('Workflow Health API', () => {
     expect(res.status).toBe(200)
     expect(data.workflow).toHaveProperty('failed_runs_24h')
     expect(data.workflow.failed_runs_24h).toBe(1) // workflow.error
+    expect(data.db).toMatchObject({ total_watches: 2, active_watches: 1, knowledge_docs_count: 1, errors: [] })
     expect(data.workflow).toHaveProperty('last_success_at')
     expect(data.auth_branding).toEqual(expect.objectContaining({
       configured: true,
