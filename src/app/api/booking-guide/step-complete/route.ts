@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, eq } from 'drizzle-orm'
+import { getAuthContext } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { bookingGuideSessions, bookingGuideSteps } from '@/lib/db/schema'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { inngest } from '@/lib/inngest/client'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
@@ -11,22 +15,6 @@ const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 type Body = {
   session_id?: unknown
   note?: unknown
-}
-
-async function getAuthenticatedUser() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { authUserId: null, profileId: null }
-
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  return { authUserId: user.id, profileId: userRow?.id ?? null }
 }
 
 export async function POST(req: NextRequest) {
@@ -41,7 +29,7 @@ export async function POST(req: NextRequest) {
   })
   if (rateLimitError) return rateLimitError
 
-  const auth = await getAuthenticatedUser()
+  const auth = await getAuthContext()
   if (!auth.authUserId || !auth.profileId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -62,35 +50,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'session_id is required and must be a valid UUID' }, { status: 400 })
   }
 
-  const supabase = await createSupabaseServerClient()
-  const { data: sessionData, error: sessionError } = await supabase
-    .from('booking_guide_sessions')
-    .select('id, user_id, redemption_label, status, current_step_index, total_steps, started_at, completed_at, last_error, created_at, updated_at')
-    .eq('id', sessionId)
-    .eq('user_id', auth.profileId)
-    .maybeSingle()
-
-  if (sessionError) {
+  let session: BookingGuideSessionRow | undefined
+  let currentStep: { id: string; step_index: number } | undefined
+  try {
+    const [sessionData] = await getDb()
+      .select(columnsOf(bookingGuideSessions))
+      .from(bookingGuideSessions)
+      .where(and(eq(bookingGuideSessions.id, sessionId), eq(bookingGuideSessions.userId, auth.profileId)))
+      .limit(1)
+    session = sessionData as unknown as BookingGuideSessionRow | undefined
+    if (session && session.status === 'active') {
+      ;[currentStep] = await getDb()
+        .select({ id: bookingGuideSteps.id, step_index: bookingGuideSteps.stepIndex })
+        .from(bookingGuideSteps)
+        .where(and(eq(bookingGuideSteps.sessionId, sessionId), eq(bookingGuideSteps.status, 'current')))
+        .limit(1)
+    }
+  } catch {
     return NextResponse.json({ error: 'Failed to load booking guide session' }, { status: 500 })
   }
-  if (!sessionData) {
+
+  if (!session) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   }
-
-  const session = sessionData as unknown as BookingGuideSessionRow
   if (session.status !== 'active') {
     return NextResponse.json({ error: `Session is ${session.status}` }, { status: 409 })
-  }
-
-  const { data: currentStep, error: stepError } = await supabase
-    .from('booking_guide_steps')
-    .select('id, step_index')
-    .eq('session_id', sessionId)
-    .eq('status', 'current')
-    .maybeSingle()
-
-  if (stepError) {
-    return NextResponse.json({ error: 'Failed to load current step' }, { status: 500 })
   }
   if (!currentStep) {
     return NextResponse.json({ error: 'No current step is available for completion' }, { status: 409 })
@@ -110,7 +94,7 @@ export async function POST(req: NextRequest) {
       data: {
         session_id: sessionId,
         user_id: auth.profileId,
-        step_index: (currentStep as { step_index?: number }).step_index ?? session.current_step_index,
+        step_index: currentStep.step_index ?? session.current_step_index,
         note,
         completed_at: new Date().toISOString(),
       },

@@ -232,6 +232,8 @@ export const affiliateClicks = pgTable("affiliate_clicks", {
 	creatorSlug: text("creator_slug"),
 	rank: integer(),
 	region: text(),
+	recommendationMode: text("recommendation_mode"),
+	programId: uuid("program_id"),
 }, (table) => [
 	index("idx_affiliate_clicks_card_source").on(table.cardId, table.sourcePage),
 	index("idx_affiliate_clicks_created_at").on(table.createdAt.desc()),

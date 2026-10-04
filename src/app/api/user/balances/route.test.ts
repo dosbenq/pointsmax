@@ -1,33 +1,64 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getSessionUser } from '@/lib/auth'
+import { setDbForTesting } from '@/lib/db/client'
+import { balanceSnapshots, connectedAccounts, userBalances } from '@/lib/db/schema'
+import { createTestDb, seedPrograms, seedUser, sessionFor, testId, type SeededUser, type TestDb } from '@/test/utils/test-db'
 import { GET, POST } from './route'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-vi.mock('@/lib/supabase-server')
+vi.mock('@/lib/auth', async (importOriginal) =>
+  (await import('@/test/utils/mock-auth')).mockAuthModule(importOriginal))
 
-const mockSupabase = {
-  auth: {
-    getUser: vi.fn(),
-  },
-  from: vi.fn(),
+let db: TestDb
+let user: SeededUser
+
+async function seedWallet() {
+  await db.insert(userBalances).values({
+    userId: user.userId,
+    programId: testId('chase-ur'),
+    balance: 120000,
+    updatedAt: '2026-03-06T11:30:00.000Z',
+  })
+  await db.insert(connectedAccounts).values({
+    id: testId('acct-1'),
+    userId: user.userId,
+    provider: 'amex',
+    tokenVaultRef: 'vault:1',
+    syncStatus: 'ok',
+    lastSyncedAt: '2026-03-06T11:00:00.000Z',
+  })
+  await db.insert(balanceSnapshots).values([
+    { connectedAccountId: testId('acct-1'), userId: user.userId, programId: testId('amex-mr'), balance: 90000, fetchedAt: '2026-03-06T10:00:00.000Z' },
+    // Older connector reading for Chase: the newer manual balance wins.
+    { connectedAccountId: testId('acct-1'), userId: user.userId, programId: testId('chase-ur'), balance: 100000, fetchedAt: '2026-03-06T09:00:00.000Z' },
+    { connectedAccountId: testId('acct-1'), userId: user.userId, programId: testId('air-india'), balance: 10000, fetchedAt: '2026-03-06T10:00:00.000Z' },
+  ])
 }
 
 describe('/api/user/balances', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
+    vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date('2026-03-06T12:00:00.000Z'))
-    vi.mocked(createSupabaseServerClient).mockResolvedValue(
-      mockSupabase as unknown as Awaited<ReturnType<typeof createSupabaseServerClient>>,
-    )
+    db = await createTestDb()
+    setDbForTesting(db)
+    await seedPrograms(db, [
+      { key: 'chase-ur', geography: 'US' },
+      { key: 'amex-mr', geography: 'US' },
+      { key: 'air-india', type: 'airline_miles', geography: 'IN' },
+    ])
+    user = await seedUser(db, 'pat')
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
+  afterAll(() => setDbForTesting(null))
+
   it('returns 401 when unauthenticated', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: null } })
+    vi.mocked(getSessionUser).mockResolvedValue(null)
 
     const res = await GET(new NextRequest('http://localhost/api/user/balances'))
 
@@ -36,252 +67,69 @@ describe('/api/user/balances', () => {
   })
 
   it('merges manual balances with latest connected snapshots and preserves metadata', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
-
-    mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: { id: 'user-1' } }),
-            }),
-          }),
-        }
-      }
-      if (table === 'user_balances') {
-        const userBalancesQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              {
-                user_id: 'user-1',
-                program_id: 'chase-ur',
-                balance: 120000,
-                updated_at: '2026-03-06T11:30:00.000Z',
-              },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(userBalancesQuery),
-        }
-      }
-      if (table === 'connected_accounts') {
-        const connectedAccountsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 'acct-1',
-                user_id: 'user-1',
-                status: 'active',
-                sync_status: 'ok',
-                last_synced_at: '2026-03-06T11:00:00.000Z',
-              },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(connectedAccountsQuery),
-        }
-      }
-      if (table === 'balance_snapshots') {
-        const balanceSnapshotsQuery = {
-          in: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'amex-mr',
-                  balance: 90000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'chase-ur',
-                  balance: 100000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T09:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(user))
+    await seedWallet()
 
     const res = await GET(new NextRequest('http://localhost/api/user/balances'))
     const body = await res.json()
 
     expect(res.status).toBe(200)
-    expect(body.balances).toHaveLength(2)
-
-    expect(body.balances).toContainEqual(
-      expect.objectContaining({
-        program_id: 'chase-ur',
-        balance: 120000,
-        source: 'manual',
-        connected_account_id: null,
-        sync_status: null,
-        confidence: 'high',
-        is_stale: false,
-      }),
-    )
-
-    expect(body.balances).toContainEqual(
-      expect.objectContaining({
-        program_id: 'amex-mr',
-        balance: 90000,
-        source: 'connector',
-        connected_account_id: 'acct-1',
-        sync_status: 'ok',
-        confidence: 'high',
-        is_stale: false,
-      }),
-    )
+    expect(body.balances).toHaveLength(3)
+    expect(body.balances).toContainEqual(expect.objectContaining({
+      program_id: testId('chase-ur'),
+      balance: 120000,
+      source: 'manual',
+      confidence: 'high',
+      connected_account_id: null,
+    }))
+    expect(body.balances).toContainEqual(expect.objectContaining({
+      program_id: testId('amex-mr'),
+      balance: 90000,
+      source: 'connector',
+      sync_status: 'ok',
+      connected_account_id: testId('acct-1'),
+    }))
   })
 
   it('filters unified balances by region when a region parameter is provided', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
-
-    mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: { id: 'user-1' } }),
-            }),
-          }),
-        }
-      }
-      if (table === 'user_balances') {
-        const userBalancesQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              {
-                user_id: 'user-1',
-                program_id: 'chase-ur',
-                balance: 120000,
-                updated_at: '2026-03-06T11:30:00.000Z',
-              },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(userBalancesQuery),
-        }
-      }
-      if (table === 'connected_accounts') {
-        const connectedAccountsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [{ id: 'acct-1', user_id: 'user-1', status: 'active', sync_status: 'ok', last_synced_at: null }],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(connectedAccountsQuery),
-        }
-      }
-      if (table === 'balance_snapshots') {
-        const balanceSnapshotsQuery = {
-          in: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'amex-mr',
-                  balance: 90000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'air-india',
-                  balance: 10000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
-        }
-      }
-      if (table === 'programs') {
-        const programsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              { id: 'air-india', geography: 'IN' },
-              { id: 'taj-innercircle', geography: 'global' },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(programsQuery),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(user))
+    await seedWallet()
 
     const res = await GET(new NextRequest('http://localhost/api/user/balances?region=IN'))
     const body = await res.json()
 
     expect(res.status).toBe(200)
     expect(body.balances).toEqual([
-      expect.objectContaining({
-        program_id: 'air-india',
-        source: 'connector',
-      }),
+      expect.objectContaining({ program_id: testId('air-india'), source: 'connector' }),
     ])
   })
 
-  it('accepts valid POST payloads unchanged', async () => {
-    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
+  it('upserts posted balances for the signed-in user only', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(user))
+    const other = await seedUser(db, 'other')
+    await db.insert(userBalances).values({ userId: other.userId, programId: testId('chase-ur'), balance: 5 })
 
-    const upsert = vi.fn().mockResolvedValue({ error: null })
-    mockSupabase.from.mockImplementation((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: { id: 'user-1' } }),
-            }),
-          }),
-        }
-      }
-      if (table === 'user_balances') {
-        return {
-          upsert,
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+    const post = (balance: number) => POST(new NextRequest('http://localhost/api/user/balances', {
+      method: 'POST',
+      body: JSON.stringify({ balances: [{ program_id: testId('chase-ur'), balance }] }),
+    }))
 
-    const res = await POST(
-      new NextRequest('http://localhost/api/user/balances', {
-        method: 'POST',
-        body: JSON.stringify({
-          balances: [{ program_id: 'chase-ur', balance: 12345 }],
-        }),
-      }),
-    )
+    expect((await post(12345)).status).toBe(200)
+    expect((await post(54321)).status).toBe(200)
 
-    expect(res.status).toBe(200)
-    expect(upsert).toHaveBeenCalled()
+    const rows = await db.select().from(userBalances)
+    expect(rows.map((r) => [r.userId, r.balance]).sort()).toEqual([
+      [other.userId, 5],
+      [user.userId, 54321],
+    ].sort())
+  })
+
+  it('rejects payloads without valid balances', async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(user))
+    const res = await POST(new NextRequest('http://localhost/api/user/balances', {
+      method: 'POST',
+      body: JSON.stringify({ balances: [{ program_id: 1, balance: 'x' }] }),
+    }))
+    expect(res.status).toBe(400)
   })
 })

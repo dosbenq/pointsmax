@@ -1,113 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { eq } from 'drizzle-orm'
+import { getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import {
+  affiliateClicks,
+  alertSubscriptions,
+  authUser,
+  creatorConversions,
+  flightWatches,
+  sharedTrips,
+  subscriptionEvents,
+  userBalances,
+  userPreferences,
+  users,
+} from '@/lib/db/schema'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 
-type UserRow = {
-  id: string
-}
-
+// DELETE /api/user/account — permanently deletes the signed-in user's data
+// and login, in one transaction (all or nothing).
 export async function DELETE(req: NextRequest) {
   const requestId = getRequestId(req)
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
   }
 
-  const db = createAdminClient()
-
   try {
-    const { data: userRow, error: userErr } = await db
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .maybeSingle()
+    await getDb().transaction(async (tx) => {
+      const [profile] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.authId, user.id))
+        .limit(1)
 
-    if (userErr) {
-      logError('account_delete_user_lookup_failed', {
-        requestId,
-        error: userErr.message,
-      })
-      return NextResponse.json({ error: 'Unable to delete account right now.' }, { status: 500 })
-    }
-
-    const internalUser = userRow as UserRow | null
-    if (internalUser) {
-      const internalId = internalUser.id
-
-      // Use sequential deletion with error tracking
-      const deletionSteps = [
-        { table: 'flight_watches', filter: { user_id: internalId } },
-        { table: 'alert_subscriptions', filter: { user_id: internalId } },
-        { table: 'user_balances', filter: { user_id: internalId } },
-        { table: 'shared_trips', filter: { created_by: internalId } },
-        { table: 'user_preferences', filter: { user_id: internalId } },
-      ] as const
-
-      const errors: string[] = []
-      for (const step of deletionSteps) {
-        const filterKey = Object.keys(step.filter)[0]
-        const filterVal = Object.values(step.filter)[0]
-        const { error } = await db
-          .from(step.table)
-          .delete()
-          .eq(filterKey, filterVal)
-        if (error) {
-          errors.push(`${step.table}: ${error.message}`)
-        }
+      if (profile) {
+        const internalId = profile.id
+        await tx.delete(flightWatches).where(eq(flightWatches.userId, internalId))
+        await tx.delete(alertSubscriptions).where(eq(alertSubscriptions.userId, internalId))
+        await tx.delete(userBalances).where(eq(userBalances.userId, internalId))
+        await tx.delete(sharedTrips).where(eq(sharedTrips.createdBy, internalId))
+        await tx.delete(userPreferences).where(eq(userPreferences.userId, internalId))
+        // Keep click analytics, billing history and creator attribution, but
+        // detach them from the person (these foreign keys do not cascade).
+        await tx.update(affiliateClicks).set({ userId: null }).where(eq(affiliateClicks.userId, internalId))
+        await tx.update(subscriptionEvents).set({ userId: null }).where(eq(subscriptionEvents.userId, internalId))
+        await tx.update(creatorConversions).set({ userId: null }).where(eq(creatorConversions.userId, internalId))
+        // Remaining user-owned rows (connectors, snapshots, booking guides…) cascade.
+        await tx.delete(users).where(eq(users.id, internalId))
+      } else {
+        logWarn('account_delete_missing_profile_row', { requestId, auth_user_id: user.id })
       }
 
-      // Nullify affiliate clicks rather than delete
-      const { error: clickErr } = await db
-        .from('affiliate_clicks')
-        .update({ user_id: null })
-        .eq('user_id', internalId)
-      if (clickErr) {
-        errors.push(`affiliate_clicks: ${clickErr.message}`)
-      }
-
-      if (errors.length > 0) {
-        logError('account_deletion_partial_failure', { requestId, userId: internalId, errors })
-        // Don't proceed with auth deletion if data cleanup had failures
-        return NextResponse.json(
-          { error: 'Account deletion partially failed. Please contact support.' },
-          { status: 500 }
-        )
-      }
-
-      const { error: deleteUserRowErr } = await db
-        .from('users')
-        .delete()
-        .eq('id', internalId)
-
-      if (deleteUserRowErr) {
-        logError('account_delete_user_row_failed', {
-          requestId,
-          error: deleteUserRowErr.message,
-        })
-        return NextResponse.json({ error: 'Unable to delete account right now.' }, { status: 500 })
-      }
-    } else {
-      logWarn('account_delete_missing_profile_row', { requestId, auth_user_id: user.id })
-    }
-
-    // Only delete auth user if all data cleanup succeeded
-    const { error: authDeleteErr } = await db.auth.admin.deleteUser(user.id)
-    if (authDeleteErr) {
-      logError('account_delete_auth_delete_failed', {
-        requestId,
-        error: authDeleteErr.message,
-      })
-      return NextResponse.json({ error: 'Unable to delete account right now.' }, { status: 500 })
-    }
+      // Removes sessions and linked Google accounts via cascade.
+      await tx.delete(authUser).where(eq(authUser.id, user.id))
+    })
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    logError('account_delete_unhandled_error', {
+    logError('account_delete_failed', {
       requestId,
       error: error instanceof Error ? error.message : String(error),
     })

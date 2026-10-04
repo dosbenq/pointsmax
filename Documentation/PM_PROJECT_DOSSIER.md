@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `249fb6a`
+- Git commit: `5505be5`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **41**
-- API routes: **60**
-- Supabase migrations: **65**
-- Test files: **109**
+- API routes: **62**
+- Supabase migrations: **66**
+- Test files: **113**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **42**
@@ -85,6 +85,7 @@
 | `/api/alerts/subscribe` | `POST` | `src/app/api/alerts/subscribe/route.ts` |
 | `/api/alerts/unsubscribe` | `GET` | `src/app/api/alerts/unsubscribe/route.ts` |
 | `/api/analytics/affiliate-click` | `POST, GET` | `src/app/api/analytics/affiliate-click/route.ts` |
+| `/api/auth/{...all}` | `GET, POST` | `src/app/api/auth/[...all]/route.ts` |
 | `/api/award-search/narrative` | `GET` | `src/app/api/award-search/narrative/route.ts` |
 | `/api/award-search/parse` | `POST` | `src/app/api/award-search/parse/route.ts` |
 | `/api/award-search` | `POST` | `src/app/api/award-search/route.ts` |
@@ -123,6 +124,7 @@
 | `/api/trips/share` | `POST` | `src/app/api/trips/share/route.ts` |
 | `/api/user/account` | `DELETE` | `src/app/api/user/account/route.ts` |
 | `/api/user/balances` | `GET, POST` | `src/app/api/user/balances/route.ts` |
+| `/api/user/me` | `GET` | `src/app/api/user/me/route.ts` |
 | `/api/user/ping` | `POST` | `src/app/api/user/ping/route.ts` |
 | `/api/user/preferences` | `GET, POST` | `src/app/api/user/preferences/route.ts` |
 | `/api/valuations` | `GET` | `src/app/api/valuations/route.ts` |
@@ -198,6 +200,7 @@
 | 62 | `062_fix_valuation_units_and_slugs.sql` |
 | 63 | `063_catalog_sync_support.sql` |
 | 64 | `064_active_bonuses_verified_only.sql` |
+| 65 | `065_affiliate_click_context.sql` |
 
 ## 5. Integrations and Environment Variables
 
@@ -207,7 +210,16 @@
 |---|---|
 | `DATABASE_URL` | Yes |
 
-### Supabase (being phased out: auth + remaining queries)
+### Authentication (Better Auth + Google)
+
+| Variable | Required |
+|---|---|
+| `BETTER_AUTH_SECRET` | Yes |
+| `BETTER_AUTH_URL` | Yes |
+| `GOOGLE_CLIENT_ID` | Yes |
+| `GOOGLE_CLIENT_SECRET` | Yes |
+
+### Supabase (being phased out: remaining queries)
 
 | Variable | Required |
 |---|---|
@@ -362,6 +374,7 @@
 | `src/app/api/ai/expert-chat/route.test.ts` |
 | `src/app/api/ai/idempotency-integration.test.ts` |
 | `src/app/api/ai/recommend/route.test.ts` |
+| `src/app/api/alerts/subscribe/route.test.ts` |
 | `src/app/api/analytics/affiliate-click/route.test.ts` |
 | `src/app/api/award-search/helpers.test.ts` |
 | `src/app/api/award-search/parse/route.test.ts` |
@@ -386,8 +399,10 @@
 | `src/app/api/flight-watches/route.test.ts` |
 | `src/app/api/health/route.test.ts` |
 | `src/app/api/hotel-search/route.test.ts` |
+| `src/app/api/onboarding/complete/route.test.ts` |
 | `src/app/api/stripe/webhook/route.test.ts` |
 | `src/app/api/trip-builder/route.test.ts` |
+| `src/app/api/user/account/route.test.ts` |
 | `src/app/api/user/balances/route.test.ts` |
 | `src/app/profile/page.test.tsx` |
 | `src/app/sitemap.test.ts` |
@@ -401,6 +416,7 @@
 | `src/lib/api-security.test.ts` |
 | `src/lib/app-origin.test.ts` |
 | `src/lib/auth-context.test.tsx` |
+| `src/lib/auth.integration.test.ts` |
 | `src/lib/award-search/award-charts.test.ts` |
 | `src/lib/award-search/cash-fare-provider.test.ts` |
 | `src/lib/award-search/reachable-wallet.test.ts` |
@@ -470,7 +486,7 @@
 | `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 1025 |
 | `src/app/profile/page.tsx` | 1023 |
 | `src/components/ConnectedWallets.test.tsx` | 931 |
-| `src/lib/db/schema.ts` | 892 |
+| `src/lib/db/schema.ts` | 894 |
 | `src/app/[region]/card-recommender/page.tsx` | 877 |
 | `src/app/api/ai/recommend/route.ts` | 819 |
 | `src/app/[region]/calculator/page.tsx` | 769 |

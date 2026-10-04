@@ -2,8 +2,9 @@ import crypto from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getSafeAppOrigin } from '@/lib/app-origin'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { sharedTrips } from '@/lib/db/schema'
 import { getRequestId, logError, logInfo } from '@/lib/logger'
 
 const MAX_BODY_BYTES = 120_000
@@ -45,35 +46,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'trip_data is required' }, { status: 400 })
   }
 
-  const db = createAdminClient()
   let createdBy: string | null = null
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: authData } = await supabase.auth.getUser()
-    const authUserId = authData.user?.id ?? null
-    if (authUserId) {
-      const { data: userRow } = await db
-        .from('users')
-        .select('id')
-        .eq('auth_id', authUserId)
-        .maybeSingle()
-      const maybeId = (userRow as { id?: unknown } | null)?.id
-      createdBy = typeof maybeId === 'string' ? maybeId : null
-    }
+    const user = await getSessionUser()
+    if (user) createdBy = await getUserRowId(user.id)
   } catch {
     createdBy = null
   }
 
   const id = newShareId()
-  const { error } = await db.from('shared_trips').insert({
-    id,
-    region,
-    trip_data: body.trip_data,
-    created_by: createdBy,
-  })
-
-  if (error) {
-    logError('trip_share_insert_failed', { requestId, error: error.message })
+  try {
+    await getDb().insert(sharedTrips).values({
+      id,
+      region,
+      tripData: body.trip_data,
+      createdBy,
+    })
+  } catch (error) {
+    logError('trip_share_insert_failed', { requestId, error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 

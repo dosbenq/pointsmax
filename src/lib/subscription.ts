@@ -1,5 +1,7 @@
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { eq } from 'drizzle-orm'
+import { getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { users } from '@/lib/db/schema'
 import { logError } from '@/lib/logger'
 import type { SubscriptionTier } from '@/types/database'
 
@@ -33,35 +35,30 @@ export async function getUserTier(userId?: string): Promise<SubscriptionTier> {
       const cached = getCachedTier(`user:${userId}`)
       if (cached) return cached
 
-      const admin = createAdminClient()
-      const { data } = await admin
-        .from('users')
-        .select('tier')
-        .eq('id', userId)
-        .single()
+      const [row] = await getDb()
+        .select({ tier: users.tier })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
 
-      const tier = data?.tier === 'premium' ? 'premium' : 'free'
+      const tier = row?.tier === 'premium' ? 'premium' : 'free'
       setCachedTier(`user:${userId}`, tier)
       return tier
     }
 
-    const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const user = await getSessionUser()
     if (!user) return 'free'
 
     const cached = getCachedTier(`auth:${user.id}`)
     if (cached) return cached
 
-    const { data } = await supabase
-      .from('users')
-      .select('tier')
-        .eq('auth_id', user.id)
-        .single()
+    const [row] = await getDb()
+      .select({ tier: users.tier })
+      .from(users)
+      .where(eq(users.authId, user.id))
+      .limit(1)
 
-    const tier = data?.tier === 'premium' ? 'premium' : 'free'
+    const tier = row?.tier === 'premium' ? 'premium' : 'free'
     setCachedTier(`auth:${user.id}`, tier)
     return tier
   } catch (err) {

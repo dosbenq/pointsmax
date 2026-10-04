@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, asc, desc, eq } from 'drizzle-orm'
+import { getAuthContext } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { bookingGuideSessions, bookingGuideSteps } from '@/lib/db/schema'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { inngest } from '@/lib/inngest/client'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
@@ -21,81 +25,60 @@ type Body = {
   booking_context?: unknown
 }
 
-async function getAuthenticatedUser() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { authUserId: null, profileId: null }
-
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  return { authUserId: user.id, profileId: userRow?.id ?? null }
-}
-
 function isSessionId(value: string): boolean {
   return SESSION_ID_RE.test(value)
 }
 
 export async function GET(req: NextRequest) {
-  const auth = await getAuthenticatedUser()
+  const auth = await getAuthContext()
   if (!auth.authUserId || !auth.profileId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createSupabaseServerClient()
   const { searchParams } = new URL(req.url)
   const sessionId = (searchParams.get('session_id') ?? '').trim()
+  const db = getDb()
 
   if (!sessionId) {
-    const { data, error } = await supabase
-      .from('booking_guide_sessions')
-      .select('id, redemption_label, status, current_step_index, total_steps, started_at, completed_at, last_error, created_at, updated_at')
-      .eq('user_id', auth.profileId)
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    if (error) {
+    try {
+      const sessions = await db
+        .select(columnsOf(bookingGuideSessions))
+        .from(bookingGuideSessions)
+        .where(eq(bookingGuideSessions.userId, auth.profileId))
+        .orderBy(desc(bookingGuideSessions.createdAt))
+        .limit(10)
+      return NextResponse.json({ sessions })
+    } catch {
       return NextResponse.json({ error: 'Failed to load booking guide sessions' }, { status: 500 })
     }
-
-    return NextResponse.json({ sessions: data ?? [] })
   }
 
   if (!isSessionId(sessionId)) {
     return NextResponse.json({ error: 'session_id must be a valid UUID' }, { status: 400 })
   }
 
-  const { data: sessionData, error: sessionError } = await supabase
-    .from('booking_guide_sessions')
-    .select('id, user_id, redemption_label, status, current_step_index, total_steps, started_at, completed_at, last_error, created_at, updated_at')
-    .eq('id', sessionId)
-    .eq('user_id', auth.profileId)
-    .maybeSingle()
-
-  if (sessionError) {
+  let sessionData: unknown
+  let stepsData: unknown[]
+  try {
+    ;[sessionData] = await db
+      .select(columnsOf(bookingGuideSessions))
+      .from(bookingGuideSessions)
+      .where(and(eq(bookingGuideSessions.id, sessionId), eq(bookingGuideSessions.userId, auth.profileId)))
+      .limit(1)
+    if (!sessionData) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+    stepsData = await db
+      .select(columnsOf(bookingGuideSteps))
+      .from(bookingGuideSteps)
+      .where(eq(bookingGuideSteps.sessionId, sessionId))
+      .orderBy(asc(bookingGuideSteps.stepIndex))
+  } catch {
     return NextResponse.json({ error: 'Failed to load booking guide session' }, { status: 500 })
-  }
-  if (!sessionData) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-  }
-
-  const { data: stepsData, error: stepsError } = await supabase
-    .from('booking_guide_steps')
-    .select('id, session_id, step_index, title, status, completion_note, completed_at, created_at, updated_at')
-    .eq('session_id', sessionId)
-    .order('step_index', { ascending: true })
-
-  if (stepsError) {
-    return NextResponse.json({ error: 'Failed to load booking guide steps' }, { status: 500 })
   }
 
   const session = sessionData as unknown as BookingGuideSessionRow
-  const steps = (stepsData ?? []) as unknown as BookingGuideStepRow[]
+  const steps = stepsData as unknown as BookingGuideStepRow[]
 
   return NextResponse.json({
     session,
@@ -116,7 +99,7 @@ export async function POST(req: NextRequest) {
   })
   if (rateLimitError) return rateLimitError
 
-  const auth = await getAuthenticatedUser()
+  const auth = await getAuthContext()
   if (!auth.authUserId || !auth.profileId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -145,24 +128,23 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const supabase = await createSupabaseServerClient()
-  const { data: sessionData, error: sessionError } = await supabase
-    .from('booking_guide_sessions')
-    .insert({
-      user_id: auth.profileId,
-      redemption_label: redemptionLabel,
-      status: 'pending',
-      current_step_index: 0,
-      total_steps: 0,
-    })
-    .select('id, user_id, redemption_label, status, current_step_index, total_steps, started_at, completed_at, last_error, created_at, updated_at')
-    .single()
-
-  if (sessionError || !sessionData) {
+  let sessionData: unknown
+  try {
+    ;[sessionData] = await getDb()
+      .insert(bookingGuideSessions)
+      .values({
+        userId: auth.profileId,
+        redemptionLabel,
+        status: 'pending',
+        currentStepIndex: 0,
+        totalSteps: 0,
+      })
+      .returning(columnsOf(bookingGuideSessions))
+  } catch (error) {
     logError('booking_guide_session_create_failed', {
       requestId,
       user_id: auth.profileId,
-      error: sessionError?.message ?? 'unknown',
+      error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({ error: 'Failed to create booking guide session' }, { status: 500 })
   }
@@ -189,14 +171,14 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, session, event_ids: eventIds })
   } catch (error) {
-    await supabase
-      .from('booking_guide_sessions')
-      .update({
+    await getDb()
+      .update(bookingGuideSessions)
+      .set({
         status: 'failed',
-        last_error: error instanceof Error ? error.message : String(error),
-        updated_at: new Date().toISOString(),
+        lastError: error instanceof Error ? error.message : String(error),
+        updatedAt: new Date().toISOString(),
       })
-      .eq('id', session.id)
+      .where(eq(bookingGuideSessions.id, session.id))
 
     logError('booking_guide_start_failed', {
       requestId,

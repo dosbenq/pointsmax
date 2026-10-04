@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from './supabase-server'
-import { createAdminClient } from './supabase'
+import { getSessionUser } from './auth'
+import { getDb } from './db/client'
+import { adminAuditLog } from './db/schema'
 import { enforceRateLimit } from './api-security'
 import { isServerAdminEmail } from './admin-emails'
 
@@ -19,14 +20,12 @@ export async function requireAdmin(req: Request): Promise<{ error: NextResponse 
   const rateLimitError = await enforceRateLimit(req, ADMIN_RATE_LIMIT)
   if (rateLimitError) return { error: rateLimitError }
 
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser(req.headers)
 
-  const emailVerified = Boolean(user?.email_confirmed_at)
-  if (!user || !emailVerified || !isServerAdminEmail(user.email)) {
+  if (!user || !user.emailVerified || !isServerAdminEmail(user.email)) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
-  return { error: null, adminEmail: user.email! }
+  return { error: null, adminEmail: user.email }
 }
 
 export async function logAdminAction(
@@ -36,13 +35,12 @@ export async function logAdminAction(
   adminEmail: string,
 ): Promise<void> {
   try {
-    const admin = createAdminClient()
-    await admin.from('admin_audit_log').insert({
-      admin_email: adminEmail,
+    await getDb().insert(adminAuditLog).values({
+      adminEmail,
       action,
-      target_id: targetId,
+      targetId,
       payload,
-    } as never)
+    })
   } catch (err) {
     console.error('[admin-audit] Failed to log action:', action, err)
   }

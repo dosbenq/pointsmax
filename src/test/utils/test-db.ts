@@ -78,3 +78,31 @@ export async function seedTransfer(
   })
   return id
 }
+
+export type SeededUser = { authId: string; userId: string; email: string }
+
+/** Create a Better Auth user plus the linked app profile row. */
+export async function seedUser(
+  db: TestDb,
+  key: string,
+  opts: { tier?: 'free' | 'premium'; email?: string } = {},
+): Promise<SeededUser> {
+  const email = opts.email ?? `${key}@example.com`
+  const authId = testId(`auth:${key}`)
+  const userId = testId(`user:${key}`)
+  await db.insert(schema.authUser).values({ id: authId, name: key, email, emailVerified: true })
+  await db.insert(schema.users).values({ id: userId, authId, email, tier: opts.tier ?? 'free' })
+  return { authId, userId, email }
+}
+
+/** The SessionUser getSessionUser() would return for a seeded user. */
+export function sessionFor(user: SeededUser) {
+  return {
+    id: user.authId,
+    email: user.email,
+    name: null,
+    image: null,
+    emailVerified: true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }
+}

@@ -1,29 +1,17 @@
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { sql } from 'drizzle-orm'
+import { getOrCreateUserRowId, getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { userBalances } from '@/lib/db/schema'
 import { NextRequest, NextResponse } from 'next/server'
 import { loadUnifiedBalancesByUser } from '@/lib/user-balances'
-
-async function getCurrentUserRowId(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  authId: string,
-): Promise<string | null> {
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authId)
-    .single()
-
-  const id = (userRecord as { id?: unknown } | null)?.id
-  return typeof id === 'string' ? id : null
-}
 
 // GET /api/user/balances — returns saved balances for current user
 // Query params: ?region=IN|US (optional, filters balances by program geography)
 export async function GET(request: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const userId = await getCurrentUserRowId(supabase, user.id)
+  const userId = await getUserRowId(user.id)
   if (!userId) return NextResponse.json({ balances: [] })
 
   // Get region filter from query params
@@ -32,7 +20,7 @@ export async function GET(request: NextRequest) {
   const region = regionRaw === 'US' || regionRaw === 'IN' ? regionRaw : null
 
   try {
-    const balancesByUser = await loadUnifiedBalancesByUser(supabase, [userId], region)
+    const balancesByUser = await loadUnifiedBalancesByUser([userId], region)
     return NextResponse.json({ balances: balancesByUser.get(userId) ?? [] })
   } catch (error) {
     console.error('user_unified_balances_fetch_failed', {
@@ -47,8 +35,7 @@ export async function GET(request: NextRequest) {
 // POST /api/user/balances — upserts balances for current user
 // Body: { balances: [{ program_id: string, balance: number }] }
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   let parsedBody: unknown
@@ -63,8 +50,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'balances must be an array' }, { status: 400 })
   }
 
-  const userId = await getCurrentUserRowId(supabase, user.id)
-  if (!userId) return NextResponse.json({ error: 'User record not found' }, { status: 404 })
+  const userId = await getOrCreateUserRowId(user)
 
   // Upsert each balance
   const rows = balances
@@ -74,10 +60,10 @@ export async function POST(req: NextRequest) {
       const numericBalance = Number(b.balance)
       if (!Number.isFinite(numericBalance)) return null
       return {
-        user_id: userId,
-        program_id: b.program_id,
+        userId,
+        programId: b.program_id,
         balance: numericBalance,
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }
     })
     .filter((row): row is NonNullable<typeof row> => row !== null)
@@ -86,12 +72,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No valid balances provided' }, { status: 400 })
   }
 
-  const { error } = await supabase
-    .from('user_balances')
-    .upsert(rows, { onConflict: 'user_id,program_id' })
-
-  if (error) {
-    console.error('user_balances_upsert_failed', { user_id: userId, error: error.message })
+  try {
+    await getDb()
+      .insert(userBalances)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [userBalances.userId, userBalances.programId],
+        set: { balance: sql`excluded.balance`, updatedAt: sql`excluded.updated_at` },
+      })
+  } catch (error) {
+    console.error('user_balances_upsert_failed', {
+      user_id: userId,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

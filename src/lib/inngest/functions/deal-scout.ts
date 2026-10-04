@@ -106,7 +106,7 @@ export const dealScout = inngest.createFunction(
 
     const uniqueUserIds = [...new Set(dueWatches.map((watch) => watch.user_id))]
     const balancesByUser = new Map<string, Array<{ program_id: string; amount: number }>>()
-    const unifiedBalancesByUser = await loadUnifiedBalancesByUser(db, uniqueUserIds)
+    const unifiedBalancesByUser = await loadUnifiedBalancesByUser(uniqueUserIds)
     for (const [userId, balances] of unifiedBalancesByUser.entries()) {
       balancesByUser.set(
         userId,

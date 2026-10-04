@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { affiliateClicks, cards, creators } from '@/lib/db/schema'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest } from '@/lib/error-utils'
 import { getSafeExternalUrl } from '@/lib/card-surfaces'
@@ -18,9 +20,6 @@ type Payload = {
   recommendation_mode?: unknown
 }
 
-type CreatorSlugRow = { slug: string }
-type CardRow = { id: string; apply_url: string | null }
-type UserIdRow = { id: string }
 
 function normalizeSourcePage(value: unknown): string {
   if (typeof value !== 'string') return 'unknown'
@@ -53,7 +52,6 @@ function normalizeCreatorSlug(value: string | null): string | null {
 }
 
 async function insertWithRetry(
-  db: ReturnType<typeof createAdminClient>,
   payload: {
     card_id: string
     user_id: string | null
@@ -68,11 +66,21 @@ async function insertWithRetry(
 ) {
   let lastError: Error | null = null
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await db.from('affiliate_clicks').insert(payload as never)
-    if (!result.error) {
+    try {
+      await getDb().insert(affiliateClicks).values({
+        cardId: payload.card_id,
+        userId: payload.user_id,
+        sourcePage: payload.source_page,
+        creatorSlug: payload.creator_slug,
+        rank: payload.rank,
+        region: payload.region,
+        recommendationMode: payload.recommendation_mode,
+        programId: payload.program_id,
+      })
       return { ok: true as const }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
     }
-    lastError = result.error
     if (attempt < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
     }
@@ -126,31 +134,36 @@ async function trackAndReturn(
     return badRequest('card_id is required')
   }
 
-  const db = createAdminClient()
+  const db = getDb()
   const creatorSlug = normalizeCreatorSlug(req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null)
   let resolvedCreatorSlug: string | null = null
   if (creatorSlug) {
-    const { data: creatorData } = await db
-      .from('creators')
-      .select('slug')
-      .eq('slug', creatorSlug)
-      .maybeSingle()
-    const creator = (creatorData ?? null) as CreatorSlugRow | null
+    const [creator] = await db
+      .select({ slug: creators.slug })
+      .from(creators)
+      .where(eq(creators.slug, creatorSlug))
+      .limit(1)
     resolvedCreatorSlug = creator?.slug ?? null
   }
-  const { data: cardData, error: cardErr } = await db
-    .from('cards')
-    .select('id, apply_url')
-    .eq('id', cardId)
-    .eq('is_active', true)
-    .single()
-  const card = (cardData ?? null) as CardRow | null
 
-  if (cardErr || !card) {
+  let card: { id: string; apply_url: string | null } | undefined
+  let cardError: string | null = null
+  try {
+    ;[card] = await db
+      .select({ id: cards.id, apply_url: cards.applyUrl })
+      .from(cards)
+      .where(and(eq(cards.id, cardId), eq(cards.isActive, true)))
+      .limit(1)
+  } catch (error) {
+    // e.g. card_id is not a UUID
+    cardError = error instanceof Error ? error.message : String(error)
+  }
+
+  if (!card) {
     logWarn('affiliate_click_unknown_card', {
       requestId,
       card_id: cardId,
-      error: cardErr?.message ?? null,
+      error: cardError,
     })
     return badRequest('Unknown card_id')
   }
@@ -162,23 +175,13 @@ async function trackAndReturn(
 
   let userId: string | null = null
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: authData } = await supabase.auth.getUser()
-    const authUserId = authData.user?.id ?? null
-    if (authUserId) {
-      const { data: userRowData } = await db
-        .from('users')
-        .select('id')
-        .eq('auth_id', authUserId)
-        .single()
-      const userRow = (userRowData ?? null) as UserIdRow | null
-      userId = userRow?.id ?? null
-    }
+    const user = await getSessionUser(req.headers)
+    if (user) userId = await getUserRowId(user.id)
   } catch {
     userId = null
   }
 
-  const insertResult = await insertWithRetry(db, {
+  const insertResult = await insertWithRetry({
     card_id: cardId,
     user_id: userId,
     source_page: sourcePage,
