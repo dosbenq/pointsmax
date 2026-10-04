@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
+import { formatValuationsForPrompt } from '@/lib/catalog'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { createServerDbClient } from '@/lib/supabase'
@@ -628,20 +629,9 @@ export async function POST(req: NextRequest) {
 
 Today's date: ${todayDate}${preferencesContext}
 
-CURRENT POINT VALUATIONS (TPG April 2026, refreshed daily from our database):
-  - Chase UR: 2.05 cents per point
-  - Amex MR: 2.00 cents per point
-  - Bilt Rewards: 2.20 cents per point (highest value transferable currency)
-  - Capital One Miles: 1.85 cents per point
-  - Citi ThankYou: 1.90 cents per point
-  - United MileagePlus: 1.35 cents per mile
-  - Delta SkyMiles: 1.20 cents per mile
-  - American AAdvantage: 1.60 cents per mile
-  - Southwest Rapid Rewards: 1.25 cents per point
-  - World of Hyatt: 1.70 cents per point
-  - Marriott Bonvoy: 0.75 cents per point
-  - Hilton Honors: 0.40 cents per point
-Use these valuations when advising the user. Always cite the source as "TPG April 2026".
+CURRENT POINT VALUATIONS (PointsMax catalog; each value shows when it was last reviewed):
+${formatValuationsForPrompt(region)}
+Use these valuations when advising the user. Cite them as "PointsMax valuations" with the review month.
 
 USER'S POINTS BALANCES:
 ${balanceSummary}
@@ -652,7 +642,7 @@ ${partnerSummary}
 PRE-CALCULATED REDEMPTION VALUES (in ${currencyUnit}):
 ${topValueSummary}
 
-PROGRAM CPP REFERENCE (live DB values — use these when available, they override the general table above):
+PROGRAM CPP REFERENCE (database values for the user's programmes):
 ${programCppSummary}
 
 REGION CONTEXT:
@@ -711,8 +701,6 @@ When recommending:
     "confidence": "low | medium | high"
   }
 }
-Current point valuations (TPG April 2026): Chase UR 2.05¢, Amex MR 2.00¢, Bilt 2.20¢ (highest), Capital One 1.85¢, Citi TY 1.90¢, United 1.35¢ (down from 1.5), Delta 1.20¢, AA 1.60¢, Hyatt 1.70¢ (best hotel), Marriott 0.75¢, Hilton 0.40¢ (down from 0.5). Always reference these when advising on point values.
-
 Set flight or hotel to null if not relevant. Include 2-4 links.`
 
   // ── Multi-turn chat ─────────────────────────────────────────────

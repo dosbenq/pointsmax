@@ -31,6 +31,7 @@ import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
 import { fetchCashFareUsd } from './cash-fare-provider'
 import { AwardProviderUnavailableError } from './errors'
+import { SEATS_AERO_SEARCH_URL } from '@/config/providers'
 
 // ── Seats.aero Source → our slug ─────────────────────────────
 // The API returns lowercase source ids ("united", "flyingblue", "virginatlantic").
@@ -275,7 +276,7 @@ export class SeatsAeroProvider implements AwardProvider {
     startDate: string,
     endDate: string,
   ): Promise<SeatsAeroFlight[]> {
-    const url = new URL('https://seats.aero/partnerapi/search')
+    const url = new URL(SEATS_AERO_SEARCH_URL)
     url.searchParams.set('origin_airport', origin)
     url.searchParams.set('destination_airport', destination)
     url.searchParams.set('cabin', toSeatsAeroCabin(cabin))

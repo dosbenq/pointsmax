@@ -196,4 +196,35 @@ describe('calculateRedemptions', () => {
     expect(result.cash_baseline_available).toBe(false)
     expect(result.total_optimal_value_cents).toBe(0)
   })
+
+  it('converts a cents-valued global target into paise for an Indian currency', async () => {
+    mockData.latest_valuations = [
+      { program_id: 'amex-india-mr', cpp_cents: 75, effective_date: '2026-03-06', program_name: 'Amex MR India', program_slug: 'amex-india-mr', program_type: 'transferable_points' },
+      { program_id: 'marriott', cpp_cents: 0.75, effective_date: '2026-04-09', program_name: 'Marriott Bonvoy', program_slug: 'marriott', program_type: 'hotel_points' },
+    ]
+    mockData.transfer_partners = [
+      { id: 'tp-amexin-marriott', from_program_id: 'amex-india-mr', to_program_id: 'marriott', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 72, is_instant: false },
+    ]
+    mockData.programs = [
+      { id: 'amex-india-mr', name: 'Amex MR India', short_name: 'Amex IN', slug: 'amex-india-mr', color_hex: '#000', type: 'transferable_points', geography: 'IN' },
+      { id: 'marriott', name: 'Marriott Bonvoy', short_name: 'Marriott', slug: 'marriott', color_hex: '#000', type: 'hotel_points', geography: 'global' },
+    ]
+
+    const result = await calculateRedemptions([{ program_id: 'amex-india-mr', amount: 10000 }])
+    const marriott = result.results.find((r) => r.to_program?.slug === 'marriott')
+
+    // 0.75 US cents = 0.75 * 88 = 66 paise per point
+    expect(marriott?.cpp_cents).toBeCloseTo(66, 5)
+    expect(marriott?.total_value_cents).toBeCloseTo(660000, 5)
+  })
+
+  it('labels results with the review dates of the valuations used', async () => {
+    mockData.latest_valuations = mockData.latest_valuations.map((v, i) => ({
+      ...(v as object),
+      effective_date: i === 0 ? '2025-01-15' : '2026-04-09',
+    }))
+    const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
+    expect(result.valuation_source).toBe('Valuations reviewed Jan 2025 – Apr 2026')
+  })
 })
+

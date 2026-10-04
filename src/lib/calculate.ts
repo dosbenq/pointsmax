@@ -15,6 +15,7 @@ import type {
   Program,
 } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
+import { convertPointValue, describeValuationReview } from '@/lib/catalog'
 
 // ─────────────────────────────────────────────
 // TYPES for raw DB rows we fetch
@@ -23,6 +24,7 @@ import { resolveCppCents } from '@/lib/cpp-fallback'
 interface ValuationRow {
   program_id: string
   cpp_cents: number
+  effective_date: string | null
   program_name: string
   program_slug: string
   program_type: string
@@ -155,7 +157,7 @@ async function loadReferenceData(client: ReturnType<typeof createServerDbClient>
   ] = await Promise.all([
     client
       .from('latest_valuations')
-      .select('program_id, cpp_cents, program_name, program_slug, program_type'),
+      .select('program_id, cpp_cents, effective_date, program_name, program_slug, program_type'),
 
     client
       .from('transfer_partners')
@@ -252,6 +254,10 @@ async function getReferenceData(): Promise<ReferenceData> {
   return store.pending
 }
 
+function valueUnit(program: Program): 'cents' | 'paise' {
+  return program.geography?.toUpperCase() === 'IN' ? 'paise' : 'cents'
+}
+
 function chooseBetterTransferCandidate(
   current: TransferOptionCandidate | undefined,
   candidate: TransferOptionCandidate,
@@ -331,7 +337,13 @@ function buildTransferOptionsForBalance(
       if (flooredPointsOut <= 0) continue
 
       const toValuation = valuationMap.get(partner.to_program_id)
-      const toCppCents = resolveCppCents(toValuation?.cpp_cents, toProgram.type, toProgram.slug)
+      // Express the target's value in the balance's unit (paise for Indian
+      // currencies, cents otherwise) so cross-region transfers compare fairly.
+      const toCppCents = convertPointValue(
+        resolveCppCents(toValuation?.cpp_cents, toProgram.type, toProgram.slug),
+        valueUnit(toProgram),
+        valueUnit(fromProgram),
+      )
       const totalValueCents = flooredPointsOut * toCppCents
       const effectiveCppCents = balance.amount > 0 ? totalValueCents / balance.amount : 0
 
@@ -458,10 +470,12 @@ export async function calculateRedemptions(
   // Final global sort: best options across all programs at the top
   results.sort((a, b) => b.total_value_cents - a.total_value_cents)
 
-  const hasDbValuations = referenceData.valuationMap.size > 0
-  const valuationSource = hasDbValuations
-    ? 'TPG April 2026 · DB-backed · Updated daily'
-    : 'TPG April 2026 · Fallback estimates'
+  // Label with the review dates of the valuations this result actually relies on.
+  const usedProgramIds = new Set(
+    results.flatMap((r) => [r.from_program.id, r.to_program?.id].filter((id): id is string => Boolean(id))),
+  )
+  const reviewDates = [...usedProgramIds].map((id) => referenceData.valuationMap.get(id)?.effective_date)
+  const valuationSource = describeValuationReview(reviewDates) ?? 'Estimated values (no reviewed valuation on file)'
 
   return {
     total_cash_value_cents: cashBaselineAvailable ? totalCashValue : null,

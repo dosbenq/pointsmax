@@ -130,7 +130,6 @@ describe('POST /api/calculate', () => {
 
       const payload = await res.json()
       expect(payload).toMatchObject(mockResult)
-      expect(payload.valuation_source).toBe('TPG April 2026')
     })
 
     it('returns error contract for internal errors', async () => {

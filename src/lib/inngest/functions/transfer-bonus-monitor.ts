@@ -120,6 +120,28 @@ async function maybeSendAdminEmail(newBonuses: Array<{ from: string; to: string;
   })
 }
 
+async function maybeSendMonitorFailureEmail(failed: Array<{ sourceUrl: string; failure: string | null }>) {
+  const apiKey = process.env.RESEND_API_KEY?.trim()
+  const fromEmail = process.env.RESEND_FROM_EMAIL?.trim()
+  const adminEmail = process.env.ADMIN_EMAIL?.trim()
+  if (!apiKey || !fromEmail || !adminEmail) return
+
+  const resend = new Resend(apiKey)
+  const lines = failed
+    .map((f) => `<li><a href="${f.sourceUrl}">${f.sourceUrl}</a>: ${f.failure ?? 'empty response'}</li>`)
+    .join('')
+  await resend.emails.send({
+    from: fromEmail,
+    to: adminEmail,
+    subject: 'PointsMax: transfer bonus monitor could not read any source',
+    html: `
+      <h2>Transfer bonus monitor is blind</h2>
+      <p>None of the bonus sources could be fetched, so no new transfer bonuses will be detected until this is fixed.</p>
+      <ul>${lines}</ul>
+    `,
+  })
+}
+
 export const transferBonusMonitor = inngest.createFunction(
   { id: 'transfer-bonus-monitor', name: 'Agent: Transfer Bonus Monitor' },
   { cron: '0 6 * * *' },
@@ -127,17 +149,36 @@ export const transferBonusMonitor = inngest.createFunction(
     const db = createAdminClient()
     const today = new Date().toISOString().slice(0, 10)
 
-    const sourcePairs = await step.run('fetch-transfer-bonus-sources', async () => {
+    const fetched = await step.run('fetch-transfer-bonus-sources', async () => {
       const pages = await Promise.all(SOURCE_URLS.map(async (sourceUrl) => {
-        const response = await fetch(sourceUrl, {
-          headers: { 'User-Agent': 'PointsMaxBonusMonitor/1.0 (+https://pointsmax.com)' },
-          cache: 'no-store',
-        })
-        if (!response.ok) return { html: '', sourceUrl }
-        return { html: await response.text(), sourceUrl }
+        try {
+          const response = await fetch(sourceUrl, {
+            headers: { 'User-Agent': 'PointsMaxBonusMonitor/1.0' },
+            cache: 'no-store',
+            signal: AbortSignal.timeout(15_000),
+          })
+          if (!response.ok) return { html: '', sourceUrl, failure: `HTTP ${response.status}` }
+          return { html: await response.text(), sourceUrl, failure: null }
+        } catch (error) {
+          return { html: '', sourceUrl, failure: error instanceof Error ? error.message : String(error) }
+        }
       }))
-      return pages.filter((p) => p.html.length > 0)
+      return {
+        ok: pages.filter((p) => p.html.length > 0).map(({ html, sourceUrl }) => ({ html, sourceUrl })),
+        failed: pages.filter((p) => p.html.length === 0).map(({ sourceUrl, failure }) => ({ sourceUrl, failure })),
+      }
     })
+    const sourcePairs = fetched.ok
+
+    // Every source failing means the monitor is blind: say so loudly rather than
+    // reporting a quiet "0 bonuses found".
+    if (sourcePairs.length === 0) {
+      await step.run('alert-admin-monitor-blind', async () => {
+        await maybeSendMonitorFailureEmail(fetched.failed)
+        return { alerted: true }
+      })
+      throw new Error(`transfer-bonus-monitor: all ${SOURCE_URLS.length} sources failed`)
+    }
 
     const sourceHtml = sourcePairs.map((p) => p.html)
 
@@ -246,6 +287,7 @@ export const transferBonusMonitor = inngest.createFunction(
       ok: true,
       extracted: extracted.length,
       inserted: inserted.length,
+      failed_sources: fetched.failed,
     }
   },
 )

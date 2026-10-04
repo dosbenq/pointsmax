@@ -1,0 +1,163 @@
+[
+  {
+    "program": "amex-india-mr",
+    "category": "travel_portal",
+    "label": "Amex India Travel",
+    "cpp": 100,
+    "notes": "Baseline direct redemption"
+  },
+  {
+    "program": "amex-india-mr",
+    "category": "cashback",
+    "label": "Statement credit",
+    "cpp": 60,
+    "notes": "Low-value floor"
+  },
+  {
+    "program": "amex-mr",
+    "category": "travel_portal",
+    "label": "Amex Travel Portal",
+    "cpp": 1,
+    "notes": "1cpp — use transfer partners for better value"
+  },
+  {
+    "program": "amex-mr",
+    "category": "gift_cards",
+    "label": "Gift Cards",
+    "cpp": 1,
+    "notes": "1cpp via Amex gift card shop"
+  },
+  {
+    "program": "amex-mr",
+    "category": "statement_credit",
+    "label": "Statement Credit",
+    "cpp": 0.6,
+    "notes": "0.6cpp — poor value"
+  },
+  {
+    "program": "amex-mr",
+    "category": "cashback",
+    "label": "Cash Back / Deposit",
+    "cpp": 0.6,
+    "notes": "0.6cpp — avoid"
+  },
+  {
+    "program": "axis-edge",
+    "category": "travel_portal",
+    "label": "Axis Travel Edge",
+    "cpp": 100,
+    "notes": "Baseline direct redemption"
+  },
+  {
+    "program": "axis-edge",
+    "category": "cashback",
+    "label": "Statement credit",
+    "cpp": 50,
+    "notes": "Low-value floor"
+  },
+  {
+    "program": "bilt",
+    "category": "travel_portal",
+    "label": "Bilt Travel Portal",
+    "cpp": 1.25,
+    "notes": "1.25cpp on flights; 1cpp on hotels"
+  },
+  {
+    "program": "bilt",
+    "category": "cashback",
+    "label": "Cash Back",
+    "cpp": 0.55,
+    "notes": "0.55cpp — very poor"
+  },
+  {
+    "program": "bilt",
+    "category": "pay_with_points",
+    "label": "Rent Payment",
+    "cpp": 0.55,
+    "notes": "0.55cpp — avoid unless desperate"
+  },
+  {
+    "program": "capital-one",
+    "category": "travel_portal",
+    "label": "Capital One Travel Portal",
+    "cpp": 1,
+    "notes": "1cpp on flights, hotels, rental cars"
+  },
+  {
+    "program": "capital-one",
+    "category": "statement_credit",
+    "label": "Statement Credit / Cash",
+    "cpp": 1,
+    "notes": "1cpp — matches portal"
+  },
+  {
+    "program": "capital-one",
+    "category": "cashback",
+    "label": "Cash Back",
+    "cpp": 1,
+    "notes": "1cpp"
+  },
+  {
+    "program": "chase-ur",
+    "category": "travel_portal",
+    "label": "Chase Travel Portal",
+    "cpp": 1.5,
+    "notes": "Worth 1.5cpp with Sapphire Reserve, 1.25cpp with Preferred"
+  },
+  {
+    "program": "chase-ur",
+    "category": "cashback",
+    "label": "Cash Back",
+    "cpp": 1,
+    "notes": "1 cent per point — worst use"
+  },
+  {
+    "program": "chase-ur",
+    "category": "statement_credit",
+    "label": "Statement Credit",
+    "cpp": 1,
+    "notes": "1 cent per point"
+  },
+  {
+    "program": "chase-ur",
+    "category": "gift_cards",
+    "label": "Gift Cards",
+    "cpp": 1,
+    "notes": "1 cent per point"
+  },
+  {
+    "program": "citi-thankyou",
+    "category": "travel_portal",
+    "label": "Citi Travel Portal",
+    "cpp": 1,
+    "notes": "1cpp"
+  },
+  {
+    "program": "citi-thankyou",
+    "category": "gift_cards",
+    "label": "Gift Cards",
+    "cpp": 1,
+    "notes": "1cpp"
+  },
+  {
+    "program": "citi-thankyou",
+    "category": "statement_credit",
+    "label": "Statement Credit",
+    "cpp": 0.5,
+    "notes": "0.5cpp — worst option"
+  },
+  {
+    "program": "hdfc-millennia",
+    "category": "travel_portal",
+    "label": "HDFC SmartBuy Travel",
+    "cpp": 100,
+    "notes": "Baseline direct redemption"
+  },
+  {
+    "program": "hdfc-millennia",
+    "category": "cashback",
+    "label": "Statement credit",
+    "cpp": 50,
+    "notes": "Low-value floor"
+  }
+]

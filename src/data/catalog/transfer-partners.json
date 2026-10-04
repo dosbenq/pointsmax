@@ -1,0 +1,687 @@
+[
+  {
+    "from": "amex-india-mr",
+    "to": "air-india",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Amex India to Air India"
+  },
+  {
+    "from": "amex-india-mr",
+    "to": "marriott",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Amex India to Marriott"
+  },
+  {
+    "from": "amex-india-mr",
+    "to": "taj-innercircle",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Amex India to Taj"
+  },
+  {
+    "from": "amex-mr",
+    "to": "aer-lingus",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "aeroplan",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "ana",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "amex-mr",
+    "to": "avianca",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "british-airways",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "cathay",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "choice",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "delta",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "emirates",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "etihad",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "flying-blue",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "hawaiian",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "hilton",
+    "ratio_from": 1,
+    "ratio_to": 2,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "iberia",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "jetblue",
+    "ratio_from": 250,
+    "ratio_to": 200,
+    "transfer_increment": 250,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "marriott",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 24,
+    "is_instant": false
+  },
+  {
+    "from": "amex-mr",
+    "to": "singapore",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "amex-mr",
+    "to": "turkish",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "amex-mr",
+    "to": "virgin-atlantic",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "axis-edge",
+    "to": "air-india",
+    "ratio_from": 5,
+    "ratio_to": 4,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Axis EDGE to Air India"
+  },
+  {
+    "from": "axis-edge",
+    "to": "indigo-6e",
+    "ratio_from": 2,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Axis EDGE to IndiGo"
+  },
+  {
+    "from": "axis-edge",
+    "to": "taj-innercircle",
+    "ratio_from": 4,
+    "ratio_to": 3,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "Axis EDGE to Taj"
+  },
+  {
+    "from": "bilt",
+    "to": "aer-lingus",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "aeroplan",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "alaska",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "american",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "bilt",
+    "to": "british-airways",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "cathay",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "emirates",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "flying-blue",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "hawaiian",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "hyatt",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "iberia",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "ihg",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 24,
+    "is_instant": false
+  },
+  {
+    "from": "bilt",
+    "to": "marriott",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 24,
+    "is_instant": false
+  },
+  {
+    "from": "bilt",
+    "to": "singapore",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "bilt",
+    "to": "turkish",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "united",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "bilt",
+    "to": "virgin-atlantic",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "aeroplan",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "avianca",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "british-airways",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "emirates",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "flying-blue",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "iberia",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "singapore",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "capital-one",
+    "to": "turkish",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "capital-one",
+    "to": "wyndham",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "aer-lingus",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "aeroplan",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "british-airways",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "emirates",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "flying-blue",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 1,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "hyatt",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 1,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "iberia",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "ihg",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 24,
+    "is_instant": false
+  },
+  {
+    "from": "chase-ur",
+    "to": "singapore",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "chase-ur",
+    "to": "southwest",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 1,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "united",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 1,
+    "is_instant": true
+  },
+  {
+    "from": "chase-ur",
+    "to": "virgin-atlantic",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "avianca",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "cathay",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "emirates",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "etihad",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "flying-blue",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "singapore",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 24,
+    "transfer_time_max_hrs": 48,
+    "is_instant": false
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "turkish",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "virgin-atlantic",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "citi-thankyou",
+    "to": "wyndham",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 0,
+    "transfer_time_max_hrs": 2,
+    "is_instant": true
+  },
+  {
+    "from": "hdfc-millennia",
+    "to": "air-india",
+    "ratio_from": 1,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "HDFC to Air India"
+  },
+  {
+    "from": "hdfc-millennia",
+    "to": "indigo-6e",
+    "ratio_from": 2,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "HDFC to IndiGo"
+  },
+  {
+    "from": "hdfc-millennia",
+    "to": "taj-innercircle",
+    "ratio_from": 2,
+    "ratio_to": 1,
+    "transfer_time_min_hrs": 2,
+    "transfer_time_max_hrs": 72,
+    "is_instant": false,
+    "notes": "HDFC to Taj"
+  }
+]

@@ -1,0 +1,444 @@
+[
+  {
+    "program": "wells-fargo",
+    "cpp": 1.35,
+    "unit": "cents",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline US valuation"
+  },
+  {
+    "program": "british-airways",
+    "cpp": 1.4,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. Dec 2025 deval: 8-14% more Avios needed."
+  },
+  {
+    "program": "flying-blue",
+    "cpp": 1.35,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Good for last-minute promo awards"
+  },
+  {
+    "program": "virgin-atlantic",
+    "cpp": 1.5,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Best for Delta One and ANA awards"
+  },
+  {
+    "program": "singapore",
+    "cpp": 1.3,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Best for Star Alliance partner awards"
+  },
+  {
+    "program": "ana",
+    "cpp": 1.6,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Best for ANA First Class — aspirational"
+  },
+  {
+    "program": "avianca",
+    "cpp": 1.7,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Excellent Star Alliance partner pricing"
+  },
+  {
+    "program": "turkish",
+    "cpp": 1.1,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026."
+  },
+  {
+    "program": "aeroplan",
+    "cpp": 1.4,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "notes": "TPG Apr 2026"
+  },
+  {
+    "program": "iberia",
+    "cpp": 1.5,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Best for Iberia/British Airways routes"
+  },
+  {
+    "program": "aer-lingus",
+    "cpp": 1.5,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Good for Iberia and transatlantic"
+  },
+  {
+    "program": "emirates",
+    "cpp": 1.3,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Good for first class on Emirates metal"
+  },
+  {
+    "program": "cathay",
+    "cpp": 1.4,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Good for oneworld partner awards"
+  },
+  {
+    "program": "etihad",
+    "cpp": 1.35,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Etihad First Apartment aspirational value"
+  },
+  {
+    "program": "hawaiian",
+    "cpp": 1,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Limited partner options"
+  },
+  {
+    "program": "accor",
+    "cpp": 2,
+    "unit": "cents",
+    "source": "manual",
+    "reviewed_at": "2026-10-04",
+    "notes": "Fixed-value currency (2,000 pts = €40). Placeholder — confirm against current TPG valuation.",
+    "needs_review": true
+  },
+  {
+    "program": "choice",
+    "cpp": 0.7,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2025-01-15",
+    "notes": "Limited partner options"
+  },
+  {
+    "program": "hdfc-smartbuy",
+    "cpp": 120,
+    "unit": "paise",
+    "source": "cardexpert",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://cardexpert.in",
+    "notes": "₹1/pt via SmartBuy. Feb 2026: Infinia caps tightened."
+  },
+  {
+    "program": "sbi-rewards",
+    "cpp": 30,
+    "unit": "paise",
+    "source": "cardexpert",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://cardexpert.in",
+    "notes": "₹0.25/pt."
+  },
+  {
+    "program": "tata-neu",
+    "cpp": 100,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-10-04",
+    "notes": "1 NeuCoin = ₹1 at Tata Neu partners."
+  },
+  {
+    "program": "intermiles",
+    "cpp": 30,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-10-04",
+    "notes": "Placeholder — no prior valuation in the database.",
+    "needs_review": true
+  },
+  {
+    "program": "hdfc-millennia",
+    "cpp": 50,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-06",
+    "notes": "Corrected baseline valuation for India market (paise per point)"
+  },
+  {
+    "program": "axis-edge",
+    "cpp": 60,
+    "unit": "paise",
+    "source": "cardexpert",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://cardexpert.in",
+    "notes": "₹0.25-0.50/pt. Best via Travel EDGE."
+  },
+  {
+    "program": "amex-india-mr",
+    "cpp": 75,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-06",
+    "notes": "Corrected baseline valuation for India market (paise per point)"
+  },
+  {
+    "program": "sbi-reward-points",
+    "cpp": 25,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline India valuation in paise"
+  },
+  {
+    "program": "amazon-pay-rewards",
+    "cpp": 100,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline India valuation in paise"
+  },
+  {
+    "program": "kotak-royale",
+    "cpp": 35,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline India valuation in paise"
+  },
+  {
+    "program": "yes-rewardz",
+    "cpp": 55,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline India valuation in paise"
+  },
+  {
+    "program": "icici-rewards",
+    "cpp": 80,
+    "unit": "paise",
+    "source": "cardexpert",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://cardexpert.in",
+    "notes": "₹0.60-1.00/pt. Best via iShop."
+  },
+  {
+    "program": "standard-chartered-360",
+    "cpp": 45,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline India valuation in paise"
+  },
+  {
+    "program": "indusmoments",
+    "cpp": 45,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-17",
+    "source_url": "https://www.indusind.com/in/en/personal/cards/credit-card/indulge-credit-card.html",
+    "notes": "Seeded during India catalog gap fill"
+  },
+  {
+    "program": "rbl-rewards",
+    "cpp": 50,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-17",
+    "source_url": "https://www.rblbank.com/personal-banking/cards/credit-cards/category",
+    "notes": "Seeded during India catalog gap fill"
+  },
+  {
+    "program": "air-india",
+    "cpp": 80,
+    "unit": "paise",
+    "source": "technofino",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://technofino.in",
+    "notes": "₹0.67/mile. Apr 2026: reduced for 90% routes."
+  },
+  {
+    "program": "indigo-6e",
+    "cpp": 30,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-06",
+    "notes": "Corrected baseline valuation for India market (paise per point)"
+  },
+  {
+    "program": "taj-innercircle",
+    "cpp": 80,
+    "unit": "paise",
+    "source": "manual",
+    "reviewed_at": "2026-03-06",
+    "notes": "Corrected baseline valuation for India market (paise per point)"
+  },
+  {
+    "program": "chase-ur",
+    "cpp": 2.05,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "notes": "TPG Apr 2026. Best via Hyatt transfers. Points Boost changed portal to 1cpp."
+  },
+  {
+    "program": "amex-mr",
+    "cpp": 2,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "notes": "TPG Apr 2026. Best via Avianca/ANA transfers. Cathay ratio worsened Mar 2026."
+  },
+  {
+    "program": "capital-one",
+    "cpp": 1.85,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "notes": "TPG Apr 2026. Best via Turkish transfers."
+  },
+  {
+    "program": "citi-thankyou",
+    "cpp": 1.9,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "notes": "TPG Apr 2026. Best via airline transfers."
+  },
+  {
+    "program": "bilt",
+    "cpp": 2.2,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "notes": "TPG Apr 2026. Highest-valued transferable currency."
+  },
+  {
+    "program": "united",
+    "cpp": 1.35,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 1.5. Dynamic pricing."
+  },
+  {
+    "program": "delta",
+    "cpp": 1.2,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 1.25."
+  },
+  {
+    "program": "american",
+    "cpp": 1.6,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 1.7."
+  },
+  {
+    "program": "us-bank-altitude",
+    "cpp": 1.5,
+    "unit": "cents",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline US valuation"
+  },
+  {
+    "program": "discover-miles",
+    "cpp": 1,
+    "unit": "cents",
+    "source": "manual",
+    "reviewed_at": "2026-04-09",
+    "notes": "Baseline US valuation"
+  },
+  {
+    "program": "alaska",
+    "cpp": 1.4,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 1.5. Rebranded Atmos."
+  },
+  {
+    "program": "southwest",
+    "cpp": 1.25,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 1.3."
+  },
+  {
+    "program": "jetblue",
+    "cpp": 1.35,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "notes": "TPG Apr 2026"
+  },
+  {
+    "program": "hyatt",
+    "cpp": 1.7,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. New Gondola methodology. 5-tier chart May 2026."
+  },
+  {
+    "program": "marriott",
+    "cpp": 0.75,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. UP from 0.70."
+  },
+  {
+    "program": "hilton",
+    "cpp": 0.4,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "notes": "TPG Apr 2026. DOWN from 0.5. Multiple devaluations."
+  },
+  {
+    "program": "ihg",
+    "cpp": 0.6,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "notes": "TPG Apr 2026. UP from 0.5"
+  },
+  {
+    "program": "wyndham",
+    "cpp": 0.65,
+    "unit": "cents",
+    "source": "tpg",
+    "reviewed_at": "2026-04-09",
+    "source_url": "https://thepointsguy.com/loyalty-programs/monthly-valuations/",
+    "notes": "TPG Apr 2026. DOWN from 1.1"
+  }
+]

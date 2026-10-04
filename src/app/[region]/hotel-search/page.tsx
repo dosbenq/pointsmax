@@ -2,14 +2,19 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
+import { describeValuationReview, getCatalogValuation } from '@/lib/catalog'
+import { HOTEL_PROGRAM_LINKS } from '@/config/hotel-programs'
 
-const HOTEL_PROGRAMS = [
-  { name: 'World of Hyatt', slug: 'hyatt', cpp: 1.70, color: '#002147', logo: '🏨', note: 'Best hotel points value (1.7¢/pt). Standard award chart. 5-tier update May 2026.', searchUrl: 'https://www.hyatt.com/search', roomsAero: 'https://rooms.aero?program=hyatt', buildUrl: (dest: string, checkIn: string, checkOut: string) => `https://www.hyatt.com/search?destination=${encodeURIComponent(dest)}&checkInDate=${checkIn}&checkOutDate=${checkOut}&useRewardPoints=true` },
-  { name: 'Marriott Bonvoy', slug: 'marriott', cpp: 0.75, color: '#cc0000', logo: '🏨', note: 'Largest network (30+ brands). Dynamic pricing. 5th night free on awards.', searchUrl: 'https://www.marriott.com/search/findHotels.mi', roomsAero: 'https://rooms.aero?program=marriott', buildUrl: (dest: string, checkIn: string, checkOut: string) => `https://www.marriott.com/search/findHotels.mi?destinationAddress.destination=${encodeURIComponent(dest)}&fromDate=${checkIn}&toDate=${checkOut}` },
-  { name: 'Hilton Honors', slug: 'hilton', cpp: 0.40, color: '#1E3A8A', logo: '🏨', note: 'Easy to earn (Amex transfers at 1:2). 5th night free. DOWN from 0.5¢.', searchUrl: 'https://www.hilton.com/en/search/?redeemPts=true', roomsAero: 'https://rooms.aero?program=hilton', buildUrl: (dest: string, checkIn: string, checkOut: string) => `https://www.hilton.com/en/search/?query=${encodeURIComponent(dest)}&arrivalDate=${checkIn}&departureDate=${checkOut}&redeemPts=true` },
-  { name: 'IHG One Rewards', slug: 'ihg', cpp: 0.60, color: '#6a994e', logo: '🏨', note: 'Underrated at 0.6¢. 4th night free. UP from 0.5¢.', searchUrl: 'https://www.ihg.com/hotels/us/en/find-hotels/hotel/list', roomsAero: 'https://rooms.aero?program=ihg', buildUrl: (dest: string, checkIn: string, checkOut: string) => `https://www.ihg.com/hotels/us/en/find-hotels/hotel/list?qDest=${encodeURIComponent(dest)}&qCiD=${checkIn}&qCoD=${checkOut}&setPMCookies=true` },
-  { name: 'Choice Privileges', slug: 'choice', cpp: 0.60, color: '#0072CE', logo: '🏨', note: 'Good for budget properties. 0.6¢/pt.', searchUrl: 'https://www.choicehotels.com/use-points', roomsAero: 'https://rooms.aero?program=choice', buildUrl: (_dest: string, _checkIn: string, _checkOut: string) => 'https://www.choicehotels.com/use-points' },
-]
+const HOTEL_PROGRAMS = HOTEL_PROGRAM_LINKS.map((program) => ({
+  ...program,
+  cpp: getCatalogValuation(program.slug)?.cpp ?? 0,
+}))
+
+
+const MAX_HOTEL_CPP = Math.max(...HOTEL_PROGRAMS.map((p) => p.cpp), 0.01)
+const HOTEL_VALUATION_LABEL = describeValuationReview(
+  HOTEL_PROGRAMS.map((p) => getCatalogValuation(p.slug)?.reviewed_at),
+) ?? 'Point values are estimates'
 
 function getDefaultDate(offsetDays: number): string {
   const d = new Date()
@@ -137,21 +142,21 @@ export default function HotelSearchPage() {
 
         {/* Value comparison bar */}
         <div className="bg-pm-surface rounded-2xl border border-pm-border p-6">
-          <h2 className="text-lg font-bold text-pm-ink-900 mb-4">Hotel Points Value Comparison (TPG April 2026)</h2>
+          <h2 className="text-lg font-bold text-pm-ink-900 mb-4">Hotel Points Value Comparison</h2>
           <div className="space-y-3">
             {[...HOTEL_PROGRAMS].sort((a, b) => b.cpp - a.cpp).map(prog => (
               <div key={prog.slug} className="flex items-center gap-4">
                 <div className="w-24 text-sm font-medium text-pm-ink-700 truncate">{prog.name.replace('World of ', '')}</div>
                 <div className="flex-1 h-3 bg-pm-bg rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${(prog.cpp / 1.70) * 100}%`, backgroundColor: prog.color }} />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(prog.cpp / MAX_HOTEL_CPP) * 100}%`, backgroundColor: prog.color }} />
                 </div>
                 <div className="w-12 text-right text-sm font-mono font-bold" style={{ color: prog.color }}>{prog.cpp}¢</div>
               </div>
             ))}
           </div>
           <p className="text-xs text-pm-ink-400 mt-4 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-            Valuations: TPG April 2026
+            <span className="w-1.5 h-1.5 rounded-full bg-pm-ink-300 inline-block" />
+            {HOTEL_VALUATION_LABEL}
           </p>
         </div>
       </div>
