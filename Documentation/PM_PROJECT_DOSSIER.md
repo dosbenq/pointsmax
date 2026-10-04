@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `49bc3a7`
+- Git commit: `f51ee70`
 
 ## 1. Executive Snapshot
 
@@ -14,7 +14,7 @@
 - Test files: **108**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
-- NPM scripts: **38**
+- NPM scripts: **39**
 
 ## 2. Product Surface (Pages)
 
@@ -306,6 +306,7 @@
 | `check:launch-env` | `node scripts/check-launch-env.mjs` |
 | `check:links` | `node scripts/check-outbound-links.mjs` |
 | `check:rls-indexes` | `node scripts/check-rls-indexes.mjs` |
+| `check:seats-aero` | `node scripts/check-seats-aero.mjs` |
 | `dev` | `next dev` |
 | `dev:revamp` | `next dev -p 3001` |
 | `launch:autopilot` | `node scripts/launch-autopilot.mjs` |

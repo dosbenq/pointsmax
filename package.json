@@ -16,6 +16,7 @@
     "check:launch-env": "node scripts/check-launch-env.mjs",
     "check:links": "node scripts/check-outbound-links.mjs",
     "check:rls-indexes": "node scripts/check-rls-indexes.mjs",
+    "check:seats-aero": "node scripts/check-seats-aero.mjs",
     "catalog:build": "node scripts/catalog/generate-catalog-artifacts.mjs",
     "catalog:sql": "node scripts/catalog/generate-catalog-staging-sql.mjs",
     "catalog:images": "node scripts/catalog/fetch-official-card-images.mjs",
