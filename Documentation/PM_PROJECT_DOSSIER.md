@@ -4,17 +4,17 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `f51ee70`
+- Git commit: `a4f37c0`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **41**
 - API routes: **60**
-- Supabase migrations: **64**
-- Test files: **108**
+- Supabase migrations: **65**
+- Test files: **109**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
-- NPM scripts: **39**
+- NPM scripts: **42**
 
 ## 2. Product Surface (Pages)
 
@@ -197,6 +197,7 @@
 | 61 | `061_fill_missing_descriptions.sql` |
 | 62 | `062_fix_valuation_units_and_slugs.sql` |
 | 63 | `063_catalog_sync_support.sql` |
+| 64 | `064_active_bonuses_verified_only.sql` |
 
 ## 5. Integrations and Environment Variables
 
@@ -307,6 +308,9 @@
 | `check:links` | `node scripts/check-outbound-links.mjs` |
 | `check:rls-indexes` | `node scripts/check-rls-indexes.mjs` |
 | `check:seats-aero` | `node scripts/check-seats-aero.mjs` |
+| `db:check-drift` | `tsx scripts/db-check-drift.ts` |
+| `db:generate` | `drizzle-kit generate` |
+| `db:migrate` | `drizzle-kit migrate` |
 | `dev` | `next dev` |
 | `dev:revamp` | `next dev -p 3001` |
 | `launch:autopilot` | `node scripts/launch-autopilot.mjs` |
@@ -421,6 +425,7 @@
 | `src/lib/db/cards.test.ts` |
 | `src/lib/db/programs.test.ts` |
 | `src/lib/db/rls-index-audit.test.ts` |
+| `src/lib/db/schema.test.ts` |
 | `src/lib/deal-scorer.test.ts` |
 | `src/lib/env-validation.test.ts` |
 | `src/lib/env.test.ts` |
@@ -459,6 +464,7 @@
 | `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 1025 |
 | `src/app/profile/page.tsx` | 1023 |
 | `src/components/ConnectedWallets.test.tsx` | 931 |
+| `src/lib/db/schema.ts` | 892 |
 | `src/app/[region]/card-recommender/page.tsx` | 877 |
 | `src/app/api/ai/recommend/route.ts` | 815 |
 | `src/app/[region]/calculator/page.tsx` | 769 |
