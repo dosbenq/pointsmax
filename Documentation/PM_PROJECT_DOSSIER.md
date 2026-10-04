@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/determined-curie-j83zex`
-- Git commit: `0cefd54`
+- Git commit: `49bc3a7`
 
 ## 1. Executive Snapshot
 
