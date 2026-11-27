@@ -41,11 +41,13 @@ export default function NavBar() {
   const [scrolled, setScrolled] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
 
-  // Close menus on route change
-  useEffect(() => {
+  // Close menus on route change (adjusting state during render, not in an effect)
+  const [menuPathname, setMenuPathname] = useState(pathname)
+  if (pathname !== menuPathname) {
+    setMenuPathname(pathname)
     setMenuOpen(false)
     setAccountOpen(false)
-  }, [pathname])
+  }
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)

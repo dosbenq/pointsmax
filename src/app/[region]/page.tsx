@@ -21,13 +21,16 @@ export default async function LandingPage({ params }: PageProps) {
   const { region: rawRegion } = await params
   const region: Region = rawRegion === 'in' ? 'in' : 'us'
 
+  // The landing page must render even when the database is unreachable;
+  // the loaders already log their failures.
   const [cards, programs] = await Promise.all([
-    getActiveCards(normalizeGeography(region)),
-    getActivePrograms(region.toUpperCase() as 'US' | 'IN'),
+    getActiveCards(normalizeGeography(region)).catch(() => []),
+    getActivePrograms(region.toUpperCase() as 'US' | 'IN').catch(() => []),
   ])
 
   const cardCount = cards.length
   const programCount = programs.length
+  const showStats = cardCount > 0 && programCount > 0
   const regionCount = Object.keys(REGIONS).length
 
   const US_MARQUEE_ITEMS = [
@@ -203,6 +206,7 @@ export default async function LandingPage({ params }: PageProps) {
         </section>
 
         {/* Platform Stats */}
+        {showStats && (
         <section className="relative z-10 border-t border-pm-border bg-pm-surface-soft">
           <div className="pm-shell py-12">
             <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto text-center">
@@ -221,6 +225,7 @@ export default async function LandingPage({ params }: PageProps) {
             </div>
           </div>
         </section>
+        )}
 
         {/* Supported Programs Marquee */}
         <div className="py-10 border-t border-pm-border overflow-hidden bg-pm-surface-soft relative">
