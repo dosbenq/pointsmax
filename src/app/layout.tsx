@@ -4,7 +4,7 @@ import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { assertServerEnv, shouldAssertServerEnvAtStartup } from '@/lib/env'
 import MonitoringBoot from '@/components/MonitoringBoot'
-import PostHogProvider from '@/components/PostHogProvider'
+import PostHogIdentify from '@/components/PostHogIdentify'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
@@ -113,13 +113,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={createSafeJsonLdScript(jsonLd)}
         />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-          <PostHogProvider>
-            <AuthProvider>
-              <MonitoringBoot />
-              {children}
-              <Toaster />
-            </AuthProvider>
-          </PostHogProvider>
+          <AuthProvider>
+            <MonitoringBoot />
+            <PostHogIdentify />
+            {children}
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

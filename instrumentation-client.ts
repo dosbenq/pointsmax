@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs'
+import { initPosthogClient } from '@/lib/posthog'
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -10,3 +11,6 @@ Sentry.init({
 })
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+
+// Product analytics: pageviews and events (no-op until a PostHog key is configured).
+initPosthogClient()

@@ -1,6 +1,41 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase'
+import { captureServerEvent } from '@/lib/posthog-server'
+import { logWarn } from '@/lib/logger'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { NextResponse, type NextRequest } from 'next/server'
+
+// A Supabase auth user created this recently is a new sign-up, not a returning login.
+const SIGNUP_WINDOW_MS = 10 * 60 * 1000
+
+async function trackSignup(
+  authUser: { id: string; email?: string | null; created_at?: string },
+  region: 'us' | 'in',
+) {
+  const createdAt = Date.parse(authUser.created_at ?? '')
+  if (!Number.isFinite(createdAt) || Date.now() - createdAt > SIGNUP_WINDOW_MS) return
+
+  try {
+    const { data } = await createAdminClient()
+      .from('users')
+      .select('id')
+      .eq('auth_id', authUser.id)
+      .maybeSingle()
+    const userId = (data as { id?: unknown } | null)?.id
+    if (typeof userId !== 'string') return
+
+    await captureServerEvent({
+      distinctId: userId,
+      event: 'user_signed_up',
+      properties: { region, method: 'google' },
+      setPersonProperties: authUser.email ? { email: authUser.email } : undefined,
+      dedupeKey: `signup:${authUser.id}`,
+      timestamp: new Date(createdAt).toISOString(),
+    })
+  } catch (error) {
+    logWarn('signup_tracking_failed', { error: error instanceof Error ? error.message : String(error) })
+  }
+}
 
 // GET /auth/callback
 // Exchanges OAuth code for a session, then redirects to /calculator
@@ -36,6 +71,8 @@ export async function GET(request: NextRequest) {
       // Check if user has completed onboarding (has a home airport)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+         await trackSignup(user, next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us')
+
          const { data: prefs } = await supabase
            .from('user_preferences')
            .select('home_airport')

@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
+import { POSTHOG_ASSETS_HOST, POSTHOG_HOST, POSTHOG_PROXY_PATH } from './src/config/analytics'
 
 const isProd = process.env.NODE_ENV === 'production'
 const csp = [
@@ -28,6 +29,15 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
+  },
+  // PostHog's API paths end in a slash; don't redirect them.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    // Serve PostHog from our own domain so ad blockers don't drop analytics.
+    return [
+      { source: `${POSTHOG_PROXY_PATH}/static/:path*`, destination: `${POSTHOG_ASSETS_HOST}/static/:path*` },
+      { source: `${POSTHOG_PROXY_PATH}/:path*`, destination: `${POSTHOG_HOST}/:path*` },
+    ]
   },
   async headers() {
     return [
