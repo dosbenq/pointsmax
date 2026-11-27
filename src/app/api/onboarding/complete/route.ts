@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase'
 import { inngest } from '@/lib/inngest/client'
+import { captureServerEvent } from '@/lib/posthog-server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -32,6 +33,13 @@ export async function POST(req: NextRequest) {
       region,
       home_airport: homeAirport,
     },
+  })
+
+  await captureServerEvent({
+    distinctId: internalUserId,
+    event: 'onboarding_completed',
+    properties: { region, home_airport: homeAirport },
+    setPersonProperties: { region, ...(homeAirport ? { home_airport: homeAirport } : {}) },
   })
 
   return NextResponse.json({ ok: true })

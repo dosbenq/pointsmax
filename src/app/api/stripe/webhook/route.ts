@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getStripeWebhookSecret, verifyStripeWebhookSignature } from '@/lib/stripe'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
+import { isPosthogConfigured } from '@/config/analytics'
+import { captureServerEvent } from '@/lib/posthog-server'
 
 export const runtime = 'nodejs'
 
@@ -54,6 +56,50 @@ async function insertCreatorConversion(
     creator_slug: input.creatorSlug,
     user_id: input.userId,
     revenue_usd: input.revenueUsd ?? 999,
+  })
+}
+
+/** Stripe events worth a product-analytics event, and the PostHog name for each. */
+const POSTHOG_STRIPE_EVENTS: Record<string, string> = {
+  'checkout.session.completed': 'subscription_started',
+  'customer.subscription.deleted': 'subscription_canceled',
+  'invoice.payment_failed': 'payment_failed',
+}
+
+function centsToAmount(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value / 100 : null
+}
+
+async function trackStripeEvent(
+  db: ReturnType<typeof createAdminClient>,
+  input: {
+    stripeEventId: string
+    stripeEventType: string
+    userId?: string | null
+    customerId?: string | null
+    tier?: string | null
+    properties?: Record<string, unknown>
+  },
+) {
+  const event = POSTHOG_STRIPE_EVENTS[input.stripeEventType]
+  if (!event || !isPosthogConfigured()) return
+
+  let userId = input.userId ?? null
+  if (!userId && input.customerId) {
+    try {
+      const { data } = await db.from('users').select('id').eq('stripe_customer_id', input.customerId).single()
+      userId = typeof data?.id === 'string' ? data.id : null
+    } catch {
+      userId = null
+    }
+  }
+
+  await captureServerEvent({
+    distinctId: userId,
+    event,
+    properties: { stripe_event_type: input.stripeEventType, ...input.properties },
+    setPersonProperties: input.tier ? { tier: input.tier } : undefined,
+    dedupeKey: `stripe:${input.stripeEventId}`,
   })
 }
 
@@ -158,6 +204,19 @@ export async function POST(req: NextRequest) {
           metadata: { stripe_customer_id: customerId, ref_slug: refSlug },
         })
 
+        await trackStripeEvent(db, {
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          userId,
+          tier: 'premium',
+          properties: {
+            previous_tier: previousTier,
+            amount: centsToAmount(object.amount_total),
+            currency: getString(object.currency),
+            ref_slug: refSlug,
+          },
+        })
+
         if (refSlug) {
           await insertCreatorConversion(db, {
             creatorSlug: refSlug,
@@ -233,6 +292,15 @@ export async function POST(req: NextRequest) {
         metadata: { stripe_status: status },
       })
 
+      await trackStripeEvent(db, {
+        stripeEventId: event.id,
+        stripeEventType: event.type,
+        userId: existingUser?.id ?? null,
+        customerId,
+        tier: nextTier,
+        properties: { stripe_status: status },
+      })
+
       logInfo('stripe_webhook_subscription_synced', {
         requestId,
         customer_id: customerId,
@@ -250,6 +318,16 @@ export async function POST(req: NextRequest) {
           metadata: {
             invoice_id: getString(object.id),
             amount_due: object.amount_due,
+          },
+        })
+
+        await trackStripeEvent(db, {
+          stripeEventId: event.id,
+          stripeEventType: event.type,
+          customerId,
+          properties: {
+            amount_due: centsToAmount(object.amount_due),
+            currency: getString(object.currency),
           },
         })
 

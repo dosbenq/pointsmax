@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "26.x"
   },
   "scripts": {
     "dev": "next dev",
@@ -64,10 +64,11 @@
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
-    "inngest": "^3.52.3",
+    "inngest": "^3.54.2",
     "lucide-react": "^0.575.0",
     "next": "^16.2.3",
     "next-themes": "^0.4.6",
+    "posthog-js": "^1.455.4",
     "react": "^19.2.5",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.5",

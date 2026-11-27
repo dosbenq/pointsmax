@@ -7,6 +7,11 @@ vi.mock('@/lib/supabase', () => ({
   createAdminClient: vi.fn(),
 }))
 
+const { captureServerEventMock } = vi.hoisted(() => ({ captureServerEventMock: vi.fn() }))
+
+vi.mock('@/lib/posthog-server', () => ({ captureServerEvent: captureServerEventMock }))
+vi.mock('@/config/analytics', () => ({ isPosthogConfigured: () => true }))
+
 vi.mock('@/lib/stripe', () => ({
   getStripeWebhookSecret: vi.fn().mockReturnValue('whsec_test'),
   verifyStripeWebhookSignature: vi.fn().mockReturnValue(true),
@@ -235,5 +240,68 @@ describe('POST /api/stripe/webhook', () => {
     expect(state.subscriptionEvents).toHaveLength(0)
     expect(state.updates).toHaveLength(0)
     expect(state.processedEventIds.size).toBe(0)
+  })
+
+  describe('product analytics', () => {
+    it('records subscription_started for the paying user, keyed by the Stripe event', async () => {
+      await POST(makeRequest(buildStripeEvent('checkout.session.completed', {
+        mode: 'subscription',
+        customer: 'cus_new',
+        amount_total: 999,
+        currency: 'usd',
+        metadata: { user_id: 'user-1' },
+      }, 'evt_checkout_analytics')))
+
+      expect(captureServerEventMock).toHaveBeenCalledWith({
+        distinctId: 'user-1',
+        event: 'subscription_started',
+        properties: {
+          stripe_event_type: 'checkout.session.completed',
+          previous_tier: 'free',
+          amount: 9.99,
+          currency: 'usd',
+          ref_slug: null,
+        },
+        setPersonProperties: { tier: 'premium' },
+        dedupeKey: 'stripe:evt_checkout_analytics',
+      })
+    })
+
+    it('records subscription_canceled and payment_failed against the customer\'s user', async () => {
+      await POST(makeRequest(buildStripeEvent('customer.subscription.deleted', {
+        customer: 'cus_premium',
+        status: 'canceled',
+        created: Math.floor(Date.now() / 1000),
+      }, 'evt_cancel_analytics')))
+      await POST(makeRequest(buildStripeEvent('invoice.payment_failed', {
+        id: 'in_1',
+        customer: 'cus_premium',
+        amount_due: 999,
+        currency: 'usd',
+      }, 'evt_failed_analytics')))
+
+      expect(captureServerEventMock).toHaveBeenCalledWith(expect.objectContaining({
+        distinctId: 'user-2',
+        event: 'subscription_canceled',
+        setPersonProperties: { tier: 'free' },
+        dedupeKey: 'stripe:evt_cancel_analytics',
+      }))
+      expect(captureServerEventMock).toHaveBeenCalledWith(expect.objectContaining({
+        distinctId: 'user-2',
+        event: 'payment_failed',
+        properties: { stripe_event_type: 'invoice.payment_failed', amount_due: 9.99, currency: 'usd' },
+        dedupeKey: 'stripe:evt_failed_analytics',
+      }))
+    })
+
+    it('sends nothing for subscription updates', async () => {
+      await POST(makeRequest(buildStripeEvent('customer.subscription.updated', {
+        customer: 'cus_premium',
+        status: 'active',
+        created: Math.floor(Date.now() / 1000),
+      }, 'evt_update_analytics')))
+
+      expect(captureServerEventMock).not.toHaveBeenCalled()
+    })
   })
 })

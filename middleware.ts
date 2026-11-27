@@ -85,6 +85,15 @@ export async function middleware(request: NextRequest) {
   const forwardedHeaders = new Headers(request.headers)
   forwardedHeaders.set('x-request-id', requestId)
 
+  // next.config.ts sets skipTrailingSlashRedirect for the PostHog proxy (/ingest is
+  // excluded from this middleware); keep the usual /path/ -> /path redirect elsewhere.
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    // A plain URL: NextURL would put the trailing slash back when serialised.
+    const url = new URL(request.url)
+    url.pathname = pathname.replace(/\/+$/, '') || '/'
+    return NextResponse.redirect(url, 308)
+  }
+
   if (pathname.startsWith('/api/')) {
     if (request.method === 'OPTIONS') {
       if (requestOrigin && !ALLOWED_CORS_ORIGINS.has(requestOrigin)) {
@@ -157,6 +166,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // ingest/ is the PostHog proxy (next.config.ts rewrites); it needs no auth or headers.
+    '/((?!_next/static|_next/image|ingest/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
