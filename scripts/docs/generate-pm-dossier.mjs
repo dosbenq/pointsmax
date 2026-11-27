@@ -297,7 +297,10 @@ async function main() {
       console.error('Run: npm run pm:dossier:sync')
       process.exit(1)
     }
-    if (existing !== doc) {
+    // The branch and commit lines change with every commit (and CI checks out a
+    // merge commit), so freshness is judged on the rest of the document.
+    const withoutGitStamp = (text) => text.replace(/^- Git (branch|commit): .*$/gm, '')
+    if (withoutGitStamp(existing) !== withoutGitStamp(doc)) {
       console.error('PM dossier is stale. Run: npm run pm:dossier:sync')
       process.exit(1)
     }
