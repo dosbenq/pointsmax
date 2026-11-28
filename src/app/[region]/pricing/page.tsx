@@ -41,7 +41,6 @@ const FREE_FEATURES = [
   '20+ loyalty programs',
   'Award flight search (chart estimates)',
   'Card Recommender',
-  'Inspire Me reverse search',
   'Save balances & preferences',
 ]
 

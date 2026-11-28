@@ -99,7 +99,7 @@ export default function NavBar() {
     {
       href: `/${region}/award-search`,
       label: 'Award Search',
-      activePrefixes: [`/${region}/award-search`, `/${region}/inspire`],
+      activePrefixes: [`/${region}/award-search`],
     },
     {
       href: `/${region}/hotel-search`,

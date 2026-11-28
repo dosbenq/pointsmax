@@ -272,9 +272,9 @@ export default async function ProgramDetailPage({ params }: Props) {
               <p className="text-sm font-semibold text-pm-ink-900">Check wallet reachability</p>
               <p className="mt-2 text-sm leading-6 text-pm-ink-500">Start with your balances and see whether {program.name} is already in play.</p>
             </Link>
-            <Link href={`/${normalized}/inspire`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
-              <p className="text-sm font-semibold text-pm-ink-900">Browse sweet spots</p>
-              <p className="mt-2 text-sm leading-6 text-pm-ink-500">Use route inspiration to understand where this kind of value shows up in practice.</p>
+            <Link href={`/${normalized}/award-search`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
+              <p className="text-sm font-semibold text-pm-ink-900">Search award space</p>
+              <p className="mt-2 text-sm leading-6 text-pm-ink-500">Check what {program.name} can actually book on your route before you transfer.</p>
             </Link>
             <Link href={`/${normalized}/cards`} className="rounded-2xl border border-pm-border bg-pm-surface-soft p-5">
               <p className="text-sm font-semibold text-pm-ink-900">Find earning sources</p>

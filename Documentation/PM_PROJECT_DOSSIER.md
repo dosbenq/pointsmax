@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `HEAD`
-- Git commit: `182e3ce`
+- Git commit: `5fd9c69`
 
 ## 1. Executive Snapshot
 
-- User-facing pages: **29**
+- User-facing pages: **27**
 - API routes: **31**
 - Supabase migrations: **62**
-- Test files: **78**
+- Test files: **77**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **36**
@@ -30,7 +30,6 @@
 | `/{region}/earning-calculator` | User | `src/app/[region]/earning-calculator/page.tsx` |
 | `/{region}/hotel-search` | User | `src/app/[region]/hotel-search/page.tsx` |
 | `/{region}/how-it-works` | User | `src/app/[region]/how-it-works/page.tsx` |
-| `/{region}/inspire` | User | `src/app/[region]/inspire/page.tsx` |
 | `/{region}/onboarding` | User | `src/app/[region]/onboarding/page.tsx` |
 | `/{region}` | User | `src/app/[region]/page.tsx` |
 | `/{region}/pricing` | User | `src/app/[region]/pricing/page.tsx` |
@@ -45,7 +44,6 @@
 | `/card-recommender` | User | `src/app/card-recommender/page.tsx` |
 | `/earning-calculator` | User | `src/app/earning-calculator/page.tsx` |
 | `/how-it-works` | User | `src/app/how-it-works/page.tsx` |
-| `/inspire` | User | `src/app/inspire/page.tsx` |
 | `/` | User | `src/app/page.tsx` |
 | `/pricing` | User | `src/app/pricing/page.tsx` |
 | `/profile` | Profile | `src/app/profile/page.tsx` |
@@ -295,7 +293,6 @@
 | `src/app/[region]/calculator/components/action-strip.test.tsx` |
 | `src/app/[region]/calculator/components/ai-chat.test.tsx` |
 | `src/app/[region]/calculator/hooks/ai-response.test.ts` |
-| `src/app/[region]/inspire/page.test.ts` |
 | `src/app/api/ai/cache-integration.test.ts` |
 | `src/app/api/ai/expert-chat/route.test.ts` |
 | `src/app/api/ai/idempotency-integration.test.ts` |
