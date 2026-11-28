@@ -57,6 +57,23 @@ Transfer bonuses are time-bound, so they stay in the database
 (`transfer_bonuses`). Only rows with `is_verified = true` count; the bonus
 monitor inserts detected bonuses unverified and emails `ADMIN_EMAIL`.
 
+## Database (moving to Neon)
+
+User data and sign-in are moving from Supabase to Postgres on Neon, with
+Better Auth for Google sign-in.
+
+- Schema: `src/lib/db/schema.ts` holds user data and sign-in tables only. To
+  change it, edit the file and run `npm run db:generate`. Commit the new SQL in
+  `db/migrations` and the regenerated `src/lib/db/migrations.generated.ts`.
+- Migrations are applied by the app itself on first use (`src/lib/db/migrate.ts`),
+  so a deploy needs no separate step.
+- `DATABASE_URL` (or `POSTGRES_URL`) selects the database. Sign-in needs
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET`. Google's
+  redirect URI is `<app origin>/api/auth/callback/google`.
+- `GET /api/setup/status` reports which settings are present, whether the
+  schema is applied, and a rehearsal of the Supabase copy (row counts only).
+- Tests use an in-memory Postgres with the real migrations (`src/test/utils/test-db.ts`).
+
 Older catalog research and staging files live in
 [Documentation/catalog/README.md](./Documentation/catalog/README.md).
 

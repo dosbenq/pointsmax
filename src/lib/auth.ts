@@ -9,31 +9,9 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { nextCookies } from 'better-auth/next-js'
 import { getDb, type Database } from '@/lib/db/client'
 import { authAccount, authSession, authUser, authVerification } from '@/lib/db/schema'
+import { getAuthBaseUrl } from '@/config/auth'
 
-function toOrigin(raw: string | undefined): string | null {
-  if (!raw?.trim()) return null
-  const value = raw.trim()
-  try {
-    return new URL(value.includes('://') ? value : `https://${value}`).origin
-  } catch {
-    return null
-  }
-}
-
-/**
- * The public origin Google redirects back to. It must match the redirect URI
- * registered on the Google OAuth client exactly, so production uses the
- * project's production domain rather than the per-deployment URL.
- */
-export function getAuthBaseUrl(): string {
-  return (
-    toOrigin(process.env.BETTER_AUTH_URL) ||
-    toOrigin(process.env.NEXT_PUBLIC_APP_URL) ||
-    (process.env.VERCEL_ENV === 'production' ? toOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) : null) ||
-    toOrigin(process.env.VERCEL_URL) ||
-    `http://localhost:${process.env.PORT ?? 3000}`
-  )
-}
+export { getAuthBaseUrl }
 
 /** Exported for tests; the app uses getAuth(). */
 export function createAuth(db: Database = getDb(), extra: Partial<BetterAuthOptions> = {}) {
