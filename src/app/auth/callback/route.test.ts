@@ -14,21 +14,28 @@ vi.mock('@/lib/posthog-server', () => ({ captureServerEvent: captureServerEventM
 
 const { GET } = await import('./route')
 
-const ORIGIN = 'https://pointsmax.test' // NEXT_PUBLIC_APP_URL in vitest.setup.ts
+const ORIGIN = 'https://pointsmax.test'
 let db: TestDb
 let pat: SeededUser
 
 const land = async (query: string) => (await GET(new NextRequest(`${ORIGIN}/auth/callback${query}`))).headers.get('location')
 
+const savedAuthUrl = process.env.BETTER_AUTH_URL
+
 beforeEach(async () => {
   vi.clearAllMocks()
+  process.env.BETTER_AUTH_URL = ORIGIN
   db = await createTestDb()
   setDbForTesting(db)
   pat = await seedUser(db, 'pat')
   vi.mocked(getSessionUser).mockResolvedValue(sessionFor(pat))
 })
 
-afterAll(() => setDbForTesting(null))
+afterAll(() => {
+  setDbForTesting(null)
+  if (savedAuthUrl === undefined) delete process.env.BETTER_AUTH_URL
+  else process.env.BETTER_AUTH_URL = savedAuthUrl
+})
 
 describe('GET /auth/callback', () => {
   it('sends people without a home airport to onboarding in their region', async () => {
