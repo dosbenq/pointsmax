@@ -73,11 +73,19 @@ export async function GET(request: NextRequest) {
       if (user) {
          await trackSignup(user, next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us')
 
-         const { data: prefs } = await supabase
-           .from('user_preferences')
-           .select('home_airport')
-           .eq('id', user.id)
-           .single()
+         // user_preferences is keyed by the app profile id (users.id), not the auth id.
+         const { data: profile } = await supabase
+           .from('users')
+           .select('id')
+           .eq('auth_id', user.id)
+           .maybeSingle()
+         const { data: prefs } = profile
+           ? await supabase
+               .from('user_preferences')
+               .select('home_airport')
+               .eq('user_id', (profile as { id: string }).id)
+               .maybeSingle()
+           : { data: null }
 
          if (!prefs?.home_airport) {
            // Extract region from 'next' path (e.g. /in/calculator -> in)

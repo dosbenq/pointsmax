@@ -51,12 +51,10 @@ function createClient() {
     return null
   }
   
-  return createBrowserClient(url, key, {
-    auth: {
-      storageKey: 'pm-auth-token-v2',
-      debug: false,
-    }
-  })
+  // Keep Supabase's default cookie names: the server (/auth/callback and the
+  // middleware) reads the sign-in handshake and session under those names, so
+  // a custom storageKey here makes every Google sign-in fail on the way back.
+  return createBrowserClient(url, key)
 }
 
 let browserSupabaseClient: BrowserSupabaseClient | null = null

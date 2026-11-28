@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/neon-cutover`
-- Git commit: `f4ef4cd`
+- Git commit: `543edef`
 
 ## 1. Executive Snapshot
 
