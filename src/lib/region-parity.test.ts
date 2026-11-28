@@ -3,20 +3,7 @@
 // Ensures US and India functionality is equivalent
 // ============================================================
 
-import { describe, it, expect, vi } from 'vitest'
-
-// Mock Supabase
-vi.mock('@/lib/supabase', () => ({
-  createPublicClient: vi.fn(() => ({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      single: vi.fn().mockReturnThis(),
-    })),
-  })),
-}))
+import { describe, it, expect } from 'vitest'
 
 import { formatCpp, fmtCents, parsePointsInput, formatCurrency } from './formatters'
 import { calculateValueScore, calculateEffectiveCpp } from './scoring'

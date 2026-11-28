@@ -14,7 +14,7 @@ async function handle(request: Request, method: 'GET' | 'POST') {
     return NextResponse.json({ error: 'Sign-in is not configured' }, { status: 503 })
   }
   try {
-    // Sign-in links profiles by email, so it must wait for the Supabase copy.
+    // Sign-in writes profiles, so it needs the schema in place.
     await ensureDatabaseReady()
   } catch (error) {
     logError('auth_database_not_ready', { error: error instanceof Error ? error.message : String(error) })

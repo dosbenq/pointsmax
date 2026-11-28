@@ -7,7 +7,7 @@ import { captureServerEvent } from '@/lib/posthog-server'
 import { logWarn } from '@/lib/logger'
 
 // A profile created this recently is a new sign-up, not a returning login.
-// (Profiles copied from Supabase keep their original created_at.)
+// (Profiles from before the move to Neon keep their original created_at.)
 const SIGNUP_WINDOW_MS = 10 * 60 * 1000
 
 /** A same-site relative path only: no protocol-relative or encoded tricks that could leave the site. */

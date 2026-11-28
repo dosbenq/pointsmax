@@ -12,10 +12,8 @@ Keep docs narrow and useful. This folder should help an engineer understand the 
 
 ## Most Useful Operational Docs
 
-- `Documentation/supabase-automation.md`
 - `Documentation/vercel-env-setup.md`
-- `Documentation/supabase-migrations-verify.md`
-- `Documentation/sql/post-deploy-smoke.sql`
+- `Documentation/launch-day-runbook.md`
 
 ## Catalog Docs
 

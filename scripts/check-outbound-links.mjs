@@ -3,8 +3,7 @@ import fs from 'node:fs/promises'
 const SOURCE_FILES = [
   'src/lib/booking-urls.ts',
   'src/lib/award-search/deep-links.ts',
-  'supabase/migrations/024_booking_urls.sql',
-  'supabase/migrations/031_refresh_booking_urls.sql',
+  'src/data/catalog/booking-urls.json',
 ]
 
 const SOFT_BLOCK_STATUSES = new Set([401, 403, 405, 429, 503])

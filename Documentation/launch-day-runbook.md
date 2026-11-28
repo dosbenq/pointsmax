@@ -44,7 +44,7 @@ All must be true before deploy:
    - Header: `Authorization: Bearer <CRON_SECRET>`
 4. Use detailed setup guides:
    - Vercel envs: `Documentation/vercel-env-setup.md`
-   - Supabase migrations: `Documentation/supabase-migrations-verify.md`
+   - Database and sign-in check: `GET /api/setup/status`
 
 ## 3) Deploy
 

@@ -22,9 +22,9 @@ export type SessionUser = AppUser
 
 /**
  * Create the app profile for a sign-in, or link the existing one with the
- * same email. Profiles copied from Supabase have no auth_id until their
- * owner's first Google sign-in, which links them here and keeps their tier,
- * Stripe customer and saved data.
+ * same email. Profiles from before the move to Neon have no auth_id until
+ * their owner's first Google sign-in, which links them here and keeps their
+ * tier, Stripe customer and saved data.
  */
 export async function ensureUserProfile(authId: string, email: string, db: Database = getDb()): Promise<void> {
   await db

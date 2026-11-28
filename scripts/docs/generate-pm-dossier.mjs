@@ -124,7 +124,7 @@ async function main() {
   const pages = (await walkFiles(path.join(ROOT, 'src/app'), (f) => f.endsWith('/page.tsx'))).sort()
   const apiRoutes = (await walkFiles(path.join(ROOT, 'src/app/api'), (f) => f.endsWith('/route.ts'))).sort()
   const tests = (await walkFiles(path.join(ROOT, 'src'), (f) => /\.test\.(ts|tsx)$/.test(f))).sort()
-  const migrations = (await walkFiles(path.join(ROOT, 'supabase/migrations'), (f) => f.endsWith('.sql'))).sort()
+  const migrations = (await walkFiles(path.join(ROOT, 'db/migrations'), (f) => f.endsWith('.sql'))).sort()
   const workflows = (await walkFiles(path.join(ROOT, '.github/workflows'), (f) => f.endsWith('.yml'))).sort()
   const featureFiles = (await walkFiles(path.join(ROOT, 'src/features'), (f) => /\.(ts|tsx)$/.test(f))).sort()
   const tsFiles = (await walkFiles(path.join(ROOT, 'src'), (f) => /\.(ts|tsx)$/.test(f))).sort()
@@ -203,7 +203,7 @@ async function main() {
     '',
     `- User-facing pages: **${pageRows.length}**`,
     `- API routes: **${apiRows.length}**`,
-    `- Supabase migrations: **${migrationRows.length}**`,
+    `- Database migrations: **${migrationRows.length}**`,
     `- Test files: **${tests.length}**`,
     `- GitHub workflows: **${workflowRows.length}**`,
     `- Feature-slice files: **${featureFiles.length}**`,
@@ -221,7 +221,7 @@ async function main() {
     '|---|---|---|',
     ...apiRows.map((row) => `| \`${row.route}\` | \`${row.methods}\` | \`${row.file}\` |`),
     '',
-    '## 4. Data Layer (Supabase Migrations)',
+    '## 4. Data Layer (Neon migrations in db/migrations)',
     '',
     duplicates.length > 0
       ? `- Warning: duplicate migration ordinals detected: ${duplicates.map((n) => `\`${n}\``).join(', ')}`

@@ -23,9 +23,8 @@
 ## Required External Launch Steps
 
 1. Configure production secrets in hosting platform:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `DATABASE_URL` (set by Vercel → Storage → Neon)
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BETTER_AUTH_SECRET`
    - `GEMINI_API_KEY`
    - `UPSTASH_REDIS_REST_URL`
    - `UPSTASH_REDIS_REST_TOKEN`

@@ -11,7 +11,7 @@ export type SnakeColumns<T> = { [K in keyof ColumnsOf<T> as SnakeCase<K & string
 
 /**
  * Select every column of a table or view keyed by its database (snake_case)
- * name, matching the row shape the app used with Supabase's select('*').
+ * name, the row shape the API routes return.
  *   db.select(columnsOf(programs)).from(programs)
  */
 export function columnsOf<T extends PgTable | PgView>(source: T): SnakeColumns<T> {
