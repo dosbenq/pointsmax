@@ -22,9 +22,8 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-    ],
+    // No remote images: card art is self-hosted. (Allowing every host made
+    // /_next/image an open proxy for anyone's images, billed to this project.)
     minimumCacheTTL: 86400,
   },
   experimental: {
