@@ -1,14 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { getCatalogProgramBySlug, getCatalogTransferPartners } from '@/lib/catalog'
+import { setDbForTesting } from '@/lib/db/client'
+import { alertSubscriptions, transferBonuses } from '@/lib/db/schema'
+import { createTestDb, type TestDb } from '@/test/utils/test-db'
 
-const createAdminClientMock = vi.fn()
 const createUnsubscribeTokenMock = vi.fn(() => 'token-123')
 const resendSendMock = vi.fn()
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: createAdminClientMock,
-}))
 
 vi.mock('@/lib/alerts-token', () => ({
   createUnsubscribeToken: createUnsubscribeTokenMock,
@@ -45,60 +44,22 @@ function makeRequest(opts?: { authHeader?: string; secretParam?: string }) {
   })
 }
 
-function makeDbClient(opts: {
-  bonuses?: Array<{ id: string; transfer_partner_id: string; bonus_pct: number; start_date: string; end_date: string }>
-  subscribers?: Array<{ email: string; program_ids: string[] }>
-}) {
-  const updateEqMock = vi.fn(async () => ({ error: null }))
-  const verifiedFilterMock = vi.fn()
-
-  const client = {
-    from: vi.fn((table: string) => {
-      if (table === 'transfer_bonuses') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn((column: string, value: unknown) => {
-              verifiedFilterMock(column, value)
-              return {
-                lte: vi.fn(() => ({
-                  gte: vi.fn(() => ({
-                    is: vi.fn(async () => ({ data: opts.bonuses ?? [], error: null })),
-                  })),
-                })),
-              }
-            }),
-          })),
-          update: vi.fn(() => ({
-            eq: updateEqMock,
-          })),
-        }
-      }
-
-      if (table === 'alert_subscriptions') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              overlaps: vi.fn(async () => ({ data: opts.subscribers ?? [], error: null })),
-            })),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    }),
-  }
-
-  return { client, updateEqMock, verifiedFilterMock }
-}
-
 const CHASE_ID = getCatalogProgramBySlug('chase-ur')!.id
 const FLYING_BLUE_ID = getCatalogProgramBySlug('flying-blue')!.id
 const CHASE_TO_FLYING_BLUE = getCatalogTransferPartners()
   .find((row) => row.from_program_id === CHASE_ID && row.to_program_id === FLYING_BLUE_ID)!
 
+let db: TestDb
+const today = new Date().toISOString().slice(0, 10)
+const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+
+afterAll(() => setDbForTesting(null))
+
 describe('GET /api/cron/send-bonus-alerts', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    db = await createTestDb()
+    setDbForTesting(db)
     process.env.CRON_SECRET = 'cron-secret'
     process.env.RESEND_API_KEY = 're_test'
     process.env.RESEND_FROM_EMAIL = 'alerts@pointsmax.com'
@@ -106,9 +67,6 @@ describe('GET /api/cron/send-bonus-alerts', () => {
   })
 
   it('returns 401 when auth is missing or invalid', async () => {
-    const { client } = makeDbClient({})
-    createAdminClientMock.mockReturnValue(client)
-
     const unauthorized = await GET(makeRequest())
     const wrongSecret = await GET(makeRequest({ authHeader: 'Bearer nope' }))
     const queryParamOnly = await GET(makeRequest({ secretParam: 'cron-secret' }))
@@ -119,8 +77,12 @@ describe('GET /api/cron/send-bonus-alerts', () => {
   })
 
   it('returns success with no work when there are no active bonuses', async () => {
-    const { client } = makeDbClient({ bonuses: [] })
-    createAdminClientMock.mockReturnValue(client)
+    // Unverified, finished and already-alerted bonuses are not work.
+    await db.insert(transferBonuses).values([
+      { transferPartnerId: CHASE_TO_FLYING_BLUE.id, bonusPct: 30, startDate: today, endDate: inDays(5), isVerified: false },
+      { transferPartnerId: CHASE_TO_FLYING_BLUE.id, bonusPct: 30, startDate: inDays(-9), endDate: inDays(-1), isVerified: true },
+      { transferPartnerId: CHASE_TO_FLYING_BLUE.id, bonusPct: 30, startDate: today, endDate: inDays(5), isVerified: true, alertedAt: new Date().toISOString() },
+    ])
 
     const res = await GET(makeRequest({ authHeader: 'Bearer cron-secret' }))
     const body = await res.json()
@@ -131,23 +93,15 @@ describe('GET /api/cron/send-bonus-alerts', () => {
   })
 
   it('sends bonus emails and marks bonus as alerted', async () => {
-    const { client, updateEqMock, verifiedFilterMock } = makeDbClient({
-      bonuses: [
-        {
-          id: 'bonus-1',
-          transfer_partner_id: CHASE_TO_FLYING_BLUE.id,
-          bonus_pct: 25,
-          start_date: '2026-02-01',
-          end_date: '2026-02-28',
-        },
-      ],
-      subscribers: [
-        { email: 'a@example.com', program_ids: [CHASE_ID] },
-        { email: 'b@example.com', program_ids: [CHASE_ID] },
-        { email: 'a@example.com', program_ids: [CHASE_ID] },
-      ],
-    })
-    createAdminClientMock.mockReturnValue(client)
+    const [bonus] = await db.insert(transferBonuses).values({
+      transferPartnerId: CHASE_TO_FLYING_BLUE.id, bonusPct: 25, startDate: inDays(-1), endDate: inDays(20), isVerified: true,
+    }).returning()
+    await db.insert(alertSubscriptions).values([
+      { email: 'a@example.com', programIds: [CHASE_ID] },
+      { email: 'b@example.com', programIds: [CHASE_ID, FLYING_BLUE_ID] },
+      { email: 'c@example.com', programIds: [FLYING_BLUE_ID] },
+      { email: 'd@example.com', programIds: [CHASE_ID], isActive: false },
+    ])
 
     const res = await GET(makeRequest({ authHeader: 'Bearer cron-secret' }))
     const body = await res.json()
@@ -158,8 +112,10 @@ describe('GET /api/cron/send-bonus-alerts', () => {
     expect(body.emails_sent).toBe(2)
     expect(body.failed_bonus_ids).toEqual([])
     expect(resendSendMock).toHaveBeenCalledTimes(2)
-    expect(updateEqMock).toHaveBeenCalledWith('id', 'bonus-1')
-    expect(verifiedFilterMock).toHaveBeenCalledWith('is_verified', true)
+    expect(resendSendMock.mock.calls.map(([message]) => message.to).sort()).toEqual(['a@example.com', 'b@example.com'])
+    const [stored] = await db.select().from(transferBonuses)
+    expect(stored.id).toBe(bonus.id)
+    expect(stored.alertedAt).not.toBeNull()
     expect(resendSendMock).toHaveBeenCalledWith(expect.objectContaining({
       subject: '+25% Transfer Bonus: Chase Ultimate Rewards → Air France/KLM Flying Blue',
     }))

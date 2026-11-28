@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { sql } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
 import { withTimeout, getActiveQueryCount } from '@/lib/db-timeout'
 import { getFeatureStatus } from '@/lib/env-validation'
 import { geminiCircuitBreaker, seatsAeroCircuitBreaker } from '@/lib/circuit-breaker'
@@ -80,19 +82,15 @@ export async function GET(req: NextRequest) {
   const dbStartTime = Date.now()
 
   try {
-    const db = createAdminClient()
-    const result = await withTimeout(
+    await withTimeout(
       async () => {
-        // User data is the only thing left in the database; reference data ships with the build.
-        const { error } = await db.from('users').select('id').limit(1)
-        return error
+        // User data is the only thing in the database; reference data ships with the build.
+        await ensureDatabaseReady()
+        await getDb().execute(sql`select 1`)
       },
       { operationName: 'health_check', timeoutMs: 5000 }
     )
     dbLatencyMs = Date.now() - dbStartTime
-    if (result) {
-      dbError = result.message
-    }
   } catch (err) {
     dbLatencyMs = Date.now() - dbStartTime
     dbError = err instanceof Error ? err.message : 'Database check failed'

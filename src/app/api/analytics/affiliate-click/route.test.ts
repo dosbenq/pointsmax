@@ -1,33 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { getCatalogCards } from '@/lib/catalog'
+import { getSessionUser } from '@/lib/auth'
+import { getCatalogCards, getCatalogProgramBySlug } from '@/lib/catalog'
+import { setDbForTesting } from '@/lib/db/client'
+import { affiliateClicks } from '@/lib/db/schema'
+import { createTestDb, seedUser, sessionFor, type TestDb } from '@/test/utils/test-db'
 
-const createAdminClientMock = vi.fn()
-const createSupabaseServerClientMock = vi.fn()
-const enforceJsonContentLengthMock = vi.fn()
-const enforceRateLimitMock = vi.fn()
-const logInfoMock = vi.fn()
-const logWarnMock = vi.fn()
-const logErrorMock = vi.fn()
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: createAdminClientMock,
-}))
-
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: createSupabaseServerClientMock,
-}))
-
+vi.mock('@/lib/auth', async (importOriginal) =>
+  (await import('@/test/utils/mock-auth')).mockAuthModule(importOriginal))
 vi.mock('@/lib/api-security', () => ({
-  enforceJsonContentLength: enforceJsonContentLengthMock,
-  enforceRateLimit: enforceRateLimitMock,
+  enforceJsonContentLength: vi.fn(() => null),
+  enforceRateLimit: vi.fn(async () => null),
 }))
-
 vi.mock('@/lib/logger', () => ({
   getRequestId: () => 'test-request-id',
-  logInfo: logInfoMock,
-  logWarn: logWarnMock,
-  logError: logErrorMock,
+  logInfo: vi.fn(),
+  logWarn: vi.fn(),
+  logError: vi.fn(),
 }))
 
 const { POST } = await import('./route')
@@ -35,120 +25,72 @@ const { POST } = await import('./route')
 // Cards are catalog data; use a real card that has an apply link.
 const APPLY_CARD = getCatalogCards().find((card) => typeof card.apply_url === 'string' && card.apply_url.startsWith('https://'))!
 
+let db: TestDb
+
+function click(body: Record<string, unknown>) {
+  return POST(new NextRequest('http://localhost/api/analytics/affiliate-click', { method: 'POST', body: JSON.stringify(body) }))
+}
+
+beforeEach(async () => {
+  vi.mocked(getSessionUser).mockReset().mockResolvedValue(null)
+  db = await createTestDb()
+  setDbForTesting(db)
+})
+
+afterAll(() => setDbForTesting(null))
+
 describe('POST /api/analytics/affiliate-click', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    enforceJsonContentLengthMock.mockReturnValue(null)
-    enforceRateLimitMock.mockReturnValue(null)
-    createSupabaseServerClientMock.mockResolvedValue({
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
-    })
-  })
-
-  it('rejects invalid card id with 400', async () => {
-    const dbClient = {
-      from: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
-            }),
-          }),
-        }),
-      }),
-    }
-    createAdminClientMock.mockReturnValue(dbClient)
-
-    const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
-      method: 'POST',
-      body: JSON.stringify({ card_id: 'invalid-id' }),
-    })
-
-    const res = await POST(req)
+  it('rejects an unknown card id with 400', async () => {
+    const res = await click({ card_id: 'invalid-id' })
     expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error.message).toBe('Unknown card_id')
+    expect((await res.json()).error.message).toBe('Unknown card_id')
   })
 
-  it('successfully records click with attribution fields', async () => {
-    const insertMock = vi.fn().mockResolvedValue({ data: {}, error: null })
-    const dbClient = {
-      from: vi.fn((table) => {
-        if (table === 'affiliate_clicks') {
-          return {
-            insert: insertMock,
-          }
-        }
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-            }),
-          }),
-        }
-      }),
-    }
-    createAdminClientMock.mockReturnValue(dbClient)
-
-    const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
-      method: 'POST',
-      body: JSON.stringify({
-        card_id: APPLY_CARD.id,
-        source_page: 'recommender',
-        rank: 1,
-        region: 'US',
-      }),
+  it('records the click with its attribution fields', async () => {
+    const programId = getCatalogProgramBySlug('chase-ur')!.id
+    const res = await click({
+      card_id: APPLY_CARD.id,
+      source_page: 'card-recommender',
+      rank: 2,
+      region: 'US',
+      recommendation_mode: 'next_best_card',
+      program_id: programId,
     })
-
-    const res = await POST(req)
-    expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.ok).toBe(true)
-    expect(body.tracked).toBe(true)
 
-    expect(insertMock).toHaveBeenCalledWith(
+    expect(res.status).toBe(200)
+    expect(body).toMatchObject({ ok: true, tracked: true, redirect_url: APPLY_CARD.apply_url })
+    expect(await db.select().from(affiliateClicks)).toEqual([
       expect.objectContaining({
-        card_id: APPLY_CARD.id,
-        source_page: 'recommender',
-        rank: 1,
+        cardId: APPLY_CARD.id,
+        userId: null,
+        sourcePage: 'card-recommender',
+        rank: 2,
         region: 'us',
-      })
-    )
+        recommendationMode: 'next_best_card',
+        programId,
+      }),
+    ])
   })
 
-  it('returns redirect_url even when tracking insert fails', async () => {
-    const insertMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } })
-    const dbClient = {
-      from: vi.fn((table) => {
-        if (table === 'affiliate_clicks') {
-          return {
-            insert: insertMock,
-          }
-        }
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-            }),
-          }),
-        }
-      }),
-    }
-    createAdminClientMock.mockReturnValue(dbClient)
+  it('attributes the click to the signed-in user and drops a malformed program id', async () => {
+    const pat = await seedUser(db, 'pat')
+    vi.mocked(getSessionUser).mockResolvedValue(sessionFor(pat))
 
-    const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
-      method: 'POST',
-      body: JSON.stringify({
-        card_id: APPLY_CARD.id,
-        source_page: 'recommender',
-      }),
-    })
+    await click({ card_id: APPLY_CARD.id, program_id: 'not-a-uuid' })
 
-    const res = await POST(req)
-    expect(res.status).toBe(200)
+    expect(await db.select().from(affiliateClicks)).toEqual([
+      expect.objectContaining({ userId: pat.userId, programId: null }),
+    ])
+  })
+
+  it('still returns the apply link when the click cannot be stored', async () => {
+    setDbForTesting(null) // no database configured in tests → every insert fails
+
+    const res = await click({ card_id: APPLY_CARD.id })
     const body = await res.json()
-    expect(body.ok).toBe(true)
-    expect(body.tracked).toBe(false)
-    expect(body.redirect_url).toBe(APPLY_CARD.apply_url)
+
+    expect(res.status).toBe(200)
+    expect(body).toMatchObject({ ok: true, tracked: false, redirect_url: APPLY_CARD.apply_url })
   })
 })

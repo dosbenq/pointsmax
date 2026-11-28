@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
+import { getDb } from '@/lib/db/client'
+import { sharedTrips, userBalances, users } from '@/lib/db/schema'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { count, sql } from 'drizzle-orm'
 import { enforceRateLimit } from '@/lib/api-security'
 import { logError } from '@/lib/logger'
 
@@ -93,15 +96,27 @@ export async function GET(req: Request) {
     })
   }
 
-  const db = createServerDbClient()
-  const { data, error } = await db
-    .from('site_stats')
-    .select('user_count, tracked_points, optimized_value_cents')
-    .limit(1)
-    .maybeSingle()
+  let data: { user_count: number | null; tracked_points: number | null; optimized_value_cents: number | null } | undefined
+  let error: unknown = null
+  try {
+    await ensureDatabaseReady()
+    const db = getDb()
+    const [[people], [points], [trips]] = await Promise.all([
+      db.select({ total: count() }).from(users),
+      db.select({ total: sql<number>`coalesce(sum(${userBalances.balance}), 0)`.mapWith(Number) }).from(userBalances),
+      db
+        .select({
+          total: sql<number>`coalesce(sum(case when (${sharedTrips.tripData}->>'total_value_cents') ~ '^[0-9]+$' then (${sharedTrips.tripData}->>'total_value_cents')::bigint else 0 end), 0)`.mapWith(Number),
+        })
+        .from(sharedTrips),
+    ])
+    data = { user_count: people.total, tracked_points: points.total, optimized_value_cents: trips.total }
+  } catch (err) {
+    error = err
+  }
 
   if (error) {
-    logError('public_stats_fetch_failed', { error: error.message })
+    logError('public_stats_fetch_failed', { error: error instanceof Error ? error.message : String(error) })
     // Return fallback stats so the frontend doesn't crash
     const fallbackPayload = {
       users: 0,

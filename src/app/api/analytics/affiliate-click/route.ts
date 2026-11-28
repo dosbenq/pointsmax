@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getAuthContext } from '@/lib/auth'
+import { UUID_RE } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { affiliateClicks } from '@/lib/db/schema'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest } from '@/lib/error-utils'
 import { getSafeExternalUrl } from '@/lib/card-surfaces'
@@ -18,7 +20,6 @@ type Payload = {
   recommendation_mode?: unknown
 }
 
-type UserIdRow = { id: string }
 
 function normalizeSourcePage(value: unknown): string {
   if (typeof value !== 'string') return 'unknown'
@@ -44,7 +45,6 @@ function normalizeRank(value: unknown): number | null {
 }
 
 async function insertWithRetry(
-  db: ReturnType<typeof createAdminClient>,
   payload: {
     card_id: string
     user_id: string | null
@@ -58,11 +58,21 @@ async function insertWithRetry(
 ) {
   let lastError: Error | null = null
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const result = await db.from('affiliate_clicks').insert(payload as never)
-    if (!result.error) {
+    try {
+      await getDb().insert(affiliateClicks).values({
+        cardId: payload.card_id,
+        userId: payload.user_id,
+        sourcePage: payload.source_page,
+        rank: payload.rank,
+        region: payload.region,
+        recommendationMode: payload.recommendation_mode,
+        // program_id comes from the browser; keep it only if it is a real id.
+        programId: payload.program_id && UUID_RE.test(payload.program_id) ? payload.program_id : null,
+      })
       return { ok: true as const }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
     }
-    lastError = result.error
     if (attempt < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
     }
@@ -116,7 +126,6 @@ async function trackAndReturn(
     return badRequest('card_id is required')
   }
 
-  const db = createAdminClient()
   const catalogCard = getCatalogCardById(cardId)
   const card = catalogCard?.is_active ? catalogCard : null
   if (!card) {
@@ -129,25 +138,15 @@ async function trackAndReturn(
     return badRequest('No valid apply_url configured for card')
   }
 
+  // Attribution to a signed-in user is best-effort; the click is tracked either way.
   let userId: string | null = null
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: authData } = await supabase.auth.getUser()
-    const authUserId = authData.user?.id ?? null
-    if (authUserId) {
-      const { data: userRowData } = await db
-        .from('users')
-        .select('id')
-        .eq('auth_id', authUserId)
-        .single()
-      const userRow = (userRowData ?? null) as UserIdRow | null
-      userId = userRow?.id ?? null
-    }
+    userId = (await getAuthContext()).profileId
   } catch {
     userId = null
   }
 
-  const insertResult = await insertWithRetry(db, {
+  const insertResult = await insertWithRetry({
     card_id: cardId,
     user_id: userId,
     source_page: sourcePage,

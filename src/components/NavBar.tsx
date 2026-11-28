@@ -118,7 +118,7 @@ export default function NavBar() {
     },
   ]), [region])
 
-  const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
+  const profileName = user?.name || user?.email?.split('@')[0] || 'User'
   const avatarLetter = profileName.charAt(0).toUpperCase()
 
   return (

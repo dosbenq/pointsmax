@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { and, eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { flightWatches } from '@/lib/db/schema'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 
@@ -20,19 +23,23 @@ type UpdateWatchPayload = {
 }
 
 async function getAuthenticatedContext() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, authUserId: null, userId: null }
+  const user = await getSessionUser()
+  if (!user) return { authUserId: null, userId: null }
+  const userId = await getUserRowId(user.id)
+  return { authUserId: user.id, userId }
+}
 
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  return { supabase, authUserId: user.id, userId: userRow?.id ?? null }
+const WATCH_FIELDS = {
+  id: flightWatches.id,
+  origin: flightWatches.origin,
+  destination: flightWatches.destination,
+  cabin: flightWatches.cabin,
+  start_date: flightWatches.startDate,
+  end_date: flightWatches.endDate,
+  max_points: flightWatches.maxPoints,
+  is_active: flightWatches.isActive,
+  last_checked_at: flightWatches.lastCheckedAt,
+  created_at: flightWatches.createdAt,
 }
 
 function parseIsoDate(raw: unknown): string | null {
@@ -90,14 +97,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: existing, error: existingErr } = await auth.supabase
-    .from('flight_watches')
-    .select('id, origin, destination, cabin, start_date, end_date, max_points, is_active')
-    .eq('id', id)
-    .eq('user_id', auth.userId)
-    .single()
+  const ownWatch = and(eq(flightWatches.id, id), eq(flightWatches.userId, auth.userId))
+  const [existing] = await getDb().select(WATCH_FIELDS).from(flightWatches).where(ownWatch).limit(1)
 
-  if (existingErr || !existing) {
+  if (!existing) {
     return NextResponse.json({ error: 'Watch not found' }, { status: 404 })
   }
 
@@ -108,7 +111,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const updates: Record<string, unknown> = {}
+  const updates: Partial<typeof flightWatches.$inferInsert> = {}
 
   if (body.origin !== undefined) {
     const origin = typeof body.origin === 'string' ? body.origin.trim().toUpperCase() : ''
@@ -136,66 +139,59 @@ export async function PATCH(
     if (!startDate) {
       return NextResponse.json({ error: 'start_date must be YYYY-MM-DD' }, { status: 400 })
     }
-    updates.start_date = startDate
+    updates.startDate = startDate
   }
   if (body.end_date !== undefined) {
     const endDate = parseIsoDate(body.end_date)
     if (!endDate) {
       return NextResponse.json({ error: 'end_date must be YYYY-MM-DD' }, { status: 400 })
     }
-    updates.end_date = endDate
+    updates.endDate = endDate
   }
   if (body.max_points !== undefined) {
     const maxPoints = parseMaxPoints(body.max_points)
     if (maxPoints === 'invalid') {
       return NextResponse.json({ error: 'max_points must be a positive integer' }, { status: 400 })
     }
-    updates.max_points = maxPoints
+    updates.maxPoints = maxPoints
   }
   if (body.is_active !== undefined) {
     if (typeof body.is_active !== 'boolean') {
       return NextResponse.json({ error: 'is_active must be boolean' }, { status: 400 })
     }
-    updates.is_active = body.is_active
+    updates.isActive = body.is_active
   }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'No valid fields provided for update' }, { status: 400 })
   }
 
-  const existingStartDate = parseIsoDate((existing as { start_date?: unknown }).start_date)
-  const existingEndDate = parseIsoDate((existing as { end_date?: unknown }).end_date)
+  const existingStartDate = parseIsoDate(existing.start_date)
+  const existingEndDate = parseIsoDate(existing.end_date)
   if (!existingStartDate || !existingEndDate) {
     logError('flight_watches_update_invalid_existing_dates', { requestId, watch_id: id, user_id: auth.userId })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const startDate = (updates.start_date as string | undefined) ?? existingStartDate
-  const endDate = (updates.end_date as string | undefined) ?? existingEndDate
+  const startDate = updates.startDate ?? existingStartDate
+  const endDate = updates.endDate ?? existingEndDate
   const dateRangeError = validateDateRange(startDate, endDate)
   if (dateRangeError) {
     return NextResponse.json({ error: dateRangeError }, { status: 400 })
   }
 
-  const { data, error } = await auth.supabase
-    .from('flight_watches')
-    .update(updates)
-    .eq('id', id)
-    .eq('user_id', auth.userId)
-    .select('id, origin, destination, cabin, start_date, end_date, max_points, is_active, last_checked_at, created_at')
-    .single()
-
-  if (error) {
+  try {
+    const [watch] = await getDb().update(flightWatches).set(updates).where(ownWatch).returning(WATCH_FIELDS)
+    return NextResponse.json({ ok: true, watch })
+  } catch (error) {
     logError('flight_watches_update_failed', {
       requestId,
       watch_id: id,
       user_id: auth.userId,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ ok: true, watch: data })
 }
 
 export async function DELETE(
@@ -223,18 +219,16 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { error } = await auth.supabase
-    .from('flight_watches')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', auth.userId)
-
-  if (error) {
+  try {
+    await getDb()
+      .delete(flightWatches)
+      .where(and(eq(flightWatches.id, id), eq(flightWatches.userId, auth.userId)))
+  } catch (error) {
     logError('flight_watches_delete_failed', {
       requestId,
       watch_id: id,
       user_id: auth.userId,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }

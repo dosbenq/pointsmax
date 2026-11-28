@@ -1,96 +1,75 @@
-import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { createAdminClient } from '@/lib/supabase'
+import { eq } from 'drizzle-orm'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthBaseUrl, getOrCreateUserRowId, getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { userPreferences, users } from '@/lib/db/schema'
 import { captureServerEvent } from '@/lib/posthog-server'
 import { logWarn } from '@/lib/logger'
-import { getConfiguredAppOrigin } from '@/lib/app-origin'
-import { NextResponse, type NextRequest } from 'next/server'
 
-// A Supabase auth user created this recently is a new sign-up, not a returning login.
+// A profile created this recently is a new sign-up, not a returning login.
+// (Profiles copied from Supabase keep their original created_at.)
 const SIGNUP_WINDOW_MS = 10 * 60 * 1000
 
-async function trackSignup(
-  authUser: { id: string; email?: string | null; created_at?: string },
-  region: 'us' | 'in',
-) {
-  const createdAt = Date.parse(authUser.created_at ?? '')
-  if (!Number.isFinite(createdAt) || Date.now() - createdAt > SIGNUP_WINDOW_MS) return
-
+const isSafeNextPath = (p: string) => {
+  if (!p.startsWith('/') || p.startsWith('//')) return false
+  // Reject URL-encoded slashes or backslashes that could bypass validation
+  if (/%2f/i.test(p) || /%5c/i.test(p) || p.includes('\\')) return false
   try {
-    const { data } = await createAdminClient()
-      .from('users')
-      .select('id')
-      .eq('auth_id', authUser.id)
-      .maybeSingle()
-    const userId = (data as { id?: unknown } | null)?.id
-    if (typeof userId !== 'string') return
-
-    await captureServerEvent({
-      distinctId: userId,
-      event: 'user_signed_up',
-      properties: { region, method: 'google' },
-      setPersonProperties: authUser.email ? { email: authUser.email } : undefined,
-      dedupeKey: `signup:${authUser.id}`,
-      timestamp: new Date(createdAt).toISOString(),
-    })
-  } catch (error) {
-    logWarn('signup_tracking_failed', { error: error instanceof Error ? error.message : String(error) })
+    return new URL(p, 'http://localhost').hostname === 'localhost'
+  } catch {
+    return false
   }
 }
 
 // GET /auth/callback
-// Exchanges OAuth code for a session, then redirects to /calculator
+// Post-sign-in landing. Better Auth completes the Google exchange at
+// /api/auth/callback/google and redirects here; first-time users go to
+// onboarding, everyone else to `next`.
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const code = searchParams.get('code')
-  const nextParam = searchParams.get('next') ?? '/us/calculator'
-  // Validate: must be relative path, no protocol-relative, no encoded sequences that could redirect
-  const isValidPath = (p: string) => {
-    if (!p.startsWith('/') || p.startsWith('//')) return false
-    // Reject any URL-encoded slashes or backslashes that could bypass validation
-    if (/%2f/i.test(p) || /%5c/i.test(p) || p.includes('\\')) return false
-    // Ensure it doesn't contain protocol indicators
-    try {
-      const url = new URL(p, 'http://localhost')
-      if (url.hostname !== 'localhost') return false
-    } catch {
-      return false
-    }
-    return true
+  const nextParam = request.nextUrl.searchParams.get('next') ?? '/us/calculator'
+  const next = isSafeNextPath(nextParam) ? nextParam : '/us/calculator'
+  const region = next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us'
+  // The sign-in cookie lives on the auth origin, so stay on it.
+  const appOrigin = getAuthBaseUrl()
+
+  let user
+  try {
+    user = await getSessionUser(request.headers)
+  } catch {
+    user = null
   }
-  const next = isValidPath(nextParam) ? nextParam : '/us/calculator'
+  if (!user) return NextResponse.redirect(`${appOrigin}/us/calculator?auth_error=1`)
 
-  // Use the canonical app origin from env, not the request URL origin.
-  // request.url can reflect internal Vercel routing URLs on some deployments,
-  // causing redirects to go to the wrong host.
-  const appOrigin = getConfiguredAppOrigin()
-
-  if (code) {
-    const supabase = await createSupabaseServerClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      // Check if user has completed onboarding (has a home airport)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-         await trackSignup(user, next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us')
-
-         const { data: prefs } = await supabase
-           .from('user_preferences')
-           .select('home_airport')
-           .eq('id', user.id)
-           .single()
-
-         if (!prefs?.home_airport) {
-           // Extract region from 'next' path (e.g. /in/calculator -> in)
-           const pathParts = next.split('/').filter(Boolean)
-           const region = pathParts[0] === 'in' ? 'in' : 'us'
-           return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
-         }
+  try {
+    const userRowId = await getOrCreateUserRowId(user)
+    const db = getDb()
+    const [profile] = await db.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userRowId)).limit(1)
+    const createdAt = Date.parse(profile?.createdAt ?? '')
+    if (Number.isFinite(createdAt) && Date.now() - createdAt <= SIGNUP_WINDOW_MS) {
+      try {
+        await captureServerEvent({
+          distinctId: userRowId,
+          event: 'user_signed_up',
+          properties: { region, method: 'google' },
+          setPersonProperties: { email: user.email },
+          dedupeKey: `signup:${userRowId}`,
+          timestamp: new Date(createdAt).toISOString(),
+        })
+      } catch (error) {
+        logWarn('signup_tracking_failed', { error: error instanceof Error ? error.message : String(error) })
       }
-
-      return NextResponse.redirect(`${appOrigin}${next}`)
     }
+
+    const [prefs] = await db
+      .select({ homeAirport: userPreferences.homeAirport })
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userRowId))
+      .limit(1)
+    if (!prefs?.homeAirport) return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
+  } catch (error) {
+    // Profile problems must not block a successful sign-in.
+    logWarn('auth_callback_profile_failed', { error: error instanceof Error ? error.message : String(error) })
   }
 
-  // Something went wrong — redirect to calculator with error flag
-  return NextResponse.redirect(`${appOrigin}/us/calculator?auth_error=1`)
+  return NextResponse.redirect(`${appOrigin}${next}`)
 }

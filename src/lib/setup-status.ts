@@ -1,20 +1,16 @@
 // ============================================================
-// Deployment self-check for the move to Neon: which settings are present,
-// whether the schema is applied, and a rehearsal of the Supabase copy.
-// Reports booleans, counts and sanitised errors only.
+// Deployment self-check for the Neon database: which settings are present,
+// whether the schema is applied, and whether the one-off copy from Supabase
+// has finished (running it if it has not). Reports booleans, counts and
+// sanitised errors only.
 // ============================================================
 
+import { eq } from 'drizzle-orm'
 import { getDb } from '@/lib/db/client'
 import { ensureSchema } from '@/lib/db/migrate'
-import {
-  createSupabaseReader,
-  importFromSupabase,
-  isSupabaseImportComplete,
-  type ImportReport,
-  type SourceReader,
-  type SupabaseLike,
-} from '@/lib/db/supabase-import'
-import { createAdminClient } from '@/lib/supabase'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { dataImports } from '@/lib/db/schema'
+import { SUPABASE_IMPORT_ID, type TableReport } from '@/lib/db/supabase-import'
 import { getSetupReadiness } from '@/lib/setup-readiness'
 
 type Failure = { ok: false; error: string }
@@ -22,8 +18,10 @@ type Failure = { ok: false; error: string }
 export type SetupStatus = {
   configured: ReturnType<typeof getSetupReadiness> & { supabase_source: boolean }
   schema: { ok: true; migrations: number; applied_now: string[] } | Failure
-  import_complete?: boolean
-  rehearsal?: ({ ok: true } & ImportReport) | Failure | { ok: null; skipped: string }
+  import?:
+    | { ok: true; complete: true; completed_at: string; tables: Record<string, TableReport> }
+    | { ok: true; complete: false; reason: string }
+    | Failure
   checked_at: string
 }
 
@@ -41,9 +39,7 @@ function hasSupabaseSource(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim())
 }
 
-export async function runSetupCheck(
-  createReader: () => SourceReader = () => createSupabaseReader(createAdminClient() as unknown as SupabaseLike),
-): Promise<SetupStatus> {
+export async function runSetupCheck(): Promise<SetupStatus> {
   const checkedAt = new Date().toISOString()
   const configured = { ...getSetupReadiness(), supabase_source: hasSupabaseSource() }
   if (!configured.database_url) {
@@ -58,33 +54,23 @@ export async function runSetupCheck(
     return { configured, schema: { ok: false, error: sanitizeError(error) }, checked_at: checkedAt }
   }
 
-  let importComplete: boolean
   try {
-    importComplete = await isSupabaseImportComplete(getDb())
+    // Runs the Supabase copy if it has not happened yet.
+    await ensureDatabaseReady()
+    const [marker] = await getDb().select().from(dataImports).where(eq(dataImports.id, SUPABASE_IMPORT_ID))
+    const result: NonNullable<SetupStatus['import']> = marker
+      ? { ok: true, complete: true, completed_at: marker.completedAt, tables: marker.counts as Record<string, TableReport> }
+      : { ok: true, complete: false, reason: 'Nothing to copy outside production without Supabase credentials' }
+    return { configured, schema, import: result, checked_at: checkedAt }
   } catch (error) {
-    return { configured, schema, rehearsal: { ok: false, error: sanitizeError(error) }, checked_at: checkedAt }
+    return { configured, schema, import: { ok: false, error: sanitizeError(error) }, checked_at: checkedAt }
   }
-
-  let rehearsal: NonNullable<SetupStatus['rehearsal']>
-  if (importComplete) {
-    rehearsal = { ok: null, skipped: 'The copy from Supabase has already been done' }
-  } else if (!configured.supabase_source) {
-    rehearsal = { ok: null, skipped: 'Supabase credentials are not set' }
-  } else {
-    try {
-      rehearsal = { ok: true, ...(await importFromSupabase(getDb(), createReader(), { dryRun: true })) }
-    } catch (error) {
-      rehearsal = { ok: false, error: sanitizeError(error) }
-    }
-  }
-
-  return { configured, schema, import_complete: importComplete, rehearsal, checked_at: checkedAt }
 }
 
-const CACHE_MS = 10 * 60 * 1000
+const CACHE_MS = 30 * 1000
 type Cached = { at: number; promise: Promise<SetupStatus> }
 
-/** runSetupCheck, shared by concurrent callers and reused for 10 minutes per server instance. */
+/** runSetupCheck, shared by concurrent callers and reused for 30 seconds per server instance. */
 export function getSetupStatus(): Promise<SetupStatus> {
   const g = globalThis as typeof globalThis & { __pointsmaxSetupStatus?: Cached }
   const cached = g.__pointsmaxSetupStatus

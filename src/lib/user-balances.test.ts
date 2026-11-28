@@ -1,85 +1,55 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { getCatalogProgramBySlug } from '@/lib/catalog'
+import { setDbForTesting } from '@/lib/db/client'
+import { userBalances } from '@/lib/db/schema'
+import { createTestDb, seedUser, type SeededUser, type TestDb } from '@/test/utils/test-db'
 import { loadUnifiedBalancesByUser } from './user-balances'
 
-const { mockFrom } = vi.hoisted(() => ({
-  mockFrom: vi.fn(),
-}))
+const US_PROGRAM = getCatalogProgramBySlug('chase-ur')!.id
+const INDIA_PROGRAM = getCatalogProgramBySlug('hdfc-millennia')!.id
 
-type QueryResult = {
-  data: unknown[] | null
-  error: { message: string } | null
-}
+let db: TestDb
+let pat: SeededUser
+let sam: SeededUser
 
-function makeBuilder(result: QueryResult) {
-  const builder = {
-    select() {
-      return builder
-    },
-    in() {
-      return builder
-    },
-    order() {
-      return Promise.resolve(result)
-    },
-    then(onfulfilled?: (value: QueryResult) => unknown) {
-      return Promise.resolve(result).then(onfulfilled)
-    },
-  }
+beforeEach(async () => {
+  db = await createTestDb()
+  setDbForTesting(db)
+  pat = await seedUser(db, 'pat')
+  sam = await seedUser(db, 'sam')
+})
 
-  return builder
-}
-
-const mockClient = {
-  from: mockFrom,
-}
+afterAll(() => setDbForTesting(null))
 
 describe('loadUnifiedBalancesByUser', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('returns each user\'s saved balances, and an empty list for users with none', async () => {
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'user_balances') {
-        return makeBuilder({
-          data: [
-            { user_id: 'user-1', program_id: 'prog-1', balance: 111000, updated_at: '2026-03-13T10:00:00Z' },
-            { user_id: 'user-1', program_id: 'prog-2', balance: 50000, updated_at: null },
-          ],
-          error: null,
-        })
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const result = await loadUnifiedBalancesByUser(mockClient, ['user-1', 'user-2'])
-
-    expect(result.get('user-1')).toEqual([
-      expect.objectContaining({ program_id: 'prog-1', balance: 111000, source: 'manual', connected_account_id: null }),
-      expect.objectContaining({ program_id: 'prog-2', balance: 50000, confidence: 'low', is_stale: true }),
+  it("returns each user's saved balances, and an empty list for users with none", async () => {
+    await db.insert(userBalances).values([
+      { userId: pat.userId, programId: US_PROGRAM, balance: 111000, updatedAt: new Date().toISOString() },
+      { userId: pat.userId, programId: INDIA_PROGRAM, balance: 50000, updatedAt: '2020-01-01T00:00:00Z' },
     ])
-    expect(result.get('user-2')).toEqual([])
+
+    const result = await loadUnifiedBalancesByUser([pat.userId, sam.userId])
+
+    expect(result.get(pat.userId)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ program_id: US_PROGRAM, balance: 111000, source: 'manual', confidence: 'high', is_stale: false, connected_account_id: null }),
+      expect.objectContaining({ program_id: INDIA_PROGRAM, balance: 50000, confidence: 'low', is_stale: true }),
+    ]))
+    expect(result.get(sam.userId)).toEqual([])
   })
 
   it('filters balances by region when requested', async () => {
-    const usProgram = getCatalogProgramBySlug('chase-ur')!.id
-    const indiaProgram = getCatalogProgramBySlug('hdfc-millennia')!.id
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'user_balances') {
-        return makeBuilder({
-          data: [
-            { user_id: 'user-1', program_id: usProgram, balance: 1000, updated_at: '2026-03-13T10:00:00Z' },
-            { user_id: 'user-1', program_id: indiaProgram, balance: 2000, updated_at: '2026-03-13T10:00:00Z' },
-          ],
-          error: null,
-        })
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+    await db.insert(userBalances).values([
+      { userId: pat.userId, programId: US_PROGRAM, balance: 1000 },
+      { userId: pat.userId, programId: INDIA_PROGRAM, balance: 2000 },
+    ])
 
-    const result = await loadUnifiedBalancesByUser(mockClient, ['user-1'], 'US')
-    expect(result.get('user-1')).toEqual([expect.objectContaining({ program_id: usProgram, balance: 1000 })])
+    const result = await loadUnifiedBalancesByUser([pat.userId], 'IN')
+    expect(result.get(pat.userId)?.map((b) => b.program_id)).toEqual([INDIA_PROGRAM])
   })
 
+  it('returns nothing without querying when no user ids are given', async () => {
+    setDbForTesting(null) // would throw if it touched the database
+    expect((await loadUnifiedBalancesByUser(['', ''])).size).toBe(0)
+  })
 })

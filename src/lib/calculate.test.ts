@@ -1,8 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BalanceInput } from '@/types/database'
+import { setDbForTesting } from '@/lib/db/client'
+import { transferBonuses } from '@/lib/db/schema'
+import { createTestDb, type TestDb } from '@/test/utils/test-db'
 
-type QueryError = { message: string; code?: string } | null
-type QueryResult = { data: unknown[] | null; error: QueryError }
+const TP_CHASE_HYATT = '0b5f3c1e-0000-4000-8000-000000000001'
+const TP_CHASE_UNITED = '0b5f3c1e-0000-4000-8000-000000000002'
 
 const mockData: Record<string, unknown[]> = {
   latest_valuations: [
@@ -12,10 +16,9 @@ const mockData: Record<string, unknown[]> = {
     { program_id: 'united', cpp_cents: 1.2, program_name: 'United MileagePlus', program_slug: 'united', program_type: 'airline_miles' },
   ],
   transfer_partners: [
-    { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
-    { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: TP_CHASE_HYATT, from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: TP_CHASE_UNITED, from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
   ],
-  active_bonuses: [],
   redemption_options: [
     { program_id: 'chase-ur', category: 'travel_portal', cpp_cents: 1.5, label: 'Chase Travel Portal' },
     { program_id: 'chase-ur', category: 'cashback', cpp_cents: 1.0, label: 'Cash Back' },
@@ -29,7 +32,8 @@ const mockData: Record<string, unknown[]> = {
   ],
 }
 
-let bonusError: QueryError = null
+let readyError: Error | null = null
+let db: TestDb
 
 // Reference data comes from the catalog; feed the engine small synthetic fixtures.
 vi.mock('@/lib/catalog', () => ({
@@ -40,39 +44,36 @@ vi.mock('@/lib/catalog', () => ({
 }))
 
 // Only time-bound transfer bonuses still come from the database.
-function makeBonusQuery() {
-  const builder = {
-    select: vi.fn(() => builder),
-    eq: vi.fn(() => builder),
-    lte: vi.fn(() => builder),
-    gte: vi.fn(() => builder),
-    then<TResult1 = QueryResult, TResult2 = never>(
-      onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
-      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-    ) {
-      const result: QueryResult = bonusError ? { data: null, error: bonusError } : { data: mockData.active_bonuses, error: null }
-      return Promise.resolve(result).then(onfulfilled ?? undefined, onrejected ?? undefined)
-    },
-  }
-  return builder
-}
-
-vi.mock('@/lib/supabase', () => ({
-  createServerDbClient: vi.fn(() => ({
-    from: vi.fn((tableName: string) => {
-      if (tableName !== 'transfer_bonuses') throw new Error(`unexpected table ${tableName}`)
-      return makeBonusQuery()
-    }),
-  })),
+vi.mock('@/lib/db/ready', () => ({
+  ensureDatabaseReady: vi.fn(async () => {
+    if (readyError) throw readyError
+  }),
 }))
+
+const today = new Date().toISOString().slice(0, 10)
+const daysFromToday = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+
+async function addBonus(values: { transferPartnerId: string; bonusPct: number; isVerified?: boolean; startDate?: string; endDate?: string }) {
+  await db.insert(transferBonuses).values({
+    isVerified: true,
+    startDate: daysFromToday(-1),
+    endDate: daysFromToday(7),
+    ...values,
+  })
+}
 
 vi.mock('@/lib/logger', () => ({ logWarn: vi.fn(), logError: vi.fn(), logInfo: vi.fn() }))
 
 const { calculateRedemptions } = await import('./calculate')
 
+beforeEach(async () => {
+  db = await createTestDb()
+  setDbForTesting(db)
+})
+
 afterEach(() => {
-  bonusError = null
-  mockData.active_bonuses = []
+  setDbForTesting(null)
+  readyError = null
   mockData.latest_valuations = [
     { program_id: 'chase-ur', cpp_cents: 2.0, program_name: 'Chase Ultimate Rewards', program_slug: 'chase-ur', program_type: 'transferable_points' },
     { program_id: 'hyatt', cpp_cents: 1.8, program_name: 'World of Hyatt', program_slug: 'hyatt', program_type: 'hotel_points' },
@@ -80,8 +81,8 @@ afterEach(() => {
     { program_id: 'united', cpp_cents: 1.2, program_name: 'United MileagePlus', program_slug: 'united', program_type: 'airline_miles' },
   ]
   mockData.transfer_partners = [
-    { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
-    { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: TP_CHASE_HYATT, from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+    { id: TP_CHASE_UNITED, from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
   ]
   mockData.programs = [
     { id: 'chase-ur', name: 'Chase Ultimate Rewards', short_name: 'Chase UR', slug: 'chase-ur', color_hex: '#1c4d8c', type: 'transferable_points' },
@@ -108,15 +109,29 @@ describe('calculateRedemptions', () => {
   })
 
   it('applies an active verified transfer bonus', async () => {
-    mockData.active_bonuses = [{ transfer_partner_id: 'tp-chase-hyatt', bonus_pct: 30 }]
+    await addBonus({ transferPartnerId: TP_CHASE_HYATT, bonusPct: 30 })
     const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
 
     expect(result.results[0].label).toBe('Transfer to World of Hyatt')
     expect(result.total_optimal_value_cents).toBe(23400)
   })
 
+  it('ignores bonuses that are unverified, finished or not started', async () => {
+    await addBonus({ transferPartnerId: TP_CHASE_HYATT, bonusPct: 30, isVerified: false })
+    await addBonus({ transferPartnerId: TP_CHASE_HYATT, bonusPct: 40, startDate: daysFromToday(-10), endDate: daysFromToday(-1) })
+    await addBonus({ transferPartnerId: TP_CHASE_HYATT, bonusPct: 50, startDate: daysFromToday(1), endDate: daysFromToday(9) })
+    await addBonus({ transferPartnerId: TP_CHASE_UNITED, bonusPct: 25, startDate: today, endDate: today })
+
+    const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
+    const hyatt = result.results.find((r) => r.label === 'Transfer to World of Hyatt')!
+    const united = result.results.find((r) => r.label === 'Transfer to United MileagePlus')!
+    expect(hyatt.total_value_cents).toBe(18000)
+    expect(united.total_value_cents).toBe(15000) // 1.2¢ × 12,500 miles: a bonus that starts and ends today counts
+  })
+
   it('still calculates (without bonuses) when the database is unreachable', async () => {
-    bonusError = { message: 'database paused' }
+    await addBonus({ transferPartnerId: TP_CHASE_HYATT, bonusPct: 30 })
+    readyError = new Error('database paused')
     const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
 
     expect(result.total_optimal_value_cents).toBe(18000)
@@ -158,8 +173,8 @@ describe('calculateRedemptions', () => {
       { program_id: 'ana', cpp_cents: 2.6, program_name: 'ANA Mileage Club', program_slug: 'ana', program_type: 'airline_miles' },
     ]
     mockData.transfer_partners = [
-      { id: 'tp-chase-united', from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
-      { id: 'tp-chase-hyatt', from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+      { id: TP_CHASE_UNITED, from_program_id: 'chase-ur', to_program_id: 'united', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
+      { id: TP_CHASE_HYATT, from_program_id: 'chase-ur', to_program_id: 'hyatt', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
       { id: 'tp-chase-aeroplan', from_program_id: 'chase-ur', to_program_id: 'aeroplan', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 0, is_instant: true },
       { id: 'tp-aeroplan-ana', from_program_id: 'aeroplan', to_program_id: 'ana', ratio_from: 1, ratio_to: 1, transfer_time_max_hrs: 24, is_instant: false },
     ]

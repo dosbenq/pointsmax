@@ -1,17 +1,7 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { GenericDatabase } from '@/lib/supabase'
+import { inArray } from 'drizzle-orm'
 import { getCatalogPrograms } from '@/lib/catalog'
-
-type SupabaseLikeClient = {
-  from: SupabaseClient<GenericDatabase>['from']
-}
-
-type ManualBalanceRow = {
-  user_id: string
-  program_id: string
-  balance: number
-  updated_at: string | null
-}
+import { getDb } from '@/lib/db/client'
+import { userBalances } from '@/lib/db/schema'
 
 export type UnifiedBalance = {
   program_id: string
@@ -46,7 +36,6 @@ function isStale(asOf: string | null): boolean {
 
 /** Saved (manually entered) balances per user, optionally limited to a region's programs. */
 export async function loadUnifiedBalancesByUser(
-  client: SupabaseLikeClient,
   userIds: string[],
   region?: 'US' | 'IN' | null,
 ): Promise<Map<string, UnifiedBalance[]>> {
@@ -55,12 +44,15 @@ export async function loadUnifiedBalancesByUser(
 
   if (uniqueUserIds.length === 0) return balancesByUser
 
-  const { data: manualBalances, error: balancesError } = await client
-    .from('user_balances')
-    .select('user_id, program_id, balance, updated_at')
-    .in('user_id', uniqueUserIds)
-
-  if (balancesError) throw new Error(`Failed to load manual balances: ${balancesError.message}`)
+  const manualBalances = await getDb()
+    .select({
+      user_id: userBalances.userId,
+      program_id: userBalances.programId,
+      balance: userBalances.balance,
+      updated_at: userBalances.updatedAt,
+    })
+    .from(userBalances)
+    .where(inArray(userBalances.userId, uniqueUserIds))
 
   const validProgramIds = region
     ? new Set(getCatalogPrograms({ geography: region }).map((program) => program.id))
@@ -68,7 +60,7 @@ export async function loadUnifiedBalancesByUser(
 
   for (const userId of uniqueUserIds) balancesByUser.set(userId, [])
 
-  for (const manual of (manualBalances as ManualBalanceRow[] | null) ?? []) {
+  for (const manual of manualBalances) {
     if (validProgramIds && !validProgramIds.has(manual.program_id)) continue
     balancesByUser.get(manual.user_id)?.push({
       program_id: manual.program_id,

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { desc, eq } from 'drizzle-orm'
+import { getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { flightWatches } from '@/lib/db/schema'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 import { canUseFeature, getUserTier } from '@/lib/subscription'
@@ -20,24 +23,23 @@ type CreateWatchPayload = {
 }
 
 async function getAuthenticatedContext() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { supabase, authUserId: null, userId: null }
+  const user = await getSessionUser()
+  if (!user) return { authUserId: null, userId: null }
+  const userId = await getUserRowId(user.id)
+  return { authUserId: user.id, userId }
+}
 
-  const { data: userRow } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single()
-
-  const userId =
-    typeof (userRow as { id?: unknown } | null)?.id === 'string'
-      ? (userRow as { id: string }).id
-      : null
-
-  return { supabase, authUserId: user.id, userId }
+const WATCH_FIELDS = {
+  id: flightWatches.id,
+  origin: flightWatches.origin,
+  destination: flightWatches.destination,
+  cabin: flightWatches.cabin,
+  start_date: flightWatches.startDate,
+  end_date: flightWatches.endDate,
+  max_points: flightWatches.maxPoints,
+  is_active: flightWatches.isActive,
+  last_checked_at: flightWatches.lastCheckedAt,
+  created_at: flightWatches.createdAt,
 }
 
 function parseMaxPoints(raw: unknown): number | null | 'invalid' {
@@ -74,22 +76,21 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data, error } = await context.supabase
-    .from('flight_watches')
-    .select('id, origin, destination, cabin, start_date, end_date, max_points, is_active, last_checked_at, created_at')
-    .eq('user_id', context.userId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
+  try {
+    const data = await getDb()
+      .select(WATCH_FIELDS)
+      .from(flightWatches)
+      .where(eq(flightWatches.userId, context.userId))
+      .orderBy(desc(flightWatches.createdAt))
+    return NextResponse.json({ watches: data })
+  } catch (error) {
     logError('flight_watches_get_failed', {
       requestId,
       user_id: context.userId,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ watches: data ?? [] })
 }
 
 export async function POST(req: NextRequest) {
@@ -155,29 +156,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: dateRangeError }, { status: 400 })
   }
 
-  const { data, error } = await context.supabase
-    .from('flight_watches')
-    .insert({
-      user_id: context.userId,
-      origin,
-      destination,
-      cabin,
-      start_date: startDate,
-      end_date: endDate,
-      max_points: maxPoints,
-      is_active: true,
-    })
-    .select('id, origin, destination, cabin, start_date, end_date, max_points, is_active, last_checked_at, created_at')
-    .single()
-
-  if (error) {
+  try {
+    const [watch] = await getDb()
+      .insert(flightWatches)
+      .values({
+        userId: context.userId,
+        origin,
+        destination,
+        cabin,
+        startDate,
+        endDate,
+        maxPoints,
+        isActive: true,
+      })
+      .returning(WATCH_FIELDS)
+    return NextResponse.json({ ok: true, watch }, { status: 201 })
+  } catch (error) {
     logError('flight_watches_create_failed', {
       requestId,
       user_id: context.userId,
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
     })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
-
-  return NextResponse.json({ ok: true, watch: data }, { status: 201 })
 }

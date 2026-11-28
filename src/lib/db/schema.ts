@@ -19,6 +19,7 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
@@ -32,7 +33,17 @@ import {
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
-const createdAt = () => timestamp('created_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull()
+/**
+ * timestamptz returned as an ISO-8601 string ("2026-01-01T00:00:00.000Z").
+ * Postgres' own text form ("2026-01-01 00:00:00+00") is not parsed by Safari,
+ * and these values go straight to the browser in API responses.
+ */
+const isoTimestamp = customType<{ data: string; driverData: string | Date }>({
+  dataType: () => 'timestamp with time zone',
+  fromDriver: (value) => (value instanceof Date ? value : new Date(value)).toISOString(),
+})
+
+const createdAt = () => isoTimestamp('created_at').default(sql`now()`).notNull()
 
 export const subscriptionTier = pgEnum('subscription_tier', ['free', 'premium'])
 
@@ -104,9 +115,9 @@ export const users = pgTable('users', {
   stripeCustomerId: text('stripe_customer_id'),
   createdAt: createdAt(),
   authId: uuid('auth_id').references((): AnyPgColumn => authUser.id, { onDelete: 'set null' }),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  lastSeenAt: isoTimestamp('last_seen_at').default(sql`now()`).notNull(),
   // When the Stripe event that last set `tier` happened; older events are ignored.
-  tierUpdatedAt: timestamp('tier_updated_at', { withTimezone: true, mode: 'string' }),
+  tierUpdatedAt: isoTimestamp('tier_updated_at'),
 }, (table) => [
   unique('users_email_key').on(table.email),
   unique('users_auth_id_key').on(table.authId),
@@ -121,7 +132,7 @@ export const userPreferences = pgTable('user_preferences', {
   preferredAirlines: text('preferred_airlines').array().default(sql`'{}'`),
   avoidedAirlines: text('avoided_airlines').array().default(sql`'{}'`),
   digestEmailEnabled: boolean('digest_email_enabled').default(true).notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  updatedAt: isoTimestamp('updated_at').default(sql`now()`).notNull(),
 })
 
 /** Points balances people typed in. program_id is a catalog program id. */
@@ -130,7 +141,7 @@ export const userBalances = pgTable('user_balances', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   programId: uuid('program_id').notNull(),
   balance: bigint({ mode: 'number' }).default(0).notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  updatedAt: isoTimestamp('updated_at').default(sql`now()`).notNull(),
 }, (table) => [
   unique('user_balances_user_id_program_id_key').on(table.userId, table.programId),
 ])
@@ -158,11 +169,11 @@ export const flightWatches = pgTable('flight_watches', {
   endDate: date('end_date').notNull(),
   maxPoints: integer('max_points'),
   isActive: boolean('is_active').default(true).notNull(),
-  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true, mode: 'string' }),
+  lastCheckedAt: isoTimestamp('last_checked_at'),
   createdAt: createdAt(),
   // Identifies the last deal emailed for this watch so the same deal is not re-sent every run.
   lastAlertKey: text('last_alert_key'),
-  lastAlertedAt: timestamp('last_alerted_at', { withTimezone: true, mode: 'string' }),
+  lastAlertedAt: isoTimestamp('last_alerted_at'),
 }, (table) => [
   index('idx_flight_watches_user_id').on(table.userId),
   index('idx_flight_watches_active').on(table.isActive).where(sql`is_active = true`),
@@ -182,7 +193,7 @@ export const transferBonuses = pgTable('transfer_bonuses', {
   isVerified: boolean('is_verified').default(false).notNull(),
   notes: text(),
   autoDetected: boolean('auto_detected').default(false).notNull(),
-  alertedAt: timestamp('alerted_at', { withTimezone: true, mode: 'string' }),
+  alertedAt: isoTimestamp('alerted_at'),
   createdAt: createdAt(),
 }, (table) => [
   index('idx_bonuses_dates').on(table.startDate, table.endDate),
@@ -220,7 +231,7 @@ export const subscriptionEvents = pgTable('subscription_events', {
   eventType: text('event_type').notNull(),
   previousTier: text('previous_tier'),
   newTier: text('new_tier'),
-  occurredAt: timestamp('occurred_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  occurredAt: isoTimestamp('occurred_at').default(sql`now()`).notNull(),
   metadata: jsonb(),
 }, (table) => [
   index('idx_subscription_events_user_id').on(table.userId),
@@ -230,7 +241,7 @@ export const subscriptionEvents = pgTable('subscription_events', {
 export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
   stripeEventId: text('stripe_event_id').primaryKey().notNull(),
   eventType: text('event_type').notNull(),
-  processedAt: timestamp('processed_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  processedAt: isoTimestamp('processed_at').default(sql`now()`).notNull(),
   rawPayload: jsonb('raw_payload').notNull(),
 })
 
@@ -241,7 +252,7 @@ export const cashFareCache = pgTable('cash_fare_cache', {
   cabin: text().notNull(),
   travelDate: text('travel_date').notNull(),
   fareUsd: integer('fare_usd').notNull(),
-  fetchedAt: timestamp('fetched_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  fetchedAt: isoTimestamp('fetched_at').default(sql`now()`).notNull(),
 })
 
 // ── Operations ─────────────────────────────────────────────────
@@ -249,6 +260,6 @@ export const cashFareCache = pgTable('cash_fare_cache', {
 /** One row per completed one-off data import (e.g. the copy from Supabase). */
 export const dataImports = pgTable('data_imports', {
   id: text().primaryKey().notNull(),
-  completedAt: timestamp('completed_at', { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  completedAt: isoTimestamp('completed_at').default(sql`now()`).notNull(),
   counts: jsonb().notNull(),
 })

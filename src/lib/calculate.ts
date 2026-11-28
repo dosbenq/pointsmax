@@ -7,7 +7,11 @@
 //   OUTPUT: ranked list of redemption options with dollar values
 // ============================================================
 
-import { createServerDbClient } from '@/lib/supabase'
+import { and, eq, gte, lte } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { transferBonuses } from '@/lib/db/schema'
+import { withTimeout } from '@/lib/db-timeout'
 import type {
   BalanceInput,
   RedemptionResult,
@@ -121,17 +125,24 @@ function getReferenceCacheStore(): ReferenceCacheStore {
  * database). The calculator still works without them, so a database outage
  * just means no bonus boost.
  */
+// Bonuses only add value on top of the catalog, so a slow or unavailable
+// database must never hold up or break the calculator.
+const ACTIVE_BONUSES_TIMEOUT_MS = 3_000
+
 async function loadActiveBonuses(): Promise<ActiveBonusRow[]> {
   try {
     const today = new Date().toISOString().slice(0, 10)
-    const { data, error } = await createServerDbClient()
-      .from('transfer_bonuses')
-      .select('transfer_partner_id, bonus_pct')
-      .eq('is_verified', true)
-      .lte('start_date', today)
-      .gte('end_date', today)
-    if (error) throw new Error(error.message)
-    return (data as ActiveBonusRow[] | null) ?? []
+    return await withTimeout(async () => {
+      await ensureDatabaseReady()
+      return getDb()
+        .select({ transfer_partner_id: transferBonuses.transferPartnerId, bonus_pct: transferBonuses.bonusPct })
+        .from(transferBonuses)
+        .where(and(
+          eq(transferBonuses.isVerified, true),
+          lte(transferBonuses.startDate, today),
+          gte(transferBonuses.endDate, today),
+        ))
+    }, { timeoutMs: ACTIVE_BONUSES_TIMEOUT_MS, operationName: 'calculate_active_bonuses' })
   } catch (error) {
     logWarn('calculate_active_bonuses_unavailable', {
       error: error instanceof Error ? error.message : String(error),

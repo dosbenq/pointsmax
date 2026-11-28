@@ -1,6 +1,6 @@
 ## PointsMax
 
-PointsMax is a Next.js + Supabase app for card strategy, wallet-aware points valuation, award search, and booking guidance across India and the US.
+PointsMax is a Next.js + Postgres (Neon) app for card strategy, wallet-aware points valuation, award search, and booking guidance across India and the US.
 
 The repo currently has two parallel tracks:
 
@@ -57,10 +57,14 @@ Transfer bonuses are time-bound, so they stay in the database
 (`transfer_bonuses`). Only rows with `is_verified = true` count; the bonus
 monitor inserts detected bonuses unverified and emails `ADMIN_EMAIL`.
 
-## Database (moving to Neon)
+## Database (Neon)
 
-User data and sign-in are moving from Supabase to Postgres on Neon, with
-Better Auth for Google sign-in.
+User data and sign-in live in Postgres on Neon, with Better Auth for Google
+sign-in. The old Supabase data is copied over once, automatically, the first
+time the deployed app needs the database (`src/lib/db/ready.ts`); until that
+copy has finished, routes that read or write user data answer 503 rather than
+serve an empty database. Existing people are linked to their copied profile by
+email on their first Google sign-in.
 
 - Schema: `src/lib/db/schema.ts` holds user data and sign-in tables only. To
   change it, edit the file and run `npm run db:generate`. Commit the new SQL in
@@ -71,7 +75,9 @@ Better Auth for Google sign-in.
   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET`. Google's
   redirect URI is `<app origin>/api/auth/callback/google`.
 - `GET /api/setup/status` reports which settings are present, whether the
-  schema is applied, and a rehearsal of the Supabase copy (row counts only).
+  schema is applied, and the per-table counts of the Supabase copy.
+- Transfer bonuses: the monitor inserts detected bonuses with
+  `is_verified = false`; set it to `true` (Neon console → SQL editor) to publish one.
 - Tests use an in-memory Postgres with the real migrations (`src/test/utils/test-db.ts`).
 
 Older catalog research and staging files live in
