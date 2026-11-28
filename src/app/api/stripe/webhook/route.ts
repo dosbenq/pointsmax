@@ -48,17 +48,6 @@ async function insertSubscriptionEvent(
   })
 }
 
-async function insertCreatorConversion(
-  db: ReturnType<typeof createAdminClient>,
-  input: { creatorSlug: string; userId: string | null; revenueUsd?: number | null },
-) {
-  await db.from('creator_conversions').insert({
-    creator_slug: input.creatorSlug,
-    user_id: input.userId,
-    revenue_usd: input.revenueUsd ?? 999,
-  })
-}
-
 /** Stripe events worth a product-analytics event, and the PostHog name for each. */
 const POSTHOG_STRIPE_EVENTS: Record<string, string> = {
   'checkout.session.completed': 'subscription_started',
@@ -177,7 +166,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true })
       }
       const customerId = getString(object.customer)
-      const refSlug = getString(metadata.ref_slug)
 
       if (userId) {
         const { data: existingUserRow } = await db
@@ -201,7 +189,7 @@ export async function POST(req: NextRequest) {
           eventType: 'checkout.session.completed',
           previousTier,
           newTier: 'premium',
-          metadata: { stripe_customer_id: customerId, ref_slug: refSlug },
+          metadata: { stripe_customer_id: customerId },
         })
 
         await trackStripeEvent(db, {
@@ -213,17 +201,8 @@ export async function POST(req: NextRequest) {
             previous_tier: previousTier,
             amount: centsToAmount(object.amount_total),
             currency: getString(object.currency),
-            ref_slug: refSlug,
           },
         })
-
-        if (refSlug) {
-          await insertCreatorConversion(db, {
-            creatorSlug: refSlug,
-            userId,
-            revenueUsd: 999,
-          })
-        }
 
         logInfo('stripe_webhook_checkout_completed', { requestId, user_id: userId })
       }

@@ -4,8 +4,6 @@ import { applySecurityHeaders } from '@/lib/security-headers'
 
 const CORS_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
 const CORS_HEADERS = 'Content-Type, Authorization, X-Requested-With, X-Request-Id'
-const CREATOR_REF_COOKIE = 'pm_creator_ref'
-const CREATOR_REF_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
 
 function toOrigin(value: string): string | null {
   try {
@@ -35,27 +33,6 @@ function getAllowedCorsOrigins(): Set<string> {
 
 const ALLOWED_CORS_ORIGINS = getAllowedCorsOrigins()
 
-function normalizeCreatorSlug(value: string | null): string | null {
-  if (!value) return null
-  const trimmed = value.trim().toLowerCase()
-  if (!trimmed) return null
-  if (!/^[a-z0-9-]{2,64}$/.test(trimmed)) return null
-  return trimmed
-}
-
-function applyCreatorRefCookie(response: NextResponse, creatorSlug: string | null) {
-  if (!creatorSlug) return
-  response.cookies.set({
-    name: CREATOR_REF_COOKIE,
-    value: creatorSlug,
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: CREATOR_REF_MAX_AGE_SECONDS,
-  })
-}
-
 function appendCorsHeaders(
   response: NextResponse,
   requestOrigin: string | null,
@@ -77,7 +54,6 @@ function appendCorsHeaders(
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const requestOrigin = request.headers.get('origin')
-  const creatorSlug = normalizeCreatorSlug(request.nextUrl.searchParams.get('ref'))
   const requestId =
     request.headers.get('x-request-id') ??
     request.headers.get('x-vercel-id') ??
@@ -99,20 +75,17 @@ export async function middleware(request: NextRequest) {
       if (requestOrigin && !ALLOWED_CORS_ORIGINS.has(requestOrigin)) {
         const denied = NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Origin not allowed' } }, { status: 403 })
         denied.headers.set('x-request-id', requestId)
-        applyCreatorRefCookie(denied, creatorSlug)
         return applySecurityHeaders(denied)
       }
       const preflight = new NextResponse(null, { status: 204 })
       appendCorsHeaders(preflight, requestOrigin, true)
       preflight.headers.set('x-request-id', requestId)
-      applyCreatorRefCookie(preflight, creatorSlug)
       return preflight
     }
 
     const response = NextResponse.next({ request: { headers: forwardedHeaders } })
     appendCorsHeaders(response, requestOrigin, true)
     response.headers.set('x-request-id', requestId)
-    applyCreatorRefCookie(response, creatorSlug)
     return applySecurityHeaders(response)
   }
 
@@ -156,11 +129,8 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = `/${region}`
     const redirect = NextResponse.redirect(url)
-    applyCreatorRefCookie(redirect, creatorSlug)
     return applySecurityHeaders(redirect)
   }
-
-  applyCreatorRefCookie(supabaseResponse, creatorSlug)
   return applySecurityHeaders(supabaseResponse)
 }
 

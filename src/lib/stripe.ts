@@ -76,7 +76,6 @@ export async function createStripeCheckoutSession(params: {
   successUrl: string
   cancelUrl: string
   priceId?: string | null
-  refSlug?: string | null
   region?: string | null
 }): Promise<{ id: string; url: string }> {
   const body = new URLSearchParams()
@@ -91,10 +90,6 @@ export async function createStripeCheckoutSession(params: {
   if (params.region) {
     body.set('metadata[region]', params.region)
     body.set('subscription_data[metadata][region]', params.region)
-  }
-  if (params.refSlug) {
-    body.set('metadata[ref_slug]', params.refSlug)
-    body.set('subscription_data[metadata][ref_slug]', params.refSlug)
   }
   body.set('line_items[0][quantity]', '1')
 

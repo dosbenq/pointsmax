@@ -16,7 +16,6 @@ type UserRow = {
   stripe_customer_id: string | null
 }
 
-const CREATOR_REF_COOKIE = 'pm_creator_ref'
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
@@ -89,7 +88,6 @@ export async function POST(req: NextRequest) {
     }
 
     const appOrigin = getSafeAppOrigin(req.url)
-    const refSlug = req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null
     const priceId = normalizedRegion === 'in'
       ? process.env.STRIPE_PRO_PRICE_ID_INR ?? process.env.STRIPE_PRO_PRICE_ID
       : process.env.STRIPE_PRO_PRICE_ID
@@ -100,7 +98,6 @@ export async function POST(req: NextRequest) {
       successUrl: `${appOrigin}/pricing?checkout=success`,
       cancelUrl: `${appOrigin}/pricing?checkout=cancelled`,
       priceId,
-      refSlug,
       region: normalizedRegion,
     })
 
