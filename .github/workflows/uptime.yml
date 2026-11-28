@@ -1,0 +1,20 @@
+name: Uptime
+
+# Hourly check of the live site. A failed run emails the repo owner, and the
+# health check's database query keeps the database from idling into a pause.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ vars.APP_URL || 'https://pointsmax-delta.vercel.app' }}
+    steps:
+      - name: Homepage responds
+        run: curl -fsS --retry 3 --retry-delay 10 --max-time 30 -o /dev/null "$APP_URL/us"
+      - name: Health check (database reachable)
+        run: curl -fsS --retry 3 --retry-delay 10 --max-time 30 "$APP_URL/api/health"

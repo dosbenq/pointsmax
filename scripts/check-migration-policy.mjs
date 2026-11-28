@@ -6,6 +6,9 @@ import path from 'node:path'
 const ROOT = process.cwd()
 const MIGRATIONS_DIR = path.join(ROOT, 'supabase', 'migrations')
 const MIGRATION_RE = /^(\d{3})_(.+)\.sql$/
+// Already applied in production before this rule existed; renaming would make
+// the Supabase CLI treat it as a new migration.
+const LEGACY_FILENAMES = new Map([['022b_more_cards.sql', 22]])
 
 function fail(message) {
   console.error(message)
@@ -20,6 +23,7 @@ function readLocalMigrations() {
     .map((filename) => {
       const match = filename.match(MIGRATION_RE)
       if (!match) {
+        if (LEGACY_FILENAMES.has(filename)) return { filename, ordinal: LEGACY_FILENAMES.get(filename) }
         fail(`Invalid migration filename: ${filename}. Expected NNN_description.sql`)
       }
 

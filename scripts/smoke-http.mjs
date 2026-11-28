@@ -117,6 +117,8 @@ async function main() {
       PORT: String(PORT),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
+    // Own process group, so stopping it also stops the `next start` child npm spawns.
+    detached: process.platform !== 'win32',
   })
 
   startProc.stdout.on('data', (chunk) => process.stdout.write(chunk))
@@ -127,13 +129,27 @@ async function main() {
     await verifyRoutes()
     console.log(`Smoke checks passed against ${BASE_URL}`)
   } finally {
-    startProc.kill('SIGTERM')
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    if (!startProc.killed) startProc.kill('SIGKILL')
+    await stopServer(startProc)
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exitCode = 1
-})
+async function stopServer(proc) {
+  const signal = (name) => {
+    try {
+      if (process.platform === 'win32') proc.kill(name)
+      else process.kill(-proc.pid, name)
+    } catch {
+      // already exited
+    }
+  }
+  signal('SIGTERM')
+  await sleep(1000)
+  signal('SIGKILL')
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })

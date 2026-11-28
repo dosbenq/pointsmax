@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     is_verified: true,
     active: true,
     auto_detected: false,
-  } as any)
+  } as never)
 
   if (error) {
     console.error('admin_bonuses_insert_failed', { error: error.message })

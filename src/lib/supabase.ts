@@ -51,6 +51,16 @@ export type { GenericDatabase }
 
 type GenericSupabaseClient = ReturnType<typeof createClient<GenericDatabase>>
 
+// A paused or unreachable database must fail fast instead of hanging the request.
+const SUPABASE_REQUEST_TIMEOUT_MS = 8_000
+
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeout = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS)
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+  return fetch(input, { ...init, signal })
+}
+
+
 // Warn but don't throw - allows build to complete even without env vars
 // Runtime checks will handle missing client gracefully
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -72,6 +82,7 @@ export function createPublicClient(): GenericSupabaseClient {
   if (!publicClientSingleton) {
     publicClientSingleton = createClient<GenericDatabase>(dbUrl, supabaseAnonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: fetchWithTimeout },
     })
   }
   return publicClientSingleton
@@ -86,6 +97,7 @@ export function createAdminClient(): GenericSupabaseClient {
   if (!adminClientSingleton) {
     adminClientSingleton = createClient<GenericDatabase>(dbUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: fetchWithTimeout },
     })
   }
   return adminClientSingleton
