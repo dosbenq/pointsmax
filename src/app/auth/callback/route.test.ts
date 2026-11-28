@@ -30,11 +30,11 @@ describe('GET /auth/callback', () => {
   })
 
   it('ignores next paths that could leave the site', async () => {
-    expect(await land(`?code=abc&next=${encodeURIComponent('//evil.example')}`)).toBe(`${ORIGIN}/us/calculator`)
+    expect(await land(`?code=abc&next=${encodeURIComponent('//evil.example')}`)).toBe(`${ORIGIN}/us`)
   })
 
   it('reports a failed code exchange', async () => {
     exchangeMock.mockResolvedValue({ error: { message: 'invalid flow state' } })
-    expect(await land('?code=abc')).toBe(`${ORIGIN}/us/calculator?auth_error=1`)
+    expect(await land('?code=abc')).toBe(`${ORIGIN}/us?auth_error=1`)
   })
 })

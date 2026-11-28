@@ -1,184 +1,35 @@
-import dynamic from 'next/dynamic'
-import Link from 'next/link'
+import { Suspense } from 'react'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
-import type { Region } from '@/lib/regions'
-
-const HeroSection = dynamic(
-  () => import('./homepage-sections').then(m => m.HeroSection),
-  { loading: () => <div className="h-[500px]" /> }
-)
-
-export const revalidate = 300
+import { getCatalogPrograms } from '@/lib/catalog'
+import { SearchScreen, type WalletProgram } from './search-screen'
 
 type PageProps = {
   params: Promise<{ region: string }>
 }
 
-export default async function LandingPage({ params }: PageProps) {
+// The region home is the product: your points, your trip, what you can book.
+export default async function RegionHome({ params }: PageProps) {
   const { region: rawRegion } = await params
-  const region: Region = rawRegion === 'in' ? 'in' : 'us'
+  const region = rawRegion === 'in' ? 'in' : 'us'
 
-  const US_MARQUEE_ITEMS = [
-    'CHASE', 'AMERICAN EXPRESS', 'CAPITAL ONE', 'CITI', 'BILT', '•',
-    'UNITED', 'DELTA', 'VIRGIN ATLANTIC', 'BRITISH AIRWAYS', 'AIR FRANCE',
-  ]
-  const IN_MARQUEE_ITEMS = [
-    'HDFC BANK', 'AXIS BANK', 'AMERICAN EXPRESS', 'SBI CARD', '•',
-    'AIR INDIA', 'CLUB VISTARA', 'SINGAPORE KRISFLYER', 'BRITISH AIRWAYS', 'QATAR AIRWAYS',
-  ]
-  const marqueeItems = region === 'in' ? IN_MARQUEE_ITEMS : US_MARQUEE_ITEMS
+  const programs: WalletProgram[] = getCatalogPrograms({ geography: region.toUpperCase() as 'US' | 'IN' })
+    .filter((program) => program.type === 'transferable_points' || program.type === 'airline_miles')
+    .map((program) => ({
+      id: program.id,
+      name: program.name,
+      kind: program.type === 'transferable_points' ? ('bank' as const) : ('airline' as const),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
-    <div className="min-h-screen bg-pm-bg flex flex-col">
+    <div className="flex min-h-screen flex-col bg-pm-bg">
       <NavBar />
-
-      <main className="flex-1 flex flex-col w-full pt-[var(--navbar-height)] relative overflow-hidden">
-        {/* Dynamic Abstract Background Elements */}
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center">
-          <div className="absolute top-[-10%] w-[120%] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(var(--pm-accent-rgb),0.12)_0%,transparent_60%)] blur-[100px] mix-blend-screen dark:mix-blend-lighten" />
-          <div className="absolute bottom-0 w-full h-[400px] bg-[linear-gradient(to_bottom,transparent_0%,var(--pm-bg)_100%)]" />
-        </div>
-
-        {/* Hero Section — client component for animations */}
-        <HeroSection region={region} />
-
-        {/* Value Prop Math Section */}
-        <section className="relative z-10 py-16 sm:py-24 border-t border-pm-border-strong bg-gradient-to-b from-pm-bg to-pm-surface">
-          <div className="pm-shell max-w-5xl">
-            <div className="text-center mb-12">
-              <span className="inline-flex rounded-full border border-pm-accent-border bg-pm-accent-soft px-3 py-1 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-pm-accent mb-4">
-                The Value Engine
-              </span>
-              <h2 className="pm-display text-3xl sm:text-4xl text-pm-ink-900 mb-4">
-                {region === 'in' ? '1 point is not always ₹1.' : '1 point is not always 1 cent.'}
-              </h2>
-              <p className="text-pm-ink-500 text-lg sm:text-xl max-w-2xl mx-auto">
-                Airlines hide their best value inside loyalty programs. PointsMax helps you compare
-                reachable transfer paths, modeled value, and live availability when it is available.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
-              {/* Bad Value */}
-              <div className="pm-card p-8 rounded-3xl border border-pm-border relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-amber-500/50" />
-                <p className="text-sm font-semibold text-pm-ink-500 uppercase tracking-widest mb-2">
-                  The Cash Portal
-                </p>
-                <h3 className="text-2xl font-bold pm-heading mb-6">Redeeming directly</h3>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-pm-ink-500">You spend</span>
-                    <span className="font-bold font-mono">100,000 pts</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-pm-ink-500">Value flat-rate</span>
-                    <span className="font-semibold text-pm-ink-900">
-                      {region === 'in' ? '₹1.0 / pt' : '1.0¢ / pt'}
-                    </span>
-                  </div>
-                  <div className="pt-4 border-t border-pm-border flex justify-between items-end">
-                    <span className="font-bold text-pm-ink-900 tracking-tight">You get</span>
-                    <span className="text-3xl font-bold text-pm-ink-900 tracking-tight">
-                      {region === 'in' ? '₹1,00,000 credit' : '$1,000 stmt credit'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* PointsMax Value */}
-              <div className="pm-card p-8 rounded-3xl border border-pm-accent/30 bg-pm-accent-soft relative overflow-hidden shadow-xl shadow-pm-accent/5">
-                <div className="absolute top-0 left-0 w-full h-1 bg-pm-accent" />
-                <p className="text-sm font-semibold text-pm-accent uppercase tracking-widest mb-2">
-                  The PointsMax Way
-                </p>
-                <h3 className="text-2xl font-bold pm-heading text-pm-ink-900 mb-6">
-                  Transferring to partners
-                </h3>
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-pm-ink-500">You transfer</span>
-                    <span className="font-bold font-mono text-pm-ink-900">100,000 pts</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-pm-ink-500">Business Class value</span>
-                    <span className="font-semibold text-pm-accent">
-                      {region === 'in' ? '₹3.5 / pt' : '5.0¢ / pt'}
-                    </span>
-                  </div>
-                  <div className="pt-4 border-t border-pm-accent/20 flex justify-between items-end">
-                    <span className="font-bold text-pm-ink-900 tracking-tight">You get</span>
-                    <div className="text-right">
-                      <span className="text-3xl font-bold text-pm-success tracking-tight">
-                        {region === 'in' ? '₹3,50,000+ flight' : '$5,000+ flight'}
-                      </span>
-                      <p className="text-[10px] text-pm-ink-500 uppercase font-bold tracking-widest mt-0.5">
-                        {region === 'in' ? 'DEL → LHR Lie-Flat' : 'JFK → LHR Lie-Flat'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="relative z-10 border-t border-pm-border bg-pm-surface">
-          <div className="pm-shell py-16 sm:py-20">
-            <div className="max-w-3xl">
-              <h2 className="pm-display text-3xl sm:text-4xl text-pm-ink-900">
-                Start here
-              </h2>
-            </div>
-
-            <div className="mt-10 grid gap-4 md:grid-cols-2">
-              <Link
-                href={`/${region}/profile`}
-                className="pm-card p-6 transition-transform hover:-translate-y-0.5"
-              >
-                <p className="pm-label text-pm-accent">Wallet</p>
-                <h3 className="pm-heading text-xl mt-3">Save your points balances once</h3>
-              </Link>
-              <Link
-                href={`/${region}/award-search`}
-                className="pm-card p-6 transition-transform hover:-translate-y-0.5"
-              >
-                <p className="pm-label text-pm-accent">Award search</p>
-                <h3 className="pm-heading text-xl mt-3">See which flights your points can reach</h3>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Supported Programs Marquee */}
-        <div className="py-10 border-t border-pm-border overflow-hidden bg-pm-surface-soft relative">
-          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-pm-surface-soft to-transparent z-10" />
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-pm-surface-soft to-transparent z-10" />
-
-          <div className="flex animate-[scroll_40s_linear_infinite] whitespace-nowrap opacity-60">
-            {marqueeItems.map((item, idx) => (
-              <span
-                key={`a-${idx}`}
-                className="text-xl font-bold text-pm-ink-500 tracking-tighter mx-8"
-              >
-                {item}
-              </span>
-            ))}
-            {marqueeItems.map((item, idx) => (
-              <span
-                key={`b-${idx}`}
-                className="text-xl font-bold text-pm-ink-500 tracking-tighter mx-8"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
+      <main className="flex-1 pt-[var(--navbar-height)]">
+        <Suspense>
+          <SearchScreen region={region} programs={programs} />
+        </Suspense>
       </main>
-
       <Footer />
     </div>
   )

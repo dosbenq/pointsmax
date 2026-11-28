@@ -4,8 +4,6 @@ const BASE_URL = (process.env.BASE_URL ?? '').trim().replace(/\/+$/, '')
 const CRON_SECRET = (process.env.CRON_SECRET ?? '').trim()
 const PROGRAM_ID = process.env.PROGRAM_ID ?? '11111111-0001-0001-0001-000000000001'
 const TEST_EMAIL = process.env.TEST_EMAIL ?? 'watchdog@example.com'
-const MAX_CALC_LATENCY_MS = Number.parseInt(process.env.MAX_CALCULATE_LATENCY_MS ?? '2500', 10)
-const CHECK_EXPERT_CHAT = ['1', 'true', 'yes'].includes((process.env.CHECK_EXPERT_CHAT ?? '').toLowerCase())
 
 if (!BASE_URL) {
   console.error('Set BASE_URL, e.g. BASE_URL=https://pointsmax.com')
@@ -57,58 +55,17 @@ async function run() {
   await requestJson('Health', `${BASE_URL}/api/health`)
 
 
-  await requestJson('Calculate', `${BASE_URL}/api/calculate`, {
+  await requestJson('Transfer options', `${BASE_URL}/api/transfer-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      balances: [{ program_id: PROGRAM_ID, amount: 100000 }],
-    }),
-  }, {
-    validate: ({ response, json }) => {
-      const latencyRaw = response.headers.get('X-Calculate-Latency-Ms')
-      const latency = latencyRaw ? Number.parseInt(latencyRaw, 10) : NaN
-      if (Number.isFinite(latency) && latency > MAX_CALC_LATENCY_MS) {
-        console.error(`  Calculate latency too high: ${latency}ms (max ${MAX_CALC_LATENCY_MS}ms)`)
-        return false
-      }
-      return Boolean(json && typeof json === 'object' && Array.isArray(json.results))
-    },
-  })
-
-  await requestJson('Award search', `${BASE_URL}/api/award-search`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      origin: 'JFK',
-      destination: 'LHR',
-      cabin: 'business',
-      passengers: 1,
-      start_date: '2026-06-01',
-      end_date: '2026-06-07',
+      region: 'US',
       balances: [{ program_id: PROGRAM_ID, amount: 120000 }],
-      include_narrative: false,
+      trip: { origin: 'JFK', destination: 'LHR', date: new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10), cabin: 'business', passengers: 1 },
     }),
   }, {
-    validate: ({ json }) => Boolean(json && typeof json === 'object' && Array.isArray(json.results)),
+    validate: ({ json }) => Boolean(json && Array.isArray(json.options) && json.options.length > 0),
   })
-
-  await requestJson('AI recommend', `${BASE_URL}/api/ai/recommend`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      history: [],
-      message: 'Best way to use points for Tokyo in business class?',
-      balances: [{ name: 'Chase Ultimate Rewards', amount: 120000 }],
-    }),
-  })
-
-  if (CHECK_EXPERT_CHAT) {
-    await requestJson('AI expert-chat', `${BASE_URL}/api/ai/expert-chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'Which India travel card under 5000 fee is best?' }),
-    })
-  }
 
   await requestJson('Alerts subscribe', `${BASE_URL}/api/alerts/subscribe`, {
     method: 'POST',

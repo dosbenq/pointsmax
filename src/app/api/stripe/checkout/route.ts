@@ -17,8 +17,18 @@ type UserRow = {
 }
 
 
+// New Pro sign-ups are paused while the paid features (route watches and
+// alerts) are rebuilt; existing subscribers keep managing billing as before.
+// Set PRO_CHECKOUT_ENABLED=true to reopen.
+function isCheckoutOpen(): boolean {
+  return process.env.PRO_CHECKOUT_ENABLED?.trim().toLowerCase() === 'true'
+}
+
 export async function POST(req: NextRequest) {
   const requestId = getRequestId(req)
+  if (!isCheckoutOpen()) {
+    return NextResponse.json({ error: 'Pro is paused while we rebuild live search. Nothing has been charged.' }, { status: 503 })
+  }
   const secretKey = getStripeSecretKey()
 
   if (!secretKey) {
