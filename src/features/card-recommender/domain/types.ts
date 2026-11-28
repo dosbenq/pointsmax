@@ -19,7 +19,7 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low'
 export interface WalletBalanceInput {
   program_id: string
   balance: number
-  source?: 'manual' | 'connector'
+  source?: 'manual'
   as_of?: string | null
   confidence?: ConfidenceLevel
   is_stale?: boolean

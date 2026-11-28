@@ -49,10 +49,8 @@ describe('subscription helpers', () => {
   it('allows only premium users to access gated features', () => {
     expect(canUseFeature('free', 'live_award_search')).toBe(false)
     expect(canUseFeature('free', 'flight_watches')).toBe(false)
-    expect(canUseFeature('free', 'connector_sync')).toBe(false)
     expect(canUseFeature('premium', 'live_award_search')).toBe(true)
     expect(canUseFeature('premium', 'flight_watches')).toBe(true)
-    expect(canUseFeature('premium', 'connector_sync')).toBe(true)
   })
 
   it('caches tier lookups for a known internal user id', async () => {

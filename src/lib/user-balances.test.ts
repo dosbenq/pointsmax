@@ -38,86 +38,27 @@ describe('loadUnifiedBalancesByUser', () => {
     vi.clearAllMocks()
   })
 
-  it('prefers manual balances over connector snapshots for the same program', async () => {
+  it('returns each user\'s saved balances, and an empty list for users with none', async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_balances') {
         return makeBuilder({
           data: [
-            {
-              user_id: 'user-1',
-              program_id: 'prog-1',
-              balance: 111000,
-              updated_at: '2026-03-13T10:00:00Z',
-            },
+            { user_id: 'user-1', program_id: 'prog-1', balance: 111000, updated_at: '2026-03-13T10:00:00Z' },
+            { user_id: 'user-1', program_id: 'prog-2', balance: 50000, updated_at: null },
           ],
           error: null,
         })
       }
-
-      if (table === 'connected_accounts') {
-        return makeBuilder({
-          data: [
-            {
-              id: 'acct-1',
-              user_id: 'user-1',
-              status: 'active',
-              sync_status: 'ok',
-              last_synced_at: '2026-03-13T09:00:00Z',
-            },
-          ],
-          error: null,
-        })
-      }
-
-      if (table === 'balance_snapshots') {
-        return makeBuilder({
-          data: [
-            {
-              user_id: 'user-1',
-              connected_account_id: 'acct-1',
-              program_id: 'prog-1',
-              balance: 99000,
-              source: 'connector',
-              fetched_at: '2026-03-13T09:00:00Z',
-            },
-            {
-              user_id: 'user-1',
-              connected_account_id: 'acct-1',
-              program_id: 'prog-2',
-              balance: 50000,
-              source: 'connector',
-              fetched_at: '2026-03-13T09:00:00Z',
-            },
-          ],
-          error: null,
-        })
-      }
-
-      if (table === 'programs') {
-        return makeBuilder({ data: [], error: null })
-      }
-
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    const result = await loadUnifiedBalancesByUser(mockClient, ['user-1'])
-    const balances = result.get('user-1') ?? []
+    const result = await loadUnifiedBalancesByUser(mockClient, ['user-1', 'user-2'])
 
-    expect(balances).toEqual([
-      expect.objectContaining({
-        program_id: 'prog-1',
-        balance: 111000,
-        source: 'manual',
-        connected_account_id: null,
-      }),
-      expect.objectContaining({
-        program_id: 'prog-2',
-        balance: 50000,
-        source: 'connector',
-        connected_account_id: 'acct-1',
-        sync_status: 'ok',
-      }),
+    expect(result.get('user-1')).toEqual([
+      expect.objectContaining({ program_id: 'prog-1', balance: 111000, source: 'manual', connected_account_id: null }),
+      expect.objectContaining({ program_id: 'prog-2', balance: 50000, confidence: 'low', is_stale: true }),
     ])
+    expect(result.get('user-2')).toEqual([])
   })
 
   it('filters balances by region when requested', async () => {
@@ -130,14 +71,6 @@ describe('loadUnifiedBalancesByUser', () => {
           ],
           error: null,
         })
-      }
-
-      if (table === 'connected_accounts') {
-        return makeBuilder({ data: [], error: null })
-      }
-
-      if (table === 'balance_snapshots') {
-        return makeBuilder({ data: [], error: null })
       }
 
       if (table === 'programs') {

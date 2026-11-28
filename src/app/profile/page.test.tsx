@@ -58,10 +58,6 @@ vi.mock('@/components/Footer', () => ({
   default: () => <footer data-testid="footer">Footer</footer>,
 }))
 
-vi.mock('@/components/ConnectedWallets', () => ({
-  ConnectedWallets: () => <div data-testid="connected-wallets">Connected Wallets</div>,
-}))
-
 // Import the component after mocks
 import ProfilePage from './page'
 
