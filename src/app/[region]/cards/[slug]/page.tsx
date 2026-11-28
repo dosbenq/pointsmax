@@ -10,7 +10,7 @@ import { TrackedApplyButton } from '@/components/cards/TrackedApplyButton'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
 import { CARD_ART_MAP, formatCurrencyRounded } from '@/lib/card-tools'
 import { buildReviewSnapshotFromCard, getCanonicalCardSlug } from '@/lib/card-surfaces'
-import { matchesCardRouteSlug } from '@/lib/card-slugs'
+import { getCardRouteCandidates, matchesCardRouteSlug } from '@/lib/card-slugs'
 import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 import { REGIONS } from '@/lib/regions'
@@ -24,6 +24,21 @@ import {
 import type { CardWithRates, SpendCategory } from '@/types/database'
 
 export const revalidate = 3600
+// Cards are catalog data known at build time: anything else is a real 404
+// (rendering notFound() under the streamed loading state would answer 200).
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const params: Array<{ region: 'us' | 'in'; slug: string }> = []
+  for (const region of ['us', 'in'] as const) {
+    const slugs = new Set<string>()
+    for (const card of await getActiveCards(normalizeGeography(region))) {
+      for (const slug of getCardRouteCandidates(card)) slugs.add(slug)
+    }
+    for (const slug of slugs) params.push({ region, slug })
+  }
+  return params
+}
 
 type PageProps = {
   params: Promise<{ region: string; slug: string }>

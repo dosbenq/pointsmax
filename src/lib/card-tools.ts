@@ -1,19 +1,30 @@
 import type { SpendCategory } from '@/types/database'
 import { PROGRAM_GOAL_MAP as REGION_PROGRAM_GOAL_MAP } from '@/lib/regions'
 
-// Hand-sourced official card art for the most popular US cards.
-// These are mapped directly to the `name` column in the cards table.
-export const CARD_ART_MAP: Record<string, string> = {
-  'Chase Sapphire Preferred': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/sapphire_preferred.png',
-  'Chase Sapphire Reserve': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/sapphire_reserve.png',
-  'Amex Gold': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/Gold.png',
-  'Amex Platinum': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/Platinum.png',
-  'Capital One Venture X': 'https://ecm.capitalone.com/WCM/card/products/venture-x/venture_x_card_art_1x.png',
-  'Citi Premier': 'https://www.citi.com/CRD/images/citi-strata-premier/citi-strata-premier.png',
-  'Bilt Mastercard': 'https://wfp.biltrewards.com/images/card/card_Bilt_Mastercard_black.png',
-  'United Explorer': 'https://creditcards.chase.com/K-OPPORTUNITY/images/cardart/united_explorer.png',
-  'Delta Gold Amex': 'https://icm.aexp-static.com/Internet/Acquisition/US_en/Appleseed/EquipmentFronts/1-1-1/SkyMilesGold.png',
-}
+// Card art served from public/card-art (issuer-hosted images move or block
+// hotlinking, which left broken images on the site). Keyed by card name.
+export const CARD_ART_MAP: Record<string, string> = Object.fromEntries(
+  [
+    'Chase Sapphire Preferred',
+    'Chase Sapphire Reserve',
+    'Amex Gold',
+    'Amex Platinum',
+    'Capital One Venture X',
+    'Citi Premier',
+    'Bilt Mastercard',
+    'United Explorer',
+    'Delta Gold Amex',
+    'World of Hyatt',
+    'Marriott Bonvoy Boundless',
+    'HDFC Infinia',
+    'HDFC Regalia Gold',
+    'Axis Atlas',
+    'Axis Ace',
+    'Amex Platinum (India)',
+    'Amex Gold (India)',
+    'Air India SBI Signature',
+  ].map((name) => [name, `/card-art/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.svg`]),
+)
 
 export type CardRegion = 'US' | 'IN'
 
