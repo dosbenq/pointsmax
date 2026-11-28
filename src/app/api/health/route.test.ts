@@ -214,7 +214,8 @@ describe('HEAD /api/health', () => {
 describe('setup readiness', () => {
   it('reports which settings are present without exposing values', async () => {
     const saved = { ...process.env }
-    process.env.DATABASE_URL = 'postgres://user:secret@host/db'
+    delete process.env.DATABASE_URL
+    process.env.POSTGRES_URL = 'postgres://user:secret@host/db'
     process.env.GOOGLE_CLIENT_ID = 'client-id'
     delete process.env.GOOGLE_CLIENT_SECRET
     process.env.BETTER_AUTH_SECRET = 'short'
