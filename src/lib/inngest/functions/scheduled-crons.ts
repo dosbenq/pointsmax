@@ -53,13 +53,3 @@ export const scheduledValuationsUpdate = inngest.createFunction(
     )
   },
 )
-
-export const scheduledYoutubeIngestion = inngest.createFunction(
-  { id: 'scheduled-youtube-ingestion', name: 'Scheduled: YouTube Knowledge Ingest' },
-  { cron: '0 11 * * 1' },
-  async ({ step }) => {
-    return await step.run('invoke-youtube-ingestion', () =>
-      invokeCronPath('/api/cron/ingest-youtube-knowledge')
-    )
-  },
-)
