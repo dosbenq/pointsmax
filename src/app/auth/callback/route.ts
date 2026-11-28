@@ -10,12 +10,13 @@ import { logWarn } from '@/lib/logger'
 // (Profiles copied from Supabase keep their original created_at.)
 const SIGNUP_WINDOW_MS = 10 * 60 * 1000
 
-const isSafeNextPath = (p: string) => {
+/** A same-site relative path only: no protocol-relative or encoded tricks that could leave the site. */
+const isSafeNextPath = (p: string, origin: string) => {
   if (!p.startsWith('/') || p.startsWith('//')) return false
   // Reject URL-encoded slashes or backslashes that could bypass validation
   if (/%2f/i.test(p) || /%5c/i.test(p) || p.includes('\\')) return false
   try {
-    return new URL(p, 'http://localhost').hostname === 'localhost'
+    return new URL(p, origin).origin === origin
   } catch {
     return false
   }
@@ -27,7 +28,7 @@ const isSafeNextPath = (p: string) => {
 // onboarding, everyone else to `next`.
 export async function GET(request: NextRequest) {
   const nextParam = request.nextUrl.searchParams.get('next') ?? '/us/calculator'
-  const next = isSafeNextPath(nextParam) ? nextParam : '/us/calculator'
+  const next = isSafeNextPath(nextParam, request.nextUrl.origin) ? nextParam : '/us/calculator'
   const region = next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us'
   // The sign-in cookie lives on the auth origin, so stay on it.
   const appOrigin = getAuthBaseUrl()

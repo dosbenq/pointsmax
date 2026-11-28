@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/neon-flip`
-- Git commit: `f4ef4cd`
+- Git commit: `fe5cd2d`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **27**
 - API routes: **33**
 - Supabase migrations: **62**
-- Test files: **87**
+- Test files: **88**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **38**
@@ -317,6 +317,7 @@
 | `src/app/api/stripe/webhook/route.test.ts` |
 | `src/app/api/user/balances/route.test.ts` |
 | `src/app/api/valuations/route.test.ts` |
+| `src/app/auth/callback/route.test.ts` |
 | `src/app/profile/page.test.tsx` |
 | `src/app/sitemap.test.ts` |
 | `src/components/PostHogIdentify.test.tsx` |
