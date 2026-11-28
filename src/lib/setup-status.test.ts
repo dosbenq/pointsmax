@@ -1,20 +1,21 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setDbForTesting } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
 import { resetSchemaStateForTesting } from '@/lib/db/migrate'
-import type { SourceReader } from '@/lib/db/supabase-import'
+import { dataImports } from '@/lib/db/schema'
+import { SUPABASE_IMPORT_ID } from '@/lib/db/supabase-import'
 import { createTestDb } from '@/test/utils/test-db'
 import { checkGoogleCredentials, runSetupCheck, sanitizeError } from './setup-status'
 
-const ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] as const
+const ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] as const
 let saved: Partial<Record<(typeof ENV_KEYS)[number], string>>
-
-const emptyReader: SourceReader = { readAll: async () => ({ rows: [], missing: false }) }
 
 beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
   for (const key of ENV_KEYS) delete process.env[key]
   resetSchemaStateForTesting()
+  vi.mocked(ensureDatabaseReady).mockReset().mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -28,46 +29,30 @@ afterEach(() => {
 
 describe('runSetupCheck', () => {
   it('stops early when no database is configured', async () => {
-    const status = await runSetupCheck(() => emptyReader)
+    const status = await runSetupCheck()
     expect(status.configured.database_url).toBe(false)
     expect(status.schema).toEqual({ ok: false, error: 'DATABASE_URL is not set' })
-    expect(status.rehearsal).toBeUndefined()
+    expect(status.import).toBeUndefined()
   })
 
-  it('applies the schema and rehearses the copy when everything is set', async () => {
+  it('reports the completed copy with its per-table counts', async () => {
     process.env.POSTGRES_URL = 'postgres://placeholder'
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
-    setDbForTesting(await createTestDb())
+    const db = await createTestDb()
+    setDbForTesting(db)
+    await db.insert(dataImports).values({ id: SUPABASE_IMPORT_ID, counts: { users: { source: 3, written: 3, skipped: 0 } } })
 
-    const status = await runSetupCheck(() => emptyReader)
-    expect(status.configured).toMatchObject({ database_url: true, supabase_source: true })
+    const status = await runSetupCheck()
     expect(status.schema).toMatchObject({ ok: true })
-    expect(status.import_complete).toBe(false)
-    expect(status.rehearsal).toMatchObject({ ok: true, status: 'rehearsed', duplicateEmails: 0 })
+    expect(status.import).toMatchObject({ ok: true, complete: true, tables: { users: { source: 3, written: 3, skipped: 0 } }, linked_profiles: 0 })
   })
 
-  it('skips the rehearsal without Supabase credentials', async () => {
+  it('reports a failed copy without leaking connection details', async () => {
     process.env.DATABASE_URL = 'postgres://placeholder'
     setDbForTesting(await createTestDb())
+    vi.mocked(ensureDatabaseReady).mockRejectedValue(new Error('connect failed for postgres://user:pw@db.example.com/postgres'))
 
-    const status = await runSetupCheck(() => emptyReader)
-    expect(status.rehearsal).toEqual({ ok: null, skipped: 'Supabase credentials are not set' })
-  })
-
-  it('reports a failed rehearsal without leaking connection details', async () => {
-    process.env.DATABASE_URL = 'postgres://placeholder'
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
-    setDbForTesting(await createTestDb())
-    const failing: SourceReader = {
-      readAll: async () => {
-        throw new Error('connect failed for postgres://user:pw@db.example.com/postgres')
-      },
-    }
-
-    const status = await runSetupCheck(() => failing)
-    expect(status.rehearsal).toEqual({ ok: false, error: 'connect failed for [database-url]' })
+    const status = await runSetupCheck()
+    expect(status.import).toEqual({ ok: false, error: 'connect failed for [database-url]' })
   })
 })
 

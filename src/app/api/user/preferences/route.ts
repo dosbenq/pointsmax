@@ -1,47 +1,34 @@
-import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
+import { getOrCreateUserRowId, getSessionUser, getUserRowId } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { columnsOf } from '@/lib/db/columns'
+import { userPreferences } from '@/lib/db/schema'
 import { userPreferencesRequestSchema } from '@/lib/validation'
-
-async function getCurrentUserRowId(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  authId: string,
-): Promise<string | null> {
-  const { data: userRecord } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authId)
-    .single()
-
-  const id = (userRecord as { id?: unknown } | null)?.id
-  return typeof id === 'string' ? id : null
-}
 
 // GET /api/user/preferences — returns preferences for current user
 export async function GET() {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const userId = await getCurrentUserRowId(supabase, user.id)
+  const userId = await getUserRowId(user.id)
   if (!userId) return NextResponse.json({ preferences: null })
 
-  const { data: preferences } = await supabase
-    .from('user_preferences')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+  const [preferences] = await getDb()
+    .select(columnsOf(userPreferences))
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, userId))
+    .limit(1)
 
   return NextResponse.json({ preferences: preferences ?? null })
 }
 
 // POST /api/user/preferences — upserts preferences for current user
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const userId = await getCurrentUserRowId(supabase, user.id)
-  if (!userId) return NextResponse.json({ error: 'User record not found' }, { status: 404 })
+  const userId = await getOrCreateUserRowId(user)
 
   let body: unknown
   try {
@@ -65,22 +52,24 @@ export async function POST(req: NextRequest) {
     avoided_airlines,
   } = parsed.data
 
-  const { error } = await supabase
-    .from('user_preferences')
-    .upsert(
-      {
-        user_id: userId,
-        home_airport: home_airport ?? null,
-        preferred_cabin: preferred_cabin ?? 'any',
-        preferred_airlines: preferred_airlines ?? [],
-        avoided_airlines: avoided_airlines ?? [],
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
+  const values = {
+    homeAirport: home_airport ?? null,
+    preferredCabin: preferred_cabin ?? 'any',
+    preferredAirlines: preferred_airlines ?? [],
+    avoidedAirlines: avoided_airlines ?? [],
+    updatedAt: new Date().toISOString(),
+  }
 
-  if (error) {
-    console.error('user_preferences_upsert_failed', { user_id: userId, error: error.message })
+  try {
+    await getDb()
+      .insert(userPreferences)
+      .values({ userId, ...values })
+      .onConflictDoUpdate({ target: userPreferences.userId, set: values })
+  } catch (error) {
+    console.error('user_preferences_upsert_failed', {
+      user_id: userId,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

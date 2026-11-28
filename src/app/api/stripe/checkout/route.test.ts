@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { getUserMock } = vi.hoisted(() => ({ getUserMock: vi.fn() }))
-vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServerClient: async () => ({ auth: { getUser: getUserMock } }),
-}))
+const { getSessionUserMock } = vi.hoisted(() => ({ getSessionUserMock: vi.fn() }))
+vi.mock('@/lib/auth', () => ({ getSessionUser: getSessionUserMock, getOrCreateUserRowId: vi.fn() }))
 
 const { POST } = await import('./route')
 
@@ -21,6 +19,6 @@ describe('POST /api/stripe/checkout', () => {
 
     expect(res.status).toBe(503)
     expect((await res.json()).error).toMatch(/paused/)
-    expect(getUserMock).not.toHaveBeenCalled()
+    expect(getSessionUserMock).not.toHaveBeenCalled()
   })
 })

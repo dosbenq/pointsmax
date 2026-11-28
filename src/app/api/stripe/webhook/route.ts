@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { and, eq, isNull, lte, or } from 'drizzle-orm'
+import { getDb, type Database } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { stripeWebhookEvents, subscriptionEvents, users } from '@/lib/db/schema'
 import { getStripeWebhookSecret, verifyStripeWebhookSignature } from '@/lib/stripe'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { isPosthogConfigured } from '@/config/analytics'
@@ -10,6 +13,7 @@ export const runtime = 'nodejs'
 type StripeEvent = {
   id: string
   type: string
+  created?: number
   data?: {
     object?: Record<string, unknown>
   }
@@ -28,7 +32,7 @@ function isPremiumSubscriptionStatus(status: string | null): boolean {
 }
 
 async function insertSubscriptionEvent(
-  db: ReturnType<typeof createAdminClient>,
+  db: Database,
   event: {
     userId?: string | null
     stripeCustomerId?: string | null
@@ -38,12 +42,12 @@ async function insertSubscriptionEvent(
     metadata?: Record<string, unknown>
   },
 ) {
-  await db.from('subscription_events').insert({
-    user_id: event.userId ?? null,
-    stripe_customer_id: event.stripeCustomerId ?? null,
-    event_type: event.eventType,
-    previous_tier: event.previousTier ?? null,
-    new_tier: event.newTier ?? null,
+  await db.insert(subscriptionEvents).values({
+    userId: event.userId ?? null,
+    stripeCustomerId: event.stripeCustomerId ?? null,
+    eventType: event.eventType,
+    previousTier: event.previousTier ?? null,
+    newTier: event.newTier ?? null,
     metadata: event.metadata ?? null,
   })
 }
@@ -60,7 +64,7 @@ function centsToAmount(value: unknown): number | null {
 }
 
 async function trackStripeEvent(
-  db: ReturnType<typeof createAdminClient>,
+  db: Database,
   input: {
     stripeEventId: string
     stripeEventType: string
@@ -76,8 +80,8 @@ async function trackStripeEvent(
   let userId = input.userId ?? null
   if (!userId && input.customerId) {
     try {
-      const { data } = await db.from('users').select('id').eq('stripe_customer_id', input.customerId).single()
-      userId = typeof data?.id === 'string' ? data.id : null
+      const [row] = await db.select({ id: users.id }).from(users).where(eq(users.stripeCustomerId, input.customerId)).limit(1)
+      userId = row?.id ?? null
     } catch {
       userId = null
     }
@@ -90,6 +94,14 @@ async function trackStripeEvent(
     setPersonProperties: input.tier ? { tier: input.tier } : undefined,
     dedupeKey: `stripe:${input.stripeEventId}`,
   })
+}
+
+/** When the Stripe event happened (event.created), falling back to the object. */
+function eventTimestamp(event: StripeEvent, object: Record<string, unknown>): string {
+  const seconds = typeof event.created === 'number'
+    ? event.created
+    : typeof object.created === 'number' ? object.created : Date.now() / 1000
+  return new Date(seconds * 1000).toISOString()
 }
 
 export async function POST(req: NextRequest) {
@@ -122,26 +134,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  let db: Database
   try {
-    const db = createAdminClient()
-    const { error: idempotencyError } = await db
-      .from('stripe_webhook_events')
-      .insert({
-        stripe_event_id: event.id,
-        event_type: event.type,
-        raw_payload: event as unknown as Record<string, unknown>,
-      })
+    await ensureDatabaseReady()
+    db = getDb()
+  } catch (error) {
+    logError('stripe_webhook_database_unavailable', { requestId, error: error instanceof Error ? error.message : String(error) })
+    // Stripe retries with backoff, so nothing is lost.
+    return NextResponse.json({ error: 'Temporarily unavailable' }, { status: 503 })
+  }
 
-    if (idempotencyError) {
-      if (idempotencyError.code === '23505') {
+  let recordedEvent = false
+  try {
+    try {
+      const recorded = await db
+        .insert(stripeWebhookEvents)
+        .values({
+          stripeEventId: event.id,
+          eventType: event.type,
+          rawPayload: event as unknown as Record<string, unknown>,
+        })
+        .onConflictDoNothing({ target: stripeWebhookEvents.stripeEventId })
+        .returning({ id: stripeWebhookEvents.stripeEventId })
+      if (recorded.length === 0) {
         logInfo('stripe_webhook_duplicate_skipped', { requestId, event_id: event.id })
         return NextResponse.json({ received: true })
       }
-
+      recordedEvent = true
+    } catch (idempotencyError) {
       logWarn('stripe_webhook_idempotency_insert_failed', {
         requestId,
         event_id: event.id,
-        error: idempotencyError.message,
+        error: idempotencyError instanceof Error ? idempotencyError.message : String(idempotencyError),
         degraded_safety: true,
       })
     }
@@ -168,20 +192,17 @@ export async function POST(req: NextRequest) {
       const customerId = getString(object.customer)
 
       if (userId) {
-        const { data: existingUserRow } = await db
-          .from('users')
-          .select('tier')
-          .eq('id', userId)
-          .single()
+        const [existingUserRow] = await db.select({ tier: users.tier }).from(users).where(eq(users.id, userId)).limit(1)
         const previousTier = existingUserRow?.tier === 'premium' ? 'premium' : 'free'
 
         await db
-          .from('users')
-          .update({
+          .update(users)
+          .set({
             tier: 'premium',
-            stripe_customer_id: customerId ?? undefined,
+            tierUpdatedAt: eventTimestamp(event, object),
+            ...(customerId ? { stripeCustomerId: customerId } : {}),
           })
-          .eq('id', userId)
+          .where(eq(users.id, userId))
 
         await insertSubscriptionEvent(db, {
           userId,
@@ -221,18 +242,14 @@ export async function POST(req: NextRequest) {
       }
 
       const status = getString(object.status)
-      const { data: existingUserRow } = await db
-        .from('users')
-        .select('id, tier, updated_at')
-        .eq('stripe_customer_id', customerId)
-        .single()
-      const existingUser =
-        existingUserRow && typeof existingUserRow.id === 'string'
-          ? {
-              id: existingUserRow.id,
-              tier: existingUserRow.tier === 'premium' ? 'premium' : 'free',
-            }
-          : null
+      const [existingUserRow] = await db
+        .select({ id: users.id, tier: users.tier })
+        .from(users)
+        .where(eq(users.stripeCustomerId, customerId))
+        .limit(1)
+      const existingUser = existingUserRow
+        ? { id: existingUserRow.id, tier: existingUserRow.tier === 'premium' ? 'premium' : 'free' }
+        : null
 
       const nextTier =
         event.type === 'customer.subscription.deleted'
@@ -242,22 +259,22 @@ export async function POST(req: NextRequest) {
             : 'free'
 
       if (existingUser) {
-        // Only update if our event is newer than the last update (optimistic locking)
-        const eventTimestamp = new Date((object.created as number) * 1000).toISOString()
-        const { error: updateError } = await db
-          .from('users')
-          .update({
-            tier: nextTier,
-            updated_at: eventTimestamp,
-          })
-          .eq('id', existingUser.id)
-          .lte('updated_at', eventTimestamp)
-
-        if (updateError) {
+        // Ignore events older than the one that last set the tier (Stripe can
+        // deliver out of order).
+        const eventAt = eventTimestamp(event, object)
+        try {
+          await db
+            .update(users)
+            .set({ tier: nextTier, tierUpdatedAt: eventAt })
+            .where(and(
+              eq(users.id, existingUser.id),
+              or(isNull(users.tierUpdatedAt), lte(users.tierUpdatedAt, eventAt)),
+            ))
+        } catch (updateError) {
           logWarn('stripe_webhook_tier_update_failed', {
             requestId,
             customer_id: customerId,
-            error: updateError.message,
+            error: updateError instanceof Error ? updateError.message : String(updateError),
           })
         }
       }
@@ -323,6 +340,10 @@ export async function POST(req: NextRequest) {
       error: error instanceof Error ? error.message : String(error),
       event_type: event.type,
     })
+    // Forget the event so Stripe's retry is processed instead of skipped as a duplicate.
+    if (recordedEvent) {
+      await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.stripeEventId, event.id)).catch(() => {})
+    }
     return NextResponse.json({ error: 'Webhook handling failed' }, { status: 500 })
   }
 }

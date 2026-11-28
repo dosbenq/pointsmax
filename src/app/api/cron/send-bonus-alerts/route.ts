@@ -7,7 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createAdminClient } from '@/lib/supabase'
+import { and, arrayOverlaps, eq, gte, isNull, lte } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { alertSubscriptions, transferBonuses } from '@/lib/db/schema'
 import { getCatalogProgramById, getCatalogTransferPartnerById } from '@/lib/catalog'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
 import { getSafeAppOrigin } from '@/lib/app-origin'
@@ -137,26 +140,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'RESEND_API_KEY or RESEND_FROM_EMAIL not configured' }, { status: 500 })
   }
 
-  const db = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
   // Find active bonuses that haven't been alerted yet
-  const { data: bonusesRaw, error: bonusErr } = await db
-    .from('transfer_bonuses')
-    .select(`
-      id, transfer_partner_id, bonus_pct, start_date, end_date
-    `)
-    .eq('is_verified', true)
-    .lte('start_date', today)
-    .gte('end_date', today)
-    .is('alerted_at', null)
-
-  if (bonusErr) {
-    logError('cron_bonus_alerts_fetch_failed', { requestId, error: bonusErr.message })
+  let bonusesRaw: unknown[]
+  try {
+    await ensureDatabaseReady()
+    bonusesRaw = await getDb()
+      .select({
+        id: transferBonuses.id,
+        transfer_partner_id: transferBonuses.transferPartnerId,
+        bonus_pct: transferBonuses.bonusPct,
+        start_date: transferBonuses.startDate,
+        end_date: transferBonuses.endDate,
+      })
+      .from(transferBonuses)
+      .where(and(
+        eq(transferBonuses.isVerified, true),
+        lte(transferBonuses.startDate, today),
+        gte(transferBonuses.endDate, today),
+        isNull(transferBonuses.alertedAt),
+      ))
+  } catch (bonusErr) {
+    logError('cron_bonus_alerts_fetch_failed', { requestId, error: bonusErr instanceof Error ? bonusErr.message : String(bonusErr) })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 
-  const bonuses = ((bonusesRaw ?? []) as unknown[]).filter(isBonusRow)
+  const bonuses = bonusesRaw.filter(isBonusRow)
 
   if (bonuses.length === 0) {
     logInfo('cron_bonus_alerts_no_work', { requestId, latency_ms: Date.now() - startedAt })
@@ -186,18 +196,18 @@ export async function GET(req: NextRequest) {
 
   const subscribersByProgram = new Map<string, string[]>()
   if (fromProgramIds.length > 0) {
-    const { data: subscriberRows, error: subscriberErr } = await db
-      .from('alert_subscriptions')
-      .select('email, program_ids')
-      .eq('is_active', true)
-      .overlaps('program_ids', fromProgramIds)
-
-    if (subscriberErr) {
-      logError('cron_bonus_alerts_subscriber_fetch_failed', { requestId, error: subscriberErr.message })
+    let subscriberRows: Array<{ email: unknown; program_ids: unknown }>
+    try {
+      subscriberRows = await getDb()
+        .select({ email: alertSubscriptions.email, program_ids: alertSubscriptions.programIds })
+        .from(alertSubscriptions)
+        .where(and(eq(alertSubscriptions.isActive, true), arrayOverlaps(alertSubscriptions.programIds, fromProgramIds)))
+    } catch (subscriberErr) {
+      logError('cron_bonus_alerts_subscriber_fetch_failed', { requestId, error: subscriberErr instanceof Error ? subscriberErr.message : String(subscriberErr) })
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    for (const row of (subscriberRows ?? []) as Array<{ email: unknown; program_ids: unknown }>) {
+    for (const row of subscriberRows) {
       if (typeof row.email !== 'string') continue
       if (!Array.isArray(row.program_ids)) continue
       for (const programId of row.program_ids) {
@@ -263,17 +273,17 @@ export async function GET(req: NextRequest) {
       !hadSubscribers || bonusEmailsSent > 0 || (!bonusHadFailures && hadSubscribers)
 
     if (shouldMarkAlerted) {
-      const { error: updateError } = await db
-        .from('transfer_bonuses')
-        .update({ alerted_at: new Date().toISOString() })
-        .eq('id', bonus.id)
-
-      if (updateError) {
+      try {
+        await getDb()
+          .update(transferBonuses)
+          .set({ alertedAt: new Date().toISOString() })
+          .where(eq(transferBonuses.id, bonus.id))
+      } catch (updateError) {
         failedBonusIds.push(bonus.id)
         logError('cron_bonus_alerts_mark_failed', {
           requestId,
           bonusId: bonus.id,
-          error: updateError.message,
+          error: updateError instanceof Error ? updateError.message : String(updateError),
         })
       }
     } else {

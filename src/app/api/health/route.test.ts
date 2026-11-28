@@ -1,17 +1,34 @@
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { NextRequest } from 'next/server'
-
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: () => ({
-    from: () => ({
-      select: () => ({
-        limit: async () => ({ error: null }),
-      }),
-    }),
-  }),
-}))
+import { setDbForTesting } from '@/lib/db/client'
+import { createTestDb } from '@/test/utils/test-db'
 
 const { GET, HEAD } = await import('./route')
+
+beforeAll(async () => {
+  setDbForTesting(await createTestDb())
+})
+
+afterAll(() => setDbForTesting(null))
+
+describe('database check', () => {
+  it('reports unhealthy (503) when the database is unavailable', async () => {
+    setDbForTesting(null)
+    const saved = { DATABASE_URL: process.env.DATABASE_URL, POSTGRES_URL: process.env.POSTGRES_URL }
+    delete process.env.DATABASE_URL
+    delete process.env.POSTGRES_URL
+    try {
+      const res = await GET(new NextRequest('https://pointsmax.com/api/health'))
+      const body = await res.json()
+      expect(res.status).toBe(503)
+      expect(body).toMatchObject({ ok: false, status: 'unhealthy' })
+    } finally {
+      Object.assign(process.env, Object.fromEntries(Object.entries(saved).filter(([, v]) => v !== undefined)))
+      setDbForTesting(await createTestDb())
+    }
+  })
+})
 
 describe('GET /api/health', () => {
   it('returns health status', async () => {

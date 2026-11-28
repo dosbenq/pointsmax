@@ -3,8 +3,7 @@
 import { NextResponse } from 'next/server'
 import { toNextJsHandler } from 'better-auth/next-js'
 import { getAuth } from '@/lib/auth'
-import { getDb } from '@/lib/db/client'
-import { ensureSchema } from '@/lib/db/migrate'
+import { ensureDatabaseReady } from '@/lib/db/ready'
 import { hasDatabaseUrl } from '@/lib/db/url'
 import { logError } from '@/lib/logger'
 
@@ -15,9 +14,10 @@ async function handle(request: Request, method: 'GET' | 'POST') {
     return NextResponse.json({ error: 'Sign-in is not configured' }, { status: 503 })
   }
   try {
-    await ensureSchema(getDb)
+    // Sign-in links profiles by email, so it must wait for the Supabase copy.
+    await ensureDatabaseReady()
   } catch (error) {
-    logError('auth_schema_unavailable', { error: error instanceof Error ? error.message : String(error) })
+    logError('auth_database_not_ready', { error: error instanceof Error ? error.message : String(error) })
     return NextResponse.json({ error: 'Sign-in is temporarily unavailable' }, { status: 503 })
   }
   return toNextJsHandler(getAuth())[method](request)

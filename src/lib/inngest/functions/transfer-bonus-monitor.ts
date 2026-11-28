@@ -2,7 +2,10 @@ import { Resend } from 'resend'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { inngest } from '../client'
 import { getCatalogProgramById, getCatalogTransferPartners } from '@/lib/catalog'
-import { createAdminClient } from '@/lib/supabase'
+import { and, eq } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { transferBonuses } from '@/lib/db/schema'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
 const SOURCE_URLS = [
@@ -125,7 +128,8 @@ export const transferBonusMonitor = inngest.createFunction(
   { id: 'transfer-bonus-monitor', name: 'Agent: Transfer Bonus Monitor' },
   { cron: '0 6 * * *' },
   async ({ step }) => {
-    const db = createAdminClient()
+    await ensureDatabaseReady()
+    const db = getDb()
     const today = new Date().toISOString().slice(0, 10)
 
     const sourcePairs = await step.run('fetch-transfer-bonus-sources', async () => {
@@ -183,13 +187,15 @@ export const transferBonusMonitor = inngest.createFunction(
         const partner = partners.find((row) => partnerMatchesBonus(row, bonus))
         if (!partner) continue
 
-        const { data: existing } = await db
-          .from('transfer_bonuses')
-          .select('id')
-          .eq('transfer_partner_id', partner.id)
-          .eq('bonus_pct', bonus.bonus_pct)
-          .eq('end_date', bonus.end_date)
-          .maybeSingle()
+        const [existing] = await db
+          .select({ id: transferBonuses.id })
+          .from(transferBonuses)
+          .where(and(
+            eq(transferBonuses.transferPartnerId, partner.id),
+            eq(transferBonuses.bonusPct, bonus.bonus_pct),
+            eq(transferBonuses.endDate, bonus.end_date),
+          ))
+          .limit(1)
 
         if (existing?.id) continue
 
@@ -198,17 +204,24 @@ export const transferBonusMonitor = inngest.createFunction(
           ? sourcePairs[sourceIndex].sourceUrl
           : undefined
 
-        const { error } = await db.from('transfer_bonuses').insert({
-          transfer_partner_id: partner.id,
-          bonus_pct: bonus.bonus_pct,
-          start_date: today,
-          end_date: bonus.end_date,
-          source_url: detectedSource || SOURCE_URLS[0],
-          // Detected bonuses only count once someone sets is_verified = true.
-          is_verified: false,
-          notes: 'Automatically detected by transfer-bonus-monitor',
-        })
-        if (!error) {
+        let saved = false
+        try {
+          await db.insert(transferBonuses).values({
+            transferPartnerId: partner.id,
+            bonusPct: bonus.bonus_pct,
+            startDate: today,
+            endDate: bonus.end_date,
+            sourceUrl: detectedSource || SOURCE_URLS[0],
+            // Detected bonuses only count once someone sets is_verified = true.
+            isVerified: false,
+            autoDetected: true,
+            notes: 'Automatically detected by transfer-bonus-monitor',
+          })
+          saved = true
+        } catch {
+          // e.g. an end date before today; skip this one.
+        }
+        if (saved) {
           discovered.push({
             from: readProgramName(partner.from_program),
             to: readProgramName(partner.to_program),

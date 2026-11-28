@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { eq } from 'drizzle-orm'
+import { getSessionUser } from '@/lib/auth'
+import { getDb } from '@/lib/db/client'
+import { users } from '@/lib/db/schema'
 import { createStripeBillingPortalSession, getSafeAppOrigin, getStripeSecretKey } from '@/lib/stripe'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 
@@ -17,25 +19,20 @@ async function openPortal(req: NextRequest) {
     return NextResponse.json({ error: 'Billing is not configured yet.' }, { status: 503 })
   }
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getSessionUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
   }
 
   try {
-    const db = createAdminClient()
-    const { data, error: userErr } = await db
-      .from('users')
-      .select('id, stripe_customer_id')
-      .eq('auth_id', user.id)
-      .single()
-    const userRow = (data ?? null) as UserRow | null
+    const [userRow] = await getDb()
+      .select({ id: users.id, stripe_customer_id: users.stripeCustomerId })
+      .from(users)
+      .where(eq(users.authId, user.id))
+      .limit(1) as UserRow[]
 
-    if (userErr || !userRow) {
+    if (!userRow) {
       return NextResponse.json({ error: 'Profile not found.' }, { status: 404 })
     }
 

@@ -1,6 +1,9 @@
-import { createServerDbClient } from '@/lib/supabase'
-import { logWarn } from '@/lib/logger'
+import { and, eq, gte, lte } from 'drizzle-orm'
+import { getDb } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { transferBonuses } from '@/lib/db/schema'
 import { withTimeout } from '@/lib/db-timeout'
+import { logWarn } from '@/lib/logger'
 
 // Bonuses are an extra on top of the transfer ratios; never make a search wait long for them.
 const BONUS_LOOKUP_TIMEOUT_MS = 2_000
@@ -19,14 +22,19 @@ export type ActiveTransferBonus = {
 export async function getActiveTransferBonuses(today = new Date().toISOString().slice(0, 10)): Promise<ActiveTransferBonus[]> {
   try {
     return await withTimeout(async () => {
-      const { data, error } = await createServerDbClient()
-        .from('transfer_bonuses')
-        .select('transfer_partner_id, bonus_pct, end_date')
-        .eq('is_verified', true)
-        .lte('start_date', today)
-        .gte('end_date', today)
-      if (error) throw new Error(error.message)
-      return (data as ActiveTransferBonus[] | null) ?? []
+      await ensureDatabaseReady()
+      return getDb()
+        .select({
+          transfer_partner_id: transferBonuses.transferPartnerId,
+          bonus_pct: transferBonuses.bonusPct,
+          end_date: transferBonuses.endDate,
+        })
+        .from(transferBonuses)
+        .where(and(
+          eq(transferBonuses.isVerified, true),
+          lte(transferBonuses.startDate, today),
+          gte(transferBonuses.endDate, today),
+        ))
     }, { timeoutMs: BONUS_LOOKUP_TIMEOUT_MS, operationName: 'active_transfer_bonuses' })
   } catch (error) {
     logWarn('active_transfer_bonuses_unavailable', {

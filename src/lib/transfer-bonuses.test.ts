@@ -1,43 +1,48 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment node
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setDbForTesting } from '@/lib/db/client'
+import { ensureDatabaseReady } from '@/lib/db/ready'
+import { transferBonuses } from '@/lib/db/schema'
+import { createTestDb, type TestDb } from '@/test/utils/test-db'
+import { getActiveTransferBonuses } from './transfer-bonuses'
 
-const { queryMock } = vi.hoisted(() => ({ queryMock: vi.fn() }))
+vi.mock('@/lib/logger', () => ({ logWarn: vi.fn(), logError: vi.fn(), logInfo: vi.fn() }))
 
-vi.mock('@/lib/supabase', () => ({
-  createServerDbClient: () => {
-    const builder = {
-      select: () => builder,
-      eq: () => builder,
-      lte: () => builder,
-      gte: () => queryMock(),
-    }
-    return { from: () => builder }
-  },
-}))
-vi.mock('@/lib/logger', () => ({ logWarn: vi.fn(), logError: vi.fn() }))
+const TP = '0b5f3c1e-0000-4000-8000-000000000001'
+let db: TestDb
 
-const { getActiveTransferBonuses } = await import('./transfer-bonuses')
+beforeEach(async () => {
+  db = await createTestDb()
+  setDbForTesting(db)
+  vi.mocked(ensureDatabaseReady).mockReset().mockResolvedValue(undefined)
+})
 
 afterEach(() => {
   vi.useRealTimers()
-  queryMock.mockReset()
+  setDbForTesting(null)
 })
 
 describe('getActiveTransferBonuses', () => {
-  it('returns the verified bonuses running today', async () => {
-    queryMock.mockResolvedValue({ data: [{ transfer_partner_id: 'tp', bonus_pct: 30, end_date: '2026-12-31' }], error: null })
-    expect(await getActiveTransferBonuses('2026-12-01')).toEqual([{ transfer_partner_id: 'tp', bonus_pct: 30, end_date: '2026-12-31' }])
+  it('returns only verified bonuses running on the given day', async () => {
+    await db.insert(transferBonuses).values([
+      { transferPartnerId: TP, bonusPct: 30, startDate: '2026-12-01', endDate: '2026-12-31', isVerified: true },
+      { transferPartnerId: TP, bonusPct: 40, startDate: '2026-12-01', endDate: '2026-12-31', isVerified: false },
+      { transferPartnerId: TP, bonusPct: 50, startDate: '2026-11-01', endDate: '2026-11-30', isVerified: true },
+    ])
+
+    expect(await getActiveTransferBonuses('2026-12-15')).toEqual([{ transfer_partner_id: TP, bonus_pct: 30, end_date: '2026-12-31' }])
   })
 
   it('gives up after 2 seconds instead of holding up a search', async () => {
     vi.useFakeTimers()
-    queryMock.mockReturnValue(new Promise(() => {}))
-    const pending = getActiveTransferBonuses('2026-12-01')
+    vi.mocked(ensureDatabaseReady).mockReturnValue(new Promise(() => {}))
+    const pending = getActiveTransferBonuses('2026-12-15')
     await vi.advanceTimersByTimeAsync(2_001)
     expect(await pending).toEqual([])
   })
 
-  it('returns nothing when the database answers with an error', async () => {
-    queryMock.mockResolvedValue({ data: null, error: { message: 'paused' } })
-    expect(await getActiveTransferBonuses('2026-12-01')).toEqual([])
+  it('returns nothing while the database is not ready', async () => {
+    vi.mocked(ensureDatabaseReady).mockRejectedValue(new Error('not ready'))
+    expect(await getActiveTransferBonuses('2026-12-15')).toEqual([])
   })
 })

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { eq } from 'drizzle-orm'
+import { getOrCreateUserRowId, getSessionUser } from '@/lib/auth'
+import { databaseNotReadyResponse } from '@/lib/auth-guard'
+import { getDb } from '@/lib/db/client'
+import { DatabaseNotReadyError } from '@/lib/db/ready'
+import { users } from '@/lib/db/schema'
 import {
   createStripeCheckoutSession,
   createStripeCustomer,
@@ -36,10 +40,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Billing is not configured yet.' }, { status: 503 })
   }
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user
+  try {
+    user = await getSessionUser()
+  } catch (error) {
+    if (error instanceof DatabaseNotReadyError) return databaseNotReadyResponse()
+    throw error
+  }
 
   if (!user) {
     return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
@@ -54,20 +61,16 @@ export async function POST(req: NextRequest) {
   const normalizedRegion = body.region === 'in' ? 'in' : 'us'
 
   try {
-    const db = createAdminClient()
-    const { data, error: userErr } = await db
-      .from('users')
-      .select('id, email, tier, stripe_customer_id')
-      .eq('auth_id', user.id)
-      .single()
-    const userRow = (data ?? null) as UserRow | null
+    const db = getDb()
+    const profileId = await getOrCreateUserRowId(user)
+    const [userRow] = await db
+      .select({ id: users.id, email: users.email, tier: users.tier, stripe_customer_id: users.stripeCustomerId })
+      .from(users)
+      .where(eq(users.id, profileId))
+      .limit(1) as UserRow[]
 
-    if (userErr || !userRow) {
-      logWarn('stripe_checkout_user_missing', {
-        requestId,
-        auth_user_id: user.id,
-        error: userErr?.message ?? null,
-      })
+    if (!userRow) {
+      logWarn('stripe_checkout_user_missing', { requestId, auth_user_id: user.id })
       return NextResponse.json({ error: 'Profile not found. Please sign out and sign in again.' }, { status: 404 })
     }
 
@@ -84,15 +87,13 @@ export async function POST(req: NextRequest) {
       })
       customerId = customer.id
 
-      const { error: updateErr } = await db
-        .from('users')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', userRow.id)
-      if (updateErr) {
+      try {
+        await db.update(users).set({ stripeCustomerId: customerId }).where(eq(users.id, userRow.id))
+      } catch (updateErr) {
         logWarn('stripe_checkout_customer_id_update_failed', {
           requestId,
           user_id: userRow.id,
-          error: updateErr.message,
+          error: updateErr instanceof Error ? updateErr.message : String(updateErr),
         })
       }
     }
