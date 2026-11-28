@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createAdminClient } from '@/lib/supabase'
-import { inngest } from '@/lib/inngest/client'
 import { captureServerEvent } from '@/lib/posthog-server'
 
 export async function POST(req: NextRequest) {
@@ -25,15 +24,6 @@ export async function POST(req: NextRequest) {
   if (typeof internalUserId !== 'string') {
     return NextResponse.json({ error: 'User record not found' }, { status: 404 })
   }
-
-  await inngest.send({
-    name: 'user.onboarding_completed',
-    data: {
-      user_id: internalUserId,
-      region,
-      home_airport: homeAirport,
-    },
-  })
 
   await captureServerEvent({
     distinctId: internalUserId,
