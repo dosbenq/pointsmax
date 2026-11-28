@@ -1,22 +1,11 @@
 import { MetadataRoute } from 'next'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
-import { createServerDbClient } from '@/lib/supabase'
+import { getCatalogPrograms } from '@/lib/catalog'
 import { listCardsForRegion, listComparisonPagesForRegion } from '@/lib/programmatic-content'
 
 const BASE_URL = getConfiguredAppOrigin()
 
 const REGIONS = ['us', 'in'] as const
-
-type SitemapProgramRow = {
-  slug: string
-  geography: string | null
-}
-
-function isSitemapProgramRow(value: unknown): value is SitemapProgramRow {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return typeof row.slug === 'string'
-}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
@@ -48,56 +37,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  try {
-    const db = createServerDbClient()
-    const [cardsByRegion, comparisonPagesByRegion, { data: programs }] = await Promise.all([
-      Promise.all(REGIONS.map(async (region) => ({ region, cards: await listCardsForRegion(region) }))),
-      Promise.all(REGIONS.map(async (region) => ({ region, pages: await listComparisonPagesForRegion(region) }))),
-      db.from('programs').select('slug, geography').eq('is_active', true),
-    ])
+  const [cardsByRegion, comparisonPagesByRegion] = await Promise.all([
+    Promise.all(REGIONS.map(async (region) => ({ region, cards: await listCardsForRegion(region) }))),
+    Promise.all(REGIONS.map(async (region) => ({ region, pages: await listComparisonPagesForRegion(region) }))),
+  ])
+  const normalizedPrograms = getCatalogPrograms()
 
-    const normalizedPrograms = ((programs ?? []) as unknown[]).filter(isSitemapProgramRow)
-
-    for (const entry of cardsByRegion) {
-      for (const card of entry.cards) {
-        items.push({
-          url: `${BASE_URL}/${entry.region}/cards/${card.slug}`,
-          lastModified: now,
-          changeFrequency: 'monthly',
-          priority: 0.8,
-        })
-      }
+  for (const entry of cardsByRegion) {
+    for (const card of entry.cards) {
+      items.push({
+        url: `${BASE_URL}/${entry.region}/cards/${card.slug}`,
+        lastModified: now,
+        changeFrequency: 'monthly',
+        priority: 0.8,
+      })
     }
+  }
 
-    for (const entry of comparisonPagesByRegion) {
-      for (const page of entry.pages) {
-        items.push({
-          url: `${BASE_URL}/${entry.region}/cards/best/${page.slug}`,
-          lastModified: now,
-          changeFrequency: 'weekly',
-          priority: 0.8,
-        })
-      }
+  for (const entry of comparisonPagesByRegion) {
+    for (const page of entry.pages) {
+      items.push({
+        url: `${BASE_URL}/${entry.region}/cards/best/${page.slug}`,
+        lastModified: now,
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      })
     }
+  }
 
-    for (const program of normalizedPrograms) {
-      const regions =
-        program.geography === 'IN'
-          ? ['in']
-          : program.geography === 'US'
-            ? ['us']
-            : ['us', 'in']
-      for (const region of regions) {
-        items.push({
-          url: `${BASE_URL}/${region}/programs/${program.slug}`,
-          lastModified: now,
-          changeFrequency: 'monthly',
-          priority: 0.8,
-        })
-      }
+  for (const program of normalizedPrograms) {
+    const regions =
+      program.geography === 'IN'
+        ? ['in']
+        : program.geography === 'US'
+          ? ['us']
+          : ['us', 'in']
+    for (const region of regions) {
+      items.push({
+        url: `${BASE_URL}/${region}/programs/${program.slug}`,
+        lastModified: now,
+        changeFrequency: 'monthly',
+        priority: 0.8,
+      })
     }
-  } catch {
-    // Keep sitemap generation resilient when DB is unavailable.
   }
 
   return items

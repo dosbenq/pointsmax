@@ -82,7 +82,8 @@ export async function GET(req: NextRequest) {
     const db = createAdminClient()
     const result = await withTimeout(
       async () => {
-        const { error } = await db.from('programs').select('id').limit(1)
+        // User data is the only thing left in the database; reference data ships with the build.
+        const { error } = await db.from('users').select('id').limit(1)
         return error
       },
       { operationName: 'health_check', timeoutMs: 5000 }

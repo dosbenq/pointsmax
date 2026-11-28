@@ -1,10 +1,16 @@
-import { createServerDbClient, hasConfiguredPublicSupabaseEnv } from '@/lib/supabase'
 import { yearlyPointsFromSpend } from '@/lib/card-tools'
 import type { Region } from '@/lib/regions'
 import type { SpendCategory } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
-import { unstable_cache } from 'next/cache'
 import { getCanonicalCardSlug } from '@/lib/card-slugs'
+import {
+  getCatalogCardEarningRates,
+  getCatalogCards,
+  getCatalogComparisonPages,
+  getCatalogLatestValuations,
+  getCatalogPrograms,
+  getCatalogTransferPartners,
+} from '@/lib/catalog'
 
 type ProgramRow = {
   id: string
@@ -44,17 +50,6 @@ type ValuationRow = {
 }
 
 type CardIdentityRow = Pick<CardRow, 'id' | 'name' | 'issuer'>
-
-type ComparisonPageRow = {
-  slug: string
-  region: string
-  title: string
-  description: string
-  card_slugs: string[]
-  category_focus: string | null
-  is_published: boolean
-  display_order: number
-}
 
 export function resolveProgrammaticCppCents(cppCents: number | undefined, programType: string | undefined): number {
   return resolveCppCents(cppCents, programType)
@@ -105,15 +100,6 @@ function parseBestUses(raw: unknown): string[] {
   return []
 }
 
-function isMissingTableError(error: { code?: string; message?: string } | null | undefined): boolean {
-  if (!error) return false
-  return (
-    error.code === '42P01' ||
-    error.message?.toLowerCase().includes('relation') === true ||
-    error.message?.toLowerCase().includes('does not exist') === true
-  )
-}
-
 export function estimateEffectiveCashbackPct(card: ProgrammaticCard): number {
   const cpp = Number(card.cpp_cents) / 100
   if (!Number.isFinite(cpp) || cpp <= 0) return 0
@@ -132,29 +118,17 @@ export function estimateEffectiveCashbackPct(card: ProgrammaticCard): number {
 }
 
 async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticCard[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
   const geography = geographyForRegion(region)
-
-  const { data: cards, error: cardsErr } = await db
-    .from('cards')
-    .select('id, name, issuer, image_url, annual_fee_usd, currency, earn_unit, geography, signup_bonus_pts, signup_bonus_spend, program_id, apply_url, display_order, expert_summary')
-    .eq('is_active', true)
-    .eq('geography', geography)
-    .order('display_order', { ascending: true })
-
-  if (cardsErr || !cards) return []
-  const cardRows = cards as CardRow[]
+  const cardRows = getCatalogCards({ geography })
+    .sort((left, right) => left.display_order - right.display_order)
+    .map((card) => ({ ...card, image_url: card.image_url ?? null })) as unknown as CardRow[]
   if (cardRows.length === 0) return []
 
   const cardIds = cardRows.map((card) => card.id)
-  const programIds = [...new Set(cardRows.map((card) => card.program_id))]
-
-  const [{ data: rates }, { data: programs }, { data: valuations }] = await Promise.all([
-    db.from('card_earning_rates').select('card_id, category, earn_multiplier').in('card_id', cardIds),
-    db.from('programs').select('id, name, slug, type, geography').in('id', programIds),
-    db.from('latest_valuations').select('program_id, cpp_cents').in('program_id', programIds),
-  ])
+  const programIds = new Set(cardRows.map((card) => card.program_id))
+  const rates = getCatalogCardEarningRates(cardIds)
+  const programs = getCatalogPrograms({ includeInactive: true }).filter((program) => programIds.has(program.id))
+  const valuations = getCatalogLatestValuations([...programIds])
 
   const ratesByCardId = new Map<string, EarningRateRow[]>()
   for (const row of ((rates ?? []) as EarningRateRow[])) {
@@ -180,17 +154,8 @@ async function listCardsForRegionUncached(region: Region): Promise<ProgrammaticC
   }))
 }
 
-const listCardsForRegionCached = unstable_cache(
-  async (region: Region) => listCardsForRegionUncached(region),
-  ['programmatic-cards-v1'],
-  {
-    revalidate: 3600,
-    tags: ['programmatic-cards', 'valuations'],
-  },
-)
-
 export async function listCardsForRegion(region: Region): Promise<ProgrammaticCard[]> {
-  return listCardsForRegionCached(region)
+  return listCardsForRegionUncached(region)
 }
 
 export async function getCardBySlug(region: Region, slug: string): Promise<ProgrammaticCard | null> {
@@ -199,35 +164,18 @@ export async function getCardBySlug(region: Region, slug: string): Promise<Progr
 }
 
 async function listProgramsForRegionUncached(region: Region): Promise<ProgrammaticProgram[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
   const geography = geographyForRegion(region)
-
-  const { data: programs, error } = await db
-    .from('programs')
-    .select('id, name, slug, type, geography, best_uses')
-    .eq('is_active', true)
-    .or(`geography.is.null,geography.eq.${geography},geography.eq.global`)
-    .order('name', { ascending: true })
-
-  if (error || !programs) return []
-  const programRows = programs as Array<ProgramRow & { best_uses?: unknown }>
+  const programRows = getCatalogPrograms({ geography })
+    .slice()
+    .sort((left, right) => left.name.localeCompare(right.name)) as Array<ProgramRow & { best_uses?: unknown }>
   if (programRows.length === 0) return []
 
   const programIds = programRows.map((program) => program.id)
-  const programFilter = programIds.join(',')
-  const [{ data: valuations }, { data: cards }, { data: partners }] = await Promise.all([
-    db.from('latest_valuations').select('program_id, cpp_cents, notes').in('program_id', programIds),
-    db.from('cards')
-      .select('id, name, issuer, program_id, apply_url, geography')
-      .eq('is_active', true)
-      .eq('geography', geography)
-      .in('program_id', programIds),
-    db.from('transfer_partners')
-      .select('from_program_id, to_program_id, ratio_from, ratio_to')
-      .eq('is_active', true)
-      .or(`from_program_id.in.(${programFilter}),to_program_id.in.(${programFilter})`),
-  ])
+  const programIdSet = new Set(programIds)
+  const valuations = getCatalogLatestValuations(programIds)
+  const cards = getCatalogCards({ geography }).filter((card) => programIdSet.has(card.program_id))
+  const partners = getCatalogTransferPartners()
+    .filter((row) => programIdSet.has(row.from_program_id) || programIdSet.has(row.to_program_id))
 
   const valuationByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.cpp_cents]))
   const valuationNotesByProgramId = new Map(((valuations ?? []) as ValuationRow[]).map((row) => [row.program_id, row.notes ?? null]))
@@ -298,17 +246,8 @@ async function listProgramsForRegionUncached(region: Region): Promise<Programmat
   })
 }
 
-const listProgramsForRegionCached = unstable_cache(
-  async (region: Region) => listProgramsForRegionUncached(region),
-  ['programmatic-programs-v1'],
-  {
-    revalidate: 3600,
-    tags: ['programmatic-programs', 'valuations'],
-  },
-)
-
 export async function listProgramsForRegion(region: Region): Promise<ProgrammaticProgram[]> {
-  return listProgramsForRegionCached(region)
+  return listProgramsForRegionUncached(region)
 }
 
 export async function getProgramBySlug(region: Region, slug: string): Promise<ProgrammaticProgram | null> {
@@ -327,42 +266,17 @@ export type ProgrammaticComparisonPage = {
   href: string
 }
 
-async function listComparisonPagesForRegionUncached(region: Region): Promise<ProgrammaticComparisonPage[]> {
-  if (!hasConfiguredPublicSupabaseEnv()) return []
-  const db = createServerDbClient()
-  const { data, error } = await db
-    .from('comparison_pages')
-    .select('slug, region, title, description, card_slugs, category_focus, is_published, display_order')
-    .eq('region', region)
-    .eq('is_published', true)
-    .order('display_order', { ascending: true })
-
-  if (isMissingTableError(error)) return []
-  if (error || !data) return []
-
-  return (data as ComparisonPageRow[]).map((row) => ({
+export async function listComparisonPagesForRegion(region: Region): Promise<ProgrammaticComparisonPage[]> {
+  return getCatalogComparisonPages(region).map((row) => ({
     slug: row.slug,
     region,
     title: row.title,
     description: row.description,
-    cardSlugs: Array.isArray(row.card_slugs) ? row.card_slugs.filter((value): value is string => typeof value === 'string') : [],
+    cardSlugs: row.card_slugs,
     categoryFocus: row.category_focus,
     displayOrder: row.display_order,
-    href: `/${region}/cards/compare?cards=${Array.isArray(row.card_slugs) ? row.card_slugs.join(',') : ''}`,
+    href: `/${region}/cards/compare?cards=${row.card_slugs.join(',')}`,
   }))
-}
-
-const listComparisonPagesForRegionCached = unstable_cache(
-  async (region: Region) => listComparisonPagesForRegionUncached(region),
-  ['programmatic-comparison-pages-v1'],
-  {
-    revalidate: 3600,
-    tags: ['programmatic-comparison-pages'],
-  },
-)
-
-export async function listComparisonPagesForRegion(region: Region): Promise<ProgrammaticComparisonPage[]> {
-  return listComparisonPagesForRegionCached(region)
 }
 
 export async function getComparisonPageBySlug(

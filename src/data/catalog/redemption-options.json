@@ -1,0 +1,209 @@
+[
+  {
+    "id": "162e3c81-c960-4e2d-8937-72175d9164eb",
+    "program_id": "11111111-0001-0001-0001-000000000001",
+    "category": "cashback",
+    "cpp_cents": 1.0,
+    "label": "Cash Back",
+    "notes": "1 cent per point — worst use",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "319eee24-8317-417e-8600-477e8be7bc41",
+    "program_id": "11111111-0001-0001-0001-000000000001",
+    "category": "gift_cards",
+    "cpp_cents": 1.0,
+    "label": "Gift Cards",
+    "notes": "1 cent per point",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "506aec21-15fa-45fa-ab1a-8a5d4a7ac24b",
+    "program_id": "11111111-0001-0001-0001-000000000001",
+    "category": "statement_credit",
+    "cpp_cents": 1.0,
+    "label": "Statement Credit",
+    "notes": "1 cent per point",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "f6411bf7-38c5-43cd-b16a-c46447fdae52",
+    "program_id": "11111111-0001-0001-0001-000000000001",
+    "category": "travel_portal",
+    "cpp_cents": 1.5,
+    "label": "Chase Travel Portal",
+    "notes": "Worth 1.5cpp with Sapphire Reserve, 1.25cpp with Preferred",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "ffe6ec39-bbd6-42e7-b8e7-ddd87c71738d",
+    "program_id": "11111111-0001-0001-0001-000000000002",
+    "category": "cashback",
+    "cpp_cents": 0.6,
+    "label": "Cash Back / Deposit",
+    "notes": "0.6cpp — avoid",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "4ab58e50-281c-407a-bca9-93f74526fee5",
+    "program_id": "11111111-0001-0001-0001-000000000002",
+    "category": "gift_cards",
+    "cpp_cents": 1.0,
+    "label": "Gift Cards",
+    "notes": "1cpp via Amex gift card shop",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "da619b29-4803-496a-b7a3-a81e3821ab0c",
+    "program_id": "11111111-0001-0001-0001-000000000002",
+    "category": "statement_credit",
+    "cpp_cents": 0.6,
+    "label": "Statement Credit",
+    "notes": "0.6cpp — poor value",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "8565a80d-ed55-4927-bd54-73605a793a82",
+    "program_id": "11111111-0001-0001-0001-000000000002",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "Amex Travel Portal",
+    "notes": "1cpp — use transfer partners for better value",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "350f317e-60d1-4c94-8c24-ce3e3eb0e1f3",
+    "program_id": "11111111-0001-0001-0001-000000000003",
+    "category": "cashback",
+    "cpp_cents": 1.0,
+    "label": "Cash Back",
+    "notes": "1cpp",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "9363eaec-d312-45b4-98f2-df325f6f8363",
+    "program_id": "11111111-0001-0001-0001-000000000003",
+    "category": "statement_credit",
+    "cpp_cents": 1.0,
+    "label": "Statement Credit / Cash",
+    "notes": "1cpp — matches portal",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "1b9a3f31-545c-4c43-84b7-593a00aa714b",
+    "program_id": "11111111-0001-0001-0001-000000000003",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "Capital One Travel Portal",
+    "notes": "1cpp on flights, hotels, rental cars",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "31c97110-52a6-48d5-8ddd-aae0c45cef08",
+    "program_id": "11111111-0001-0001-0001-000000000004",
+    "category": "gift_cards",
+    "cpp_cents": 1.0,
+    "label": "Gift Cards",
+    "notes": "1cpp",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "926cf3d6-bc56-4a48-b90b-b6d81c33d6a5",
+    "program_id": "11111111-0001-0001-0001-000000000004",
+    "category": "statement_credit",
+    "cpp_cents": 0.5,
+    "label": "Statement Credit",
+    "notes": "0.5cpp — worst option",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "c0291b15-a528-4c25-9822-3fe423dbce5d",
+    "program_id": "11111111-0001-0001-0001-000000000004",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "Citi Travel Portal",
+    "notes": "1cpp",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "1532db6b-edd3-4f2f-bf65-43b74d5bb24b",
+    "program_id": "11111111-0001-0001-0001-000000000005",
+    "category": "cashback",
+    "cpp_cents": 0.55,
+    "label": "Cash Back",
+    "notes": "0.55cpp — very poor",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "332e1ef8-d904-461d-8fad-8ee0d6485720",
+    "program_id": "11111111-0001-0001-0001-000000000005",
+    "category": "pay_with_points",
+    "cpp_cents": 0.55,
+    "label": "Rent Payment",
+    "notes": "0.55cpp — avoid unless desperate",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "4619e486-5d26-43d0-9af2-f9df35bfeb25",
+    "program_id": "11111111-0001-0001-0001-000000000005",
+    "category": "travel_portal",
+    "cpp_cents": 1.25,
+    "label": "Bilt Travel Portal",
+    "notes": "1.25cpp on flights; 1cpp on hotels",
+    "updated_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "680f6435-0ada-4794-b5e4-1dc95031fac5",
+    "program_id": "11111111-0001-0001-0001-000000000101",
+    "category": "cashback",
+    "cpp_cents": 0.5,
+    "label": "Statement credit",
+    "notes": "Low-value floor",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  },
+  {
+    "id": "5d1f49b6-5cc2-48d5-aee5-8119365c3551",
+    "program_id": "11111111-0001-0001-0001-000000000101",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "HDFC SmartBuy Travel",
+    "notes": "Baseline direct redemption",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  },
+  {
+    "id": "67a8814f-c0a5-415c-824a-633fb12c10c2",
+    "program_id": "11111111-0001-0001-0001-000000000102",
+    "category": "cashback",
+    "cpp_cents": 0.5,
+    "label": "Statement credit",
+    "notes": "Low-value floor",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  },
+  {
+    "id": "b55eedd1-de3b-4158-a971-fde14949c3de",
+    "program_id": "11111111-0001-0001-0001-000000000102",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "Axis Travel Edge",
+    "notes": "Baseline direct redemption",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  },
+  {
+    "id": "bc3d280f-a078-4936-94f0-c69aa2e4740c",
+    "program_id": "11111111-0001-0001-0001-000000000103",
+    "category": "cashback",
+    "cpp_cents": 0.6,
+    "label": "Statement credit",
+    "notes": "Low-value floor",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  },
+  {
+    "id": "73325b9d-8de6-4266-a661-ce9c0d43a7aa",
+    "program_id": "11111111-0001-0001-0001-000000000103",
+    "category": "travel_portal",
+    "cpp_cents": 1.0,
+    "label": "Amex India Travel",
+    "notes": "Baseline direct redemption",
+    "updated_at": "2026-02-22T02:37:46.480494+00:00"
+  }
+]

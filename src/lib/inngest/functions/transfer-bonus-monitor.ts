@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { inngest } from '../client'
+import { getCatalogProgramById, getCatalogTransferPartners } from '@/lib/catalog'
 import { createAdminClient } from '@/lib/supabase'
 import { getGeminiModelCandidatesForApiKey, markGeminiModelUnavailable } from '@/lib/gemini-models'
 
@@ -169,18 +170,12 @@ export const transferBonusMonitor = inngest.createFunction(
       return parsed.filter((row) => Number.isFinite(row.bonus_pct) && row.bonus_pct > 0)
     })
 
-    const partners = await step.run('load-transfer-partners', async () => {
-      const { data, error } = await db
-        .from('transfer_partners')
-        .select(`
-          id,
-          from_program:programs!transfer_partners_from_program_id_fkey(name),
-          to_program:programs!transfer_partners_to_program_id_fkey(name)
-        `)
-        .eq('is_active', true)
-      if (error) throw new Error(error.message)
-      return (data ?? []) as PartnerRow[]
-    })
+    // Transfer partners and program names are catalog data.
+    const partners: PartnerRow[] = getCatalogTransferPartners().map((row) => ({
+      id: row.id,
+      from_program: { name: getCatalogProgramById(row.from_program_id)?.name ?? null },
+      to_program: { name: getCatalogProgramById(row.to_program_id)?.name ?? null },
+    }))
 
     const inserted = await step.run('upsert-new-transfer-bonuses', async () => {
       const discovered: Array<{ from: string; to: string; bonus_pct: number; end_date: string }> = []
@@ -209,9 +204,8 @@ export const transferBonusMonitor = inngest.createFunction(
           start_date: today,
           end_date: bonus.end_date,
           source_url: detectedSource || SOURCE_URLS[0],
-          auto_detected: true,
+          // Detected bonuses only count once someone sets is_verified = true.
           is_verified: false,
-          active: true,
           notes: 'Automatically detected by transfer-bonus-monitor',
         })
         if (!error) {
@@ -224,15 +218,6 @@ export const transferBonusMonitor = inngest.createFunction(
         }
       }
       return discovered
-    })
-
-    await step.run('expire-outdated-transfer-bonuses', async () => {
-      await db
-        .from('transfer_bonuses')
-        .update({ active: false })
-        .lt('end_date', today)
-        .eq('active', true)
-      return { ok: true }
     })
 
     if (inserted.length > 0) {

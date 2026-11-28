@@ -2,7 +2,6 @@
 // Award Search — Shared types
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TrustState } from '@/lib/result-trust'
 
 export type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first'
@@ -77,7 +76,7 @@ export interface AwardSearchResponse extends TrustState {
 
 export interface AwardProvider {
   readonly name: 'stub' | 'seats_aero'
-  search(params: AwardSearchParams, client: SupabaseClient): Promise<AwardSearchResult[]>
+  search(params: AwardSearchParams): Promise<AwardSearchResult[]>
 }
 
 // Raw DB rows used by providers

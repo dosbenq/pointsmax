@@ -2,7 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import * as awardSearch from '@/lib/award-search'
 import type { AwardProvider } from '@/lib/award-search'
-import { createServerDbClient } from '@/lib/supabase'
+import { getCatalogProgramBySlug } from '@/lib/catalog'
+import { StubProvider } from '@/lib/award-search/stub-provider'
 import { getUserTier } from '@/lib/subscription'
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
@@ -14,21 +15,6 @@ vi.mock('@/lib/award-search', async (importOriginal) => {
   return {
     ...actual,
     createAwardProvider: vi.fn(),
-  }
-})
-
-vi.mock('@/lib/supabase', () => {
-  const mockQuery = {
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    then: vi.fn().mockImplementation((onFulfilled: (value: unknown) => unknown) => {
-      return Promise.resolve({ data: [] }).then(onFulfilled)
-    }),
-  }
-  return {
-    createServerDbClient: vi.fn().mockReturnValue(mockQuery),
   }
 })
 
@@ -102,15 +88,7 @@ describe('POST /api/award-search', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getUserTier).mockResolvedValue('premium')
-    vi.mocked(createServerDbClient).mockReturnValue({
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      in: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      then: vi.fn().mockImplementation((onFulfilled: (value: unknown) => unknown) => {
-        return Promise.resolve({ data: [] }).then(onFulfilled)
-      }),
-    } as never)
+    vi.restoreAllMocks()
   })
 
   describe('Validation', () => {
@@ -248,22 +226,13 @@ describe('POST /api/award-search', () => {
     })
 
     it('includes a Delta warning when a Delta balance is in the wallet', async () => {
-      vi.mocked(createServerDbClient).mockReturnValue({
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            in: vi.fn(async () => ({
-              data: [{ id: validBalance.program_id, slug: 'delta' }],
-            })),
-          })),
-        })),
-      } as never)
-
       vi.mocked(awardSearch.createAwardProvider).mockReturnValue({
         name: 'seats_aero',
         search: vi.fn().mockResolvedValue([]),
       } as unknown as AwardProvider)
 
-      const res = await POST(makeRequest(makeValidBody()))
+      const deltaId = getCatalogProgramBySlug('delta')!.id
+      const res = await POST(makeRequest({ ...makeValidBody(), balances: [{ program_id: deltaId, amount: 50000 }] }))
       const body = await res.json()
 
       expect(res.status).toBe(200)
@@ -306,11 +275,8 @@ describe('POST /api/award-search', () => {
 
     it('returns internal error when fallback provider also fails', async () => {
       const validBody = makeValidBody()
-      // First, make the StubProvider fail by mocking the DB to throw
-      const { createServerDbClient } = await import('@/lib/supabase')
-      vi.mocked(createServerDbClient).mockImplementationOnce(() => {
-        throw new Error('Database error')
-      })
+      // Make the estimate fallback fail too.
+      vi.spyOn(StubProvider.prototype, 'search').mockRejectedValueOnce(new Error('estimate failure'))
 
       vi.mocked(awardSearch.createAwardProvider).mockImplementation(() => {
         throw new awardSearch.AwardProviderUnavailableError()

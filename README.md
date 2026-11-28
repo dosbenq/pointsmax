@@ -43,7 +43,22 @@ public/card-art/          Self-hosted card assets
 
 ## Catalog Workflow
 
-Catalog work lives in [Documentation/catalog/README.md](./Documentation/catalog/README.md).
+Reference data (programs, cards, earning rates, point values, transfer
+partners, redemption options, booking links, hotel award charts and comparison
+pages) lives as JSON in `src/data/catalog/` and ships with the build, so public
+pages and the calculator keep working even if the database is down.
+
+To change a value, edit the JSON and open a PR. `src/lib/catalog/catalog.test.ts`
+checks that IDs are unique, every reference resolves, and point values use the
+right unit (India in paise, everything else in US cents). Never change an
+existing `id`: saved balances and affiliate clicks point at them.
+
+Transfer bonuses are time-bound, so they stay in the database
+(`transfer_bonuses`). Only rows with `is_verified = true` count; the bonus
+monitor inserts detected bonuses unverified and emails `ADMIN_EMAIL`.
+
+Older catalog research and staging files live in
+[Documentation/catalog/README.md](./Documentation/catalog/README.md).
 
 Key commands:
 

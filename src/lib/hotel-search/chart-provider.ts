@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { getCatalogHotelAwardCharts, getCatalogHotelPrograms, getCatalogPrograms, getCatalogTransferPartners } from '@/lib/catalog'
 import {
   buildReachablePaths,
   buildTransferChain,
@@ -48,59 +48,17 @@ function matchesHotelHint(chain: string, programName: string, hotelHint: string)
   )
 }
 
-const QUERY_TIMEOUT_MS = 10_000 // 10 seconds
-
-async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-  )
-  return Promise.race([promise, timeout])
-}
-
 export class ChartHotelProvider {
-  async search(params: HotelSearchParams, client: SupabaseClient): Promise<HotelSearchResult[]> {
+  async search(params: HotelSearchParams): Promise<HotelSearchResult[]> {
     const nights = calculateNights(params.check_in, params.check_out)
     const hotelHint = normalizeHotelHint(params.hotel_name)
 
-    const [{ data: hotelPrograms, error: hotelProgramError }, { data: charts, error: chartError }] = await withTimeout(Promise.all([
-      client
-        .from('hotel_programs')
-        .select('id, slug, name, chain, booking_url, color_hex')
-        .eq('is_active', true),
-      client
-        .from('hotel_award_charts')
-        .select('program_id, destination_region, tier_label, tier_number, points_off_peak, points_standard, points_peak, estimated_cash_usd')
-        .eq('destination_region', params.destination_region),
-    ]), QUERY_TIMEOUT_MS, 'Hotel search database queries')
-
-    if (hotelProgramError) {
-      throw new Error(`Failed to load hotel programs: ${hotelProgramError.message}`)
-    }
-    if (chartError) {
-      throw new Error(`Failed to load hotel award charts: ${chartError.message}`)
-    }
-
-    const hotelProgramRows = (hotelPrograms as HotelProgramRow[] | null) ?? []
-    const chartRows = (charts as HotelAwardChartRow[] | null) ?? []
+    // Hotel programs, award charts, loyalty programs and transfer partners are catalog data.
+    const hotelProgramRows: HotelProgramRow[] = getCatalogHotelPrograms()
+    const chartRows: HotelAwardChartRow[] = getCatalogHotelAwardCharts(params.destination_region)
     const hotelSlugs = hotelProgramRows.map((row) => row.slug)
-
-    const [{ data: programs, error: programError }, { data: transferPartners, error: transferError }] = await Promise.all([
-      client
-        .from('programs')
-        .select('id, name, short_name, slug, color_hex, type')
-        .eq('is_active', true),
-      client
-        .from('transfer_partners')
-        .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .eq('is_active', true),
-    ])
-
-    if (programError) {
-      throw new Error(`Failed to load programs: ${programError.message}`)
-    }
-    if (transferError) {
-      throw new Error(`Failed to load transfer partners: ${transferError.message}`)
-    }
+    const programs = getCatalogPrograms()
+    const transferPartners = getCatalogTransferPartners()
 
     const programRows = ((programs as ProgramRow[] | null) ?? [])
     const walletProgramIds = new Set(params.balances.map((balance) => balance.program_id))

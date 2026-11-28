@@ -4,7 +4,7 @@
 // Falls back gracefully per-program if API fails.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { getCatalogLatestValuations, getCatalogPrograms, getCatalogTransferPartners } from '@/lib/catalog'
 import type {
   AwardProvider,
   AwardSearchParams,
@@ -30,69 +30,9 @@ import { resolveCppCents } from '@/lib/cpp-fallback'
 import { logError, logWarn } from '@/lib/logger'
 import { sortAwardResultsByPoints } from './sort-results'
 import { fetchCashFareUsd } from './cash-fare-provider'
-
-// ── Seats.aero Source → our slug ─────────────────────────────
-const SEATS_AERO_SOURCE_TO_SLUG: Record<string, string> = {
-  // United
-  'United': 'united',
-  'UnitedMileagePlus': 'united',
-  // Delta
-  'Delta': 'delta',
-  'DeltaSkyMiles': 'delta',
-  // American
-  'American': 'american',
-  'AmericanAAdvantage': 'american',
-  // Aeroplan
-  'Aeroplan': 'aeroplan',
-  'AirCanada': 'aeroplan',
-  // British Airways
-  'British': 'british-airways',
-  'BritishAirways': 'british-airways',
-  'Avios': 'british-airways',
-  // Flying Blue
-  'FlyingBlue': 'flying-blue',
-  'AirFrance': 'flying-blue',
-  'KLM': 'flying-blue',
-  // Singapore
-  'Singapore': 'singapore',
-  'SingaporeAirlines': 'singapore',
-  'KrisFlyer': 'singapore',
-  // ANA
-  'ANA': 'ana',
-  'AllNippon': 'ana',
-  // Turkish
-  'Turkish': 'turkish',
-  'TurkishAirlines': 'turkish',
-  // Avianca
-  'Avianca': 'avianca',
-  'LifeMiles': 'avianca',
-  // Emirates
-  'Emirates': 'emirates',
-  'EmiratesSkywards': 'emirates',
-  // Virgin Atlantic
-  'VirginAtlantic': 'virgin-atlantic',
-  'Virgin': 'virgin-atlantic',
-  // Cathay
-  'Cathay': 'cathay',
-  'CathayPacific': 'cathay',
-  'AsiaMiles': 'cathay',
-  // Alaska
-  'Alaska': 'alaska',
-  'AlaskaMileagePlan': 'alaska',
-  // JetBlue
-  'JetBlue': 'jetblue',
-  'TrueBlue': 'jetblue',
-  // Iberia
-  'Iberia': 'iberia',
-  // Aer Lingus
-  'AerLingus': 'aer-lingus',
-  // Etihad
-  'Etihad': 'etihad',
-  'EtihadGuest': 'etihad',
-  // Hawaiian
-  'Hawaiian': 'hawaiian',
-  'HawaiianAirlines': 'hawaiian',
-}
+import { AwardProviderUnavailableError } from './errors'
+import { seatsAeroSourceToSlug } from './seats-aero-sources.mjs'
+import { SEATS_AERO_SEARCH_URL } from '@/config/award-search'
 
 // ── Cabin class → Seats.aero cabin param ─────────────────────
 function toSeatsAeroCabin(cabin: CabinClass): string {
@@ -136,31 +76,13 @@ export class SeatsAeroProvider implements AwardProvider {
 
   constructor(private readonly apiKey: string) {}
 
-  async search(
-    params: AwardSearchParams,
-    client: SupabaseClient,
-  ): Promise<AwardSearchResult[]> {
+  async search(params: AwardSearchParams): Promise<AwardSearchResult[]> {
     const { origin, destination, cabin, passengers, balances, start_date, end_date } = params
 
-    // ── Fetch Supabase data in parallel with Seats.aero API ──
-    const [
-      seatsAeroResponse,
-      { data: transferPartners },
-      { data: allPrograms },
-      { data: valuations },
-    ] = await Promise.all([
-      this.fetchSeatsAero(origin, destination, cabin, start_date, end_date),
-      client
-        .from('transfer_partners')
-        .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .eq('is_active', true),
-      client
-        .from('programs')
-        .select('id, name, short_name, slug, color_hex, type'),
-      client
-        .from('latest_valuations')
-        .select('program_id, cpp_cents, program_name, program_slug, program_type'),
-    ])
+    const seatsAeroResponse = await this.fetchSeatsAero(origin, destination, cabin, start_date, end_date)
+    const transferPartners = getCatalogTransferPartners()
+    const allPrograms = getCatalogPrograms({ includeInactive: true })
+    const valuations = getCatalogLatestValuations()
 
     // ── Build lookup maps ────────────────────────────────────
     const programMap = new Map<string, ProgramRow>(
@@ -195,7 +117,7 @@ export class SeatsAeroProvider implements AwardProvider {
 
     for (const flight of (seatsAeroResponse ?? [])) {
       if (!flight[cabinAvailKey]) continue
-      const slug = SEATS_AERO_SOURCE_TO_SLUG[flight.Source]
+      const slug = seatsAeroSourceToSlug(flight.Source)
       if (!slug) continue
 
       const cost = parseInt(String(flight[cabinCostKey] ?? '0'), 10)
@@ -290,43 +212,57 @@ export class SeatsAeroProvider implements AwardProvider {
     startDate: string,
     endDate: string,
   ): Promise<SeatsAeroFlight[]> {
-    try {
-      const url = new URL('https://seats.aero/partnerapi/search')
-      url.searchParams.set('origin_airport', origin)
-      url.searchParams.set('destination_airport', destination)
-      url.searchParams.set('cabin', toSeatsAeroCabin(cabin))
-      url.searchParams.set('start_date', startDate)
-      url.searchParams.set('end_date', endDate)
+    const url = new URL(SEATS_AERO_SEARCH_URL)
+    url.searchParams.set('origin_airport', origin)
+    url.searchParams.set('destination_airport', destination)
+    url.searchParams.set('cabin', toSeatsAeroCabin(cabin))
+    url.searchParams.set('start_date', startDate)
+    url.searchParams.set('end_date', endDate)
 
-      const res = await fetch(url.toString(), {
-        headers: { 'Partner-Authorization': this.apiKey },
+    let res: Response
+    try {
+      res = await fetch(url.toString(), {
+        headers: { 'Partner-Authorization': this.apiKey, accept: 'application/json' },
         signal: AbortSignal.timeout(8000),
         next: { revalidate: 300 }, // cache 5 min
       })
-
-      if (!res.ok) {
-        const status = res.status
-        if (status === 401 || status === 403) {
-          logError('seats_aero_auth_failure', { status })
-          throw new Error(`Award search provider authentication failed (${status})`)
-        }
-        if (status >= 500) {
-          logError('seats_aero_server_error', { status })
-          throw new Error(`Award search provider unavailable (${status})`)
-        }
-        // 404 or other client errors — legitimate "no results"
-        logWarn('seats_aero_client_error', { status })
-        return []
-      }
-
-      const json = await res.json()
-      // Seats.aero returns { data: [...], count: N } or just an array
-      return Array.isArray(json) ? json : (json.data ?? [])
     } catch (err) {
       logError('seats_aero_fetch_failed', {
         error: err instanceof Error ? err.message : String(err),
       })
+      throw new AwardProviderUnavailableError('Live award availability is temporarily unreachable.')
+    }
+
+    // Auth, quota and server failures must not masquerade as "no seats":
+    // surface them so the caller falls back to clearly-labelled estimates.
+    if (res.status === 401 || res.status === 403) {
+      logError('seats_aero_auth_failure', { status: res.status })
+      throw new AwardProviderUnavailableError(`Award search provider rejected the API key (${res.status}).`)
+    }
+    if (res.status === 429) {
+      logError('seats_aero_rate_limited', { status: res.status })
+      throw new AwardProviderUnavailableError('Award search provider daily quota exhausted (429).')
+    }
+    if (res.status >= 500) {
+      logError('seats_aero_server_error', { status: res.status })
+      throw new AwardProviderUnavailableError(`Award search provider unavailable (${res.status}).`)
+    }
+    if (!res.ok) {
+      // 404 / other 4xx for a valid request means "no results for this route".
+      logWarn('seats_aero_client_error', { status: res.status })
       return []
     }
-  }
-}
+
+    try {
+      const json: unknown = await res.json()
+      // Seats.aero returns { data: [...], count: N } (older responses: a bare array).
+      if (Array.isArray(json)) return json as SeatsAeroFlight[]
+      const data = (json as { data?: unknown } | null)?.data
+      return Array.isArray(data) ? (data as SeatsAeroFlight[]) : []
+    } catch (err) {
+      logError('seats_aero_parse_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      throw new AwardProviderUnavailableError('Award search provider returned an unreadable response.')
+    }
+  }}

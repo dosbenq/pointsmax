@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { GenericDatabase } from '@/lib/supabase'
+import { getCatalogPrograms } from '@/lib/catalog'
 
 type SupabaseLikeClient = {
   from: SupabaseClient<GenericDatabase>['from']
@@ -10,11 +11,6 @@ type ManualBalanceRow = {
   program_id: string
   balance: number
   updated_at: string | null
-}
-
-type ProgramRegionRow = {
-  id: string
-  geography: string | null
 }
 
 export type UnifiedBalance = {
@@ -66,19 +62,9 @@ export async function loadUnifiedBalancesByUser(
 
   if (balancesError) throw new Error(`Failed to load manual balances: ${balancesError.message}`)
 
-  let validProgramIds: Set<string> | null = null
-  if (region) {
-    const { data: programs, error: programsError } = await client
-      .from('programs')
-      .select('id, geography')
-      .in('geography', [region, 'global'])
-
-    if (programsError) throw new Error(`Failed to load programs: ${programsError.message}`)
-
-    validProgramIds = new Set(
-      (((programs as ProgramRegionRow[] | null) ?? []).map((program) => program.id)),
-    )
-  }
+  const validProgramIds = region
+    ? new Set(getCatalogPrograms({ geography: region }).map((program) => program.id))
+    : null
 
   for (const userId of uniqueUserIds) balancesByUser.set(userId, [])
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getCatalogProgramBySlug } from '@/lib/catalog'
 import { loadUnifiedBalancesByUser } from './user-balances'
 
 const { mockFrom } = vi.hoisted(() => ({
@@ -62,39 +63,23 @@ describe('loadUnifiedBalancesByUser', () => {
   })
 
   it('filters balances by region when requested', async () => {
+    const usProgram = getCatalogProgramBySlug('chase-ur')!.id
+    const indiaProgram = getCatalogProgramBySlug('hdfc-millennia')!.id
     mockFrom.mockImplementation((table: string) => {
       if (table === 'user_balances') {
         return makeBuilder({
           data: [
-            { user_id: 'user-1', program_id: 'prog-us', balance: 1000, updated_at: '2026-03-13T10:00:00Z' },
-            { user_id: 'user-1', program_id: 'prog-in', balance: 2000, updated_at: '2026-03-13T10:00:00Z' },
+            { user_id: 'user-1', program_id: usProgram, balance: 1000, updated_at: '2026-03-13T10:00:00Z' },
+            { user_id: 'user-1', program_id: indiaProgram, balance: 2000, updated_at: '2026-03-13T10:00:00Z' },
           ],
           error: null,
         })
       }
-
-      if (table === 'programs') {
-        return makeBuilder({
-          data: [
-            { id: 'prog-us', geography: 'US' },
-            { id: 'prog-global', geography: 'global' },
-          ],
-          error: null,
-        })
-      }
-
       throw new Error(`Unexpected table: ${table}`)
     })
 
     const result = await loadUnifiedBalancesByUser(mockClient, ['user-1'], 'US')
-    const balances = result.get('user-1') ?? []
-
-    expect(balances).toHaveLength(1)
-    expect(balances[0]).toEqual(
-      expect.objectContaining({
-        program_id: 'prog-us',
-        balance: 1000,
-      }),
-    )
+    expect(result.get('user-1')).toEqual([expect.objectContaining({ program_id: usProgram, balance: 1000 })])
   })
+
 })

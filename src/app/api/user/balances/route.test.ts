@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST } from './route'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getCatalogProgramBySlug } from '@/lib/catalog'
 
 vi.mock('@/lib/supabase-server')
 
@@ -11,6 +12,9 @@ const mockSupabase = {
   },
   from: vi.fn(),
 }
+
+const CHASE_ID = getCatalogProgramBySlug('chase-ur')!.id
+const AIR_INDIA_ID = getCatalogProgramBySlug('air-india')!.id
 
 describe('/api/user/balances', () => {
   beforeEach(() => {
@@ -107,13 +111,13 @@ describe('/api/user/balances', () => {
             data: [
               {
                 user_id: 'user-1',
-                program_id: 'chase-ur',
+                program_id: CHASE_ID,
                 balance: 120000,
                 updated_at: '2026-03-06T11:30:00.000Z',
               },
               {
                 user_id: 'user-1',
-                program_id: 'air-india',
+                program_id: AIR_INDIA_ID,
                 balance: 45000,
                 updated_at: '2026-03-06T11:30:00.000Z',
               },
@@ -125,20 +129,6 @@ describe('/api/user/balances', () => {
           select: vi.fn().mockReturnValue(userBalancesQuery),
         }
       }
-      if (table === 'programs') {
-        const programsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              { id: 'air-india', geography: 'IN' },
-              { id: 'taj-innercircle', geography: 'global' },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(programsQuery),
-        }
-      }
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -148,7 +138,7 @@ describe('/api/user/balances', () => {
     expect(res.status).toBe(200)
     expect(body.balances).toEqual([
       expect.objectContaining({
-        program_id: 'air-india',
+        program_id: AIR_INDIA_ID,
         balance: 45000,
         source: 'manual',
       }),
