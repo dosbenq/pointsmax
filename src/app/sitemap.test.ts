@@ -37,4 +37,15 @@ describe('sitemap', () => {
     expect(urls).toContain('https://pointsmax.com/us/cards/best/best-travel-cards-us')
     expect(urls).toContain('https://pointsmax.com/in/cards/best/best-premium-cards-india')
   })
+
+  it('does not list removed features', async () => {
+    const urls = (await sitemap()).map((item) => item.url)
+    const removed = ['trip-builder', 'devaluation-tracker']
+
+    for (const region of ['us', 'in']) {
+      for (const route of removed) {
+        expect(urls).not.toContain(`https://pointsmax.com/${region}/${route}`)
+      }
+    }
+  })
 })
