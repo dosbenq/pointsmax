@@ -133,6 +133,20 @@ describe('importFromSupabase', () => {
     expect(await rowCount(db, users)).toBe(0)
   })
 
+  it('aborts on any other read error, such as a missing column', async () => {
+    const db = await createTestDb()
+    const broken: SupabaseLike = {
+      from: () => ({
+        select: () => ({
+          order: () => ({
+            range: async () => ({ data: null, error: { code: '42703', message: 'column users.id does not exist' }, count: null }),
+          }),
+        }),
+      }),
+    }
+    await expect(importFromSupabase(db, createSupabaseReader(broken), { dryRun: true })).rejects.toThrow(/column users.id does not exist/)
+  })
+
   it('treats a table that does not exist in Supabase as empty', async () => {
     const db = await createTestDb()
     const reader = createSupabaseReader(fakeSupabase(sourceTables(), { missing: ['shared_trips'] }))

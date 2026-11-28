@@ -24,3 +24,6 @@ export function getAuthBaseUrl(): string {
     `http://localhost:${process.env.PORT ?? 3000}`
   )
 }
+
+/** Google's OAuth token endpoint (used by the setup self-check to validate the client secret). */
+export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
