@@ -2,7 +2,6 @@ import fs from 'node:fs/promises'
 
 const SOURCE_FILES = [
   'src/app/api/ai/recommend/route.ts',
-  'src/app/api/trip-builder/route.ts',
   'src/lib/booking-urls.ts',
   'src/lib/award-search/deep-links.ts',
   'supabase/migrations/024_booking_urls.sql',

@@ -336,9 +336,6 @@ export default function CalculatorPage() {
             awardError={state.awardError}
             onSearch={state.runAwardSearch}
             region={region}
-            programs={state.programs}
-            rows={state.rows}
-            user={user}
           />
         ) : (
           <HotelResults

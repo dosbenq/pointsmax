@@ -13,7 +13,6 @@ export default function Footer() {
     { href: `/${region}/calculator`, label: 'Calculator' },
     { href: `/${region}/award-search`, label: 'Award Search' },
     { href: `/${region}/hotel-search`, label: 'Hotel Search' },
-    { href: `/${region}/trip-builder`, label: 'Trip Builder' },
     { href: `/${region}/card-recommender`, label: 'Card Strategy' },
     { href: `/${region}/profile`, label: 'Wallet' },
   ]

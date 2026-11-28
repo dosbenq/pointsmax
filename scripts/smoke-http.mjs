@@ -18,8 +18,6 @@ const ROUTES = [
   '/card-recommender',
   '/us/card-recommender',
   '/earning-calculator',
-  '/trip-builder',
-  '/us/trip-builder',
   '/us/cards',
   '/in/cards',
   '/us/programs',
@@ -64,7 +62,7 @@ async function verifyRoutes() {
       }
     }
     if (route === '/us') {
-      const requiredCtas = ['/us/calculator', '/us/trip-builder', '/us/card-recommender', '/us/profile', '/us/inspire']
+      const requiredCtas = ['/us/calculator', '/us/card-recommender', '/us/profile', '/us/inspire']
       for (const href of requiredCtas) {
         if (!text.includes(`href="${href}"`)) {
           throw new Error(`/us homepage did not include expected CTA link ${href}`)
@@ -81,11 +79,6 @@ async function verifyRoutes() {
     }
     if (route === '/us/card-recommender' && !text.includes('best credit card strategy')) {
       throw new Error('/us/card-recommender did not render card recommender content')
-    }
-    if (route === '/trip-builder' || route === '/us/trip-builder') {
-      if (!text.includes('Build the booking path, not just the trip idea.')) {
-        throw new Error(`${route} did not render trip-builder launch messaging`)
-      }
     }
     if (route === '/profile' || route === '/us/profile' || route === '/in/profile') {
       if (!text.includes('Wallet')) {

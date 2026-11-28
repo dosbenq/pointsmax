@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `Pricing — Free Points Calculator | PointsMax`,
       description:
-        'Free forever for calculator, trip builder, and AI advisor. Pro adds live award availability and alerts.',
+        'Free forever for calculator, award estimates, and AI advisor. Pro adds live award availability and alerts.',
       url: `/${region}/pricing`,
     },
     alternates: {
@@ -40,7 +40,6 @@ const FREE_FEATURES = [
   'AI advisor concierge',
   '20+ loyalty programs',
   'Award flight search (chart estimates)',
-  'Trip Builder',
   'Card Recommender',
   'Inspire Me reverse search',
   'Save balances & preferences',
@@ -61,7 +60,7 @@ const getFAQ = (region: Region, price: string) => [
   },
   {
     q: 'How much is Pro?',
-    a: `Pro is ${price}/month. It adds live Seats.aero availability plus transfer and seat alerts. The AI advisor, Trip Builder, and calculator remain free.`,
+    a: `Pro is ${price}/month. It adds live Seats.aero availability plus transfer and seat alerts. The AI advisor and calculator remain free.`,
   },
   {
     q: 'What payment methods are supported?',
@@ -101,7 +100,7 @@ export default async function PricingPage({ params }: Props) {
           <span className="pm-pill mb-4 inline-block">Pricing {config.flag}</span>
           <h1 className="pm-heading text-4xl sm:text-5xl mb-4">Simple, honest pricing</h1>
           <p className="pm-subtle text-lg max-w-xl mx-auto">
-            Free includes calculator, AI advisor, Trip Builder, and card tools. Pro adds live availability and alerts.
+            Free includes calculator, AI advisor, and card tools. Pro adds live availability and alerts.
           </p>
         </div>
       </section>

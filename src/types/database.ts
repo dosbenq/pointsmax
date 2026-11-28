@@ -3,7 +3,6 @@
 // Mirror of the PostgreSQL schema for TypeScript type safety
 // ============================================================
 
-import type { TrustState } from '@/lib/result-trust'
 
 export type ProgramType =
   | 'transferable_points'
@@ -240,49 +239,6 @@ export interface CardWithRates extends Omit<Card, 'earning_rates'> {
   signup_bonus_timeframe_months?: number | null
   /** Optional — not yet stored in DB; used by compare grid */
   forex_fee_pct?: number | null
-}
-
-// ─────────────────────────────────────────────
-// TRIP BUILDER
-// ─────────────────────────────────────────────
-
-export interface TripBuilderFlightOption {
-  program_name: string
-  program_slug: string
-  estimated_miles: number
-  points_needed_from_wallet: number
-  transfer_chain: string | null
-  transfer_is_instant: boolean
-  has_real_availability: boolean
-  availability_date: string | null
-  is_reachable: boolean
-  deep_link_url: string
-  deep_link_label: string
-}
-
-export interface TripBuilderHotelRecommendation {
-  property_name: string
-  chain: string
-  loyalty_program: string
-  approx_points_per_night: number
-  transfer_suggestion: string | null
-  booking_url: string | null
-  notes: string | null
-}
-
-export interface TripBuilderBookingStep {
-  step: number
-  action: string
-  detail: string
-  url: string | null
-}
-
-export interface TripBuilderResponse extends TrustState {
-  top_flights: TripBuilderFlightOption[]
-  hotel: TripBuilderHotelRecommendation | null
-  booking_steps: TripBuilderBookingStep[]
-  ai_summary: string
-  points_summary: string
 }
 
 // ─────────────────────────────────────────────
