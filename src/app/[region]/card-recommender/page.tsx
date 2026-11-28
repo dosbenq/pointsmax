@@ -37,7 +37,7 @@ type SpendInputs = Partial<Record<SpendCategory, string>>
 type WalletBalanceSummary = {
   program_id: string
   balance: number
-  source: 'manual' | 'connector'
+  source: 'manual'
   as_of: string | null
   synergy_status: string | null
   is_stale: boolean

@@ -35,7 +35,7 @@ describe('/api/user/balances', () => {
     expect(await res.json()).toEqual({ error: 'Unauthorized' })
   })
 
-  it('merges manual balances with latest connected snapshots and preserves metadata', async () => {
+  it('returns saved balances with freshness metadata', async () => {
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
 
     mockSupabase.from.mockImplementation((table: string) => {
@@ -66,55 +66,6 @@ describe('/api/user/balances', () => {
           select: vi.fn().mockReturnValue(userBalancesQuery),
         }
       }
-      if (table === 'connected_accounts') {
-        const connectedAccountsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 'acct-1',
-                user_id: 'user-1',
-                status: 'active',
-                sync_status: 'ok',
-                last_synced_at: '2026-03-06T11:00:00.000Z',
-              },
-            ],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(connectedAccountsQuery),
-        }
-      }
-      if (table === 'balance_snapshots') {
-        const balanceSnapshotsQuery = {
-          in: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'amex-mr',
-                  balance: 90000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'chase-ur',
-                  balance: 100000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T09:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
-        }
-      }
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -122,7 +73,7 @@ describe('/api/user/balances', () => {
     const body = await res.json()
 
     expect(res.status).toBe(200)
-    expect(body.balances).toHaveLength(2)
+    expect(body.balances).toHaveLength(1)
 
     expect(body.balances).toContainEqual(
       expect.objectContaining({
@@ -135,21 +86,9 @@ describe('/api/user/balances', () => {
         is_stale: false,
       }),
     )
-
-    expect(body.balances).toContainEqual(
-      expect.objectContaining({
-        program_id: 'amex-mr',
-        balance: 90000,
-        source: 'connector',
-        connected_account_id: 'acct-1',
-        sync_status: 'ok',
-        confidence: 'high',
-        is_stale: false,
-      }),
-    )
   })
 
-  it('filters unified balances by region when a region parameter is provided', async () => {
+  it('filters saved balances by region when a region parameter is provided', async () => {
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
 
     mockSupabase.from.mockImplementation((table: string) => {
@@ -172,53 +111,18 @@ describe('/api/user/balances', () => {
                 balance: 120000,
                 updated_at: '2026-03-06T11:30:00.000Z',
               },
+              {
+                user_id: 'user-1',
+                program_id: 'air-india',
+                balance: 45000,
+                updated_at: '2026-03-06T11:30:00.000Z',
+              },
             ],
             error: null,
           }),
         }
         return {
           select: vi.fn().mockReturnValue(userBalancesQuery),
-        }
-      }
-      if (table === 'connected_accounts') {
-        const connectedAccountsQuery = {
-          in: vi.fn().mockResolvedValue({
-            data: [{ id: 'acct-1', user_id: 'user-1', status: 'active', sync_status: 'ok', last_synced_at: null }],
-            error: null,
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(connectedAccountsQuery),
-        }
-      }
-      if (table === 'balance_snapshots') {
-        const balanceSnapshotsQuery = {
-          in: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'amex-mr',
-                  balance: 90000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-                {
-                  user_id: 'user-1',
-                  connected_account_id: 'acct-1',
-                  program_id: 'air-india',
-                  balance: 10000,
-                  source: 'connector',
-                  fetched_at: '2026-03-06T10:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
-          }),
-        }
-        return {
-          select: vi.fn().mockReturnValue(balanceSnapshotsQuery),
         }
       }
       if (table === 'programs') {
@@ -245,7 +149,8 @@ describe('/api/user/balances', () => {
     expect(body.balances).toEqual([
       expect.objectContaining({
         program_id: 'air-india',
-        source: 'connector',
+        balance: 45000,
+        source: 'manual',
       }),
     ])
   })

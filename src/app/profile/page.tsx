@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/lib/auth-context'
-import { ConnectedWallets } from '@/components/ConnectedWallets'
 import { CARD_ART_MAP } from '@/lib/card-tools'
 import Image from 'next/image'
 import type { Region } from '@/lib/regions'
@@ -55,7 +54,7 @@ type Program = { id: string; name: string; type: string; geography?: string | nu
 type UnifiedBalance = {
   program_id: string
   balance: number
-  source: 'manual' | 'connector'
+  source: 'manual'
   as_of: string | null
   confidence: 'high' | 'medium' | 'low'
   sync_status: string | null
@@ -521,7 +520,7 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
           <section className="pm-page-header">
             <div className="pm-shell">
               <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Wallet</h1>
-              <p className="pm-subtle text-base">Manage balances, alerts, connected accounts, and preferences.</p>
+              <p className="pm-subtle text-base">Manage balances, alerts, and preferences.</p>
             </div>
           </section>
           <main className="flex-1 pm-shell max-w-3xl py-8 w-full">
@@ -582,7 +581,7 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
       <section className="pm-page-header">
         <div className="pm-shell">
           <h1 className="pm-heading text-4xl sm:text-5xl mb-2">Wallet</h1>
-          <p className="pm-subtle text-base">Manage balances, connected accounts, alerts, billing, and travel preferences.</p>
+          <p className="pm-subtle text-base">Manage balances, alerts, billing, and travel preferences.</p>
         </div>
       </section>
 
@@ -621,7 +620,7 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
                 <p className="text-2xl mb-2">👛</p>
                 <h3 className="pm-heading text-lg mb-1">No balances yet</h3>
                 <p className="text-sm text-pm-ink-500 max-w-md mx-auto">
-                  Your wallet is empty. Connect your accounts or add balances manually to see your portfolio grow.
+                  Your wallet is empty. Add your point balances to see your portfolio grow.
                 </p>
              </div>
           ) : (
@@ -686,11 +685,6 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
                           </div>
                           <div className="min-w-0 pr-2">
                             <p className="font-semibold text-sm pm-heading truncate max-w-[130px] sm:max-w-[180px]">{p.name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className={`text-[9px] uppercase font-bold tracking-widest ${p.source === 'connector' ? 'text-pm-accent' : 'text-pm-ink-500'}`}>
-                                {p.source === 'connector' ? '● Synced' : '○ Manual'}
-                              </span>
-                            </div>
                           </div>
                         </div>
                         <p className="font-bold text-pm-ink-900 tracking-tight flex-shrink-0">{p.balance.toLocaleString()}</p>
@@ -767,10 +761,10 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
 
         <section className="space-y-3">
           <div>
-            <p className="pm-section-title mb-2">Wallet sources</p>
-            <h2 className="pm-heading text-lg mb-1">Balances and connected accounts</h2>
+            <p className="pm-section-title mb-2">Balances</p>
+            <h2 className="pm-heading text-lg mb-1">Your point balances</h2>
             <p className="text-xs text-pm-ink-500">
-              Keep your sources current here. Planner and Card Strategy should use this as the source of truth for what you actually have.
+              Keep these current. The calculator and card strategy use them as the source of truth for what you actually have.
             </p>
           </div>
 
@@ -819,7 +813,11 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
             </div>
           )}
 
-          <ConnectedWallets onManualEntry={() => setShowManualEntry(true)} isGuest={isGuest} />
+          {!showManualEntry && (
+            <Button variant="outline" onClick={() => setShowManualEntry(true)}>
+              Add a balance
+            </Button>
+          )}
         </section>
 
         {!isGuest && (

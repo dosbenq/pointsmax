@@ -16,7 +16,7 @@ export function ProUpsellEmail({ homeAirport, pricingUrl }: Props) {
           <Section>
             <Text style={{ fontSize: '28px', fontWeight: 700, color: EMAIL_THEME.colors.text }}>Go beyond estimates</Text>
             <Text style={{ color: EMAIL_THEME.colors.textSecondary }}>
-              Premium unlocks live Seats.aero availability, wallet sync, and flight-watch automation from your home market around <strong>{homeAirport}</strong>.
+              Premium unlocks live Seats.aero availability and flight-watch automation from your home market around <strong>{homeAirport}</strong>.
             </Text>
             <Button href={pricingUrl} style={{ backgroundColor: EMAIL_THEME.colors.text, color: EMAIL_THEME.colors.surface, padding: '12px 18px', borderRadius: '999px', textDecoration: 'none' }}>
               View Premium

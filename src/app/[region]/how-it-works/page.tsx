@@ -124,10 +124,8 @@ const getFAQ = (region: Region) => region === 'in' ? [
 const getWorkflowStatus = (region: Region) => [
   {
     label: 'Live today',
-    title: 'Wallet import and valuation planning',
-    description: region === 'in'
-      ? 'Manual balances, statement imports, point valuation, and region-specific card/program workflows are available right now.'
-      : 'Manual balances, statement imports, point valuation, and region-specific card/program workflows are available right now.',
+    title: 'Balances and valuation planning',
+    description: 'Saved balances, point valuation, and region-specific card/program workflows are available right now.',
     href: `/${region}/profile`,
   },
   {

@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { logError } from '@/lib/logger'
 import type { SubscriptionTier } from '@/types/database'
 
-export type GatedFeature = 'live_award_search' | 'flight_watches' | 'connector_sync'
+export type GatedFeature = 'live_award_search' | 'flight_watches'
 type TierCacheEntry = { tier: SubscriptionTier; expiresAt: number }
 
 const TIER_CACHE_TTL_MS = 60_000
@@ -75,7 +75,6 @@ export function canUseFeature(tier: SubscriptionTier, feature: GatedFeature): bo
   switch (feature) {
     case 'live_award_search':
     case 'flight_watches':
-    case 'connector_sync':
       return tier === 'premium'
   }
 }

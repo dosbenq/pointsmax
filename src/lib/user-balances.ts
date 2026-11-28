@@ -1,5 +1,4 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { SYNC_POLICY } from '@/lib/connectors/sync-orchestrator'
 import type { GenericDatabase } from '@/lib/supabase'
 
 type SupabaseLikeClient = {
@@ -13,23 +12,6 @@ type ManualBalanceRow = {
   updated_at: string | null
 }
 
-type ConnectedAccountRow = {
-  id: string
-  user_id: string
-  status: string | null
-  sync_status: string | null
-  last_synced_at: string | null
-}
-
-type BalanceSnapshotRow = {
-  user_id: string
-  connected_account_id: string
-  program_id: string
-  balance: number
-  source: 'connector' | 'manual'
-  fetched_at: string
-}
-
 type ProgramRegionRow = {
   id: string
   geography: string | null
@@ -38,13 +20,16 @@ type ProgramRegionRow = {
 export type UnifiedBalance = {
   program_id: string
   balance: number
-  source: 'manual' | 'connector'
+  source: 'manual'
   as_of: string | null
   confidence: 'high' | 'medium' | 'low'
-  sync_status: string | null
+  sync_status: null
   is_stale: boolean
-  connected_account_id: string | null
+  connected_account_id: null
 }
+
+// Balances older than this are flagged so the UI can nudge the user to update them.
+const STALE_AFTER_MS = 4 * 60 * 60 * 1000
 
 function getConfidence(asOf: string | null): 'high' | 'medium' | 'low' {
   if (!asOf) return 'low'
@@ -60,17 +45,10 @@ function isStale(asOf: string | null): boolean {
   if (!asOf) return true
   const ts = new Date(asOf).getTime()
   if (Number.isNaN(ts)) return true
-  return (Date.now() - ts) >= SYNC_POLICY.staleThresholdMs
+  return (Date.now() - ts) >= STALE_AFTER_MS
 }
 
-function applyRegionFilter(
-  balances: UnifiedBalance[],
-  validProgramIds: Set<string> | null,
-): UnifiedBalance[] {
-  if (!validProgramIds) return balances
-  return balances.filter((balance) => validProgramIds.has(balance.program_id))
-}
-
+/** Saved (manually entered) balances per user, optionally limited to a region's programs. */
 export async function loadUnifiedBalancesByUser(
   client: SupabaseLikeClient,
   userIds: string[],
@@ -81,25 +59,12 @@ export async function loadUnifiedBalancesByUser(
 
   if (uniqueUserIds.length === 0) return balancesByUser
 
-  const [{ data: manualBalances, error: balancesError }, { data: connectedAccounts, error: connectedAccountsError }, { data: snapshots, error: snapshotsError }] = await Promise.all([
-    client
-      .from('user_balances')
-      .select('user_id, program_id, balance, updated_at')
-      .in('user_id', uniqueUserIds),
-    client
-      .from('connected_accounts')
-      .select('id, user_id, status, sync_status, last_synced_at')
-      .in('user_id', uniqueUserIds),
-    client
-      .from('balance_snapshots')
-      .select('user_id, connected_account_id, program_id, balance, source, fetched_at')
-      .in('user_id', uniqueUserIds)
-      .order('fetched_at', { ascending: false }),
-  ])
+  const { data: manualBalances, error: balancesError } = await client
+    .from('user_balances')
+    .select('user_id, program_id, balance, updated_at')
+    .in('user_id', uniqueUserIds)
 
   if (balancesError) throw new Error(`Failed to load manual balances: ${balancesError.message}`)
-  if (connectedAccountsError) throw new Error(`Failed to load connected accounts: ${connectedAccountsError.message}`)
-  if (snapshotsError) throw new Error(`Failed to load balance snapshots: ${snapshotsError.message}`)
 
   let validProgramIds: Set<string> | null = null
   if (region) {
@@ -115,39 +80,11 @@ export async function loadUnifiedBalancesByUser(
     )
   }
 
-  const accountMap = new Map<string, ConnectedAccountRow>(
-    ((connectedAccounts as ConnectedAccountRow[] | null) ?? []).map((account) => [account.id, account]),
-  )
-
-  const unifiedByUser = new Map<string, Map<string, UnifiedBalance>>()
-  const getUserBucket = (userId: string) => {
-    const existing = unifiedByUser.get(userId)
-    if (existing) return existing
-    const next = new Map<string, UnifiedBalance>()
-    unifiedByUser.set(userId, next)
-    return next
-  }
-
-  for (const snapshot of (snapshots as BalanceSnapshotRow[] | null) ?? []) {
-    const userBucket = getUserBucket(snapshot.user_id)
-    if (userBucket.has(snapshot.program_id)) continue
-
-    const account = accountMap.get(snapshot.connected_account_id)
-    userBucket.set(snapshot.program_id, {
-      program_id: snapshot.program_id,
-      balance: snapshot.balance,
-      source: 'connector',
-      as_of: snapshot.fetched_at,
-      confidence: getConfidence(snapshot.fetched_at),
-      sync_status: account?.sync_status ?? null,
-      is_stale: isStale(snapshot.fetched_at),
-      connected_account_id: snapshot.connected_account_id,
-    })
-  }
+  for (const userId of uniqueUserIds) balancesByUser.set(userId, [])
 
   for (const manual of (manualBalances as ManualBalanceRow[] | null) ?? []) {
-    const userBucket = getUserBucket(manual.user_id)
-    userBucket.set(manual.program_id, {
+    if (validProgramIds && !validProgramIds.has(manual.program_id)) continue
+    balancesByUser.get(manual.user_id)?.push({
       program_id: manual.program_id,
       balance: manual.balance,
       source: 'manual',
@@ -157,12 +94,6 @@ export async function loadUnifiedBalancesByUser(
       is_stale: isStale(manual.updated_at),
       connected_account_id: null,
     })
-  }
-
-  for (const userId of uniqueUserIds) {
-    const userBucket = unifiedByUser.get(userId)
-    const balances = userBucket ? Array.from(userBucket.values()) : []
-    balancesByUser.set(userId, applyRegionFilter(balances, validProgramIds))
   }
 
   return balancesByUser

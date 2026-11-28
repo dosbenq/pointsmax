@@ -40,7 +40,7 @@ export default async function CardsIndexPage({ params }: Props) {
     {
       href: `/${normalized}/profile`,
       title: 'Track my wallet',
-      description: 'Save manual balances or import statements so card and booking decisions stay grounded in reality.',
+      description: 'Save your point balances so card and booking decisions stay grounded in reality.',
     },
   ]
   const operatingNotes = [
