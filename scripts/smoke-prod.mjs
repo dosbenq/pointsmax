@@ -4,7 +4,6 @@ const BASE_URL = (process.env.BASE_URL ?? '').replace(/\/+$/, '')
 const CRON_SECRET = process.env.CRON_SECRET ?? ''
 const TEST_EMAIL = process.env.TEST_EMAIL ?? 'launch-smoke@example.com'
 
-const CARD_ID = process.env.CARD_ID ?? 'aaaa0001-0000-0000-0000-000000000001'
 const PROGRAM_ID = process.env.PROGRAM_ID ?? '11111111-0001-0001-0001-000000000001'
 
 if (!BASE_URL) {
@@ -43,8 +42,6 @@ async function run() {
   const cronHeaders = { authorization: `Bearer ${CRON_SECRET}` }
 
   await requestJson('Health', `${BASE_URL}/api/health`)
-  await requestJson('Cards US', `${BASE_URL}/api/cards?geography=US`)
-  await requestJson('Cards IN', `${BASE_URL}/api/cards?geography=IN`)
 
   await requestJson('Award search', `${BASE_URL}/api/award-search`, {
     method: 'POST',
@@ -67,16 +64,6 @@ async function run() {
       history: [],
       message: 'I want to fly business class to Tokyo.',
       balances: [{ name: 'Chase Ultimate Rewards', amount: 120000 }],
-    }),
-  })
-
-  await requestJson('Affiliate click tracking', `${BASE_URL}/api/analytics/affiliate-click`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      card_id: CARD_ID,
-      program_id: PROGRAM_ID,
-      source_page: 'smoke-prod-script',
     }),
   })
 

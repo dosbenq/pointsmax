@@ -106,16 +106,6 @@ export default function NavBar() {
       label: 'Hotels',
       activePrefixes: [`/${region}/hotel-search`],
     },
-    {
-      href: `/${region}/cards`,
-      label: 'Cards',
-      activePrefixes: [`/${region}/cards`, `/${region}/card-recommender`],
-    },
-    {
-      href: `/${region}/programs`,
-      label: 'Programs',
-      activePrefixes: [`/${region}/programs`],
-    },
   ]), [region])
 
   const profileName = user?.name || user?.email?.split('@')[0] || 'User'

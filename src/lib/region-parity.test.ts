@@ -20,21 +20,8 @@ vi.mock('@/lib/supabase', () => ({
 
 import { formatCpp, fmtCents, parsePointsInput, formatCurrency } from './formatters'
 import { calculateValueScore, calculateEffectiveCpp } from './scoring'
-import { normalizeGeography as normalizeCardGeo } from './db/cards'
 
 describe('region parity', () => {
-  describe('geography normalization', () => {
-    it('accepts both US and IN for cards', () => {
-      expect(normalizeCardGeo('US')).toBe('US')
-      expect(normalizeCardGeo('IN')).toBe('IN')
-    })
-
-    it('defaults to US for cards with invalid input', () => {
-      expect(normalizeCardGeo('invalid')).toBe('US')
-      expect(normalizeCardGeo(null)).toBe('US')
-    })
-  })
-
   describe('CPP formatting', () => {
     it('formats US CPP in cents', () => {
       const cpp = formatCpp(2.05, 'us')
