@@ -5,6 +5,7 @@ import { getFeatureStatus } from '@/lib/env-validation'
 import { geminiCircuitBreaker, seatsAeroCircuitBreaker } from '@/lib/circuit-breaker'
 import { applyApiSecurityHeaders } from '@/lib/security-headers'
 import { getMetricsSummary } from '@/lib/telemetry'
+import { getSetupReadiness } from '@/lib/setup-readiness'
 
 type HealthStatus = 'healthy' | 'degraded' | 'unhealthy'
 
@@ -61,19 +62,6 @@ function determineOverallStatus(checks: HealthChecks): { status: HealthStatus; o
   }
 
   return { status: 'healthy', ok: true }
-}
-
-/**
- * Which deployment settings for the database and sign-in move are present.
- * Booleans only: never expose values.
- */
-export function getSetupReadiness() {
-  const present = (key: string) => Boolean(process.env[key]?.trim())
-  return {
-    database_url: present('DATABASE_URL') || present('POSTGRES_URL'),
-    google_oauth: present('GOOGLE_CLIENT_ID') && present('GOOGLE_CLIENT_SECRET'),
-    auth_secret: (process.env.BETTER_AUTH_SECRET?.trim().length ?? 0) >= 32,
-  }
 }
 
 export async function GET(req: NextRequest) {

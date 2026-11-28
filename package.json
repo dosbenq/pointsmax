@@ -42,7 +42,8 @@
     "launch:autopilot": "node scripts/launch-autopilot.mjs",
     "launch:autopilot:quick": "node scripts/launch-autopilot.mjs --quick",
     "launch:autopilot:apply": "node scripts/launch-autopilot.mjs --apply-migrations",
-    "preflight": "npm run check:env && npm run lint && npx tsc --noEmit && npx next build --webpack"
+    "preflight": "npm run check:env && npm run lint && npx tsc --noEmit && npx next build --webpack",
+    "db:generate": "drizzle-kit generate && node scripts/db-embed-migrations.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.86.1",
@@ -58,16 +59,19 @@
     "@sentry/nextjs": "^10.47.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.49.1",
+    "better-auth": "^1.7.28",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.45.4",
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
     "inngest": "^3.54.2",
     "lucide-react": "^0.575.0",
     "next": "^16.2.3",
     "next-themes": "^0.4.6",
+    "postgres": "^3.4.9",
     "posthog-js": "^1.455.4",
     "react": "^19.2.5",
     "react-day-picker": "^9.14.0",
@@ -78,6 +82,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -86,8 +91,9 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^6.3.0",
     "autoprefixer": "^10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "^16.2.3",
     "jsdom": "^28.1.0",
