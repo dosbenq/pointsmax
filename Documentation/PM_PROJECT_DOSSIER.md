@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/neon-flip`
-- Git commit: `859a017`
+- Git commit: `afe36b0`
 
 ## 1. Executive Snapshot
 
