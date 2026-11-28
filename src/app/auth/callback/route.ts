@@ -68,33 +68,13 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Check if user has completed onboarding (has a home airport)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-         await trackSignup(user, next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us')
-
-         // user_preferences is keyed by the app profile id (users.id), not the auth id.
-         const { data: profile } = await supabase
-           .from('users')
-           .select('id')
-           .eq('auth_id', user.id)
-           .maybeSingle()
-         const { data: prefs } = profile
-           ? await supabase
-               .from('user_preferences')
-               .select('home_airport')
-               .eq('user_id', (profile as { id: string }).id)
-               .maybeSingle()
-           : { data: null }
-
-         if (!prefs?.home_airport) {
-           // Extract region from 'next' path (e.g. /in/calculator -> in)
-           const pathParts = next.split('/').filter(Boolean)
-           const region = pathParts[0] === 'in' ? 'in' : 'us'
-           return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
-         }
+        await trackSignup(user, next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us')
       }
-
+      // Straight to where the person was going. (The onboarding page saved
+      // nothing, so sending people there trapped them in a loop; balances and
+      // home airport move into the new wallet step.)
       return NextResponse.redirect(`${appOrigin}${next}`)
     }
   }
