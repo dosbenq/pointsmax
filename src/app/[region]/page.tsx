@@ -154,7 +154,7 @@ export default async function LandingPage({ params }: PageProps) {
               </p>
             </div>
 
-            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
               <Link
                 href={`/${region}/profile`}
                 className="pm-card p-6 transition-transform hover:-translate-y-0.5"
@@ -162,8 +162,8 @@ export default async function LandingPage({ params }: PageProps) {
                 <p className="pm-label text-pm-accent">Wallet concierge</p>
                 <h3 className="pm-heading text-xl mt-3">Track the balances you can really use</h3>
                 <p className="mt-3 text-sm leading-6 text-pm-ink-700">
-                  Manual balances and imports keep every downstream recommendation grounded in the
-                  wallet you actually have.
+                  Saved balances keep every downstream recommendation grounded in the wallet you
+                  actually have.
                 </p>
               </Link>
               <Link
@@ -188,17 +188,6 @@ export default async function LandingPage({ params }: PageProps) {
                 <p className="mt-3 text-sm leading-6 text-pm-ink-700">
                   Use your region, spend, and goals to choose cards that feed the right programs
                   instead of generic top-10 lists.
-                </p>
-              </Link>
-              <Link
-                href={`/${region}/inspire`}
-                className="pm-card p-6 transition-transform hover:-translate-y-0.5"
-              >
-                <p className="pm-label text-pm-accent">Playbooks</p>
-                <h3 className="pm-heading text-xl mt-3">Study sweet spots before you commit</h3>
-                <p className="mt-3 text-sm leading-6 text-pm-ink-700">
-                  Use route inspiration and redemption examples to focus on the opportunities that
-                  actually create outsized value.
                 </p>
               </Link>
             </div>

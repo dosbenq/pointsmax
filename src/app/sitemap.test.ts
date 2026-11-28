@@ -24,12 +24,10 @@ vi.mock('@/lib/supabase', () => ({
 const { default: sitemap } = await import('./sitemap')
 
 describe('sitemap', () => {
-  it('includes live inspire and earning calculator routes', async () => {
+  it('includes the earning calculator, award search and best-card routes', async () => {
     const items = await sitemap()
     const urls = items.map((item) => item.url)
 
-    expect(urls).toContain('https://pointsmax.com/us/inspire')
-    expect(urls).toContain('https://pointsmax.com/in/inspire')
     expect(urls).toContain('https://pointsmax.com/us/earning-calculator')
     expect(urls).toContain('https://pointsmax.com/in/earning-calculator')
     expect(urls).toContain('https://pointsmax.com/us/award-search')
@@ -40,7 +38,7 @@ describe('sitemap', () => {
 
   it('does not list removed features', async () => {
     const urls = (await sitemap()).map((item) => item.url)
-    const removed = ['trip-builder', 'devaluation-tracker']
+    const removed = ['trip-builder', 'devaluation-tracker', 'inspire']
 
     for (const region of ['us', 'in']) {
       for (const route of removed) {

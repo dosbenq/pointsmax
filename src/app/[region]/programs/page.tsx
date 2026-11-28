@@ -231,9 +231,6 @@ export default async function ProgramsIndexPage({ params }: Props) {
             <Link href={`/${normalized}/how-it-works`} className="pm-button-secondary">
               How PointsMax works
             </Link>
-            <Link href={`/${normalized}/inspire`} className="pm-button-secondary">
-              Explore award playbooks
-            </Link>
             <Link href={`/${normalized}/calculator`} className="pm-button">
               Start with my balances
             </Link>

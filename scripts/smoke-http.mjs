@@ -12,9 +12,6 @@ const ROUTES = [
   '/us/calculator',
   '/award-search',
   '/us/award-search',
-  '/inspire',
-  '/us/inspire',
-  '/in/inspire',
   '/card-recommender',
   '/us/card-recommender',
   '/earning-calculator',
@@ -62,7 +59,7 @@ async function verifyRoutes() {
       }
     }
     if (route === '/us') {
-      const requiredCtas = ['/us/calculator', '/us/card-recommender', '/us/profile', '/us/inspire']
+      const requiredCtas = ['/us/calculator', '/us/card-recommender', '/us/profile', '/us/award-search']
       for (const href of requiredCtas) {
         if (!text.includes(`href="${href}"`)) {
           throw new Error(`/us homepage did not include expected CTA link ${href}`)
@@ -84,12 +81,6 @@ async function verifyRoutes() {
       if (!text.includes('Wallet')) {
         throw new Error(`${route} did not render Wallet content`)
       }
-    }
-    if (route === '/inspire' && !res.url.endsWith('/us/inspire')) {
-      throw new Error(`/inspire should resolve to /us/inspire, got ${res.url}`)
-    }
-    if ((route === '/us/inspire' || route === '/in/inspire') && !text.includes('Award sweet spots worth chasing')) {
-      throw new Error(`${route} did not render inspiration content`)
     }
     if ((route === '/us/cards' || route === '/in/cards') && !text.includes('Turn card research into a booking decision')) {
       throw new Error(`${route} did not render card strategy directory content`)
