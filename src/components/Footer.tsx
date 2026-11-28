@@ -12,12 +12,7 @@ export default function Footer() {
   const productLinks = [
     { href: `/${region}/calculator`, label: 'Calculator' },
     { href: `/${region}/award-search`, label: 'Award Search' },
-    { href: `/${region}/hotel-search`, label: 'Hotel Search' },
     { href: `/${region}/profile`, label: 'Wallet' },
-  ]
-
-  const resourceLinks = [
-    { href: `/${region}/how-it-works`, label: 'How it works' },
   ]
 
   const companyLinks = [
@@ -35,29 +30,13 @@ export default function Footer() {
             <h2 className="mt-5 text-[2.7rem] font-semibold leading-[0.95] tracking-[-0.055em] text-pm-ink-900 sm:text-[3.7rem]">
               Better judgment for people who refuse to waste their points.
             </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-pm-ink-700">
-              PointsMax is built for people who want sharper reward decisions, clearer transfer logic, and less low-value redemption noise.
-            </p>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2">
             <div>
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-ink-500">Product</p>
               <ul className="mt-4 space-y-3.5">
                 {productLinks.map((item) => (
-                  <li key={item.href}>
-                    <Link href={item.href} className="text-sm text-pm-ink-700 transition-colors hover:text-pm-ink-900">
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-pm-ink-500">Resources</p>
-              <ul className="mt-4 space-y-3.5">
-                {resourceLinks.map((item) => (
                   <li key={item.href}>
                     <Link href={item.href} className="text-sm text-pm-ink-700 transition-colors hover:text-pm-ink-900">
                       {item.label}
@@ -84,7 +63,7 @@ export default function Footer() {
 
         <div className="mt-14 flex flex-col gap-2 border-t border-pm-border pt-5 text-xs text-pm-ink-500 sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 PointsMax</p>
-          <p>Wallet-aware rewards strategy for India and the US</p>
+          <p>Points and miles for India and the US</p>
         </div>
       </div>
     </footer>

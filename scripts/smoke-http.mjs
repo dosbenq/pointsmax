@@ -14,7 +14,6 @@ const ROUTES = [
   '/award-search',
   '/us/award-search',
   '/pricing',
-  '/how-it-works',
   '/profile',
   '/us/profile',
   '/in/profile',
@@ -53,17 +52,6 @@ async function verifyCatalogApis() {
   const calc = await postJson('/api/calculate', { balances: [{ program_id: chase.id, amount: 100000 }] })
   if (!Array.isArray(calc.results) || calc.results.length === 0 || !(calc.total_optimal_value_cents > 0)) {
     throw new Error(`/api/calculate returned no results: ${JSON.stringify(calc).slice(0, 200)}`)
-  }
-
-  const hotels = await postJson('/api/hotel-search', {
-    destination_region: 'europe',
-    check_in: isoDate(30),
-    check_out: isoDate(32),
-    balances: [{ program_id: chase.id, amount: 100000 }],
-  })
-  const hotelResults = hotels.results ?? []
-  if (!hotelResults.some((row) => row.program_slug === 'hyatt')) {
-    throw new Error(`/api/hotel-search returned no Hyatt tiers: ${JSON.stringify(hotels).slice(0, 200)}`)
   }
 }
 
@@ -135,6 +123,11 @@ const REDIRECTS = {
   '/us/card-recommender': '/us',
   '/in/earning-calculator': '/in',
   '/card-recommender': '/',
+  '/us/hotel-search': '/us',
+  '/in/how-it-works': '/in',
+  '/how-it-works': '/',
+  '/calculator': '/us/calculator',
+  '/pricing': '/us/pricing',
 }
 const MUST_404 = ['/us/not-a-real-page']
 
