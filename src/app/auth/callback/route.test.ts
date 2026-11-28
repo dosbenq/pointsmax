@@ -3,7 +3,6 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { setDbForTesting } from '@/lib/db/client'
-import { userPreferences } from '@/lib/db/schema'
 import { createTestDb, seedUser, sessionFor, type SeededUser, type TestDb } from '@/test/utils/test-db'
 
 const { captureServerEventMock } = vi.hoisted(() => ({ captureServerEventMock: vi.fn() }))
@@ -38,29 +37,24 @@ afterAll(() => {
 })
 
 describe('GET /auth/callback', () => {
-  it('sends people without a home airport to onboarding in their region', async () => {
-    expect(await land('?next=/in/calculator')).toBe(`${ORIGIN}/in/onboarding`)
-  })
-
-  it('sends people who finished onboarding to where they were going', async () => {
-    await db.insert(userPreferences).values({ userId: pat.userId, homeAirport: 'SFO' })
-    expect(await land('?next=/us/award-search')).toBe(`${ORIGIN}/us/award-search`)
+  it('sends people straight to where they were going', async () => {
+    expect(await land('?next=/in/profile')).toBe(`${ORIGIN}/in/profile`)
+    expect(await land('')).toBe(`${ORIGIN}/us`)
   })
 
   it('ignores next paths that could leave the site', async () => {
-    await db.insert(userPreferences).values({ userId: pat.userId, homeAirport: 'SFO' })
     for (const next of ['//evil.example', '/%2F%2Fevil.example', 'https://evil.example/x']) {
-      expect(await land(`?next=${encodeURIComponent(next)}`)).toBe(`${ORIGIN}/us/calculator`)
+      expect(await land(`?next=${encodeURIComponent(next)}`)).toBe(`${ORIGIN}/us`)
     }
   })
 
   it('reports a failed sign-in', async () => {
     vi.mocked(getSessionUser).mockResolvedValue(null)
-    expect(await land('')).toBe(`${ORIGIN}/us/calculator?auth_error=1`)
+    expect(await land('')).toBe(`${ORIGIN}/us?auth_error=1`)
   })
 
   it('counts a brand-new profile as a sign-up, once', async () => {
-    await land('?next=/us/calculator')
+    await land('?next=/us')
     expect(captureServerEventMock).toHaveBeenCalledWith(expect.objectContaining({
       distinctId: pat.userId,
       event: 'user_signed_up',

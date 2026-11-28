@@ -100,7 +100,7 @@ export default async function SharedTripPage({ params }: Props) {
             Program: <strong>{topProgram}</strong> · Options considered: <strong>{redemptionCount}</strong>
           </p>
           <p className="pm-subtle text-sm mt-2">
-            Want your own personalized plan? Open PointsMax calculator and run your wallet through live ranking.
+            See what your own points can book on the PointsMax search.
           </p>
         </section>
       </main>

@@ -5,13 +5,12 @@ const BASE_URL = getConfiguredAppOrigin()
 
 const REGIONS = ['us', 'in'] as const
 
-// Pages per region. Card and program pages were removed in the redesign
-// (their old URLs redirect to the region home).
-const STATIC_ROUTES = ['', 'calculator', 'award-search', 'hotel-search', 'how-it-works', 'pricing', 'privacy', 'terms']
+// Pages per region. Removed pages (cards, programs, hotels, how-it-works…)
+// redirect to the region home.
+const STATIC_ROUTES = ['', 'privacy', 'terms']
 
 function getRoutePriority(route: string): number {
   if (!route) return 0.95
-  if (['calculator', 'award-search'].includes(route)) return 0.9
   return 0.7
 }
 

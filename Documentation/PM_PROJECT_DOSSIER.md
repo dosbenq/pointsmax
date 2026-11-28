@@ -4,59 +4,42 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/neon-flip`
-- Git commit: `37153c6`
+- Git commit: `6437ee2`
 
 ## 1. Executive Snapshot
 
-- User-facing pages: **17**
-- API routes: **31**
+- User-facing pages: **7**
+- API routes: **25**
 - Supabase migrations: **62**
-- Test files: **82**
+- Test files: **71**
 - GitHub workflows: **6**
-- Feature-slice files: **7**
+- Feature-slice files: **0**
 - NPM scripts: **38**
 
 ## 2. Product Surface (Pages)
 
 | Route | Category | File |
 |---|---|---|
-| `/{region}/award-search` | User | `src/app/[region]/award-search/page.tsx` |
-| `/{region}/calculator` | User | `src/app/[region]/calculator/page.tsx` |
-| `/{region}/hotel-search` | User | `src/app/[region]/hotel-search/page.tsx` |
-| `/{region}/how-it-works` | User | `src/app/[region]/how-it-works/page.tsx` |
-| `/{region}/onboarding` | User | `src/app/[region]/onboarding/page.tsx` |
 | `/{region}` | User | `src/app/[region]/page.tsx` |
-| `/{region}/pricing` | User | `src/app/[region]/pricing/page.tsx` |
 | `/{region}/privacy` | User | `src/app/[region]/privacy/page.tsx` |
 | `/{region}/profile` | User | `src/app/[region]/profile/page.tsx` |
 | `/{region}/terms` | User | `src/app/[region]/terms/page.tsx` |
 | `/{region}/trips/{id}` | User | `src/app/[region]/trips/[id]/page.tsx` |
-| `/award-search` | User | `src/app/award-search/page.tsx` |
-| `/calculator` | User | `src/app/calculator/page.tsx` |
-| `/how-it-works` | User | `src/app/how-it-works/page.tsx` |
 | `/` | User | `src/app/page.tsx` |
-| `/pricing` | User | `src/app/pricing/page.tsx` |
 | `/profile` | Profile | `src/app/profile/page.tsx` |
 
 ## 3. API Surface
 
 | Route | Methods | File |
 |---|---|---|
-| `/api/ai/expert-chat` | `POST` | `src/app/api/ai/expert-chat/route.ts` |
-| `/api/ai/recommend` | `POST` | `src/app/api/ai/recommend/route.ts` |
 | `/api/alerts/subscribe` | `POST` | `src/app/api/alerts/subscribe/route.ts` |
 | `/api/alerts/unsubscribe` | `GET` | `src/app/api/alerts/unsubscribe/route.ts` |
 | `/api/auth/{...all}` | `GET, POST` | `src/app/api/auth/[...all]/route.ts` |
-| `/api/award-search/narrative` | `GET` | `src/app/api/award-search/narrative/route.ts` |
-| `/api/award-search/parse` | `POST` | `src/app/api/award-search/parse/route.ts` |
-| `/api/award-search` | `POST` | `src/app/api/award-search/route.ts` |
 | `/api/booking-urls` | `GET` | `src/app/api/booking-urls/route.ts` |
-| `/api/calculate` | `POST` | `src/app/api/calculate/route.ts` |
 | `/api/cron/send-bonus-alerts` | `GET` | `src/app/api/cron/send-bonus-alerts/route.ts` |
 | `/api/flight-watches/{id}` | `PATCH, DELETE` | `src/app/api/flight-watches/[id]/route.ts` |
 | `/api/flight-watches` | `GET, POST` | `src/app/api/flight-watches/route.ts` |
 | `/api/health` | `GET, HEAD` | `src/app/api/health/route.ts` |
-| `/api/hotel-search` | `POST` | `src/app/api/hotel-search/route.ts` |
 | `/api/inngest` | `UNKNOWN` | `src/app/api/inngest/route.ts` |
 | `/api/onboarding/complete` | `POST` | `src/app/api/onboarding/complete/route.ts` |
 | `/api/programs` | `GET` | `src/app/api/programs/route.ts` |
@@ -66,6 +49,7 @@
 | `/api/stripe/create-checkout` | `UNKNOWN` | `src/app/api/stripe/create-checkout/route.ts` |
 | `/api/stripe/portal` | `POST` | `src/app/api/stripe/portal/route.ts` |
 | `/api/stripe/webhook` | `POST` | `src/app/api/stripe/webhook/route.ts` |
+| `/api/transfer-options` | `POST` | `src/app/api/transfer-options/route.ts` |
 | `/api/trips/share` | `POST` | `src/app/api/trips/share/route.ts` |
 | `/api/user/account` | `DELETE` | `src/app/api/user/account/route.ts` |
 | `/api/user/balances` | `GET, POST` | `src/app/api/user/balances/route.ts` |
@@ -282,32 +266,21 @@
 
 | Test file |
 |---|
-| `src/app/[region]/calculator/components/action-strip.test.tsx` |
-| `src/app/[region]/calculator/components/ai-chat.test.tsx` |
-| `src/app/[region]/calculator/hooks/ai-response.test.ts` |
-| `src/app/api/ai/cache-integration.test.ts` |
-| `src/app/api/ai/expert-chat/route.test.ts` |
-| `src/app/api/ai/idempotency-integration.test.ts` |
-| `src/app/api/ai/recommend/route.test.ts` |
 | `src/app/api/auth/[...all]/route.test.ts` |
-| `src/app/api/award-search/helpers.test.ts` |
-| `src/app/api/award-search/parse/route.test.ts` |
-| `src/app/api/award-search/route.test.ts` |
-| `src/app/api/calculate/route.test.ts` |
 | `src/app/api/cron/send-bonus-alerts/route.test.ts` |
 | `src/app/api/flight-watches/route.test.ts` |
 | `src/app/api/health/route.test.ts` |
-| `src/app/api/hotel-search/route.test.ts` |
 | `src/app/api/onboarding/complete/route.test.ts` |
 | `src/app/api/setup/status/route.test.ts` |
+| `src/app/api/stripe/checkout/route.test.ts` |
 | `src/app/api/stripe/webhook/route.test.ts` |
+| `src/app/api/transfer-options/route.test.ts` |
 | `src/app/api/user/balances/route.test.ts` |
 | `src/app/api/valuations/route.test.ts` |
 | `src/app/auth/callback/route.test.ts` |
 | `src/app/profile/page.test.tsx` |
 | `src/app/sitemap.test.ts` |
 | `src/components/PostHogIdentify.test.tsx` |
-| `src/features/calculator-shell/__tests__/action-strip.test.tsx` |
 | `src/lib/ai-cache.test.ts` |
 | `src/lib/api-security.test.ts` |
 | `src/lib/app-origin.test.ts` |
@@ -321,7 +294,6 @@
 | `src/lib/award-search/sort-results.test.ts` |
 | `src/lib/award-search/stub-provider.test.ts` |
 | `src/lib/booking-urls.test.ts` |
-| `src/lib/calculate.test.ts` |
 | `src/lib/card-slugs.test.ts` |
 | `src/lib/card-tools.test.ts` |
 | `src/lib/catalog/catalog.test.ts` |
@@ -341,7 +313,6 @@
 | `src/lib/env.test.ts` |
 | `src/lib/error-utils.test.ts` |
 | `src/lib/formatters.test.ts` |
-| `src/lib/hotel-search/chart-provider.test.ts` |
 | `src/lib/idempotency.test.ts` |
 | `src/lib/inngest/functions/deal-scout.test.ts` |
 | `src/lib/inngest/functions/transfer-bonus-monitor.test.ts` |
@@ -361,6 +332,8 @@
 | `src/lib/subscription.test.ts` |
 | `src/lib/supabase.test.ts` |
 | `src/lib/telemetry.test.ts` |
+| `src/lib/transfer-bonuses.test.ts` |
+| `src/lib/transfer-options.test.ts` |
 | `src/lib/user-balances.test.ts` |
 | `src/lib/validation.test.ts` |
 | `src/test/utils/deterministic.test.ts` |
@@ -369,12 +342,7 @@
 
 | File | LOC |
 |---|---|
-| `src/app/[region]/calculator/hooks/use-calculator-state.ts` | 1025 |
 | `src/app/profile/page.tsx` | 1021 |
-| `src/app/[region]/award-search/page.tsx` | 1019 |
-| `src/app/api/ai/recommend/route.ts` | 788 |
-| `src/app/[region]/calculator/page.tsx` | 766 |
-| `src/app/api/ai/recommend/route.test.ts` | 623 |
 
 ## 10. PM Operational Playbook
 

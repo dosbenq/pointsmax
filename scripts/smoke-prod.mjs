@@ -43,28 +43,16 @@ async function run() {
 
   await requestJson('Health', `${BASE_URL}/api/health`)
 
-  await requestJson('Award search', `${BASE_URL}/api/award-search`, {
+  await requestJson('Transfer options', `${BASE_URL}/api/transfer-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      origin: 'JFK',
-      destination: 'NRT',
-      cabin: 'business',
-      passengers: 1,
-      start_date: '2026-06-01',
-      end_date: '2026-06-07',
+      region: 'US',
       balances: [{ program_id: PROGRAM_ID, amount: 120000 }],
+      trip: { origin: 'JFK', destination: 'LHR', date: new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10), cabin: 'business', passengers: 1 },
     }),
-  })
-
-  await requestJson('AI recommend (balances-only)', `${BASE_URL}/api/ai/recommend`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      history: [],
-      message: 'I want to fly business class to Tokyo.',
-      balances: [{ name: 'Chase Ultimate Rewards', amount: 120000 }],
-    }),
+  }, {
+    validate: ({ json }) => Boolean(json && Array.isArray(json.options) && json.options.length > 0),
   })
 
   await requestJson('Alerts subscribe', `${BASE_URL}/api/alerts/subscribe`, {

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAuthBaseUrl, getOrCreateUserRowId, getSessionUser } from '@/lib/auth'
 import { getDb } from '@/lib/db/client'
-import { userPreferences, users } from '@/lib/db/schema'
+import { users } from '@/lib/db/schema'
 import { captureServerEvent } from '@/lib/posthog-server'
 import { logWarn } from '@/lib/logger'
 
@@ -24,11 +24,11 @@ const isSafeNextPath = (p: string, origin: string) => {
 
 // GET /auth/callback
 // Post-sign-in landing. Better Auth completes the Google exchange at
-// /api/auth/callback/google and redirects here; first-time users go to
-// onboarding, everyone else to `next`.
+// /api/auth/callback/google and redirects here; everyone goes straight to
+// `next` (home airport and balances live in the wallet step).
 export async function GET(request: NextRequest) {
-  const nextParam = request.nextUrl.searchParams.get('next') ?? '/us/calculator'
-  const next = isSafeNextPath(nextParam, request.nextUrl.origin) ? nextParam : '/us/calculator'
+  const nextParam = request.nextUrl.searchParams.get('next') ?? '/us'
+  const next = isSafeNextPath(nextParam, request.nextUrl.origin) ? nextParam : '/us'
   const region = next.split('/').filter(Boolean)[0] === 'in' ? 'in' : 'us'
   // The sign-in cookie lives on the auth origin, so stay on it.
   const appOrigin = getAuthBaseUrl()
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch {
     user = null
   }
-  if (!user) return NextResponse.redirect(`${appOrigin}/us/calculator?auth_error=1`)
+  if (!user) return NextResponse.redirect(`${appOrigin}/us?auth_error=1`)
 
   try {
     const userRowId = await getOrCreateUserRowId(user)
@@ -61,12 +61,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [prefs] = await db
-      .select({ homeAirport: userPreferences.homeAirport })
-      .from(userPreferences)
-      .where(eq(userPreferences.userId, userRowId))
-      .limit(1)
-    if (!prefs?.homeAirport) return NextResponse.redirect(`${appOrigin}/${region}/onboarding`)
   } catch (error) {
     // Profile problems must not block a successful sign-in.
     logWarn('auth_callback_profile_failed', { error: error instanceof Error ? error.message : String(error) })
