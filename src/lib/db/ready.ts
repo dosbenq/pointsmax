@@ -32,13 +32,20 @@ async function prepare(createReader: () => SourceReader): Promise<void> {
   await ensureSchema(() => db)
   if (await isSupabaseImportComplete(db)) return
 
+  const isProduction = process.env.VERCEL_ENV === 'production'
   if (!hasSupabaseSource()) {
     // Local development and CI have nothing to copy. Production must never
     // start serving user data without the copy.
-    if (process.env.VERCEL_ENV === 'production') {
+    if (isProduction) {
       throw new DatabaseNotReadyError('The copy from Supabase has not run and Supabase credentials are missing')
     }
     return
+  }
+  if (!isProduction) {
+    // Only the production deployment may make the one-off copy: a preview
+    // sharing this database would otherwise copy early and mark it done,
+    // and everything production writes to Supabase afterwards would be lost.
+    throw new DatabaseNotReadyError('The copy from Supabase runs only on the production deployment')
   }
 
   const report = await importFromSupabase(db, createReader(), { dryRun: false })

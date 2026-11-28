@@ -42,6 +42,7 @@ afterEach(() => {
 
 describe('ensureDatabaseReady', () => {
   it('copies from Supabase once, then serves', async () => {
+    process.env.VERCEL_ENV = 'production'
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
     const db = await createTestDb()
@@ -75,7 +76,33 @@ describe('ensureDatabaseReady', () => {
     await expect(ensureDatabaseReady(readerWithOneUser)).resolves.toBeUndefined()
   })
 
+  it('never copies from a preview deployment, even with Supabase credentials', async () => {
+    process.env.VERCEL_ENV = 'preview'
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
+    const db = await createTestDb()
+    setDbForTesting(db)
+    const reader = readerWithOneUser()
+
+    await expect(ensureDatabaseReady(() => reader)).rejects.toThrow(/only on the production deployment/)
+    expect(reader.calls).toBe(0)
+    expect(await isSupabaseImportComplete(db)).toBe(false)
+  })
+
+  it('serves a preview once production has made the copy', async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
+    setDbForTesting(await createTestDb())
+    process.env.VERCEL_ENV = 'production'
+    await ensureDatabaseReady(readerWithOneUser)
+
+    resetDatabaseReadyForTesting()
+    process.env.VERCEL_ENV = 'preview'
+    await expect(ensureDatabaseReady(readerWithOneUser)).resolves.toBeUndefined()
+  })
+
   it('fails closed when the copy fails', async () => {
+    process.env.VERCEL_ENV = 'production'
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
     setDbForTesting(await createTestDb())

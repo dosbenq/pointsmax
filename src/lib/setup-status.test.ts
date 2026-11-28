@@ -6,9 +6,9 @@ import { resetSchemaStateForTesting } from '@/lib/db/migrate'
 import { dataImports } from '@/lib/db/schema'
 import { SUPABASE_IMPORT_ID } from '@/lib/db/supabase-import'
 import { createTestDb } from '@/test/utils/test-db'
-import { runSetupCheck, sanitizeError } from './setup-status'
+import { checkGoogleCredentials, runSetupCheck, sanitizeError } from './setup-status'
 
-const ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL'] as const
+const ENV_KEYS = ['DATABASE_URL', 'POSTGRES_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] as const
 let saved: Partial<Record<(typeof ENV_KEYS)[number], string>>
 
 beforeEach(() => {
@@ -43,7 +43,7 @@ describe('runSetupCheck', () => {
 
     const status = await runSetupCheck()
     expect(status.schema).toMatchObject({ ok: true })
-    expect(status.import).toMatchObject({ ok: true, complete: true, tables: { users: { source: 3, written: 3, skipped: 0 } } })
+    expect(status.import).toMatchObject({ ok: true, complete: true, tables: { users: { source: 3, written: 3, skipped: 0 } }, linked_profiles: 0 })
   })
 
   it('reports a failed copy without leaking connection details', async () => {
@@ -53,6 +53,33 @@ describe('runSetupCheck', () => {
 
     const status = await runSetupCheck()
     expect(status.import).toEqual({ ok: false, error: 'connect failed for [database-url]' })
+  })
+})
+
+describe('checkGoogleCredentials', () => {
+  const answer = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch
+
+  it('is skipped until both Google settings exist', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'id'
+    expect(await checkGoogleCredentials(answer(400, {}))).toEqual({ ok: null, skipped: 'Google credentials are not set' })
+  })
+
+  it('accepts credentials when Google only rejects the made-up code', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'id'
+    process.env.GOOGLE_CLIENT_SECRET = 'secret'
+    expect(await checkGoogleCredentials(answer(400, { error: 'invalid_grant' }))).toEqual({ ok: true })
+  })
+
+  it('flags a wrong client secret', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'id'
+    process.env.GOOGLE_CLIENT_SECRET = 'wrong'
+    expect(await checkGoogleCredentials(answer(401, { error: 'invalid_client' }))).toEqual({ ok: false, error: 'Google rejected the client ID or secret' })
+  })
+
+  it('reports anything else verbatim', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'id'
+    process.env.GOOGLE_CLIENT_SECRET = 'secret'
+    expect(await checkGoogleCredentials(answer(400, { error: 'redirect_uri_mismatch' }))).toEqual({ ok: false, error: 'Unexpected answer from Google: redirect_uri_mismatch' })
   })
 })
 

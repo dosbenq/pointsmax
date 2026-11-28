@@ -52,8 +52,9 @@ export type SupabaseLike = {
   }
 }
 
+/** Only these codes mean "no such table"; anything else (a bad column, say) must abort the copy. */
 function isMissingTable(error: { message: string; code?: string }): boolean {
-  return error.code === 'PGRST205' || error.code === '42P01' || /does not exist|could not find the table/i.test(error.message)
+  return error.code === 'PGRST205' || error.code === '42P01'
 }
 
 export function createSupabaseReader(client: SupabaseLike, pageSize = SOURCE_PAGE_SIZE): SourceReader {
