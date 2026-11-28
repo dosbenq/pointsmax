@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { PlaneTakeoff, CreditCard } from 'lucide-react'
+import { PlaneTakeoff } from 'lucide-react'
 import type { Region } from '@/lib/regions'
 
 export function HeroSection({ region }: { region: Region }) {
@@ -30,7 +30,7 @@ export function HeroSection({ region }: { region: Region }) {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-lg mx-auto"
+        className="mt-12 flex items-center justify-center w-full max-w-lg mx-auto"
       >
         <Link
           href={`/${region}/calculator`}
@@ -38,13 +38,6 @@ export function HeroSection({ region }: { region: Region }) {
         >
           See What You Can Book
           <PlaneTakeoff className="w-5 h-5 transition-transform group-hover:scale-110" />
-        </Link>
-        <Link
-          href={`/${region}/card-recommender`}
-          className="w-full sm:w-auto px-8 py-4 bg-pm-surface-soft hover:bg-pm-surface-raised border border-pm-border text-pm-ink-900 rounded-2xl text-lg font-semibold transition-all duration-300 hover:border-pm-accent-border flex items-center justify-center gap-2 group shadow-xs hover:shadow-sm"
-        >
-          Match a Card
-          <CreditCard className="w-5 h-5 text-pm-ink-500 group-hover:text-pm-accent transition-colors" />
         </Link>
       </motion.div>
     </div>

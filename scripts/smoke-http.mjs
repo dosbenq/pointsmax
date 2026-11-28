@@ -8,17 +8,11 @@ const START_TIMEOUT_MS = 90_000
 const ROUTES = [
   '/',
   '/us',
+  '/in',
   '/calculator',
   '/us/calculator',
   '/award-search',
   '/us/award-search',
-  '/card-recommender',
-  '/us/card-recommender',
-  '/earning-calculator',
-  '/us/cards',
-  '/in/cards',
-  '/us/programs',
-  '/in/programs',
   '/pricing',
   '/how-it-works',
   '/profile',
@@ -26,20 +20,14 @@ const ROUTES = [
   '/in/profile',
   '/robots.txt',
   '/sitemap.xml',
-  '/us/cards/best/best-travel-cards-us',
   '/api/valuations',
 ]
 
 // Reference data ships with the build, so these must show real content even
 // though CI points the app at an unreachable database.
 const REQUIRED_CONTENT = {
-  '/us/programs': ['Chase Ultimate Rewards'],
-  '/in/programs': ['HDFC'],
-  '/us/cards': ['Chase Sapphire Preferred'],
-  '/in/cards': ['HDFC Infinia'],
-  '/us/cards/best/best-travel-cards-us': ['Best Travel Cards in the US'],
   '/api/valuations': ['chase-ur'],
-  '/sitemap.xml': ['/us/programs/chase-ur'],
+  '/sitemap.xml': ['/us/award-search'],
 }
 
 function isoDate(daysFromNow) {
@@ -110,7 +98,7 @@ async function verifyRoutes() {
       }
     }
     if (route === '/us') {
-      const requiredCtas = ['/us/calculator', '/us/card-recommender', '/us/profile', '/us/award-search']
+      const requiredCtas = ['/us/calculator', '/us/profile', '/us/award-search']
       for (const href of requiredCtas) {
         if (!text.includes(`href="${href}"`)) {
           throw new Error(`/us homepage did not include expected CTA link ${href}`)
@@ -125,44 +113,39 @@ async function verifyRoutes() {
         throw new Error(`${route} did not render award-search launch messaging`)
       }
     }
-    if (route === '/us/card-recommender' && !text.includes('best credit card strategy')) {
-      throw new Error('/us/card-recommender did not render card recommender content')
-    }
     if (route === '/profile' || route === '/us/profile' || route === '/in/profile') {
       if (!text.includes('Wallet')) {
         throw new Error(`${route} did not render Wallet content`)
       }
-    }
-    if ((route === '/us/cards' || route === '/in/cards') && !text.includes('Turn card research into a booking decision')) {
-      throw new Error(`${route} did not render card strategy directory content`)
-    }
-    if ((route === '/us/programs' || route === '/in/programs') && !text.includes('Programs are only useful when they lead to bookings')) {
-      throw new Error(`${route} did not render program directory content`)
     }
     for (const marker of REQUIRED_CONTENT[route] ?? []) {
       if (!text.includes(marker)) {
         throw new Error(`${route} did not include expected content "${marker}"`)
       }
     }
-    if (route === '/us/cards/best/best-travel-cards-us' && text.includes('Comparison not found')) {
-      throw new Error('/us/cards/best/best-travel-cards-us rendered "Comparison not found"')
-    }
-    if (route === '/earning-calculator' && !res.url.includes('/card-recommender?view=earnings')) {
-      throw new Error(`/earning-calculator should resolve to card-recommender earnings view, got ${res.url}`)
-    }
   }
 }
 
-// Pages that must answer a real 404 (not a 200 "Page not found"): unknown
-// slugs, and catalog items that belong to the other region.
-const MUST_404 = [
-  '/us/cards/not-a-real-card',
-  '/us/programs/not-a-real-program',
-  '/us/programs/hdfc-millennia',
-  '/in/programs/chase-ur',
-]
+// Removed pages must redirect permanently (old links and search results),
+// and unknown pages must be real 404s.
+const REDIRECTS = {
+  '/us/cards': '/us',
+  '/us/cards/chase-sapphire-preferred-chase': '/us',
+  '/in/programs/hdfc-millennia': '/in',
+  '/us/card-recommender': '/us',
+  '/in/earning-calculator': '/in',
+  '/card-recommender': '/',
+}
+const MUST_404 = ['/us/not-a-real-page']
 
-async function verifyNotFound() {
+async function verifyRedirectsAndNotFound() {
+  for (const [route, target] of Object.entries(REDIRECTS)) {
+    const res = await fetch(`${BASE_URL}${route}`, { redirect: 'manual' })
+    const location = res.headers.get('location') ?? ''
+    if (res.status !== 308 || new URL(location, BASE_URL).pathname !== target) {
+      throw new Error(`Expected ${route} to redirect permanently to ${target}, got ${res.status} ${location}`)
+    }
+  }
   for (const route of MUST_404) {
     const res = await fetch(`${BASE_URL}${route}`, { redirect: 'follow' })
     if (res.status !== 404) throw new Error(`Expected 404 for ${route}, got ${res.status}`)
@@ -186,7 +169,7 @@ async function main() {
   try {
     await waitForServer()
     await verifyRoutes()
-    await verifyNotFound()
+    await verifyRedirectsAndNotFound()
     await verifyCatalogApis()
     console.log(`Smoke checks passed against ${BASE_URL}`)
   } finally {
