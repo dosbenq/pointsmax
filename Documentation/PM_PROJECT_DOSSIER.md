@@ -4,7 +4,7 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/remove-supabase`
-- Git commit: `aee2c6d`
+- Git commit: `7933998`
 
 ## 1. Executive Snapshot
 

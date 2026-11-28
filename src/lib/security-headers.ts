@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { CSP_CONNECT_ORIGINS } from '@/config/csp'
 
 export interface SecurityHeadersConfig {
   // Content Security Policy
@@ -53,7 +54,7 @@ function generateCSP(config: SecurityHeadersConfig): string {
     "font-src 'self' data:",
 
     // Connect - allow API calls and analytics
-    "connect-src 'self' https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://*.posthog.com",
+    `connect-src 'self' ${CSP_CONNECT_ORIGINS.join(' ')}`,
 
     // Frame ancestors - prevent clickjacking
     "frame-ancestors 'none'",
