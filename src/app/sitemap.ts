@@ -7,11 +7,10 @@ const REGIONS = ['us', 'in'] as const
 
 // Pages per region. Removed pages (cards, programs, hotels, how-it-works…)
 // redirect to the region home.
-const STATIC_ROUTES = ['', 'calculator', 'award-search', 'pricing', 'privacy', 'terms']
+const STATIC_ROUTES = ['', 'privacy', 'terms']
 
 function getRoutePriority(route: string): number {
   if (!route) return 0.95
-  if (['calculator', 'award-search'].includes(route)) return 0.9
   return 0.7
 }
 

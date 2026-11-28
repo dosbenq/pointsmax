@@ -34,19 +34,20 @@ const nextConfig: NextConfig = {
   async redirects() {
     // Pages removed in the redesign: send old links and search results to the
     // region home rather than a 404.
-    const removed = ['cards', 'programs', 'card-recommender', 'earning-calculator', 'hotel-search', 'how-it-works']
+    // The search now lives on the region home (/us, /in).
+    const removed = [
+      'cards', 'programs', 'card-recommender', 'earning-calculator', 'hotel-search', 'how-it-works',
+      'calculator', 'award-search', 'onboarding',
+    ]
     return [
       ...removed.flatMap((page) => [
         { source: `/:region(us|in)/${page}`, destination: '/:region', permanent: true },
         { source: `/:region(us|in)/${page}/:path*`, destination: '/:region', permanent: true },
         { source: `/${page}`, destination: '/', permanent: true },
       ]),
-      // Old links without a region go to the US version of the page.
-      ...['award-search', 'calculator', 'pricing'].map((page) => ({
-        source: `/${page}`,
-        destination: `/us/${page}`,
-        permanent: true,
-      })),
+      // Paused until watches and alerts work (temporary, it will return).
+      { source: '/:region(us|in)/pricing', destination: '/:region', permanent: false },
+      { source: '/pricing', destination: '/', permanent: false },
     ]
   },
   async rewrites() {

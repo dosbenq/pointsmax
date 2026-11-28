@@ -9,11 +9,6 @@ const ROUTES = [
   '/',
   '/us',
   '/in',
-  '/calculator',
-  '/us/calculator',
-  '/award-search',
-  '/us/award-search',
-  '/pricing',
   '/profile',
   '/us/profile',
   '/in/profile',
@@ -25,8 +20,10 @@ const ROUTES = [
 // Reference data ships with the build, so these must show real content even
 // though CI points the app at an unreachable database.
 const REQUIRED_CONTENT = {
+  '/us': ['What can your points book?'],
+  '/in': ['What can your points book?'],
   '/api/valuations': ['chase-ur'],
-  '/sitemap.xml': ['/us/award-search'],
+  '/sitemap.xml': ['/in/terms'],
 }
 
 function isoDate(daysFromNow) {
@@ -49,9 +46,14 @@ async function verifyCatalogApis() {
   const chase = (programs.programs ?? programs).find?.((p) => p.slug === 'chase-ur')
   if (!chase) throw new Error('/api/programs did not include chase-ur')
 
-  const calc = await postJson('/api/calculate', { balances: [{ program_id: chase.id, amount: 100000 }] })
-  if (!Array.isArray(calc.results) || calc.results.length === 0 || !(calc.total_optimal_value_cents > 0)) {
-    throw new Error(`/api/calculate returned no results: ${JSON.stringify(calc).slice(0, 200)}`)
+  const options = await postJson('/api/transfer-options', {
+    region: 'US',
+    balances: [{ program_id: chase.id, amount: 100000 }],
+    trip: { origin: 'JFK', destination: 'LHR', date: isoDate(60), cabin: 'business', passengers: 1 },
+  })
+  const united = (options.options ?? []).find((o) => o.program_slug === 'united')
+  if (!united || united.miles_available !== 100000 || !united.airline_search?.url) {
+    throw new Error(`/api/transfer-options did not convert Chase points to United: ${JSON.stringify(options).slice(0, 200)}`)
   }
 }
 
@@ -85,22 +87,6 @@ async function verifyRoutes() {
         throw new Error('Homepage did not include expected "PointsMax" marker')
       }
     }
-    if (route === '/us') {
-      const requiredCtas = ['/us/calculator', '/us/profile', '/us/award-search']
-      for (const href of requiredCtas) {
-        if (!text.includes(`href="${href}"`)) {
-          throw new Error(`/us homepage did not include expected CTA link ${href}`)
-        }
-      }
-    }
-    if (route === '/us/calculator' && !text.includes('Planner')) {
-      throw new Error('/us/calculator did not render Planner content')
-    }
-    if (route === '/award-search' || route === '/us/award-search') {
-      if (!text.includes('See what your points can actually book on this route.')) {
-        throw new Error(`${route} did not render award-search launch messaging`)
-      }
-    }
     if (route === '/profile' || route === '/us/profile' || route === '/in/profile') {
       if (!text.includes('Wallet')) {
         throw new Error(`${route} did not render Wallet content`)
@@ -126,9 +112,13 @@ const REDIRECTS = {
   '/us/hotel-search': '/us',
   '/in/how-it-works': '/in',
   '/how-it-works': '/',
-  '/calculator': '/us/calculator',
-  '/pricing': '/us/pricing',
+  '/calculator': '/',
+  '/us/calculator': '/us',
+  '/in/award-search': '/in',
+  '/us/onboarding': '/us',
 }
+// Paused pages redirect temporarily (they will come back).
+const PAUSED = { '/us/pricing': '/us' }
 const MUST_404 = ['/us/not-a-real-page']
 
 async function verifyRedirectsAndNotFound() {
@@ -137,6 +127,13 @@ async function verifyRedirectsAndNotFound() {
     const location = res.headers.get('location') ?? ''
     if (res.status !== 308 || new URL(location, BASE_URL).pathname !== target) {
       throw new Error(`Expected ${route} to redirect permanently to ${target}, got ${res.status} ${location}`)
+    }
+  }
+  for (const [route, target] of Object.entries(PAUSED)) {
+    const res = await fetch(`${BASE_URL}${route}`, { redirect: 'manual' })
+    const location = res.headers.get('location') ?? ''
+    if (res.status !== 307 || new URL(location, BASE_URL).pathname !== target) {
+      throw new Error(`Expected ${route} to redirect temporarily to ${target}, got ${res.status} ${location}`)
     }
   }
   for (const route of MUST_404) {

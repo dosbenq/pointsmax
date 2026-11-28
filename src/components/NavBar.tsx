@@ -92,14 +92,9 @@ export default function NavBar() {
 
   const navLinks = useMemo(() => ([
     {
-      href: `/${region}/calculator`,
-      label: 'Calculator',
-      activePrefixes: [`/${region}/calculator`],
-    },
-    {
-      href: `/${region}/award-search`,
-      label: 'Award Search',
-      activePrefixes: [`/${region}/award-search`],
+      href: `/${region}/profile`,
+      label: 'Wallet',
+      activePrefixes: [`/${region}/profile`, '/profile'],
     },
   ]), [region])
 
@@ -124,9 +119,6 @@ export default function NavBar() {
             <PMLogoMark />
             <div className="hidden sm:block">
               <span className="block text-[1.1rem] font-bold tracking-[-0.04em] transition-colors group-hover:text-pm-accent">PointsMax</span>
-              <span className="hidden text-[0.63rem] font-semibold uppercase tracking-[0.2em] text-pm-ink-500 lg:block">
-                Wallet-aware booking execution
-              </span>
             </div>
           </Link>
 
