@@ -16,7 +16,7 @@ describe('sitemap', () => {
 
   it('does not list removed pages', async () => {
     const urls = (await sitemap()).map((item) => item.url)
-    const removed = ['trip-builder', 'devaluation-tracker', 'inspire', 'cards', 'programs', 'card-recommender', 'earning-calculator']
+    const removed = ['trip-builder', 'devaluation-tracker', 'inspire', 'cards', 'programs', 'card-recommender', 'earning-calculator', 'hotel-search', 'how-it-works']
 
     for (const url of urls) {
       for (const route of removed) {

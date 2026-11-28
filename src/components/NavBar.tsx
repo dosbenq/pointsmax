@@ -101,11 +101,6 @@ export default function NavBar() {
       label: 'Award Search',
       activePrefixes: [`/${region}/award-search`],
     },
-    {
-      href: `/${region}/hotel-search`,
-      label: 'Hotels',
-      activePrefixes: [`/${region}/hotel-search`],
-    },
   ]), [region])
 
   const profileName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'
