@@ -111,11 +111,6 @@ export default async function ProgramDetailPage({ params }: Props) {
       title: 'Search awards before you transfer',
       description: 'Check live vs estimated availability and compare the transfer friction before you move points.',
     },
-    {
-      href: `/${normalized}/trip-builder`,
-      title: 'Build a booking plan',
-      description: 'Turn the right program into an execution-ready booking path with concrete next actions.',
-    },
   ]
   const executionNotes = [
     `${program.transfer_in.length} mapped transfer-in source${program.transfer_in.length === 1 ? '' : 's'} feed this program today.`,

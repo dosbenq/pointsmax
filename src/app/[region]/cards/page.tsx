@@ -33,11 +33,6 @@ export default async function CardsIndexPage({ params }: Props) {
         : 'Start with your Chase, Amex, Citi, Bilt, and airline balances and see reachable redemptions first.',
     },
     {
-      href: `/${normalized}/trip-builder`,
-      title: 'Build my plan',
-      description: 'Go from balances and routes to transfer steps, booking guidance, and a concrete execution path.',
-    },
-    {
       href: `/${normalized}/profile`,
       title: 'Track my wallet',
       description: 'Save your point balances so card and booking decisions stay grounded in reality.',

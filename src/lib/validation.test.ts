@@ -12,7 +12,6 @@ import {
   affiliateClickRequestSchema,
   userBalancesRequestSchema,
   userPreferencesRequestSchema,
-  tripBuilderRequestSchema,
   validateRequest,
   validateDateRange,
   validateIataCode,
@@ -312,50 +311,6 @@ describe('userPreferencesRequestSchema', () => {
   it('rejects invalid cabin', () => {
     const result = userPreferencesRequestSchema.safeParse({
       preferred_cabin: 'luxury',
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('tripBuilderRequestSchema', () => {
-  it('accepts valid trip builder request', () => {
-    const result = tripBuilderRequestSchema.safeParse({
-      destination: 'Tokyo',
-      dates: 'March 2026',
-      travelers: 2,
-      budget: 'moderate',
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts request with optional fields', () => {
-    const result = tripBuilderRequestSchema.safeParse({
-      destination: 'Paris',
-      dates: 'Summer 2026',
-      travelers: 4,
-      budget: 'luxury',
-      pointsBudget: 'high',
-      balances: [{ program: 'Chase UR', points: 100000 }],
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects too many travelers', () => {
-    const result = tripBuilderRequestSchema.safeParse({
-      destination: 'Tokyo',
-      dates: 'March 2026',
-      travelers: 21,
-      budget: 'moderate',
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('rejects invalid budget', () => {
-    const result = tripBuilderRequestSchema.safeParse({
-      destination: 'Tokyo',
-      dates: 'March 2026',
-      travelers: 2,
-      budget: 'extravagant',
     })
     expect(result.success).toBe(false)
   })

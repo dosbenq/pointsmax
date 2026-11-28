@@ -216,11 +216,6 @@ export default async function CardReviewPage({ params }: PageProps) {
       title: 'See what this card helps you book',
       description: 'Check whether the modeled value survives once you compare real programs, routes, and transfer friction.',
     },
-    {
-      href: `/${resolvedParams.region}/trip-builder`,
-      title: 'Build a booking plan',
-      description: 'Move from card and program theory into the exact next transfer and booking steps.',
-    },
   ]
   const regionAngle = region === 'in'
     ? `In ${regionConfig.label}, this card only wins if it improves your HDFC / Axis / Amex-style transfer options or gives you a better local earn story than simpler cashback cards.`
@@ -526,9 +521,6 @@ export default async function CardReviewPage({ params }: PageProps) {
               </Link>
               <Link href={`/${resolvedParams.region}/calculator`} className="pm-button-secondary inline-flex px-5 py-3">
                 Check wallet reachability
-              </Link>
-              <Link href={`/${resolvedParams.region}/trip-builder`} className="pm-button inline-flex px-5 py-3">
-                Build a booking plan
               </Link>
             </div>
           </div>

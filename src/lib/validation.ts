@@ -97,19 +97,6 @@ export const userPreferencesRequestSchema = z.object({
   avoided_airlines: z.array(z.string()).optional(),
 })
 
-// Trip builder
-export const tripBuilderRequestSchema = z.object({
-  destination: z.string().min(1).max(100),
-  dates: z.string().min(1).max(100),
-  travelers: z.number().int().min(1).max(20),
-  budget: z.enum(['budget', 'moderate', 'luxury']),
-  pointsBudget: z.enum(['low', 'medium', 'high']).optional(),
-  balances: z.array(z.object({
-    program: z.string(),
-    points: z.number().nonnegative(),
-  })).optional(),
-})
-
 // ============================================================================
 // Validation Helpers
 // ============================================================================

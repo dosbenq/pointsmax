@@ -25,15 +25,13 @@ public/card-art/          Self-hosted card assets
 - `Calculator`: wallet value, transfers, and points analysis
 - `Award Search`: Seats.aero-backed availability plus fallback estimates
 - `Card Recommender`: region-aware card strategy and reviews
-- `Wallet`: manual balances, CSV import, connector framework
-- `Booking Guide`: persisted workflow with Inngest orchestration
+- `Wallet`: saved point balances
 
 ## What Is Real Today
 
 - card/program catalog APIs
 - single-hop points calculator
 - award search with real Seats.aero integration
-- booking-guide persistence flow
 - card recommender UI and compare/review surfaces
 - affiliate tracking, Stripe wiring, analytics, and admin routes
 
@@ -41,8 +39,6 @@ public/card-art/          Self-hosted card assets
 
 - multi-hop transfer pathfinding
 - redemption-specific value instead of static CPP only
-- booking guide context injection
-- real wallet/provider connectors
 - long-tail card economics enrichment for the expanded catalog
 
 ## Catalog Workflow

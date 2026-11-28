@@ -126,11 +126,6 @@ export default async function ProgramsIndexPage({ params }: Props) {
       title: 'Search award space',
       description: 'Check routes, trust-state labels, and transfer paths before you move any points.',
     },
-    {
-      href: `/${normalized}/trip-builder`,
-      title: 'Build my plan',
-      description: 'Move from the right program into a concrete, step-by-step execution path.',
-    },
   ]
 
   return (

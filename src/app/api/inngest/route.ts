@@ -2,7 +2,6 @@ import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 import { bonusCurator } from "@/lib/inngest/functions/bonus-curator";
 import { dealScout } from "@/lib/inngest/functions/deal-scout";
-import { bookingGuide } from "@/lib/inngest/functions/booking-guide";
 import { workflowHealthcheck } from "@/lib/inngest/functions/workflow-healthcheck";
 import { youtubeLearner } from "@/lib/inngest/functions/youtube-learner";
 import { scheduledBonusAlerts, scheduledValuationsUpdate, scheduledYoutubeIngestion } from "@/lib/inngest/functions/scheduled-crons";
@@ -21,7 +20,6 @@ export const { GET, POST, PUT } = serve({
   functions: [
     bonusCurator,
     dealScout,
-    bookingGuide,
     workflowHealthcheck,
     youtubeLearner,
     scheduledBonusAlerts,

@@ -139,25 +139,3 @@ export async function formatBookingLinksForPrompt(
     .map((link) => `- ${link.label}: ${link.url}`)
     .join('\n')
 }
-
-export async function getTripBuilderPromptSections(region: 'us' | 'in') {
-  const { urls: validatedUrls } = await loadValidatedBookingUrls(region)
-  const categorized = categorizeValidatedUrls(validatedUrls)
-  const formatCategory = (category: BookingLinkCategory) => {
-    const links = categorized.filter((link) => link.category === category)
-    if (links.length === 0) return '- No validated URLs configured'
-    return links.map((link) => `- ${link.label}: ${link.url}`).join('\n')
-  }
-
-  return {
-    hotelBookingUrls: [
-      'Known hotel award booking portals (use ONLY these exact URLs for hotel.booking_url):',
-      formatCategory('hotel_portal'),
-    ].join('\n'),
-    bookingStepUrls: [
-      'Known portal URLs (use ONLY these for booking_steps urls, or null if no exact match):',
-      formatCategory('transfer_portal'),
-      formatCategory('flight_booking_portal'),
-    ].join('\n'),
-  }
-}

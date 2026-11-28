@@ -382,8 +382,8 @@ export default function HowItWorksPage() {
             <Link href={`/${region}/calculator`} className="pm-button">
               Calculate my points value →
             </Link>
-            <Link href={`/${region}/trip-builder`} className="pm-button-secondary">
-              Build my plan →
+            <Link href={`/${region}/award-search`} className="pm-button-secondary">
+              Search award flights →
             </Link>
           </div>
         </section>
