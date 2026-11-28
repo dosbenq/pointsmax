@@ -2,14 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const {
-  mockRpc,
-  mockFrom,
   mockGenerateContent,
   mockEmbedContent,
   mockCircuitExecute,
 } = vi.hoisted(() => ({
-  mockRpc: vi.fn(),
-  mockFrom: vi.fn(),
   mockGenerateContent: vi.fn(),
   mockEmbedContent: vi.fn(),
   mockCircuitExecute: vi.fn(),
@@ -54,13 +50,6 @@ vi.mock('@/lib/circuit-breaker', () => {
   }
 })
 
-vi.mock('@/lib/supabase', () => ({
-  createAdminClient: vi.fn(() => ({
-    rpc: mockRpc,
-    from: mockFrom,
-  })),
-}))
-
 vi.mock('@google/generative-ai', () => {
   class MockGoogleGenerativeAI {
     getGenerativeModel({ model }: { model: string }) {
@@ -97,13 +86,6 @@ describe('POST /api/ai/expert-chat', () => {
     mockEmbedContent.mockResolvedValue({
       embedding: { values: [0.1, 0.2, 0.3] },
     })
-    mockRpc.mockResolvedValue({ data: [], error: { message: 'vector failed' } })
-    mockFrom.mockImplementation(() => ({
-      select: vi.fn().mockReturnThis(),
-      ilike: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-    }))
     mockGenerateContent.mockResolvedValue({
       response: { text: () => 'US expert response' },
     })
@@ -119,11 +101,13 @@ describe('POST /api/ai/expert-chat', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(1)
   })
 
-  it('does not fall back to a full-table ilike scan when vector search fails', async () => {
-    await POST(makeRequest({ message: 'What should I do?', region: 'us' }))
+  it('answers directly without embedding the question or citing sources', async () => {
+    const res = await POST(makeRequest({ message: 'What should I do?', region: 'us' }))
+    const payload = await res.json()
 
-    expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    expect(payload.sources).toEqual([])
+    expect(mockEmbedContent).not.toHaveBeenCalled()
   })
 
   it('returns 503 when the Gemini circuit breaker is open', async () => {

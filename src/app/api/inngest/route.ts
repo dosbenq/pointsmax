@@ -2,8 +2,7 @@ import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 import { bonusCurator } from "@/lib/inngest/functions/bonus-curator";
 import { dealScout } from "@/lib/inngest/functions/deal-scout";
-import { youtubeLearner } from "@/lib/inngest/functions/youtube-learner";
-import { scheduledBonusAlerts, scheduledValuationsUpdate, scheduledYoutubeIngestion } from "@/lib/inngest/functions/scheduled-crons";
+import { scheduledBonusAlerts, scheduledValuationsUpdate } from "@/lib/inngest/functions/scheduled-crons";
 import { onboardingEmails } from "@/lib/inngest/functions/onboarding-emails";
 import { transferBonusMonitor } from "@/lib/inngest/functions/transfer-bonus-monitor";
 import { indiaValuationsScraper } from "@/lib/inngest/functions/india-valuations-scraper";
@@ -17,10 +16,8 @@ export const { GET, POST, PUT } = serve({
   functions: [
     bonusCurator,
     dealScout,
-    youtubeLearner,
     scheduledBonusAlerts,
     scheduledValuationsUpdate,
-    scheduledYoutubeIngestion,
     onboardingEmails,
     transferBonusMonitor,
     indiaValuationsScraper,
