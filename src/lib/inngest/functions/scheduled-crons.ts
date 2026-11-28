@@ -43,13 +43,3 @@ export const scheduledBonusAlerts = inngest.createFunction(
     )
   },
 )
-
-export const scheduledValuationsUpdate = inngest.createFunction(
-  { id: 'scheduled-valuations-update', name: 'Scheduled: TPG Valuation Update' },
-  { cron: '0 10 1 * *' },
-  async ({ step }) => {
-    return await step.run('invoke-valuations-update', () =>
-      invokeCronPath('/api/cron/update-valuations')
-    )
-  },
-)

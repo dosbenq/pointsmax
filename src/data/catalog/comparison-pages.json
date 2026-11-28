@@ -1,0 +1,304 @@
+[
+  {
+    "slug": "best-travel-cards-us",
+    "region": "us",
+    "title": "Best Travel Cards in the US",
+    "description": "Compare flexible travel cards for flights, partner transfers, and premium redemptions.",
+    "card_slugs": [
+      "chase-sapphire-preferred",
+      "chase-sapphire-reserve",
+      "capital-one-venture-x"
+    ],
+    "category_focus": "travel",
+    "is_published": true,
+    "display_order": 10
+  },
+  {
+    "slug": "best-dining-cards-us",
+    "region": "us",
+    "title": "Best Dining Cards in the US",
+    "description": "Find the strongest cards for restaurants, food delivery, and everyday dining.",
+    "card_slugs": [
+      "amex-gold",
+      "chase-sapphire-preferred",
+      "bilt-mastercard"
+    ],
+    "category_focus": "dining",
+    "is_published": true,
+    "display_order": 20
+  },
+  {
+    "slug": "best-no-annual-fee-cards-us",
+    "region": "us",
+    "title": "Best No Annual Fee Cards in the US",
+    "description": "Compare US cards that keep fees low while still earning meaningful value.",
+    "card_slugs": [
+      "bilt-mastercard",
+      "chase-sapphire-preferred",
+      "united-explorer"
+    ],
+    "category_focus": "low_fees",
+    "is_published": true,
+    "display_order": 30
+  },
+  {
+    "slug": "best-for-beginners-us",
+    "region": "us",
+    "title": "Best Beginner Travel Cards in the US",
+    "description": "A calm starting point for users who want real value without too much complexity.",
+    "card_slugs": [
+      "chase-sapphire-preferred",
+      "capital-one-venture-x",
+      "bilt-mastercard"
+    ],
+    "category_focus": "simplicity",
+    "is_published": true,
+    "display_order": 40
+  },
+  {
+    "slug": "best-amex-cards-us",
+    "region": "us",
+    "title": "Best Amex Cards in the US",
+    "description": "Compare the highest-signal American Express rewards cards side by side.",
+    "card_slugs": [
+      "amex-gold",
+      "amex-platinum",
+      "delta-gold-amex"
+    ],
+    "category_focus": "issuer_amex",
+    "is_published": true,
+    "display_order": 50
+  },
+  {
+    "slug": "best-chase-cards-us",
+    "region": "us",
+    "title": "Best Chase Cards in the US",
+    "description": "Compare Chase travel and loyalty cards for transfer value and simplicity.",
+    "card_slugs": [
+      "chase-sapphire-preferred",
+      "chase-sapphire-reserve",
+      "united-explorer"
+    ],
+    "category_focus": "issuer_chase",
+    "is_published": true,
+    "display_order": 60
+  },
+  {
+    "slug": "chase-sapphire-preferred-vs-reserve",
+    "region": "us",
+    "title": "Chase Sapphire Preferred vs Reserve",
+    "description": "A clean comparison of Chase's two flagship Sapphire cards.",
+    "card_slugs": [
+      "chase-sapphire-preferred",
+      "chase-sapphire-reserve"
+    ],
+    "category_focus": "issuer_chase",
+    "is_published": true,
+    "display_order": 70
+  },
+  {
+    "slug": "amex-gold-vs-platinum",
+    "region": "us",
+    "title": "Amex Gold vs Platinum",
+    "description": "See which Amex flagship is better for dining, travel, and premium perks.",
+    "card_slugs": [
+      "amex-gold",
+      "amex-platinum"
+    ],
+    "category_focus": "issuer_amex",
+    "is_published": true,
+    "display_order": 80
+  },
+  {
+    "slug": "best-for-lounge-access-us",
+    "region": "us",
+    "title": "Best US Cards for Lounge Access",
+    "description": "Compare cards that justify themselves on lounge access and premium travel benefits.",
+    "card_slugs": [
+      "amex-platinum",
+      "chase-sapphire-reserve",
+      "capital-one-venture-x"
+    ],
+    "category_focus": "lounges",
+    "is_published": true,
+    "display_order": 90
+  },
+  {
+    "slug": "best-hotel-cards-us",
+    "region": "us",
+    "title": "Best US Hotel Cards",
+    "description": "Compare co-branded hotel cards for premium stays and loyalty acceleration.",
+    "card_slugs": [
+      "world-of-hyatt",
+      "marriott-bonvoy-boundless",
+      "amex-platinum"
+    ],
+    "category_focus": "hotels",
+    "is_published": true,
+    "display_order": 100
+  },
+  {
+    "slug": "best-flex-points-cards-us",
+    "region": "us",
+    "title": "Best Flexible Points Cards in the US",
+    "description": "Compare cards that earn the most useful transferable currencies.",
+    "card_slugs": [
+      "chase-sapphire-preferred",
+      "amex-gold",
+      "capital-one-venture-x"
+    ],
+    "category_focus": "travel",
+    "is_published": true,
+    "display_order": 110
+  },
+  {
+    "slug": "best-business-class-wallet-us",
+    "region": "us",
+    "title": "Best Wallet for Business Class Awards",
+    "description": "Compare the cards most aligned with aspirational flight redemptions.",
+    "card_slugs": [
+      "amex-platinum",
+      "chase-sapphire-reserve",
+      "capital-one-venture-x"
+    ],
+    "category_focus": "travel",
+    "is_published": true,
+    "display_order": 120
+  },
+  {
+    "slug": "best-beginner-premium-cards-us",
+    "region": "us",
+    "title": "Best Beginner Premium Cards in the US",
+    "description": "Premium-fee cards that still make sense if you actually use the benefits.",
+    "card_slugs": [
+      "chase-sapphire-reserve",
+      "capital-one-venture-x",
+      "amex-platinum"
+    ],
+    "category_focus": "premium",
+    "is_published": true,
+    "display_order": 130
+  },
+  {
+    "slug": "best-airline-cards-us",
+    "region": "us",
+    "title": "Best Airline Cards in the US",
+    "description": "Compare a starter set of airline-linked cards against flexible alternatives.",
+    "card_slugs": [
+      "united-explorer",
+      "delta-gold-amex",
+      "chase-sapphire-preferred"
+    ],
+    "category_focus": "airlines",
+    "is_published": true,
+    "display_order": 140
+  },
+  {
+    "slug": "best-everyday-cards-us",
+    "region": "us",
+    "title": "Best Everyday Rewards Cards in the US",
+    "description": "Compare cards that earn well across broad everyday categories.",
+    "card_slugs": [
+      "amex-gold",
+      "bilt-mastercard",
+      "capital-one-venture-x"
+    ],
+    "category_focus": "everyday",
+    "is_published": true,
+    "display_order": 150
+  },
+  {
+    "slug": "best-premium-cards-india",
+    "region": "in",
+    "title": "Best Premium Cards in India",
+    "description": "Compare the India cards that justify a premium annual fee with travel and rewards value.",
+    "card_slugs": [
+      "hdfc-infinia",
+      "axis-atlas",
+      "yes-bank-marquee"
+    ],
+    "category_focus": "premium",
+    "is_published": true,
+    "display_order": 210
+  },
+  {
+    "slug": "best-india-travel-cards",
+    "region": "in",
+    "title": "Best Travel Cards in India",
+    "description": "Compare Indian cards that matter for airline transfers and premium travel.",
+    "card_slugs": [
+      "hdfc-infinia",
+      "axis-atlas"
+    ],
+    "category_focus": "travel",
+    "is_published": true,
+    "display_order": 220
+  },
+  {
+    "slug": "best-india-low-fee-cards",
+    "region": "in",
+    "title": "Best Lower-Fee Cards in India",
+    "description": "Compare India cards that keep fees controlled without becoming dead weight.",
+    "card_slugs": [
+      "axis-ace",
+      "hdfc-regalia-gold",
+      "kotak-royale-signature"
+    ],
+    "category_focus": "low_fees",
+    "is_published": true,
+    "display_order": 230
+  },
+  {
+    "slug": "hdfc-infinia-vs-axis-atlas",
+    "region": "in",
+    "title": "HDFC Infinia vs Axis Atlas",
+    "description": "A direct comparison of two of the most important Indian travel cards.",
+    "card_slugs": [
+      "hdfc-infinia",
+      "axis-atlas"
+    ],
+    "category_focus": "travel",
+    "is_published": true,
+    "display_order": 240
+  },
+  {
+    "slug": "best-india-airline-cards",
+    "region": "in",
+    "title": "Best India Airline Cards",
+    "description": "Compare India cards closest to airline-first redemption strategies.",
+    "card_slugs": [
+      "air-india-sbi-signature",
+      "axis-atlas"
+    ],
+    "category_focus": "airlines",
+    "is_published": true,
+    "display_order": 250
+  },
+  {
+    "slug": "best-india-beginner-premium-cards",
+    "region": "in",
+    "title": "Best Beginner Premium Cards in India",
+    "description": "Premium Indian cards that still make sense for users building their first optimized wallet.",
+    "card_slugs": [
+      "hdfc-regalia-gold",
+      "axis-atlas",
+      "kotak-royale-signature"
+    ],
+    "category_focus": "simplicity",
+    "is_published": true,
+    "display_order": 260
+  },
+  {
+    "slug": "best-india-lounge-cards",
+    "region": "in",
+    "title": "Best India Lounge Access Cards",
+    "description": "Compare the India cards that are easiest to justify on premium travel benefits.",
+    "card_slugs": [
+      "hdfc-infinia",
+      "yes-bank-marquee"
+    ],
+    "category_focus": "lounges",
+    "is_published": true,
+    "display_order": 270
+  }
+]

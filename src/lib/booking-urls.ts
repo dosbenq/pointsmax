@@ -24,9 +24,8 @@ const TRANSFER_PORTAL_SLUGS = new Set([
   'citi-thankyou',
   'bilt',
   'hdfc-millennia',
-  'sbi-card',
+  'sbi-reward-points',
   'axis-edge',
-  'icici-rewards',
 ])
 
 const SLUG_ALIASES: Record<string, string> = {

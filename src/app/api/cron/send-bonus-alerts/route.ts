@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase'
+import { getCatalogProgramById, getCatalogTransferPartnerById } from '@/lib/catalog'
 import { createUnsubscribeToken } from '@/lib/alerts-token'
 import { getSafeAppOrigin } from '@/lib/app-origin'
 import { isAuthorizedCronRequest } from '@/lib/cron-auth'
@@ -38,16 +39,6 @@ function isBonusRow(value: unknown): value is BonusRow {
     typeof row.bonus_pct === 'number' &&
     typeof row.start_date === 'string' &&
     typeof row.end_date === 'string'
-  )
-}
-
-function isPartnerRow(value: unknown): value is PartnerRow {
-  if (!value || typeof value !== 'object') return false
-  const row = value as Record<string, unknown>
-  return (
-    typeof row.id === 'string' &&
-    typeof row.from_program_id === 'string' &&
-    typeof row.to_program_id === 'string'
   )
 }
 
@@ -155,6 +146,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, transfer_partner_id, bonus_pct, start_date, end_date
     `)
+    .eq('is_verified', true)
     .lte('start_date', today)
     .gte('end_date', today)
     .is('alerted_at', null)
@@ -176,21 +168,17 @@ export async function GET(req: NextRequest) {
   const failedBonusIds: string[] = []
 
   const partnerIds = [...new Set(bonuses.map(b => b.transfer_partner_id))]
-  const { data: partnerRowsRaw, error: partnerErr } = await db
-    .from('transfer_partners')
-    .select(`
-      id, from_program_id, to_program_id,
-      from_program:programs!transfer_partners_from_program_id_fkey(name),
-      to_program:programs!transfer_partners_to_program_id_fkey(name)
-    `)
-    .in('id', partnerIds)
-
-  if (partnerErr) {
-    logError('cron_bonus_alerts_partner_fetch_failed', { requestId, error: partnerErr.message })
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
-  }
-
-  const partnerRows = ((partnerRowsRaw ?? []) as unknown[]).filter(isPartnerRow)
+  // Transfer partners and program names are catalog data.
+  const partnerRows: PartnerRow[] = partnerIds
+    .map((id) => getCatalogTransferPartnerById(id))
+    .filter((row): row is NonNullable<typeof row> => row !== null)
+    .map((row) => ({
+      id: row.id,
+      from_program_id: row.from_program_id,
+      to_program_id: row.to_program_id,
+      from_program: { name: getCatalogProgramById(row.from_program_id)?.name },
+      to_program: { name: getCatalogProgramById(row.to_program_id)?.name },
+    }))
   const partnerById = new Map<string, PartnerRow>(partnerRows.map((row) => [row.id, row]))
   const fromProgramIds = [
     ...new Set(partnerRows.map((row) => row.from_program_id).filter(Boolean)),

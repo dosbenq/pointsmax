@@ -4,7 +4,7 @@
 // transfer partner data. No external API calls.
 // ============================================================
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { getCatalogLatestValuations, getCatalogPrograms, getCatalogTransferPartners } from '@/lib/catalog'
 import type {
   AwardProvider,
   AwardSearchParams,
@@ -31,31 +31,13 @@ import { sortAwardResultsByPoints } from './sort-results'
 export class StubProvider implements AwardProvider {
   readonly name = 'stub' as const
 
-  async search(
-    params: AwardSearchParams,
-    client: SupabaseClient,
-  ): Promise<AwardSearchResult[]> {
+  async search(params: AwardSearchParams): Promise<AwardSearchResult[]> {
     const { origin, destination, cabin, passengers, balances } = params
 
-    // ── Fetch data in parallel ───────────────────────────────
-    const [
-      { data: transferPartners },
-      { data: allPrograms },
-      { data: valuations },
-    ] = await Promise.all([
-      client
-        .from('transfer_partners')
-        .select('id, from_program_id, to_program_id, ratio_from, ratio_to, is_instant, transfer_time_max_hrs')
-        .eq('is_active', true),
-
-      client
-        .from('programs')
-        .select('id, name, short_name, slug, color_hex, type'),
-
-      client
-        .from('latest_valuations')
-        .select('program_id, cpp_cents, program_name, program_slug, program_type'),
-    ])
+    // ── Reference data (catalog) ─────────────────────────────
+    const transferPartners = getCatalogTransferPartners()
+    const allPrograms = getCatalogPrograms({ includeInactive: true })
+    const valuations = getCatalogLatestValuations()
 
     // ── Build lookup maps ────────────────────────────────────
     const programMap = new Map<string, ProgramRow>(

@@ -1,32 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { StubProvider } from './stub-provider'
 
-function makeClient(data: Record<string, unknown[]>) {
-  return {
-    from(table: string) {
-      const builder = {
-        select() {
-          return builder
-        },
-        in() {
-          return builder
-        },
-        eq() {
-          return builder
-        },
-        then(onfulfilled?: (value: { data: unknown[]; error: null }) => unknown) {
-          return Promise.resolve({ data: data[table] ?? [], error: null }).then(onfulfilled)
-        },
-      }
-      return builder
-    },
-  }
+const catalogFixture: { transfer_partners: unknown[]; programs: unknown[]; latest_valuations: unknown[] } = {
+  transfer_partners: [],
+  programs: [],
+  latest_valuations: [],
+}
+
+vi.mock('@/lib/catalog', () => ({
+  getCatalogTransferPartners: () => catalogFixture.transfer_partners,
+  getCatalogPrograms: () => catalogFixture.programs,
+  getCatalogLatestValuations: () => catalogFixture.latest_valuations,
+}))
+
+function setCatalog(data: Partial<typeof catalogFixture>) {
+  Object.assign(catalogFixture, { transfer_partners: [], programs: [], latest_valuations: [] }, data)
 }
 
 describe('StubProvider', () => {
   it('includes chart-estimate results even when no reachable transfer path exists', async () => {
     const provider = new StubProvider()
-    const client = makeClient({
+    setCatalog({
       transfer_partners: [],
       programs: [
         { id: 'cash', name: 'Cash Wallet', short_name: 'Cash', slug: 'cash-wallet', color_hex: '#111111', type: 'cashback' },
@@ -45,7 +39,7 @@ describe('StubProvider', () => {
       start_date: '2026-04-01',
       end_date: '2026-04-02',
       balances: [{ program_id: 'cash', amount: 50000 }],
-    }, client as never)
+    })
 
     expect(results).toHaveLength(1)
     expect(results[0].program_slug).toBe('united')

@@ -1,11 +1,10 @@
 // ============================================================
-// Cards Repository — DB-backed card catalog access
+// Cards Repository — cards are reference data served from the catalog
 // ============================================================
 
-import { createPublicClient } from '@/lib/supabase'
+import { getCatalogCardById, getCatalogCardEarningRates, getCatalogCards, getCatalogLatestValuations } from '@/lib/catalog'
 import type { CardWithRates, SpendCategory } from '@/types/database'
 import { resolveCppCents } from '@/lib/cpp-fallback'
-import { logError } from '@/lib/logger'
 
 export type Geography = 'US' | 'IN'
 
@@ -118,116 +117,23 @@ export function normalizeGeography(value: string | null): Geography {
 }
 
 export async function getActiveCards(geography: Geography): Promise<CardWithRates[]> {
-  const db = createPublicClient()
-
-  let cardsRes = await db
-    .from('cards')
-    .select('*')
-    .eq('is_active', true)
-    .eq('geography', geography)
-    .order('display_order')
-
-  const cardsTableMissingGeography = cardsRes.error?.code === '42703'
-  if (cardsTableMissingGeography) {
-    cardsRes = await db
-      .from('cards')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-  }
-
-  if (cardsRes.error) {
-    logError('cards_repository_fetch_failed', {
-      geography,
-      cards_error: cardsRes.error.message,
-      valuations_error: null,
-      rates_error: null,
-    })
-    throw new Error('Failed to fetch cards')
-  }
-
-  const cardsRaw = (cardsRes.data ?? []) as unknown as CardRow[]
-  const cards = cardsTableMissingGeography
-    ? (geography === 'US' ? cardsRaw : [])
-    : cardsRaw
-
+  const cards = getCatalogCards({ geography }).sort((left, right) => left.display_order - right.display_order) as unknown as CardRow[]
   if (cards.length === 0) return []
 
-  const activeCardIds = cards.map((card) => card.id)
-  const activeProgramIds = [...new Set(cards.map((card) => card.program_id))]
-
-  const [valuationsRes, ratesRes] = await Promise.all([
-    db
-      .from('latest_valuations')
-      .select('program_id, cpp_cents, program_name, program_slug, program_type')
-      .in('program_id', activeProgramIds),
-    db
-      .from('card_earning_rates')
-      .select('*')
-      .in('card_id', activeCardIds),
-  ])
-
-  if (valuationsRes.error || ratesRes.error) {
-    logError('cards_repository_fetch_failed', {
-      geography,
-      cards_error: null,
-      valuations_error: valuationsRes.error?.message ?? null,
-      rates_error: ratesRes.error?.message ?? null,
-    })
-    throw new Error('Failed to fetch card metadata')
-  }
-
   const valuationByProgram = new Map(
-    (((valuationsRes.data ?? []) as unknown as ValuationRow[]).map((row) => [row.program_id, row])),
+    getCatalogLatestValuations([...new Set(cards.map((card) => card.program_id))]).map((row) => [row.program_id, row as ValuationRow]),
   )
-  const ratesByCard = buildRatesByCard((ratesRes.data ?? []) as unknown as RateRow[])
+  const ratesByCard = buildRatesByCard(getCatalogCardEarningRates(cards.map((card) => card.id)))
 
   return cards.map((card) => buildCardWithRates(card, valuationByProgram.get(card.program_id), ratesByCard.get(card.id)))
 }
 
 export async function getCardById(cardId: string): Promise<CardWithRates | null> {
-  const db = createPublicClient()
+  const card = getCatalogCardById(cardId)
+  if (!card || !card.is_active) return null
 
-  const cardRes = await db
-    .from('cards')
-    .select('*')
-    .eq('id', cardId)
-    .eq('is_active', true)
-    .single()
+  const valuation = getCatalogLatestValuations([card.program_id])[0] as ValuationRow | undefined
+  const ratesByCard = buildRatesByCard(getCatalogCardEarningRates([cardId]))
 
-  if (cardRes.error) {
-    logError('cards_repository_card_fetch_failed', {
-      card_id: cardId,
-      error: cardRes.error.message,
-    })
-    throw new Error('Failed to fetch card')
-  }
-
-  if (!cardRes.data) return null
-
-  const card = cardRes.data as unknown as CardRow
-  const [valuationsRes, ratesRes] = await Promise.all([
-    db
-      .from('latest_valuations')
-      .select('program_id, cpp_cents, program_name, program_slug, program_type')
-      .eq('program_id', card.program_id),
-    db
-      .from('card_earning_rates')
-      .select('*')
-      .eq('card_id', cardId),
-  ])
-
-  if (valuationsRes.error || ratesRes.error) {
-    logError('cards_repository_card_metadata_fetch_failed', {
-      card_id: cardId,
-      valuations_error: valuationsRes.error?.message ?? null,
-      rates_error: ratesRes.error?.message ?? null,
-    })
-    throw new Error('Failed to fetch card metadata')
-  }
-
-  const valuation = ((valuationsRes.data ?? []) as unknown as ValuationRow[])[0]
-  const ratesByCard = buildRatesByCard((ratesRes.data ?? []) as unknown as RateRow[])
-
-  return buildCardWithRates(card, valuation, ratesByCard.get(cardId))
+  return buildCardWithRates(card as unknown as CardRow, valuation, ratesByCard.get(cardId))
 }

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getRequestId, logError, logInfo, logWarn } from '@/lib/logger'
 import { badRequest } from '@/lib/error-utils'
 import { getSafeExternalUrl } from '@/lib/card-surfaces'
+import { getCatalogCardById } from '@/lib/catalog'
 
 const MAX_BODY_BYTES = 8_000
 
@@ -17,7 +18,6 @@ type Payload = {
   recommendation_mode?: unknown
 }
 
-type CardRow = { id: string; apply_url: string | null }
 type UserIdRow = { id: string }
 
 function normalizeSourcePage(value: unknown): string {
@@ -117,20 +117,10 @@ async function trackAndReturn(
   }
 
   const db = createAdminClient()
-  const { data: cardData, error: cardErr } = await db
-    .from('cards')
-    .select('id, apply_url')
-    .eq('id', cardId)
-    .eq('is_active', true)
-    .single()
-  const card = (cardData ?? null) as CardRow | null
-
-  if (cardErr || !card) {
-    logWarn('affiliate_click_unknown_card', {
-      requestId,
-      card_id: cardId,
-      error: cardErr?.message ?? null,
-    })
+  const catalogCard = getCatalogCardById(cardId)
+  const card = catalogCard?.is_active ? catalogCard : null
+  if (!card) {
+    logWarn('affiliate_click_unknown_card', { requestId, card_id: cardId })
     return badRequest('Unknown card_id')
   }
 

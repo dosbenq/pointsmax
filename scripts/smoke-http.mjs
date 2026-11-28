@@ -26,7 +26,58 @@ const ROUTES = [
   '/in/profile',
   '/robots.txt',
   '/sitemap.xml',
+  '/us/cards/best/best-travel-cards-us',
+  '/api/valuations',
 ]
+
+// Reference data ships with the build, so these must show real content even
+// though CI points the app at an unreachable database.
+const REQUIRED_CONTENT = {
+  '/us/programs': ['Chase Ultimate Rewards'],
+  '/in/programs': ['HDFC'],
+  '/us/cards': ['Chase Sapphire Preferred'],
+  '/in/cards': ['HDFC Infinia'],
+  '/us/cards/best/best-travel-cards-us': ['Best Travel Cards in the US'],
+  '/api/valuations': ['chase-ur'],
+  '/sitemap.xml': ['/us/programs/chase-ur'],
+}
+
+function isoDate(daysFromNow) {
+  return new Date(Date.now() + daysFromNow * 86_400_000).toISOString().slice(0, 10)
+}
+
+async function postJson(path, body) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => null)
+  if (res.status !== 200) throw new Error(`Expected 200 for POST ${path}, got ${res.status}: ${JSON.stringify(json)}`)
+  return json
+}
+
+async function verifyCatalogApis() {
+  const programs = await (await fetch(`${BASE_URL}/api/programs?region=US`)).json()
+  const chase = (programs.programs ?? programs).find?.((p) => p.slug === 'chase-ur')
+  if (!chase) throw new Error('/api/programs did not include chase-ur')
+
+  const calc = await postJson('/api/calculate', { balances: [{ program_id: chase.id, amount: 100000 }] })
+  if (!Array.isArray(calc.results) || calc.results.length === 0 || !(calc.total_optimal_value_cents > 0)) {
+    throw new Error(`/api/calculate returned no results: ${JSON.stringify(calc).slice(0, 200)}`)
+  }
+
+  const hotels = await postJson('/api/hotel-search', {
+    destination_region: 'europe',
+    check_in: isoDate(30),
+    check_out: isoDate(32),
+    balances: [{ program_id: chase.id, amount: 100000 }],
+  })
+  const hotelResults = hotels.results ?? []
+  if (!hotelResults.some((row) => row.program_slug === 'hyatt')) {
+    throw new Error(`/api/hotel-search returned no Hyatt tiers: ${JSON.stringify(hotels).slice(0, 200)}`)
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -88,6 +139,14 @@ async function verifyRoutes() {
     if ((route === '/us/programs' || route === '/in/programs') && !text.includes('Programs are only useful when they lead to bookings')) {
       throw new Error(`${route} did not render program directory content`)
     }
+    for (const marker of REQUIRED_CONTENT[route] ?? []) {
+      if (!text.includes(marker)) {
+        throw new Error(`${route} did not include expected content "${marker}"`)
+      }
+    }
+    if (route === '/us/cards/best/best-travel-cards-us' && text.includes('Comparison not found')) {
+      throw new Error('/us/cards/best/best-travel-cards-us rendered "Comparison not found"')
+    }
     if (route === '/earning-calculator' && !res.url.includes('/card-recommender?view=earnings')) {
       throw new Error(`/earning-calculator should resolve to card-recommender earnings view, got ${res.url}`)
     }
@@ -111,6 +170,7 @@ async function main() {
   try {
     await waitForServer()
     await verifyRoutes()
+    await verifyCatalogApis()
     console.log(`Smoke checks passed against ${BASE_URL}`)
   } finally {
     await stopServer(startProc)

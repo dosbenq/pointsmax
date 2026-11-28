@@ -1,0 +1,452 @@
+[
+  {
+    "id": "b9355db9-5b1a-463e-a18f-e3ac64607e85",
+    "program_id": "11111111-0001-0001-0001-000000000001",
+    "cpp_cents": 2.05,
+    "source": "tpg",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "effective_date": "2026-02-20",
+    "notes": "Best via Hyatt or United transfers",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "1a9b7895-6a5a-4622-b167-48f688b23457",
+    "program_id": "11111111-0001-0001-0001-000000000002",
+    "cpp_cents": 2.0,
+    "source": "tpg",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "effective_date": "2026-02-20",
+    "notes": "Best via Air France or ANA transfers",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "05893832-5699-44bf-a29c-a2e74b573976",
+    "program_id": "11111111-0001-0001-0001-000000000003",
+    "cpp_cents": 1.85,
+    "source": "tpg",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "effective_date": "2026-02-20",
+    "notes": "Best via Turkish or Avianca transfers",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "d1e5d904-f9e8-446d-9276-9f0937336b62",
+    "program_id": "11111111-0001-0001-0001-000000000004",
+    "cpp_cents": 1.8,
+    "source": "tpg",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "effective_date": "2026-02-20",
+    "notes": "Best via Turkish or Singapore transfers",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "ee8b1d30-6b89-4a9d-998c-b93f11e933b6",
+    "program_id": "11111111-0001-0001-0001-000000000005",
+    "cpp_cents": 2.05,
+    "source": "tpg",
+    "source_url": "https://thepointsguy.com/points-miles/monthly-valuations/",
+    "effective_date": "2026-02-20",
+    "notes": "Best via Hyatt or Alaska transfers",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "e325227b-abd5-48e3-a5f2-dae8b33c2290",
+    "program_id": "11111111-0001-0001-0001-000000000006",
+    "cpp_cents": 1.35,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline US valuation",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "d27d809f-2f4b-49ba-aadd-e413eba8ebe0",
+    "program_id": "22222222-0002-0002-0002-000000000001",
+    "cpp_cents": 1.35,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for Star Alliance partner awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "56b98b38-6115-4ba6-ac35-0f0d1ccad725",
+    "program_id": "22222222-0002-0002-0002-000000000002",
+    "cpp_cents": 1.2,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Dynamic pricing limits value; best for last-minute deals",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "871e6883-a6da-4491-95c3-f086eb8134e2",
+    "program_id": "22222222-0002-0002-0002-000000000003",
+    "cpp_cents": 1.77,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for partner awards and domestic first class",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "14f46dc6-4e6e-4bfe-a89e-8d8f41cdf76b",
+    "program_id": "11111111-0001-0001-0001-000000000007",
+    "cpp_cents": 1.5,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline US valuation",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "a5f035a1-ddb1-4381-946b-a20f930386ff",
+    "program_id": "11111111-0001-0001-0001-000000000008",
+    "cpp_cents": 1.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline US valuation",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "13eec190-a823-4273-b3db-96a4b1dbc002",
+    "program_id": "22222222-0002-0002-0002-000000000004",
+    "cpp_cents": 1.35,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Excellent for Alaska and partners, great J pricing",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "6c7795a1-cf8a-45f8-89ca-c59c3a01f78f",
+    "program_id": "22222222-0002-0002-0002-000000000005",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for companion pass strategy",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "657125ed-fd9d-4c26-abb0-709e1c205b3d",
+    "program_id": "22222222-0002-0002-0002-000000000006",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Excellent for short-haul and partner J awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "cf318c8a-cce0-490d-9732-8c604d945433",
+    "program_id": "22222222-0002-0002-0002-000000000007",
+    "cpp_cents": 1.35,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for last-minute promo awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "96c8622a-59d5-4ff9-a815-915b2f3c2f08",
+    "program_id": "22222222-0002-0002-0002-000000000008",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for Delta One and ANA awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "aac5a57c-d56b-47f7-873a-442d253c49ee",
+    "program_id": "22222222-0002-0002-0002-000000000009",
+    "cpp_cents": 1.3,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for Star Alliance partner awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "82a707d0-ffd7-4df1-a75f-dbc8d7b94dc5",
+    "program_id": "22222222-0002-0002-0002-000000000010",
+    "cpp_cents": 1.6,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for ANA First Class — aspirational",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "68c032b5-94db-4caf-b35e-21ede135fcf0",
+    "program_id": "22222222-0002-0002-0002-000000000011",
+    "cpp_cents": 1.7,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Excellent Star Alliance partner pricing",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "49ee10a6-fb5c-40bd-9656-883cb87b384f",
+    "program_id": "22222222-0002-0002-0002-000000000012",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for Star Alliance J/F awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "4a20c7c9-8515-4b11-8d6a-b59388459e35",
+    "program_id": "22222222-0002-0002-0002-000000000013",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Excellent for partner awards, no fuel surcharges",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "57d37e7f-f111-421d-a30a-57ca6531c5aa",
+    "program_id": "22222222-0002-0002-0002-000000000014",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for Iberia/British Airways routes",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "a025151e-2c16-4b63-8987-734d91918a86",
+    "program_id": "22222222-0002-0002-0002-000000000015",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for Iberia and transatlantic",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "17b03e5b-db85-428a-8026-dd4ff49fdad6",
+    "program_id": "22222222-0002-0002-0002-000000000016",
+    "cpp_cents": 1.3,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for first class on Emirates metal",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "0b9b7d5e-4840-451a-b296-9482fb0a9f00",
+    "program_id": "22222222-0002-0002-0002-000000000017",
+    "cpp_cents": 1.4,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Good for oneworld partner awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "4d4a8e33-a4d9-4493-a081-ce15b9e022ea",
+    "program_id": "22222222-0002-0002-0002-000000000018",
+    "cpp_cents": 1.35,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Etihad First Apartment aspirational value",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "56306a88-0e63-467f-aec2-e24aa505043d",
+    "program_id": "22222222-0002-0002-0002-000000000019",
+    "cpp_cents": 1.5,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for Mint and partner awards",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "bc0b86d7-f810-4734-887f-e657e09e4e28",
+    "program_id": "22222222-0002-0002-0002-000000000020",
+    "cpp_cents": 1.0,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Limited partner options",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "aff2681c-f9fb-4349-9dda-f5c2786bf897",
+    "program_id": "33333333-0003-0003-0003-000000000001",
+    "cpp_cents": 1.7,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best hotel currency; excellent resort value",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "fc2d92af-6fd4-440f-8011-f4fe19fbfc55",
+    "program_id": "33333333-0003-0003-0003-000000000002",
+    "cpp_cents": 0.84,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Poor value unless using PointSavers or airline transfer",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "bdd55ce1-db85-4c39-af2f-990fa8c1f2fb",
+    "program_id": "33333333-0003-0003-0003-000000000003",
+    "cpp_cents": 0.6,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Better to use for aspirational resorts only",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "1adc0817-6a75-4409-b205-5d5803690f2a",
+    "program_id": "33333333-0003-0003-0003-000000000004",
+    "cpp_cents": 0.7,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best for IHG luxury properties",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "64fd20bf-0602-4e47-890f-b607139bf776",
+    "program_id": "33333333-0003-0003-0003-000000000005",
+    "cpp_cents": 0.9,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Best at all-inclusive resorts",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "8827f0da-4d1d-4a1e-ae13-8e01af7d688b",
+    "program_id": "33333333-0003-0003-0003-000000000006",
+    "cpp_cents": 0.7,
+    "source": "tpg",
+    "source_url": null,
+    "effective_date": "2026-02-20",
+    "notes": "Limited partner options",
+    "created_at": "2026-02-20T06:34:54.683628+00:00"
+  },
+  {
+    "id": "bc71f9ed-f48a-4052-8d62-90bf0f2eaf5f",
+    "program_id": "11111111-0001-0001-0001-000000000101",
+    "cpp_cents": 50.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  },
+  {
+    "id": "a453c343-f880-4cb8-b54a-dc26fa20f29f",
+    "program_id": "11111111-0001-0001-0001-000000000102",
+    "cpp_cents": 50.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  },
+  {
+    "id": "0bb8fa1c-b530-4576-8046-0ae548177fdc",
+    "program_id": "11111111-0001-0001-0001-000000000103",
+    "cpp_cents": 75.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  },
+  {
+    "id": "2e63af0a-a345-4687-8559-e1875a534fd4",
+    "program_id": "11111111-0001-0001-0001-000000000104",
+    "cpp_cents": 25.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline India valuation in paise",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "1c8d14ae-ca44-4b8e-85e8-4a632b498af7",
+    "program_id": "11111111-0001-0001-0001-000000000105",
+    "cpp_cents": 100.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline India valuation in paise",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "4feb2df3-703a-4fe4-8837-3c09ef3b7845",
+    "program_id": "11111111-0001-0001-0001-000000000106",
+    "cpp_cents": 35.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline India valuation in paise",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "55ae1607-4752-4d0a-ae33-9ed4004e3036",
+    "program_id": "11111111-0001-0001-0001-000000000107",
+    "cpp_cents": 55.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline India valuation in paise",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "e52eaa82-175e-43c2-ad01-cf2b237b0abd",
+    "program_id": "11111111-0001-0001-0001-000000000108",
+    "cpp_cents": 45.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Baseline India valuation in paise",
+    "created_at": "2026-02-24T16:17:38.012715+00:00"
+  },
+  {
+    "id": "fb788057-3a77-4200-af4c-24e928c9fe2e",
+    "program_id": "22222222-0002-0002-0002-000000000101",
+    "cpp_cents": 100.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  },
+  {
+    "id": "c602adb8-f6d6-4351-bf6d-19c38d35bdcd",
+    "program_id": "22222222-0002-0002-0002-000000000102",
+    "cpp_cents": 30.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  },
+  {
+    "id": "0caa2b16-8e13-4559-87f9-a93cda8e9b53",
+    "program_id": "33333333-0003-0003-0003-000000000101",
+    "cpp_cents": 80.0,
+    "source": "manual",
+    "source_url": null,
+    "effective_date": "2026-02-24",
+    "notes": "Corrected baseline valuation for India market (paise per point)",
+    "created_at": "2026-02-24T05:20:53.970513+00:00"
+  }
+]

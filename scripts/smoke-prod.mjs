@@ -89,7 +89,6 @@ async function run() {
     }),
   })
 
-  await requestJson('Cron update valuations', `${BASE_URL}/api/cron/update-valuations`, { headers: cronHeaders })
   await requestJson('Cron send bonus alerts', `${BASE_URL}/api/cron/send-bonus-alerts`, { headers: cronHeaders })
 
   console.log('Production smoke checks completed successfully.')

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getCatalogCards } from '@/lib/catalog'
 
 const createAdminClientMock = vi.fn()
 const createSupabaseServerClientMock = vi.fn()
@@ -30,6 +31,9 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const { POST } = await import('./route')
+
+// Cards are catalog data; use a real card that has an apply link.
+const APPLY_CARD = getCatalogCards().find((card) => typeof card.apply_url === 'string' && card.apply_url.startsWith('https://'))!
 
 describe('POST /api/analytics/affiliate-click', () => {
   beforeEach(() => {
@@ -70,20 +74,6 @@ describe('POST /api/analytics/affiliate-click', () => {
     const insertMock = vi.fn().mockResolvedValue({ data: {}, error: null })
     const dbClient = {
       from: vi.fn((table) => {
-        if (table === 'cards') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: { id: 'card-123', apply_url: 'https://bank.com/apply' },
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-          }
-        }
         if (table === 'affiliate_clicks') {
           return {
             insert: insertMock,
@@ -103,7 +93,7 @@ describe('POST /api/analytics/affiliate-click', () => {
     const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
       method: 'POST',
       body: JSON.stringify({
-        card_id: 'card-123',
+        card_id: APPLY_CARD.id,
         source_page: 'recommender',
         rank: 1,
         region: 'US',
@@ -118,7 +108,7 @@ describe('POST /api/analytics/affiliate-click', () => {
 
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        card_id: 'card-123',
+        card_id: APPLY_CARD.id,
         source_page: 'recommender',
         rank: 1,
         region: 'us',
@@ -130,20 +120,6 @@ describe('POST /api/analytics/affiliate-click', () => {
     const insertMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'db down' } })
     const dbClient = {
       from: vi.fn((table) => {
-        if (table === 'cards') {
-          return {
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  single: vi.fn().mockResolvedValue({
-                    data: { id: 'card-123', apply_url: 'https://bank.com/apply' },
-                    error: null,
-                  }),
-                }),
-              }),
-            }),
-          }
-        }
         if (table === 'affiliate_clicks') {
           return {
             insert: insertMock,
@@ -163,7 +139,7 @@ describe('POST /api/analytics/affiliate-click', () => {
     const req = new NextRequest('http://localhost/api/analytics/affiliate-click', {
       method: 'POST',
       body: JSON.stringify({
-        card_id: 'card-123',
+        card_id: APPLY_CARD.id,
         source_page: 'recommender',
       }),
     })
@@ -173,6 +149,6 @@ describe('POST /api/analytics/affiliate-click', () => {
     const body = await res.json()
     expect(body.ok).toBe(true)
     expect(body.tracked).toBe(false)
-    expect(body.redirect_url).toBe('https://bank.com/apply')
+    expect(body.redirect_url).toBe(APPLY_CARD.apply_url)
   })
 })

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "321079b6-ef2a-5f8e-a283-6a395125bec6",
+    "slug": "hyatt",
+    "name": "World of Hyatt",
+    "chain": "Hyatt",
+    "geography": "global",
+    "color_hex": "#B49970",
+    "booking_url": "https://world.hyatt.com/content/gp/en/rewards.html",
+    "is_active": true
+  },
+  {
+    "id": "c8ece800-069c-5d8f-9f66-dbc6856391ac",
+    "slug": "marriott",
+    "name": "Marriott Bonvoy",
+    "chain": "Marriott",
+    "geography": "global",
+    "color_hex": "#8B1E3F",
+    "booking_url": "https://www.marriott.com/loyalty/redeem.mi",
+    "is_active": true
+  },
+  {
+    "id": "6d8fa4e5-bdac-588d-8bbc-2b72e4810c3d",
+    "slug": "hilton",
+    "name": "Hilton Honors",
+    "chain": "Hilton",
+    "geography": "global",
+    "color_hex": "#003A70",
+    "booking_url": "https://www.hilton.com/en/hilton-honors/points/",
+    "is_active": true
+  }
+]

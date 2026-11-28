@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI, type Content } from '@google/generative-ai'
 import { NextRequest } from 'next/server'
 import { enforceJsonContentLength, enforceRateLimit } from '@/lib/api-security'
-import { createServerDbClient } from '@/lib/supabase'
+import { getCatalogLatestValuations, getCatalogProgramById, getCatalogPrograms, getCatalogTransferPartners } from '@/lib/catalog'
 import { getRequestId, logError, logWarn } from '@/lib/logger'
 import { getGeminiModelCandidatesForApiKey, isGeminiDisabled, markGeminiModelUnavailable } from '@/lib/gemini-models'
 import { type Region } from '@/lib/regions'
@@ -123,40 +123,13 @@ async function fetchProgramContext(
   topResults: TopResult[],
   regionCtx: RegionContext,
 ): Promise<ProgramContextRow[]> {
-  const db = createServerDbClient()
-  const regionGeo = regionCtx.code.toUpperCase()
-
-  const [{ data: programsData, error: programsError }, { data: valuationData, error: valuationError }] = await Promise.all([
-    db
-      .from('programs')
-      .select('id, name, slug, geography')
-      .eq('is_active', true)
-      .in('geography', ['global', regionGeo]),
-    db
-      .from('latest_valuations')
-      .select('program_id, cpp_cents'),
-  ])
-
-  if (programsError || valuationError) return []
+  const regionGeo = regionCtx.code.toUpperCase() === 'IN' ? 'IN' : 'US'
 
   const valuations = new Map<string, number>(
-    (valuationData ?? [])
-      .map((row) => {
-        const programId = typeof row.program_id === 'string' ? row.program_id : ''
-        const cpp = typeof row.cpp_cents === 'number' && Number.isFinite(row.cpp_cents) ? row.cpp_cents : NaN
-        if (!programId || !Number.isFinite(cpp)) return null
-        return [programId, cpp] as const
-      })
-      .filter((row): row is readonly [string, number] => row !== null),
+    getCatalogLatestValuations().map((row) => [row.program_id, row.cpp_cents] as const),
   )
-
-  const programs = (programsData ?? [])
-    .map((row) => ({
-      id: typeof row.id === 'string' ? row.id : '',
-      name: typeof row.name === 'string' ? row.name : '',
-      slug: typeof row.slug === 'string' ? row.slug : '',
-    }))
-    .filter((row) => row.id && row.name && row.slug)
+  const programs = getCatalogPrograms({ geography: regionGeo })
+    .map((row) => ({ id: row.id, name: row.name, slug: row.slug }))
 
   const programsById = new Map(programs.map((p) => [p.id, p]))
   const programsByName = new Map(programs.map((p) => [p.name.toLowerCase(), p]))
@@ -214,26 +187,14 @@ async function fetchTransferPartnerSummary(
 
   if (balanceProgramIds.length === 0) return '  (none)'
 
-  const db = createServerDbClient()
-  const { data: partnersData, error: partnersError } = await db
-    .from('transfer_partners')
-    .select('from_program_id, to_program_id')
-    .eq('is_active', true)
-    .in('from_program_id', balanceProgramIds)
-
-  if (partnersError || !partnersData || partnersData.length === 0) return '  (none)'
-
-  const partnerRows = partnersData as Array<{ from_program_id: string; to_program_id: string }>
-  const programIds = [...new Set(partnerRows.flatMap((row) => [row.from_program_id, row.to_program_id]))]
-  const { data: programsData, error: programsError } = await db
-    .from('programs')
-    .select('id, name')
-    .in('id', programIds)
-
-  if (programsError || !programsData) return '  (none)'
+  const wanted = new Set(balanceProgramIds)
+  const partnerRows = getCatalogTransferPartners().filter((row) => wanted.has(row.from_program_id))
+  if (partnerRows.length === 0) return '  (none)'
 
   const programNameById = new Map(
-    (programsData as Array<{ id: string; name: string }>).map((row) => [row.id, row.name]),
+    [...new Set(partnerRows.flatMap((row) => [row.from_program_id, row.to_program_id]))]
+      .map((id) => [id, getCatalogProgramById(id)?.name] as const)
+      .filter((entry): entry is readonly [string, string] => typeof entry[1] === 'string'),
   )
   const partnersByProgram = new Map<string, string[]>()
 

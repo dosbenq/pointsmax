@@ -1,0 +1,233 @@
+[
+  {
+    "id": "42a6c05f-03ab-4351-8fbe-a03aaa2bdeae",
+    "program_slug": "hyatt",
+    "label": "Hyatt award search",
+    "url": "https://world.hyatt.com/content/gp/en/rewards/free-nights-upgrades.html",
+    "region": "global",
+    "sort_order": 100,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "560917f0-ae50-4f3a-8fbc-3840de14234c",
+    "program_slug": "marriott",
+    "label": "Marriott Bonvoy award search",
+    "url": "https://www.marriott.com/loyalty/redeem.mi",
+    "region": "global",
+    "sort_order": 110,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "ebb69306-7832-4fe0-9eb0-cd71aed6da5f",
+    "program_slug": "hilton",
+    "label": "Hilton Honors award search",
+    "url": "https://www.hilton.com/en/hilton-honors/points/",
+    "region": "global",
+    "sort_order": 120,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "1a505abb-e8ed-4b9c-9cb5-1ac14fa597c1",
+    "program_slug": "ihg",
+    "label": "IHG One Rewards award search",
+    "url": "https://www.ihg.com/onerewards/content/us/en/redeem-rewards",
+    "region": "global",
+    "sort_order": 130,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "78d5cbac-c796-492e-a4a6-a58ebe2ce1c8",
+    "program_slug": "united",
+    "label": "United MileagePlus award search",
+    "url": "https://www.united.com/en/us/fly/travel/awards.html",
+    "region": "global",
+    "sort_order": 140,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "f231ed8b-d68c-4b8c-bbec-5603e84012dc",
+    "program_slug": "delta",
+    "label": "Delta SkyMiles award search",
+    "url": "https://www.delta.com/us/en/skymiles/overview",
+    "region": "global",
+    "sort_order": 150,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "af168268-f577-4eab-a954-7f12486bc5a5",
+    "program_slug": "american",
+    "label": "American AAdvantage award search",
+    "url": "https://www.aa.com/homePage.do",
+    "region": "global",
+    "sort_order": 160,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "e951dc91-7e10-4b65-a96d-2bee934690e0",
+    "program_slug": "flying-blue",
+    "label": "Air France/KLM Flying Blue",
+    "url": "https://www.flyingblue.com/en/spend/flights",
+    "region": "global",
+    "sort_order": 170,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "3ca31d98-3b60-49fa-ba51-a5ff1d399b19",
+    "program_slug": "british-airways",
+    "label": "British Airways Avios",
+    "url": "https://www.britishairways.com/travel/home/public/en_us/",
+    "region": "global",
+    "sort_order": 180,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "9ee781fe-fd1f-417e-82f8-9950893b53e2",
+    "program_slug": "aeroplan",
+    "label": "Air Canada Aeroplan",
+    "url": "https://www.aircanada.com/ca/en/aco/home/aeroplan.html",
+    "region": "global",
+    "sort_order": 190,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "ec506df6-9713-4e9d-8f46-1ae7c5041e64",
+    "program_slug": "singapore",
+    "label": "Singapore KrisFlyer",
+    "url": "https://www.singaporeair.com/en_UK/us/home",
+    "region": "global",
+    "sort_order": 200,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "02f277b3-e0fa-4959-bb72-15b45f1a857b",
+    "program_slug": "turkish",
+    "label": "Turkish Miles&Smiles",
+    "url": "https://www.turkishairlines.com/en-int/miles-and-smiles/",
+    "region": "global",
+    "sort_order": 210,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "9980c693-af62-41a7-8234-b9cef9aedaef",
+    "program_slug": "avianca",
+    "label": "Avianca LifeMiles",
+    "url": "https://www.lifemiles.com/fly/search",
+    "region": "global",
+    "sort_order": 220,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "098d6633-19d2-4ee8-8bb7-98aed6884b96",
+    "program_slug": "hdfc-millennia",
+    "label": "HDFC Millennia portal",
+    "url": "https://www.hdfcbank.com/personal/pay/cards/credit-cards",
+    "region": "in",
+    "sort_order": 60,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "de2db641-4e04-4bdf-8057-e11b16181069",
+    "program_slug": "sbi-reward-points",
+    "label": "SBI Card rewards",
+    "url": "https://www.sbicard.com/en/personal/rewards.page",
+    "region": "in",
+    "sort_order": 70,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "05da05db-77b5-442a-8575-92e97f0a57c1",
+    "program_slug": "axis-edge",
+    "label": "Axis Edge Rewards",
+    "url": "https://www.axisbank.com/retail/cards/edge-rewards",
+    "region": "in",
+    "sort_order": 80,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "880cdcc2-3732-44ab-a79f-35a40ed73513",
+    "program_slug": "chase-ur",
+    "label": "Chase UR transfer partners",
+    "url": "https://www.ultimaterewards.com",
+    "region": "us",
+    "sort_order": 10,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "01740da1-428f-44ed-ae9c-80587a3c298b",
+    "program_slug": "amex-mr",
+    "label": "Amex MR transfer partners",
+    "url": "https://global.americanexpress.com/rewards/transfer",
+    "region": "us",
+    "sort_order": 20,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "3a8c6707-5f19-4f34-aeda-e9f1dafde490",
+    "program_slug": "capital-one",
+    "label": "Capital One transfer partners",
+    "url": "https://www.capitalone.com/learn-grow/money-management/venture-miles-transfer-partnerships/",
+    "region": "us",
+    "sort_order": 30,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "d5f7469b-d781-4582-86b4-2958015a39fd",
+    "program_slug": "citi-thankyou",
+    "label": "Citi ThankYou transfer partners",
+    "url": "https://www.citi.com/credit-cards/thankyou-rewards",
+    "region": "us",
+    "sort_order": 40,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  },
+  {
+    "id": "c7fc3089-7644-4dea-84b1-6589d7a4cf17",
+    "program_slug": "bilt",
+    "label": "Bilt transfer partners",
+    "url": "https://www.bilt.com/rewards/travel",
+    "region": "us",
+    "sort_order": 50,
+    "is_active": true,
+    "created_at": "2026-02-27T05:29:26.531388+00:00",
+    "updated_at": "2026-02-27T05:29:26.531388+00:00"
+  }
+]

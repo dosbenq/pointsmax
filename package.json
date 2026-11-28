@@ -20,6 +20,7 @@
     "catalog:sql": "node scripts/catalog/generate-catalog-staging-sql.mjs",
     "catalog:images": "node scripts/catalog/fetch-official-card-images.mjs",
     "smoke:http": "node scripts/smoke-http.mjs",
+    "check:seats-aero": "node scripts/check-seats-aero.mjs",
     "smoke:prod": "node scripts/smoke-prod.mjs",
     "ops:watchdog": "node scripts/automation-watchdog.mjs",
     "smoke:stripe:webhook": "node scripts/smoke-stripe-webhook.mjs",

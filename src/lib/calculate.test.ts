@@ -29,53 +29,50 @@ const mockData: Record<string, unknown[]> = {
   ],
 }
 
-let mockErrors: Record<string, QueryError> = {}
-let simulateProgramsGeographyMissing = false
+let bonusError: QueryError = null
 
-function makeQuery(tableName: string) {
-  let selectClause = ''
+// Reference data comes from the catalog; feed the engine small synthetic fixtures.
+vi.mock('@/lib/catalog', () => ({
+  getCatalogLatestValuations: () => mockData.latest_valuations,
+  getCatalogTransferPartners: () => mockData.transfer_partners,
+  getCatalogRedemptionOptions: () => mockData.redemption_options,
+  getCatalogPrograms: () => mockData.programs,
+}))
+
+// Only time-bound transfer bonuses still come from the database.
+function makeBonusQuery() {
   const builder = {
-    select: vi.fn((clause: string) => {
-      selectClause = clause
-      return builder
-    }),
-    in: vi.fn(() => builder),
+    select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    lte: vi.fn(() => builder),
+    gte: vi.fn(() => builder),
     then<TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
       onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
     ) {
-      let result: QueryResult = { data: mockData[tableName] ?? [], error: mockErrors[tableName] ?? null }
-
-      if (
-        tableName === 'programs' &&
-        simulateProgramsGeographyMissing &&
-        selectClause.includes('geography')
-      ) {
-        result = { data: null, error: { message: 'column programs.geography does not exist', code: '42703' } }
-      }
-
-      return Promise.resolve(result).then(
-        onfulfilled ?? undefined,
-        onrejected ?? undefined,
-      )
+      const result: QueryResult = bonusError ? { data: null, error: bonusError } : { data: mockData.active_bonuses, error: null }
+      return Promise.resolve(result).then(onfulfilled ?? undefined, onrejected ?? undefined)
     },
   }
-
   return builder
 }
 
 vi.mock('@/lib/supabase', () => ({
   createServerDbClient: vi.fn(() => ({
-    from: vi.fn((tableName: string) => makeQuery(tableName)),
+    from: vi.fn((tableName: string) => {
+      if (tableName !== 'transfer_bonuses') throw new Error(`unexpected table ${tableName}`)
+      return makeBonusQuery()
+    }),
   })),
 }))
+
+vi.mock('@/lib/logger', () => ({ logWarn: vi.fn(), logError: vi.fn(), logInfo: vi.fn() }))
 
 const { calculateRedemptions } = await import('./calculate')
 
 afterEach(() => {
-  mockErrors = {}
-  simulateProgramsGeographyMissing = false
+  bonusError = null
+  mockData.active_bonuses = []
   mockData.latest_valuations = [
     { program_id: 'chase-ur', cpp_cents: 2.0, program_name: 'Chase Ultimate Rewards', program_slug: 'chase-ur', program_type: 'transferable_points' },
     { program_id: 'hyatt', cpp_cents: 1.8, program_name: 'World of Hyatt', program_slug: 'hyatt', program_type: 'hotel_points' },
@@ -110,20 +107,20 @@ describe('calculateRedemptions', () => {
     expect(result.results[0].cpp_cents).toBeCloseTo(1.8, 5)
   })
 
-  it('falls back to legacy programs select when geography column is missing', async () => {
-    simulateProgramsGeographyMissing = true
-    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
-    const result = await calculateRedemptions(balances)
+  it('applies an active verified transfer bonus', async () => {
+    mockData.active_bonuses = [{ transfer_partner_id: 'tp-chase-hyatt', bonus_pct: 30 }]
+    const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
+
+    expect(result.results[0].label).toBe('Transfer to World of Hyatt')
+    expect(result.total_optimal_value_cents).toBe(23400)
+  })
+
+  it('still calculates (without bonuses) when the database is unreachable', async () => {
+    bonusError = { message: 'database paused' }
+    const result = await calculateRedemptions([{ program_id: 'chase-ur', amount: 10000 }])
 
     expect(result.total_optimal_value_cents).toBe(18000)
     expect(result.results[0].label).toBe('Transfer to World of Hyatt')
-  })
-
-  it('throws when a required query fails', async () => {
-    mockErrors.latest_valuations = { message: 'boom' }
-    const balances: BalanceInput[] = [{ program_id: 'chase-ur', amount: 10000 }]
-
-    await expect(calculateRedemptions(balances)).rejects.toThrow('Failed to load valuations')
   })
 
   it('shows effective cpp for lossy transfer ratios', async () => {

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
 import { enforceRateLimit } from '@/lib/api-security'
-import { logError } from '@/lib/logger'
+import { getCatalogLatestValuations } from '@/lib/catalog'
 
+// GET /api/valuations — the current point value for every active program.
 export async function GET(request: Request) {
   const rateLimitError = await enforceRateLimit(request, {
     namespace: 'valuations_ip',
@@ -11,33 +11,24 @@ export async function GET(request: Request) {
   })
   if (rateLimitError) return rateLimitError
 
-  try {
-    const db = createServerDbClient()
-    const { data, error } = await db
-      .from('latest_valuations')
-      .select('program_id, program_name, cpp_cents, source, source_url, notes, updated_at')
-      .order('program_name')
+  const valuations = getCatalogLatestValuations()
+    .map((row) => ({
+      program_id: row.program_id,
+      program_name: row.program_name,
+      program_slug: row.program_slug,
+      cpp_cents: row.cpp_cents,
+      source: row.source,
+      source_url: row.source_url,
+      notes: row.notes,
+      effective_date: row.effective_date,
+      // Kept for older clients that read the review date from `updated_at`.
+      updated_at: row.effective_date,
+    }))
+    .sort((left, right) => left.program_name.localeCompare(right.program_name))
 
-    if (error) {
-      logError('valuations_fetch_failed', { error: error.message })
-      return NextResponse.json(
-        { error: 'Failed to load valuations' },
-        { status: 503, headers: { 'Retry-After': '30' } }
-      )
-    }
-
-    return NextResponse.json({ valuations: data ?? [] }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
-      },
-    })
-  } catch (error) {
-    logError('valuations_fetch_failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return NextResponse.json(
-      { error: 'Failed to load valuations' },
-      { status: 503, headers: { 'Retry-After': '30' } }
-    )
-  }
+  return NextResponse.json({ valuations }, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+    },
+  })
 }

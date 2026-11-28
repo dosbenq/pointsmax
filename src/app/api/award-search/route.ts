@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerDbClient } from '@/lib/supabase'
+import { getCatalogProgramById } from '@/lib/catalog'
 import { AwardProviderUnavailableError, createAwardProvider } from '@/lib/award-search'
 import { sortAwardResultsByPoints } from '@/lib/award-search/sort-results'
 import { StubProvider } from '@/lib/award-search/stub-provider'
@@ -20,20 +20,11 @@ import {
 const DELTA_DYNAMIC_WARNING =
   'Delta SkyMiles uses dynamic pricing, so PointsMax does not show static Delta estimates. Check delta.com directly for live pricing.'
 
-async function buildSearchWarnings(
-  client: ReturnType<typeof createServerDbClient>,
-  programIds: string[],
-): Promise<string[]> {
-  if (programIds.length === 0) return []
-  const { data } = await client
-    .from('programs')
-    .select('id, slug')
-    .in('id', programIds)
-
+function buildSearchWarnings(programIds: string[]): string[] {
   const slugs = new Set(
-    ((data ?? []) as Array<{ slug?: string | null }>)
-      .map((row) => row.slug)
-      .filter((slug): slug is string => typeof slug === 'string' && slug.length > 0),
+    programIds
+      .map((id) => getCatalogProgramById(id)?.slug)
+      .filter((slug): slug is string => typeof slug === 'string'),
   )
 
   const warnings: string[] = []
@@ -85,13 +76,9 @@ export async function POST(req: NextRequest) {
 
   if (!canUseLive) {
     try {
-      const client = createServerDbClient()
       const provider = new StubProvider()
-      const warnings = await buildSearchWarnings(
-        client,
-        params.balances.map((balance) => balance.program_id),
-      )
-      const results = sortAwardResultsByPoints(await provider.search(params, client))
+      const warnings = buildSearchWarnings(params.balances.map((balance) => balance.program_id))
+      const results = sortAwardResultsByPoints(await provider.search(params))
       const ai_narrative = includeNarrative
         ? await generateNarrative(params, pickNarrativeOptions(results))
         : null
@@ -136,14 +123,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const client = createServerDbClient()
     const provider = createAwardProvider()
-    const warnings = await buildSearchWarnings(
-      client,
-      params.balances.map((balance) => balance.program_id),
-    )
+    const warnings = buildSearchWarnings(params.balances.map((balance) => balance.program_id))
 
-    const results = sortAwardResultsByPoints(await provider.search(params, client))
+    const results = sortAwardResultsByPoints(await provider.search(params))
 
     // Narrative generation can be skipped by client and fetched asynchronously.
     const ai_narrative = includeNarrative
@@ -183,13 +166,9 @@ export async function POST(req: NextRequest) {
       })
 
       try {
-        const client = createServerDbClient()
         const fallbackProvider = new StubProvider()
-        const warnings = await buildSearchWarnings(
-          client,
-          params.balances.map((balance) => balance.program_id),
-        )
-        const results = sortAwardResultsByPoints(await fallbackProvider.search(params, client))
+        const warnings = buildSearchWarnings(params.balances.map((balance) => balance.program_id))
+        const results = sortAwardResultsByPoints(await fallbackProvider.search(params))
         const ai_narrative = includeNarrative
           ? await generateNarrative(params, pickNarrativeOptions(results))
           : null

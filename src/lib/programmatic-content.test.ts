@@ -29,3 +29,31 @@ describe('resolveProgrammaticCppCents', () => {
     expect(resolveProgrammaticCppCents(undefined, 'hotel_points')).toBe(0.75)
   })
 })
+
+describe('catalog-backed listings', () => {
+  it('lists region cards with slugs, programs and values', async () => {
+    const { listCardsForRegion, getCardBySlug } = await import('./programmatic-content')
+    const cards = await listCardsForRegion('us')
+    const sapphire = cards.find((card) => card.name === 'Chase Sapphire Preferred')!
+    expect(sapphire.slug).toBe('chase-sapphire-preferred-chase')
+    expect(sapphire.program?.slug).toBe('chase-ur')
+    expect(sapphire.cpp_cents).toBeGreaterThan(1)
+    expect(sapphire.earning_rates.length).toBeGreaterThan(0)
+    expect((await getCardBySlug('us', sapphire.slug))?.id).toBe(sapphire.id)
+    expect((await listCardsForRegion('in')).every((card) => card.geography === 'IN')).toBe(true)
+  })
+
+  it('lists programs with transfer partners and earning cards', async () => {
+    const { getProgramBySlug } = await import('./programmatic-content')
+    const chase = await getProgramBySlug('us', 'chase-ur')
+    expect(chase?.transfer_out.map((partner) => partner.to_program_slug)).toContain('hyatt')
+    expect(chase?.earning_cards.map((card) => card.name)).toContain('Chase Sapphire Preferred')
+    expect(await getProgramBySlug('us', 'hdfc-millennia')).toBeNull()
+  })
+
+  it('serves comparison pages per region', async () => {
+    const { getComparisonPageBySlug, listComparisonPagesForRegion } = await import('./programmatic-content')
+    expect((await getComparisonPageBySlug('us', 'best-travel-cards-us'))?.cardSlugs).toContain('chase-sapphire-preferred')
+    expect((await listComparisonPagesForRegion('in')).every((page) => page.region === 'in')).toBe(true)
+  })
+})
