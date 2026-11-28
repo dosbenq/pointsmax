@@ -105,6 +105,21 @@ export function normalizeRegionForRoutes(region: string): 'us' | 'in' {
   return region.toLowerCase() === 'in' ? 'in' : 'us'
 }
 
+/**
+ * Where the US/India switch should go from the current page. Card, program
+ * and comparison pages exist per region, so a detail page goes to the other
+ * region's list instead of a page that doesn't exist there.
+ */
+export function getRegionSwitchHref(pathname: string, target: Region): string {
+  const match = pathname.match(/^\/(us|in)(\/.*)?$/)
+  if (!match) return `/${target}`
+  const rest = match[2] ?? ''
+  const detail = rest.match(/^\/(cards|programs)\/.+/)
+  if (detail) return `/${target}/${detail[1]}`
+  if (/^\/trips\/.+/.test(rest)) return `/${target}`
+  return `/${target}${rest}`
+}
+
 export function getRegionFromPath(pathname: string): Region {
   const parts = pathname.split('/')
   const first = parts[1]?.toLowerCase()
