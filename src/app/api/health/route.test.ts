@@ -210,3 +210,20 @@ describe('HEAD /api/health', () => {
     expect(res.headers.get('Strict-Transport-Security')).toBeTruthy()
   })
 })
+
+describe('setup readiness', () => {
+  it('reports which settings are present without exposing values', async () => {
+    const saved = { ...process.env }
+    process.env.DATABASE_URL = 'postgres://user:secret@host/db'
+    process.env.GOOGLE_CLIENT_ID = 'client-id'
+    delete process.env.GOOGLE_CLIENT_SECRET
+    process.env.BETTER_AUTH_SECRET = 'short'
+
+    const res = await GET(new NextRequest('https://pointsmax.com/api/health'))
+    const body = await res.json()
+
+    expect(body.setup).toEqual({ database_url: true, google_oauth: false, auth_secret: false })
+    expect(JSON.stringify(body)).not.toContain('secret@host')
+    process.env = saved
+  })
+})
