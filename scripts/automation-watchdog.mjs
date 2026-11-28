@@ -3,7 +3,6 @@
 const BASE_URL = (process.env.BASE_URL ?? '').trim().replace(/\/+$/, '')
 const CRON_SECRET = (process.env.CRON_SECRET ?? '').trim()
 const PROGRAM_ID = process.env.PROGRAM_ID ?? '11111111-0001-0001-0001-000000000001'
-const CARD_ID = process.env.CARD_ID ?? 'aaaa0001-0000-0000-0000-000000000001'
 const TEST_EMAIL = process.env.TEST_EMAIL ?? 'watchdog@example.com'
 const MAX_CALC_LATENCY_MS = Number.parseInt(process.env.MAX_CALCULATE_LATENCY_MS ?? '2500', 10)
 const CHECK_EXPERT_CHAT = ['1', 'true', 'yes'].includes((process.env.CHECK_EXPERT_CHAT ?? '').toLowerCase())
@@ -57,8 +56,6 @@ async function run() {
 
   await requestJson('Health', `${BASE_URL}/api/health`)
 
-  await requestJson('Cards US', `${BASE_URL}/api/cards?geography=US`)
-  await requestJson('Cards IN', `${BASE_URL}/api/cards?geography=IN`)
 
   await requestJson('Calculate', `${BASE_URL}/api/calculate`, {
     method: 'POST',
@@ -112,16 +109,6 @@ async function run() {
       body: JSON.stringify({ message: 'Which India travel card under 5000 fee is best?' }),
     })
   }
-
-  await requestJson('Affiliate click tracking', `${BASE_URL}/api/analytics/affiliate-click`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      card_id: CARD_ID,
-      program_id: PROGRAM_ID,
-      source_page: 'automation-watchdog',
-    }),
-  })
 
   await requestJson('Alerts subscribe', `${BASE_URL}/api/alerts/subscribe`, {
     method: 'POST',

@@ -2,9 +2,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 import Footer from '@/components/Footer'
-import { getActiveCards, normalizeGeography } from '@/lib/db/cards'
-import { getActivePrograms } from '@/lib/db/programs'
-import { REGIONS, type Region } from '@/lib/regions'
+import type { Region } from '@/lib/regions'
 
 const HeroSection = dynamic(
   () => import('./homepage-sections').then(m => m.HeroSection),
@@ -20,18 +18,6 @@ type PageProps = {
 export default async function LandingPage({ params }: PageProps) {
   const { region: rawRegion } = await params
   const region: Region = rawRegion === 'in' ? 'in' : 'us'
-
-  // The landing page must render even when the database is unreachable;
-  // the loaders already log their failures.
-  const [cards, programs] = await Promise.all([
-    getActiveCards(normalizeGeography(region)).catch(() => []),
-    getActivePrograms(region.toUpperCase() as 'US' | 'IN').catch(() => []),
-  ])
-
-  const cardCount = cards.length
-  const programCount = programs.length
-  const showStats = cardCount > 0 && programCount > 0
-  const regionCount = Object.keys(REGIONS).length
 
   const US_MARQUEE_ITEMS = [
     'CHASE', 'AMERICAN EXPRESS', 'CAPITAL ONE', 'CITI', 'BILT', '•',
@@ -143,78 +129,29 @@ export default async function LandingPage({ params }: PageProps) {
         <section className="relative z-10 border-t border-pm-border bg-pm-surface">
           <div className="pm-shell py-16 sm:py-20">
             <div className="max-w-3xl">
-              <span className="pm-pill mb-4">Built for four jobs</span>
               <h2 className="pm-display text-3xl sm:text-4xl text-pm-ink-900">
-                One platform, four launch-critical workflows
+                Start here
               </h2>
-              <p className="mt-4 text-base sm:text-lg text-pm-ink-500 max-w-2xl">
-                PointsMax should feel like a real operating system for points: know what your wallet
-                is worth, what it can book, which cards move you forward, and which sweet spots are
-                actually worth chasing.
-              </p>
             </div>
 
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="mt-10 grid gap-4 md:grid-cols-2">
               <Link
                 href={`/${region}/profile`}
                 className="pm-card p-6 transition-transform hover:-translate-y-0.5"
               >
-                <p className="pm-label text-pm-accent">Wallet concierge</p>
-                <h3 className="pm-heading text-xl mt-3">Track the balances you can really use</h3>
-                <p className="mt-3 text-sm leading-6 text-pm-ink-700">
-                  Saved balances keep every downstream recommendation grounded in the wallet you
-                  actually have.
-                </p>
+                <p className="pm-label text-pm-accent">Wallet</p>
+                <h3 className="pm-heading text-xl mt-3">Save your points balances once</h3>
               </Link>
               <Link
                 href={`/${region}/award-search`}
                 className="pm-card p-6 transition-transform hover:-translate-y-0.5"
               >
                 <p className="pm-label text-pm-accent">Award search</p>
-                <h3 className="pm-heading text-xl mt-3">
-                  Search live when possible, estimate honestly when not
-                </h3>
-                <p className="mt-3 text-sm leading-6 text-pm-ink-700">
-                  See live versus modeled trust labels, transfer friction, and wallet reachability
-                  before you move a point.
-                </p>
-              </Link>
-              <Link
-                href={`/${region}/card-recommender`}
-                className="pm-card p-6 transition-transform hover:-translate-y-0.5"
-              >
-                <p className="pm-label text-pm-accent">Card strategy</p>
-                <h3 className="pm-heading text-xl mt-3">Choose cards by redemption outcomes</h3>
-                <p className="mt-3 text-sm leading-6 text-pm-ink-700">
-                  Use your region, spend, and goals to choose cards that feed the right programs
-                  instead of generic top-10 lists.
-                </p>
+                <h3 className="pm-heading text-xl mt-3">See which flights your points can reach</h3>
               </Link>
             </div>
           </div>
         </section>
-
-        {/* Platform Stats */}
-        {showStats && (
-        <section className="relative z-10 border-t border-pm-border bg-pm-surface-soft">
-          <div className="pm-shell py-12">
-            <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto text-center">
-              <div>
-                <p className="text-3xl font-bold text-pm-ink-900">{cardCount}</p>
-                <p className="text-sm text-pm-ink-500 mt-1">Cards tracked</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-pm-ink-900">{programCount}</p>
-                <p className="text-sm text-pm-ink-500 mt-1">Loyalty programs</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-pm-ink-900">{regionCount}</p>
-                <p className="text-sm text-pm-ink-500 mt-1">Regions supported</p>
-              </div>
-            </div>
-          </div>
-        </section>
-        )}
 
         {/* Supported Programs Marquee */}
         <div className="py-10 border-t border-pm-border overflow-hidden bg-pm-surface-soft relative">
