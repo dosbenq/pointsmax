@@ -153,6 +153,22 @@ async function verifyRoutes() {
   }
 }
 
+// Pages that must answer a real 404 (not a 200 "Page not found"): unknown
+// slugs, and catalog items that belong to the other region.
+const MUST_404 = [
+  '/us/cards/not-a-real-card',
+  '/us/programs/not-a-real-program',
+  '/us/programs/hdfc-millennia',
+  '/in/programs/chase-ur',
+]
+
+async function verifyNotFound() {
+  for (const route of MUST_404) {
+    const res = await fetch(`${BASE_URL}${route}`, { redirect: 'follow' })
+    if (res.status !== 404) throw new Error(`Expected 404 for ${route}, got ${res.status}`)
+  }
+}
+
 async function main() {
   const startProc = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'start', '--', '-p', String(PORT)], {
     env: {
@@ -170,6 +186,7 @@ async function main() {
   try {
     await waitForServer()
     await verifyRoutes()
+    await verifyNotFound()
     await verifyCatalogApis()
     console.log(`Smoke checks passed against ${BASE_URL}`)
   } finally {

@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { getRegionFromPath } from '@/lib/regions'
+import { getRegionFromPath, getRegionSwitchHref } from '@/lib/regions'
 import { useTheme } from 'next-themes'
 import { Moon, Sun, Menu, X, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -163,7 +163,7 @@ export default function NavBar() {
           {/* Desktop Region Switcher */}
           <div className="hidden sm:flex items-center gap-1 ml-4 border border-pm-border rounded-lg p-0.5">
             <Link
-              href={pathname.replace(/^\/(us|in)/, '/us')}
+              href={getRegionSwitchHref(pathname, 'us')}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
                 region === 'us' ? 'bg-pm-accent text-white' : 'text-pm-ink-500 hover:text-pm-ink-700'
@@ -172,7 +172,7 @@ export default function NavBar() {
               US
             </Link>
             <Link
-              href={pathname.replace(/^\/(us|in)/, '/in')}
+              href={getRegionSwitchHref(pathname, 'in')}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
                 region === 'in' ? 'bg-pm-accent text-white' : 'text-pm-ink-500 hover:text-pm-ink-700'
@@ -266,14 +266,14 @@ export default function NavBar() {
           <div className="pm-shell space-y-3 py-5">
             <div className="flex w-fit items-center gap-1 rounded-full border border-pm-border bg-pm-surface-soft p-1">
               <Link
-                href="/us"
+                href={getRegionSwitchHref(pathname, 'us')}
                 onClick={() => setMenuOpen(false)}
                 className={`rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${region === 'us' ? 'bg-pm-ink-900 text-pm-bg' : 'text-pm-ink-500 hover:text-pm-ink-900'}`}
               >
                 US
               </Link>
               <Link
-                href="/in"
+                href={getRegionSwitchHref(pathname, 'in')}
                 onClick={() => setMenuOpen(false)}
                 className={`rounded-full px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${region === 'in' ? 'bg-pm-ink-900 text-pm-bg' : 'text-pm-ink-500 hover:text-pm-ink-900'}`}
               >

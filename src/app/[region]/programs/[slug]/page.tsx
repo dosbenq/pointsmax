@@ -15,6 +15,9 @@ type Props = {
 }
 
 export const revalidate = 3600
+// Programs are catalog data known at build time: anything else is a real 404
+// (rendering notFound() under the streamed loading state would answer 200).
+export const dynamicParams = false
 
 function normalizeRegion(region: string): Region {
   return region === 'in' ? 'in' : 'us'
@@ -23,13 +26,8 @@ function normalizeRegion(region: string): Region {
 export async function generateStaticParams() {
   const params: Array<{ region: Region; slug: string }> = []
   for (const region of ['us', 'in'] as Region[]) {
-    try {
-      const programs = await listProgramsForRegion(region)
-      for (const program of programs) {
-        params.push({ region, slug: program.slug })
-      }
-    } catch {
-      // keep build resilient if DB is unavailable in CI
+    for (const program of await listProgramsForRegion(region)) {
+      params.push({ region, slug: program.slug })
     }
   }
   return params

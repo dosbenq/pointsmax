@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/neon-flip`
-- Git commit: `afe36b0`
+- Git commit: `6804e9f`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **27**
 - API routes: **33**
 - Supabase migrations: **62**
-- Test files: **88**
+- Test files: **89**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **38**
@@ -370,6 +370,7 @@
 | `src/lib/programmatic-content.test.ts` |
 | `src/lib/queue-durability.test.ts` |
 | `src/lib/region-parity.test.ts` |
+| `src/lib/region-switch.test.ts` |
 | `src/lib/result-trust.test.ts` |
 | `src/lib/scoring.test.ts` |
 | `src/lib/security-headers.test.ts` |
@@ -395,7 +396,7 @@
 | `src/app/[region]/calculator/page.tsx` | 766 |
 | `src/app/api/ai/recommend/route.test.ts` | 623 |
 | `src/features/card-recommender/domain/scorer.ts` | 614 |
-| `src/app/[region]/cards/[slug]/page.tsx` | 598 |
+| `src/app/[region]/cards/[slug]/page.tsx` | 613 |
 
 ## 10. PM Operational Playbook
 
