@@ -4,14 +4,14 @@
 > Do not edit manually; regenerate after every change.
 
 - Git branch: `claude/cut-drip-emails`
-- Git commit: `07d1165`
+- Git commit: `252866c`
 
 ## 1. Executive Snapshot
 
 - User-facing pages: **30**
 - API routes: **31**
 - Supabase migrations: **62**
-- Test files: **77**
+- Test files: **78**
 - GitHub workflows: **6**
 - Feature-slice files: **20**
 - NPM scripts: **36**
@@ -311,6 +311,7 @@
 | `src/app/api/flight-watches/route.test.ts` |
 | `src/app/api/health/route.test.ts` |
 | `src/app/api/hotel-search/route.test.ts` |
+| `src/app/api/onboarding/complete/route.test.ts` |
 | `src/app/api/stripe/webhook/route.test.ts` |
 | `src/app/api/user/balances/route.test.ts` |
 | `src/app/profile/page.test.tsx` |
