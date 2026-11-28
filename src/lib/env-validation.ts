@@ -87,7 +87,6 @@ const REQUIRED_ENV_VARS: EnvVarConfig[] = [
   { name: 'INNGEST_SIGNING_KEY', type: 'string', required: false },
 
   // Admin (Optional)
-  { name: 'ADMIN_API_KEY', type: 'string', required: false, validate: (v) => v.length >= 32 || 'Must be at least 32 characters' },
 
   // Security (Optional)
   { name: 'CORS_ALLOWED_ORIGINS', type: 'string', required: false, validate: validateCorsAllowedOrigins },
