@@ -7,7 +7,6 @@ import { badRequest } from '@/lib/error-utils'
 import { getSafeExternalUrl } from '@/lib/card-surfaces'
 
 const MAX_BODY_BYTES = 8_000
-const CREATOR_REF_COOKIE = 'pm_creator_ref'
 
 type Payload = {
   card_id?: unknown
@@ -18,7 +17,6 @@ type Payload = {
   recommendation_mode?: unknown
 }
 
-type CreatorSlugRow = { slug: string }
 type CardRow = { id: string; apply_url: string | null }
 type UserIdRow = { id: string }
 
@@ -45,20 +43,12 @@ function normalizeRank(value: unknown): number | null {
   return null
 }
 
-function normalizeCreatorSlug(value: string | null): string | null {
-  if (!value) return null
-  const trimmed = value.trim().toLowerCase()
-  if (!trimmed) return null
-  return /^[a-z0-9-]{2,64}$/.test(trimmed) ? trimmed : null
-}
-
 async function insertWithRetry(
   db: ReturnType<typeof createAdminClient>,
   payload: {
     card_id: string
     user_id: string | null
     source_page: string
-    creator_slug: string | null
     rank: number | null
     region: string | null
     recommendation_mode: string | null
@@ -127,17 +117,6 @@ async function trackAndReturn(
   }
 
   const db = createAdminClient()
-  const creatorSlug = normalizeCreatorSlug(req.cookies.get(CREATOR_REF_COOKIE)?.value ?? null)
-  let resolvedCreatorSlug: string | null = null
-  if (creatorSlug) {
-    const { data: creatorData } = await db
-      .from('creators')
-      .select('slug')
-      .eq('slug', creatorSlug)
-      .maybeSingle()
-    const creator = (creatorData ?? null) as CreatorSlugRow | null
-    resolvedCreatorSlug = creator?.slug ?? null
-  }
   const { data: cardData, error: cardErr } = await db
     .from('cards')
     .select('id, apply_url')
@@ -182,7 +161,6 @@ async function trackAndReturn(
     card_id: cardId,
     user_id: userId,
     source_page: sourcePage,
-    creator_slug: resolvedCreatorSlug,
     rank,
     region,
     recommendation_mode: recommendationMode,
@@ -196,7 +174,6 @@ async function trackAndReturn(
       attempts: 3,
       user_id: userId,
       source_page: sourcePage,
-      creator_slug: resolvedCreatorSlug,
       rank,
       region,
     })
@@ -215,7 +192,6 @@ async function trackAndReturn(
     card_id: cardId,
     source_page: sourcePage,
     user_id: userId,
-    creator_slug: resolvedCreatorSlug,
     rank,
     region,
   })
