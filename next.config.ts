@@ -9,7 +9,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com https://seats.aero https://*.ingest.sentry.io https://us.i.posthog.com https://*.posthog.com",
+  "connect-src 'self' https://*.ingest.sentry.io https://us.i.posthog.com https://*.posthog.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
@@ -17,7 +17,6 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
-  // ISR pages for cards/programs are revalidated by cron via revalidateTag/revalidatePath.
   turbopack: {
     root: __dirname,
   },

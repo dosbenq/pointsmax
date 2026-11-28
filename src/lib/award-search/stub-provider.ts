@@ -1,6 +1,6 @@
 // ============================================================
 // Stub Provider — Static award estimates + deep links
-// Uses award charts for mile estimates and Supabase for
+// Uses award charts for mile estimates and the catalog for
 // transfer partner data. No external API calls.
 // ============================================================
 

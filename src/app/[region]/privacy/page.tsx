@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-const LAST_UPDATED = 'February 21, 2026'
+const LAST_UPDATED = 'November 28, 2026'
 
 export default function PrivacyPage() {
   return (
@@ -43,24 +43,24 @@ export default function PrivacyPage() {
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">How We Use Data</h2>
             <p className="text-sm text-pm-ink-700">
-              We use data to deliver calculator results, trip recommendations, transfer alerts, fraud/rate-limit protection,
-              and product performance improvements.
+              We use data to show which airline programs your points can reach, keep your saved wallet, send the alerts
+              you sign up for, protect the service against fraud and abuse, and improve the product.
             </p>
           </section>
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">Service Providers</h2>
             <p className="text-sm text-pm-ink-700">
-              PointsMax uses Supabase for data storage/authentication, Resend for email delivery, Stripe for billing,
-              and Seats.aero data when live award availability is enabled.
+              PointsMax uses Neon for data storage, Google for sign-in, Vercel for hosting, PostHog for product
+              analytics, Resend for email delivery and Stripe for billing, and Sentry for error reports when it is enabled.
             </p>
           </section>
 
           <section className="pm-card p-6 space-y-3">
             <h2 className="pm-heading text-lg">Affiliate Disclosure</h2>
             <p className="text-sm text-pm-ink-700">
-              We may earn commissions when you apply for cards through links on PointsMax. This does not change our ranking logic,
-              which is based on your spending profile and projected value.
+              PointsMax does not use affiliate links today. Links to airline websites are plain links. If that changes,
+              we will say so here and next to the link.
             </p>
           </section>
 

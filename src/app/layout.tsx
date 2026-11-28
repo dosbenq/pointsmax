@@ -2,17 +2,12 @@ import type { Metadata } from 'next'
 import { GeistMono, GeistSans } from 'geist/font'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
-import { assertServerEnv, shouldAssertServerEnvAtStartup } from '@/lib/env'
 import MonitoringBoot from '@/components/MonitoringBoot'
 import PostHogIdentify from '@/components/PostHogIdentify'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { createSafeJsonLdScript } from '@/lib/jsonld-sanitize'
 import { getConfiguredAppOrigin } from '@/lib/app-origin'
-
-if (shouldAssertServerEnvAtStartup()) {
-  assertServerEnv()
-}
 
 const BASE_URL = getConfiguredAppOrigin()
 

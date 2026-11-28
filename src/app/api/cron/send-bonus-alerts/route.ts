@@ -96,9 +96,9 @@ function buildEmailHtml(opts: {
                 Transfer your ${opts.fromName} points to ${opts.toName} now and get ${opts.bonusPct}% more miles/points.
               </p>
             </div>
-            <a href="${opts.appUrl}/calculator"
+            <a href="${opts.appUrl}/"
                style="display:inline-block;background:#0f172a;color:white;text-decoration:none;font-size:0.875rem;font-weight:600;padding:12px 24px;border-radius:100px;">
-              View in Calculator →
+              See what your points reach →
             </a>
           </td>
         </tr>

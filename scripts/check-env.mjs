@@ -2,15 +2,16 @@
 import fs from 'fs'
 import path from 'path'
 
-const REQUIRED = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-]
+// The public pages run on the catalog alone; sign-in and saved data also
+// need the database and auth settings (checked live by /api/setup/status).
+const REQUIRED = ['NEXT_PUBLIC_APP_URL']
 
 const OPTIONAL = [
+  'DATABASE_URL',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'BETTER_AUTH_SECRET',
   'ADMIN_EMAIL',
-  'GEMINI_API_KEY',
   'INNGEST_EVENT_KEY',
   'INNGEST_SIGNING_KEY',
   'SEATS_AERO_API_KEY',
@@ -18,7 +19,6 @@ const OPTIONAL = [
   'RESEND_FROM_EMAIL',
   'CRON_SECRET',
   'ALERTS_TOKEN_SECRET',
-  'NEXT_PUBLIC_APP_URL',
   'CORS_ALLOWED_ORIGINS',
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
@@ -27,7 +27,6 @@ const OPTIONAL = [
   'STRIPE_PRO_PRICE_ID',
   'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY',
   'ALLOW_STUB_AWARD_SEARCH',
-  'BYPASS_PREMIUM_AI_GATE',
   'SENTRY_DSN',
   'HEALTHCHECK_SECRET',
 ]
@@ -52,6 +51,8 @@ function loadDotEnv(filepath) {
 const cwd = process.cwd()
 loadDotEnv(path.join(cwd, '.env.local'))
 loadDotEnv(path.join(cwd, '.env'))
+// The Vercel Neon integration may provide POSTGRES_URL instead.
+if (!process.env.DATABASE_URL?.trim() && process.env.POSTGRES_URL?.trim()) process.env.DATABASE_URL = process.env.POSTGRES_URL
 
 const missingRequired = REQUIRED.filter((k) => !process.env[k] || !process.env[k].trim())
 const missingOptional = OPTIONAL.filter((k) => !process.env[k] || !process.env[k].trim())

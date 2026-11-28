@@ -53,7 +53,7 @@ function generateCSP(config: SecurityHeadersConfig): string {
     "font-src 'self' data:",
 
     // Connect - allow API calls and analytics
-    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://*.posthog.com",
+    "connect-src 'self' https://api.stripe.com https://*.sentry.io https://us.i.posthog.com https://*.posthog.com",
 
     // Frame ancestors - prevent clickjacking
     "frame-ancestors 'none'",

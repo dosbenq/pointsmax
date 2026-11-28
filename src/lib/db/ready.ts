@@ -1,20 +1,12 @@
 // ============================================================
-// The database is "ready" once the schema is applied and the one-off copy
-// from Supabase has finished. Everything that reads or writes user data
-// waits for this, so nobody is ever served an empty Neon in the meantime.
+// The database is "ready" once the schema is applied. Everything that reads
+// or writes user data waits for this and answers 503 when it fails, so a
+// missing DATABASE_URL or a Neon outage never looks like an empty account.
 // ============================================================
 
 import { getDb } from './client'
 import { ensureSchema } from './migrate'
-import {
-  createSupabaseReader,
-  importFromSupabase,
-  isSupabaseImportComplete,
-  type SourceReader,
-  type SupabaseLike,
-} from './supabase-import'
-import { createAdminClient } from '@/lib/supabase'
-import { logError, logInfo } from '@/lib/logger'
+import { logError } from '@/lib/logger'
 
 export class DatabaseNotReadyError extends Error {
   constructor(message: string) {
@@ -23,62 +15,14 @@ export class DatabaseNotReadyError extends Error {
   }
 }
 
-function hasSupabaseSource(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() && process.env.SUPABASE_SERVICE_ROLE_KEY?.trim())
-}
-
-async function prepare(createReader: () => SourceReader): Promise<void> {
-  const db = getDb()
-  await ensureSchema(() => db)
-  if (await isSupabaseImportComplete(db)) return
-
-  const isProduction = process.env.VERCEL_ENV === 'production'
-  if (!hasSupabaseSource()) {
-    // Local development and CI have nothing to copy. Production must never
-    // start serving user data without the copy.
-    if (isProduction) {
-      throw new DatabaseNotReadyError('The copy from Supabase has not run and Supabase credentials are missing')
-    }
-    return
+/** Resolves once user data can be served; throws DatabaseNotReadyError otherwise. */
+export async function ensureDatabaseReady(): Promise<void> {
+  try {
+    // ensureSchema is shared per server instance and retried 30s after a failure.
+    await ensureSchema(getDb)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logError('database_not_ready', { error: message })
+    throw error instanceof DatabaseNotReadyError ? error : new DatabaseNotReadyError(message)
   }
-  if (!isProduction) {
-    // Only the production deployment may make the one-off copy: a preview
-    // sharing this database would otherwise copy early and mark it done,
-    // and everything production writes to Supabase afterwards would be lost.
-    throw new DatabaseNotReadyError('The copy from Supabase runs only on the production deployment')
-  }
-
-  const report = await importFromSupabase(db, createReader(), { dryRun: false })
-  logInfo('supabase_import_finished', { status: report.status, tables: report.tables })
-}
-
-type ReadyState = { promise: Promise<void>; failedAt?: number }
-const RETRY_AFTER_FAILURE_MS = 30_000
-
-/** Resolves once user data can be served; throws DatabaseNotReadyError otherwise. Shared per instance. */
-export function ensureDatabaseReady(
-  createReader: () => SourceReader = () => createSupabaseReader(createAdminClient() as unknown as SupabaseLike),
-): Promise<void> {
-  const g = globalThis as typeof globalThis & { __pointsmaxDbReady?: ReadyState }
-  const state = g.__pointsmaxDbReady
-  if (state && (state.failedAt === undefined || Date.now() - state.failedAt < RETRY_AFTER_FAILURE_MS)) {
-    return state.promise
-  }
-
-  const next: ReadyState = {
-    promise: prepare(createReader).catch((error: unknown) => {
-      next.failedAt = Date.now()
-      const message = error instanceof Error ? error.message : String(error)
-      logError('database_not_ready', { error: message })
-      throw error instanceof DatabaseNotReadyError ? error : new DatabaseNotReadyError(message)
-    }),
-  }
-  g.__pointsmaxDbReady = next
-  return next.promise
-}
-
-/** Tests only. */
-export function resetDatabaseReadyForTesting(): void {
-  const g = globalThis as typeof globalThis & { __pointsmaxDbReady?: ReadyState }
-  delete g.__pointsmaxDbReady
 }

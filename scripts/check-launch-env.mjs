@@ -3,9 +3,10 @@ import fs from 'fs'
 import path from 'path'
 
 const REQUIRED = [
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
+  'DATABASE_URL',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'BETTER_AUTH_SECRET',
   'NEXT_PUBLIC_APP_URL',
   'CRON_SECRET',
   'RESEND_API_KEY',
@@ -45,6 +46,8 @@ function readEnv() {
   const cwd = process.cwd()
   loadDotEnv(path.join(cwd, '.env.local'))
   loadDotEnv(path.join(cwd, '.env'))
+  // The Vercel Neon integration may provide POSTGRES_URL instead.
+  if (!process.env.DATABASE_URL?.trim() && process.env.POSTGRES_URL?.trim()) process.env.DATABASE_URL = process.env.POSTGRES_URL
 }
 
 function isPresent(key) {
@@ -83,11 +86,10 @@ if (missingRecommended.length) {
   console.log(`- Recommended missing: ${missingRecommended.join(', ')}`)
 }
 
-const validations = [
-  checkUrl('NEXT_PUBLIC_APP_URL'),
-  checkUrl('NEXT_PUBLIC_SUPABASE_URL'),
-]
-.filter(Boolean)
+const validations = [checkUrl('NEXT_PUBLIC_APP_URL')].filter(Boolean)
+if (isPresent('BETTER_AUTH_SECRET') && process.env.BETTER_AUTH_SECRET.trim().length < 32) {
+  validations.push('BETTER_AUTH_SECRET must be at least 32 characters')
+}
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL?.trim()
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim()

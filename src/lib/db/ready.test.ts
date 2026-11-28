@@ -1,113 +1,44 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sql } from 'drizzle-orm'
 import { setDbForTesting } from './client'
 import { resetSchemaStateForTesting } from './migrate'
-import { isSupabaseImportComplete, type SourceReader } from './supabase-import'
 import { createTestDb } from '@/test/utils/test-db'
 
+vi.mock('@/lib/logger', () => ({ logError: vi.fn(), logInfo: vi.fn(), logWarn: vi.fn() }))
+
 // vitest.setup.ts replaces the gate with a no-op for every other test; use the real one here.
-const { ensureDatabaseReady, resetDatabaseReadyForTesting, DatabaseNotReadyError } =
-  await vi.importActual<typeof import('./ready')>('./ready')
+const { ensureDatabaseReady, DatabaseNotReadyError } = await vi.importActual<typeof import('./ready')>('./ready')
 
-const ENV_KEYS = ['VERCEL_ENV', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] as const
-let saved: Partial<Record<(typeof ENV_KEYS)[number], string>>
-
-const ALICE = '11111111-1111-4111-8111-111111111111'
-function readerWithOneUser(): SourceReader & { calls: number } {
-  const reader = {
-    calls: 0,
-    async readAll(table: string) {
-      reader.calls += 1
-      return { rows: table === 'users' ? [{ id: ALICE, email: 'alice@example.com' }] : [], missing: false }
-    },
-  }
-  return reader
-}
+const savedUrls = { DATABASE_URL: process.env.DATABASE_URL, POSTGRES_URL: process.env.POSTGRES_URL }
 
 beforeEach(() => {
-  saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
-  resetDatabaseReadyForTesting()
   resetSchemaStateForTesting()
 })
 
 afterEach(() => {
-  for (const key of ENV_KEYS) {
-    if (saved[key] === undefined) delete process.env[key]
-    else process.env[key] = saved[key]
+  for (const [key, value] of Object.entries(savedUrls)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
   }
   setDbForTesting(null)
-  resetDatabaseReadyForTesting()
   resetSchemaStateForTesting()
 })
 
 describe('ensureDatabaseReady', () => {
-  it('copies from Supabase once, then serves', async () => {
-    process.env.VERCEL_ENV = 'production'
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
+  it('serves once the schema is applied', async () => {
     const db = await createTestDb()
     setDbForTesting(db)
-    const reader = readerWithOneUser()
 
-    await Promise.all([ensureDatabaseReady(() => reader), ensureDatabaseReady(() => reader)])
-    expect(await isSupabaseImportComplete(db)).toBe(true)
-    const callsAfterImport = reader.calls
-
-    resetDatabaseReadyForTesting() // a new server instance
-    await ensureDatabaseReady(() => reader)
-    expect(reader.calls).toBe(callsAfterImport) // marker found, nothing read again
+    await expect(ensureDatabaseReady()).resolves.toBeUndefined()
+    const result = await db.execute(sql`select count(*)::int as n from app_schema_migrations`)
+    expect((result as unknown as { rows: Array<{ n: number }> }).rows[0].n).toBeGreaterThan(0)
   })
 
-  it('refuses to serve production without the copy or a way to make it', async () => {
-    process.env.VERCEL_ENV = 'production'
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY
-    setDbForTesting(await createTestDb())
+  it('fails closed when there is no database configured', async () => {
+    delete process.env.DATABASE_URL
+    delete process.env.POSTGRES_URL
 
-    await expect(ensureDatabaseReady(readerWithOneUser)).rejects.toBeInstanceOf(DatabaseNotReadyError)
-  })
-
-  it('is ready without a copy in development when there is no Supabase to copy from', async () => {
-    delete process.env.VERCEL_ENV
-    delete process.env.NEXT_PUBLIC_SUPABASE_URL
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY
-    setDbForTesting(await createTestDb())
-
-    await expect(ensureDatabaseReady(readerWithOneUser)).resolves.toBeUndefined()
-  })
-
-  it('never copies from a preview deployment, even with Supabase credentials', async () => {
-    process.env.VERCEL_ENV = 'preview'
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
-    const db = await createTestDb()
-    setDbForTesting(db)
-    const reader = readerWithOneUser()
-
-    await expect(ensureDatabaseReady(() => reader)).rejects.toThrow(/only on the production deployment/)
-    expect(reader.calls).toBe(0)
-    expect(await isSupabaseImportComplete(db)).toBe(false)
-  })
-
-  it('serves a preview once production has made the copy', async () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
-    setDbForTesting(await createTestDb())
-    process.env.VERCEL_ENV = 'production'
-    await ensureDatabaseReady(readerWithOneUser)
-
-    resetDatabaseReadyForTesting()
-    process.env.VERCEL_ENV = 'preview'
-    await expect(ensureDatabaseReady(readerWithOneUser)).resolves.toBeUndefined()
-  })
-
-  it('fails closed when the copy fails', async () => {
-    process.env.VERCEL_ENV = 'production'
-    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role'
-    setDbForTesting(await createTestDb())
-    const failing: SourceReader = { readAll: async () => { throw new Error('Supabase paused') } }
-
-    await expect(ensureDatabaseReady(() => failing)).rejects.toThrow('Supabase paused')
+    await expect(ensureDatabaseReady()).rejects.toBeInstanceOf(DatabaseNotReadyError)
   })
 })

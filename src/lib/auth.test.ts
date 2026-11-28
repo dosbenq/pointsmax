@@ -67,7 +67,7 @@ describe('linking a copied profile on first sign-in', () => {
   async function setup() {
     process.env.BETTER_AUTH_SECRET = 'x'.repeat(40)
     const db = await createTestDb()
-    // A profile copied from Supabase: no sign-in yet, premium, with saved data.
+    // A profile from before the move to Neon: no sign-in yet, premium, with saved data.
     await db.insert(users).values({ id: COPIED_ID, email: 'alice@example.com', tier: 'premium', stripeCustomerId: 'cus_alice' })
     await db.insert(userBalances).values({ userId: COPIED_ID, programId: '22222222-2222-4222-8222-222222222222', balance: 120000 })
     // Email/password stands in for Google here: both create the sign-in through the same hook.

@@ -537,8 +537,8 @@ export function ProfilePageContent({ initialRegion }: { initialRegion?: Region }
                 <button onClick={() => void signInWithGoogle()} className="pm-button-secondary" type="button">
                   Sign in with Google
                 </button>
-                <Link href={`/${region}/calculator`} className="pm-button-secondary">
-                  Go to Planner
+                <Link href={`/${region}`} className="pm-button-secondary">
+                  Go to search
                 </Link>
               </div>
             </div>

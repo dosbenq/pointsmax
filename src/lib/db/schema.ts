@@ -6,9 +6,6 @@
 // point at it (program_id, card_id, transfer_partner_id) are plain UUIDs
 // without foreign keys.
 //
-// Table and column names match the old Supabase tables so rows can be
-// copied across with their original IDs (see src/lib/db/supabase-import.ts).
-//
 // To change the schema: edit this file, run `npm run db:generate`, commit
 // the new SQL in db/migrations and the regenerated
 // src/lib/db/migrations.generated.ts. Migrations are applied by the app
@@ -257,7 +254,7 @@ export const cashFareCache = pgTable('cash_fare_cache', {
 
 // ── Operations ─────────────────────────────────────────────────
 
-/** One row per completed one-off data import (e.g. the copy from Supabase). */
+/** One row per completed one-off data import (the November 2026 move to Neon). */
 export const dataImports = pgTable('data_imports', {
   id: text().primaryKey().notNull(),
   completedAt: isoTimestamp('completed_at').default(sql`now()`).notNull(),

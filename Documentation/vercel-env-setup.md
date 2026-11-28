@@ -14,7 +14,19 @@ This runbook sets the launch-blocking production env vars via Vercel CLI.
    vercel project ls
    ```
 
-## 2) Set Variables Locally in Your Shell
+## 2) Database and sign-in
+
+- **Database:** Vercel → Storage → Create Database → Neon, connected to
+  Production and Preview. This sets `DATABASE_URL` (and `POSTGRES_URL`); don't
+  add it by hand. The app applies `db/migrations` itself on first use.
+- **Google sign-in:** in the Google OAuth client, add the redirect URI
+  `https://<your domain>/api/auth/callback/google`, then set
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `BETTER_AUTH_SECRET`
+  (`openssl rand -base64 32`) for Production and Preview.
+- Check with `GET /api/setup/status`: every `configured` flag true,
+  `google.ok` and `schema.ok` true.
+
+## 3) Other variables, from your shell
 
 Replace placeholders first:
 
@@ -22,9 +34,6 @@ Replace placeholders first:
 export RESEND_API_KEY="re_xxx"
 export RESEND_FROM_EMAIL="alerts@yourdomain.com"
 export NEXT_PUBLIC_APP_URL="https://pointsmax.com"
-export NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
-export NEXT_PUBLIC_SUPABASE_ANON_KEY="ey..."
-export SUPABASE_SERVICE_ROLE_KEY="ey..."
 export STRIPE_SECRET_KEY="sk_live_xxx"
 export NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_xxx"
 export STRIPE_WEBHOOK_SECRET="whsec_xxx"
@@ -42,7 +51,7 @@ export UPSTASH_REDIS_REST_TOKEN="xxxx"
 export SEATS_AERO_API_KEY="xxxx"
 ```
 
-## 3) Push to Vercel Production
+## 4) Push to Vercel Production
 
 These commands overwrite existing values safely by removing then re-adding:
 
@@ -51,9 +60,6 @@ for key in \
   RESEND_API_KEY \
   RESEND_FROM_EMAIL \
   NEXT_PUBLIC_APP_URL \
-  NEXT_PUBLIC_SUPABASE_URL \
-  NEXT_PUBLIC_SUPABASE_ANON_KEY \
-  SUPABASE_SERVICE_ROLE_KEY \
   STRIPE_SECRET_KEY \
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY \
   STRIPE_WEBHOOK_SECRET \
@@ -72,7 +78,7 @@ done
 
 If you are not using an optional variable yet, skip it in the loop.
 
-## 4) Verify Values Exist
+## 5) Verify Values Exist
 
 ```bash
 vercel env ls production
@@ -80,9 +86,9 @@ vercel env ls production
 
 Expected: all required keys above are listed.
 
-PointsMax now pins Node `20.x` in `package.json`, so Vercel should use the same major version as GitHub Actions.
+PointsMax pins Node `26.x` in `package.json`, so Vercel uses the same major version as GitHub Actions.
 
-## 5) Redeploy to Apply
+## 6) Redeploy to Apply
 
 ```bash
 vercel --prod

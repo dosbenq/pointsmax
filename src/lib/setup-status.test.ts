@@ -1,10 +1,7 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { setDbForTesting } from '@/lib/db/client'
-import { ensureDatabaseReady } from '@/lib/db/ready'
 import { resetSchemaStateForTesting } from '@/lib/db/migrate'
-import { dataImports } from '@/lib/db/schema'
-import { SUPABASE_IMPORT_ID } from '@/lib/db/supabase-import'
 import { createTestDb } from '@/test/utils/test-db'
 import { checkGoogleCredentials, runSetupCheck, sanitizeError } from './setup-status'
 
@@ -15,7 +12,6 @@ beforeEach(() => {
   saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]))
   for (const key of ENV_KEYS) delete process.env[key]
   resetSchemaStateForTesting()
-  vi.mocked(ensureDatabaseReady).mockReset().mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -32,27 +28,24 @@ describe('runSetupCheck', () => {
     const status = await runSetupCheck()
     expect(status.configured.database_url).toBe(false)
     expect(status.schema).toEqual({ ok: false, error: 'DATABASE_URL is not set' })
-    expect(status.import).toBeUndefined()
   })
 
-  it('reports the completed copy with its per-table counts', async () => {
+  it('reports the applied schema', async () => {
     process.env.POSTGRES_URL = 'postgres://placeholder'
-    const db = await createTestDb()
-    setDbForTesting(db)
-    await db.insert(dataImports).values({ id: SUPABASE_IMPORT_ID, counts: { users: { source: 3, written: 3, skipped: 0 } } })
+    setDbForTesting(await createTestDb())
 
     const status = await runSetupCheck()
-    expect(status.schema).toMatchObject({ ok: true })
-    expect(status.import).toMatchObject({ ok: true, complete: true, tables: { users: { source: 3, written: 3, skipped: 0 } }, linked_profiles: 0 })
+    expect(status.schema).toMatchObject({ ok: true, applied_now: [] })
+    expect(status.google).toEqual({ ok: null, skipped: 'Google credentials are not set' })
   })
 
-  it('reports a failed copy without leaking connection details', async () => {
+  it('reports a schema failure without leaking connection details', async () => {
     process.env.DATABASE_URL = 'postgres://placeholder'
-    setDbForTesting(await createTestDb())
-    vi.mocked(ensureDatabaseReady).mockRejectedValue(new Error('connect failed for postgres://user:pw@db.example.com/postgres'))
+    const broken = { transaction: async () => { throw new Error('connect failed for postgres://user:pw@db.example.com/postgres') } }
+    setDbForTesting(broken as never)
 
     const status = await runSetupCheck()
-    expect(status.import).toEqual({ ok: false, error: 'connect failed for [database-url]' })
+    expect(status.schema).toEqual({ ok: false, error: 'connect failed for [database-url]' })
   })
 })
 
